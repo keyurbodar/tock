@@ -1,5 +1,5 @@
 import { toJsxRuntime } from "hast-util-to-jsx-runtime"
-import { memo, type ReactNode } from "react"
+import { memo, type ReactNode, useId } from "react"
 import { Fragment, jsx, jsxs } from "react/jsx-runtime"
 import rehypeSanitize from "rehype-sanitize"
 import remarkGfm from "remark-gfm"
@@ -7,6 +7,7 @@ import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import remend from "remend"
 import { unified } from "unified"
+import { useStreamFade } from "./chat/stream-fade"
 
 const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
 
@@ -70,8 +71,13 @@ function render(source: string): ReactNode {
   })
 }
 
-const Block = memo(function Block({ source }: { source: string }) {
-  return <div data-markdown-block="">{render(source)}</div>
+const Block = memo(function Block({ source, streaming, owner }: { source: string; streaming: boolean; owner: string }) {
+  const fade = useStreamFade(source, streaming, owner)
+  return (
+    <div ref={fade} data-md-fade-owner={owner} data-markdown-block="">
+      {render(source)}
+    </div>
+  )
 })
 
 export const Markdown = memo(function Markdown({
@@ -85,11 +91,12 @@ export const Markdown = memo(function Markdown({
   size?: "sm" | "xs"
   tone?: "muted"
 }) {
+  const owner = useId()
   const blocks = splitBlocks(streaming ? remend(children) : children)
   return (
     <div data-component="markdown" data-size={size} data-tone={tone}>
       {blocks.map((block, index) => (
-        <Block key={index} source={block} />
+        <Block key={index} source={block} streaming={streaming === true} owner={`${owner}${index}`} />
       ))}
     </div>
   )
