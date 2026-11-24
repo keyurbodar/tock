@@ -353,6 +353,44 @@ describe("tock production hardening", () => {
     });
   });
 
+  it("edits a secret's name and description without its value and guards its origin", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("vault-update@test"));
+    await runInDurableObject(stub, async (_instance, state) => {
+      const vault = new Vault(state.storage.sql, "test-master-key-32-bytes-minimum-1234");
+      await vault.set("gh", "ghp_first", "GitHub", "", "https://api.github.com");
+      await vault.set("other", "value", "", "", "https://example.com");
+
+      await vault.update("gh", { rename: "github", description: "GitHub token" });
+      expect(vault.listMeta().map((meta) => meta.name)).toEqual(["github", "other"]);
+      expect(vault.listMeta()[0]).toMatchObject({
+        description: "GitHub token",
+        origin: "https://api.github.com",
+      });
+      const header = "Bearer {{secret:github}}";
+      expect(await vault.injectForUrl("https://api.github.com/user", header)).toBe(
+        "Bearer ghp_first",
+      );
+
+      await expect(vault.update("github", { origin: "https://evil.example" })).rejects.toThrow(
+        "secret_value_required_for_origin_change",
+      );
+      await expect(vault.update("github", { rename: "other" })).rejects.toThrow(
+        "secret_exists:other",
+      );
+      await expect(vault.update("missing", { description: "x" })).rejects.toThrow(
+        "secret_not_found:missing",
+      );
+
+      await vault.update("github", { value: "ghp_second", origin: "https://uploads.github.com" });
+      expect(await vault.injectForUrl("https://uploads.github.com/x", header)).toBe(
+        "Bearer ghp_second",
+      );
+      await expect(vault.injectForUrl("https://api.github.com/user", header)).rejects.toThrow(
+        "locked to https://uploads.github.com",
+      );
+    });
+  });
+
   it("lists push devices with their label and without their keys", async () => {
     const res = await SELF.fetch("https://tock.local/ws", {
       headers: { upgrade: "websocket", "x-tock-owner": "push-devices@test" },

@@ -107,6 +107,41 @@ export class Vault {
     }
   }
 
+  async update(
+    name: string,
+    changes: { rename?: string; value?: string; description?: string; origin?: string },
+  ): Promise<void> {
+    const find = (key: string) =>
+      this.sql
+        .exec(`SELECT description, scopes, origin FROM tock_secrets WHERE name = ?`, key)
+        .toArray()[0];
+    const row = find(name);
+    if (!row) throw new Error(`secret_not_found:${name}`);
+    const target = changes.rename ?? name;
+    if (target !== name && find(target)) throw new Error(`secret_exists:${target}`);
+    const stored = String(row.origin ?? "");
+    const origin = changes.origin === undefined ? stored : normalizeSecretOrigin(changes.origin);
+    const description = changes.description ?? String(row.description ?? "");
+    if (changes.value === undefined) {
+      if (origin !== stored) throw new Error("secret_value_required_for_origin_change");
+      this.sql.exec(
+        `UPDATE tock_secrets SET name = ?, description = ?, updated_at = ? WHERE name = ?`,
+        target,
+        description,
+        Date.now(),
+        name,
+      );
+      const cached = this.plainCache?.get(name);
+      if (cached && target !== name) {
+        this.plainCache?.set(target, cached);
+        this.plainCache?.delete(name);
+      }
+      return;
+    }
+    await this.set(target, changes.value, description, String(row.scopes ?? ""), origin);
+    if (target !== name) this.delete(name);
+  }
+
   delete(name: string): boolean {
     const before = this.sql
       .exec(`SELECT name FROM tock_secrets WHERE name = ?`, name)

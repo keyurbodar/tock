@@ -352,6 +352,14 @@ export class TockDO extends DurableObject<Env> {
           frame.origin,
         );
         return { name: frame.name, saved: true };
+      case "vault.update":
+        await this.vault.update(frame.name, {
+          rename: frame.rename,
+          value: frame.value,
+          description: frame.description,
+          origin: frame.origin,
+        });
+        return { name: frame.rename ?? frame.name, saved: true };
       case "vault.delete":
         return { deleted: this.vault.delete(frame.name) };
       case "mcp.list":

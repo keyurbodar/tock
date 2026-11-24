@@ -177,6 +177,15 @@ export type ClientFrame =
       scopes?: string;
       origin?: string;
     }
+  | {
+      id: string;
+      type: "vault.update";
+      name: string;
+      rename?: string;
+      value?: string;
+      description?: string;
+      origin?: string;
+    }
   | { id: string; type: "vault.delete"; name: string }
   | { id: string; type: "mcp.list" }
   | {

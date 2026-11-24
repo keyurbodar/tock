@@ -162,6 +162,15 @@ const clientFrameSchema = union([
     scopes: opt(str()),
     origin: opt(str()),
   }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("vault.update"),
+    name: str({ minLength: 1 }),
+    rename: opt(str({ minLength: 1, maxLength: 128 })),
+    value: opt(str({ minLength: 1 })),
+    description: opt(str()),
+    origin: opt(str()),
+  }),
   obj({ id: str({ minLength: 1 }), type: lit("vault.delete"), name: str({ minLength: 1 }) }),
   obj({ id: str({ minLength: 1 }), type: lit("mcp.list") }),
   obj({
