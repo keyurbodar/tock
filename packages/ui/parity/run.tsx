@@ -1,8 +1,6 @@
 import { Glob } from "bun"
 import { join } from "node:path"
-import { renderToStaticMarkup } from "react-dom/server"
-import { compare } from "./canon"
-import type { Case } from "./case"
+import { evaluate, type Listed } from "./case"
 
 const dir = import.meta.dir
 const fixtures: Record<string, { html: string; cap: string }> = await Bun.file(join(dir, "fixtures/specimens.json")).json()
@@ -20,7 +18,7 @@ let total = 0
 
 for (const file of [...new Glob("cases/*.tsx").scanSync(dir)].sort()) {
   if (only && !file.includes(only)) continue
-  const mod: { default: ReadonlyArray<Case & { component: string }> } = await import(join(dir, file))
+  const mod: { default: readonly Listed[] } = await import(join(dir, file))
   for (const item of mod.default) {
     total += 1
     const fixture = fixtures[item.ref]
@@ -29,8 +27,7 @@ for (const file of [...new Glob("cases/*.tsx").scanSync(dir)].sort()) {
       console.log(`MISSING ${item.component} ${item.ref} ${item.name}`)
       continue
     }
-    const frame = (item.measured ?? []).reduce((html, property) => html.replace(new RegExp(`\\s*${property}:[^;"]*;?`, "g"), ""), fixture.html)
-    const result = compare(frame, renderToStaticMarkup(item.render()).replace(/<link rel="preload"[^>]*>/g, ""))
+    const result = evaluate(item, fixture.html)
     if (result.mismatches.length === 0) {
       const note = item.measured ? `, ${item.measured.join(", ")} set at run time` : ""
       console.log(`pass ${item.component} ${item.ref} ${item.name} (${result.nodes} nodes${note})`)

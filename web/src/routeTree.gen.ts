@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as FilesRouteImport } from './routes/files'
+import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as RoutinesRouteImport } from './routes/routines'
 import { Route as CSessionIdRouteImport } from './routes/c.$sessionId'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const FilesRoute = FilesRouteImport.update({
   id: '/files',
   path: '/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MemoryRoute = MemoryRouteImport.update({
@@ -56,6 +62,7 @@ const SettingsSectionRoute = SettingsSectionRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/files': typeof FilesRoute
+  '/gallery': typeof GalleryRoute
   '/memory': typeof MemoryRoute
   '/routines': typeof RoutinesRoute
   '/c/$sessionId': typeof CSessionIdRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/files': typeof FilesRoute
+  '/gallery': typeof GalleryRoute
   '/memory': typeof MemoryRoute
   '/routines': typeof RoutinesRoute
   '/c/$sessionId': typeof CSessionIdRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/files': typeof FilesRoute
+  '/gallery': typeof GalleryRoute
   '/memory': typeof MemoryRoute
   '/routines': typeof RoutinesRoute
   '/c/$sessionId': typeof CSessionIdRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/files'
+    | '/gallery'
     | '/memory'
     | '/routines'
     | '/c/$sessionId'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/files'
+    | '/gallery'
     | '/memory'
     | '/routines'
     | '/c/$sessionId'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/files'
+    | '/gallery'
     | '/memory'
     | '/routines'
     | '/c/$sessionId'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FilesRoute: typeof FilesRoute
+  GalleryRoute: typeof GalleryRoute
   MemoryRoute: typeof MemoryRoute
   RoutinesRoute: typeof RoutinesRoute
   CSessionIdRoute: typeof CSessionIdRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/files'
       fullPath: '/files'
       preLoaderRoute: typeof FilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/memory': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FilesRoute: FilesRoute,
+  GalleryRoute: GalleryRoute,
   MemoryRoute: MemoryRoute,
   RoutinesRoute: RoutinesRoute,
   CSessionIdRoute: CSessionIdRoute,
