@@ -116,8 +116,8 @@ function Devices() {
 
   if (list === null) return null
   const own = list.devices.find((device) => device.endpoint === list.own)
-  if (support === "unsupported" && own === undefined) return null
   const others = list.devices.filter((device) => device.endpoint !== list.own)
+  if (support === "unsupported" && own === undefined && others.length === 0) return null
 
   const badge = <Badge tone="accent">This device</Badge>
   const withBadge = (text: string) => (
