@@ -10,32 +10,34 @@ import { unified } from "unified"
 
 const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
 
-interface MdNode {
+interface HtmlNode {
   type: string
-  url?: string
-  alt?: string | null
+  tagName?: string
   value?: string
-  children?: MdNode[]
+  properties?: Record<string, unknown>
+  children?: HtmlNode[]
 }
 
-function linkRemoteImages(node: MdNode, linked: boolean): void {
+function linkRemoteImages(node: HtmlNode, linked: boolean): void {
   if (!node.children) return
   node.children = node.children.map((child) => {
-    if (child.type !== "image" || LOCAL_IMAGE.test(child.url ?? "")) return child
-    const label: MdNode = { type: "text", value: child.alt || "Image" }
-    return linked ? label : { type: "link", url: child.url, children: [label] }
+    const src = child.properties?.src
+    if (child.tagName !== "img" || (typeof src === "string" && LOCAL_IMAGE.test(src))) return child
+    const alt = child.properties?.alt
+    const label: HtmlNode = { type: "text", value: typeof alt === "string" && alt ? alt : "Image" }
+    return linked ? label : { type: "element", tagName: "a", properties: { href: src }, children: [label] }
   })
-  for (const child of node.children) linkRemoteImages(child, linked || child.type === "link")
+  for (const child of node.children) linkRemoteImages(child, linked || child.tagName === "a")
 }
 
-const remoteImagesAsLinks = () => (tree: MdNode) => linkRemoteImages(tree, false)
+const remoteImagesAsLinks = () => (tree: HtmlNode) => linkRemoteImages(tree, false)
 
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
-  .use(remoteImagesAsLinks)
   .use(remarkRehype)
   .use(rehypeSanitize)
+  .use(remoteImagesAsLinks)
 
 const FENCE = /^\s*(```|~~~)/
 
