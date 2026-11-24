@@ -1,4 +1,4 @@
-import { toast } from "sonner"
+import { toast } from "@tock/ui/toast"
 
 const REVOKE_AFTER = 60_000
 

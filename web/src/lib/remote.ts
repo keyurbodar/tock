@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "@tock/ui/toast"
 
 export function useRemote<T>(load: () => Promise<T>, initial: T) {
   const [data, setData] = useState(initial)

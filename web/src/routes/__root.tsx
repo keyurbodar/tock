@@ -2,7 +2,7 @@ import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router"
 import { wallpaperImage } from "@tock/theme/apply"
 import { Backdrop } from "@tock/ui/backdrop"
 import { useEffect, useState } from "react"
-import { Toaster } from "sonner"
+import { Toaster } from "@tock/ui/toast"
 import { ShellContext, type SidebarState } from "../shell/context"
 import { Palette } from "../shell/palette"
 import { Sidebar } from "../shell/sidebar"
@@ -60,7 +60,7 @@ function Root() {
         </div>
       </div>
       <Palette />
-      <Toaster position="bottom-right" theme="system" />
+      <Toaster position="bottom-right" />
     </ShellContext>
   )
 }

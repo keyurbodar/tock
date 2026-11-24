@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { toast } from "sonner"
+import { toast } from "@tock/ui/toast"
 import { Composer } from "../chat/composer"
 import { HomeSidebarButton } from "../shell/page-header"
 import { createSession, send } from "../state/thread"

@@ -12,5 +12,6 @@ export const motion = {
     swipe: { far: 60, near: 24, speed: 0.5, ratio: 2 },
   },
   strip: { thumb: 48, pitch: 54, overscan: 4, gap: 6 },
+  toast: { width: 382, swap: 400 },
   reveal: { steps: 24, duration: 160, merge: 0.25, fresh: 64, curve: 2.4 },
 } as const
