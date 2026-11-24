@@ -9,6 +9,7 @@ import remend from "remend"
 import { unified } from "unified"
 import { useStreamFade } from "./chat/stream-fade"
 import { MarkdownCode } from "./markdown-code"
+import { MarkdownImage } from "./markdown-gallery"
 import { MarkdownMermaid } from "./markdown-mermaid"
 
 const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
@@ -96,6 +97,7 @@ export function renderMarkdown(source: string): ReactNode {
         </div>
       ),
       a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+      img: ({ src, alt }) => <MarkdownImage src={typeof src === "string" ? src : undefined} alt={alt} />,
     },
   })
 }

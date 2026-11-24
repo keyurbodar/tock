@@ -1,12 +1,13 @@
 import { ErrorAlert } from "@tock/ui/alert"
 import { DotGrid } from "@tock/ui/dot-grid"
 import { Markdown } from "@tock/ui/markdown"
+import { ImageGallery, MarkdownImageView, type ViewedImage } from "@tock/ui/markdown-gallery"
 import { ActivityLine, ActivityLiveStatus, ActivityStatus, WorkGroup } from "@tock/ui/chat/activity-line"
 import { Step as StepView, StepBody, StepCard, StepOutput, StepThought } from "@tock/ui/chat/step"
 import { SentAttachment, SentAttachments } from "@tock/ui/chat/attachments"
 import { AgentMessage, AutomationMessage, CopyMessageButton, MessageSection, UserMessage } from "@tock/ui/chat/message"
 import { ChatStamp, ProgressEdge, ROW, ScrollToEnd } from "@tock/ui/timeline"
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { ToolResultMessage } from "../api/types"
 import { fileSize, messageTime, stamp, titleCase } from "../lib/format"
 import { ensureFiles, useFiles } from "../state/files"
@@ -99,6 +100,7 @@ function UserRow({ item }: { item: Extract<Item, { kind: "user" }> }) {
     RENDERABLE.has(file.mime.toLowerCase()) ? [{ key: file.id, kind: "image", label: file.name, url: fileUrl(file.id) }] : [],
   )
   const previewAt = media.findIndex((entry) => entry.key === previewing)
+  const inline = useMemo(() => item.images.map((image) => ({ src: `data:${image.mimeType};base64,${image.data}`, alt: "" })), [item.images])
   return (
     <>
       <UserMessage
@@ -106,30 +108,27 @@ function UserRow({ item }: { item: Extract<Item, { kind: "user" }> }) {
         actions={text === "" ? undefined : <CopyMessageButton text={text} />}
         clamp={{ text, expanded, onToggle: () => setExpanded((value) => !value) }}
         attachments={
-          attached.length > 0 || item.images.length > 0 ? (
-            <SentAttachments align="end">
-              {attached.map((file) => {
-                const preview = media.find((entry) => entry.key === file.id)
-                return (
-                  <SentAttachment
-                    key={file.id}
-                    name={file.name}
-                    mediaType={file.mime}
-                    size={fileSize(file.size)}
-                    previewUrl={preview?.url}
-                    onOpen={() => (preview === undefined ? window.open(fileUrl(file.id), "_blank", "noopener") : setPreviewing(file.id))}
-                  />
-                )
-              })}
-              {item.images.map((image, index) => (
-                <img
-                  key={index}
-                  alt=""
-                  src={`data:${image.mimeType};base64,${image.data}`}
-                  className="max-h-40 rounded-(--radius-card) border-[0.5px] border-border-1 object-cover"
-                />
-              ))}
-            </SentAttachments>
+          attached.length > 0 || inline.length > 0 ? (
+            <>
+              {attached.length > 0 ? (
+                <SentAttachments align="end">
+                  {attached.map((file) => {
+                    const preview = media.find((entry) => entry.key === file.id)
+                    return (
+                      <SentAttachment
+                        key={file.id}
+                        name={file.name}
+                        mediaType={file.mime}
+                        size={fileSize(file.size)}
+                        previewUrl={preview?.url}
+                        onOpen={() => (preview === undefined ? window.open(fileUrl(file.id), "_blank", "noopener") : setPreviewing(file.id))}
+                      />
+                    )
+                  })}
+                </SentAttachments>
+              ) : null}
+              {inline.length > 0 ? <ImageGallery images={inline} className="flex w-full flex-col items-end [&>div]:w-full" /> : null}
+            </>
           ) : undefined
         }
       >
@@ -193,6 +192,12 @@ export function Transcript({ state }: { state: ThreadState }) {
   const last = items.at(-1)
   const idle = working && (last === undefined || last.kind === "user" || last.kind === "routine" || (last.kind === "work" && !last.active))
   const first = items.find((item) => item.kind === "user")
+  const [viewing, setViewing] = useState<{ readonly images: readonly ViewedImage[]; readonly index: number }>()
+  const view = useCallback((images: readonly ViewedImage[], index: number) => setViewing({ images, index }), [])
+  const viewed = useMemo(
+    () => viewing?.images.map((image, index): MediaEntry => ({ key: `${index}`, kind: "image", label: image.alt === "" ? "Image" : image.alt, url: image.src })),
+    [viewing?.images],
+  )
 
   useLayoutEffect(() => {
     const element = scroller.current
@@ -227,11 +232,13 @@ export function Transcript({ state }: { state: ThreadState }) {
                 <ChatStamp>{stamp(first.at)}</ChatStamp>
               </div>
             ) : null}
-            {items.map((item) => (
-              <div key={item.key} className={ROW} data-chat-row-id={item.key}>
-                <Row item={item} />
-              </div>
-            ))}
+            <MarkdownImageView value={view}>
+              {items.map((item) => (
+                <div key={item.key} className={ROW} data-chat-row-id={item.key}>
+                  <Row item={item} />
+                </div>
+              ))}
+            </MarkdownImageView>
             {idle ? (
               <div className={ROW}>
                 <div className="flex min-h-7 items-center gap-1.5 py-1 text-sm font-medium text-muted-foreground-1">
@@ -251,6 +258,14 @@ export function Transcript({ state }: { state: ThreadState }) {
           </div>
           <ProgressEdge active={working} />
           <ScrollToEnd visible={away} onClick={toEnd} />
+          {viewing === undefined || viewed === undefined ? null : (
+            <AttachmentLightbox
+              entries={viewed}
+              index={viewing.index}
+              onIndexChange={(index) => setViewing({ images: viewing.images, index })}
+              onClose={() => setViewing(undefined)}
+            />
+          )}
         </div>
       </div>
     </div>

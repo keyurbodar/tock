@@ -214,6 +214,17 @@
   [data-component="markdown"][data-variant="inline"] img {
     cursor: inherit;
   }
+  [data-component="markdown"] [data-slot="markdown-gallery"] {
+    margin: 0px 0px 0.75em;
+  }
+  [data-component="markdown"] [data-slot="markdown-gallery"] img {
+    border-radius: 0px;
+  }
+  [data-component="markdown"][data-gallery] p img {
+    max-width: min(100%, var(--media-box-w));
+    max-height: var(--media-box-h);
+    vertical-align: top;
+  }
   [data-component="markdown"] :not(pre) > code {
     border-radius: var(--radius-sm);
     background: var(--secondary);

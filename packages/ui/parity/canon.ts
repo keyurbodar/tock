@@ -19,6 +19,7 @@ const style = (value: string) =>
     .replace(/calc\(([\d.]+)px \+ \(100% - ([\d.]+)px\) \* ([\d.]+)\)/g, linear)
     .replace(/#[0-9a-f]{6}\b/gi, rgb)
     .replace(/(^|[\s:(,])0px\b/g, "$10")
+    .replace(/aspect-ratio:\s*([\d.]+)(?:\s*\/\s*1)?\s*(?=;|$)/g, (_, ratio: string) => `aspect-ratio:${Number(Number(ratio).toPrecision(6))} / 1`)
     .split(";")
     .map((d) => d.trim())
     .filter((d) => d && !VOLATILE.has(d.slice(0, d.indexOf(":")).trim()))

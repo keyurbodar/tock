@@ -1,6 +1,7 @@
 import { cases } from "../case"
 import { renderMarkdown } from "../../src/markdown"
 import { MarkdownCode } from "../../src/markdown-code"
+import { MarkdownGallery, MarkdownImage, MarkdownImageView, rememberImageSize } from "../../src/markdown-gallery"
 import { MarkdownMermaid } from "../../src/markdown-mermaid"
 
 const TABLE = `| Element | State | Tool | Notes |
@@ -11,7 +12,21 @@ const TABLE = `| Element | State | Tool | Notes |
 | Dither grid | Live | \`show_visual\` | Bayer 4×4 |
 | Markdown | Live | \`message_user\` | This message |`
 
+const SHOT = "/api/files/file_BD7XF0BMYRF9WA28WZQ5SWFTYK"
+rememberImageSize(SHOT, { width: 1280, height: 900 })
+
 export default cases("Markdown", [
+  [
+    "R5infkhiI4|[data-slot=markdown-gallery]|0",
+    "single image of known size in the media box",
+    () => (
+      <MarkdownImageView value={() => {}}>
+        <MarkdownGallery>
+          <MarkdownImage src={SHOT} alt="Dithered visual style, dark theme" />
+        </MarkdownGallery>
+      </MarkdownImageView>
+    ),
+  ],
   [
     "pLhSrUNX0g|[data-component=markdown-code]|1",
     "plain text code block with wrap and copy",
