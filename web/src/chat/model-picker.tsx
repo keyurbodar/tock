@@ -69,7 +69,8 @@ export function ModelPicker({
 
   const chosen = (model: PickerModel<ThinkingLevel>) => {
     const wanted = model.key === value.model ? level : (drafts[model.key] ?? value.thinkingLevel)
-    return wanted !== null && wanted !== undefined && model.steps.includes(wanted) ? wanted : null
+    if (wanted === null || wanted === undefined) return null
+    return model.steps.includes(wanted) ? wanted : (model.steps[0] ?? null)
   }
   const levelOf = (model: PickerModel<ThinkingLevel>) => chosen(model) ?? model.steps[0]
 
