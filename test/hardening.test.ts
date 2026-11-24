@@ -479,6 +479,31 @@ describe("tock production hardening", () => {
     ws.close();
   });
 
+  it("leaves provider keys out of the secrets list", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("vault-list@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { vault } = instance as unknown as { vault: Vault };
+      await vault.set("llm:provider", "sk-provider", "provider API key", "llm");
+      await vault.set("gh", "ghp_value", "GitHub", "", "https://api.github.com");
+    });
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "vault-list@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { data?: unknown }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; data?: unknown };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    ws.send(JSON.stringify({ id: "list", type: "vault.list" }));
+    await vi.waitFor(() => expect(replies.has("list")).toBe(true), { timeout: 15_000 });
+    const listed = replies.get("list")?.data as Record<string, unknown>[];
+    expect(listed.map((meta) => meta.name)).toEqual(["gh"]);
+    expect(listed[0]).not.toHaveProperty("value");
+    ws.close();
+  });
+
   it("keeps a sign-in MCP server's pending approval when it is tested", async () => {
     const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("mcp-signin@test"));
     await runInDurableObject(stub, async (instance) => {

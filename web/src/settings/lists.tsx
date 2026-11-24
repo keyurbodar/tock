@@ -3,7 +3,6 @@ import {
   Delete02Icon,
   Globe02Icon,
   Key01Icon,
-  LockKeyIcon,
   MoreHorizontalIcon,
   PuzzleIcon,
   RefreshIcon,
@@ -22,7 +21,7 @@ import { Table, TableCell, TableHead, TableHeader, TableRow } from "@tock/ui/tab
 import { useMemo, useState, type ReactNode } from "react"
 import { http, post } from "../api/http"
 import { socket } from "../api/socket"
-import type { DevPluginRecord, SecretMeta, SkillRecord } from "../api/types"
+import type { DevPluginRecord, SkillRecord } from "../api/types"
 import { act, useRemote } from "../lib/remote"
 import { FormDialog, Segmented } from "../shell/form-dialog"
 import { modelSpec, refreshModels, useModels, useProviders } from "../state/data"
@@ -206,67 +205,6 @@ export function Models() {
         )}
         <Field label="API key">
           <Input autoFocus={replacing} required type="password" autoComplete="off" value={key} onChange={(event) => setKey(event.currentTarget.value)} />
-        </Field>
-      </FormDialog>
-    </Page>
-  )
-}
-
-const loadSecrets = () => socket.request<readonly SecretMeta[]>("vault.list")
-
-export function Secrets() {
-  const { data, reload } = useRemote(loadSecrets, [])
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ name: "", value: "", origin: "", description: "" })
-  return (
-    <Page title="Secrets" description="Values your agent can use in requests without ever seeing them.">
-      <Section>
-        <ListCard title={count(data.length, "secret")} actions={<AddButton label="Add secret" onClick={() => setOpen(true)} />}>
-          {data.length > 0
-            ? data.map((secret) => (
-                <ListRow
-                  key={secret.name}
-                  icon={<Icon icon={LockKeyIcon} />}
-                  title={secret.name}
-                  description={[secret.origin, secret.description].filter(Boolean).join(" · ") || undefined}
-                >
-                  <RowMenu label={`${secret.name} options`}>
-                    <RemoveItem onSelect={() => void act(() => socket.request("vault.delete", { name: secret.name }).then(reload))} />
-                  </RowMenu>
-                </ListRow>
-              ))
-            : null}
-        </ListCard>
-      </Section>
-      <FormDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Add secret"
-        submitLabel="Add"
-        onSubmit={() =>
-          act(() =>
-            socket
-              .request("vault.set", {
-                name: form.name.trim(),
-                value: form.value,
-                origin: form.origin.trim() || undefined,
-                description: form.description.trim() || undefined,
-              })
-              .then(reload),
-          )
-        }
-      >
-        <Field label="Name">
-          <Input autoFocus required placeholder="GITHUB_TOKEN" value={form.name} onChange={(event) => setForm({ ...form, name: event.currentTarget.value })} />
-        </Field>
-        <Field label="Value">
-          <Input required type="password" autoComplete="off" value={form.value} onChange={(event) => setForm({ ...form, value: event.currentTarget.value })} />
-        </Field>
-        <Field label="Allowed site" hint="The secret is only sent to this origin.">
-          <Input type="url" placeholder="https://api.github.com" value={form.origin} onChange={(event) => setForm({ ...form, origin: event.currentTarget.value })} />
-        </Field>
-        <Field label="Description">
-          <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.currentTarget.value })} />
         </Field>
       </FormDialog>
     </Page>

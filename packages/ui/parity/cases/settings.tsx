@@ -7,6 +7,8 @@ import { ChromeMark, glyphs } from "../../src/glyph"
 import { MENU_LABEL, MenuCheck, MenuSearch, menuItemClass } from "../../src/menu"
 import { MenuSelectButton } from "../../src/menu-select"
 import { Slider } from "../../src/slider"
+import { SideSheet, SideSheetActions, SideSheetClose, SideSheetDescription, SideSheetHeader, SideSheetTitle } from "../../src/side-sheet"
+import { VariableFields } from "../../src/variable"
 import { Switch } from "../../src/switch"
 import { Badge, Input } from "../../src/input"
 import { KeybindingButton } from "../../src/keybinding"
@@ -384,6 +386,47 @@ export default cases("settings", [
       <FormLabel label="URL" ruled>
         <Input type="url" placeholder="https://mcp.example.com/mcp" aria-invalid={false} value="" onChange={noop} />
       </FormLabel>
+    ),
+  ],
+  [
+    "HKl94k7YHP|[data-slot=side-sheet-header]|0",
+    "secrets, sheet header with title, description and close",
+    () => (
+      <SideSheet open>
+        <SideSheetHeader>
+          <SideSheetTitle>Add environment variables</SideSheetTitle>
+          <SideSheetDescription className="flex flex-col">
+            <span>Encrypted at rest and masked once saved</span>
+          </SideSheetDescription>
+        </SideSheetHeader>
+      </SideSheet>
+    ),
+  ],
+  [
+    "HKl94k7YHP|[data-slot=side-sheet-footer] > div|1",
+    "secrets, sheet footer actions with cancel and disabled save",
+    () => (
+      <SideSheet open>
+        <SideSheetActions>
+          <SideSheetClose render={<Button variant="ghost" size="base" />}>Cancel</SideSheetClose>
+          <Button variant="solid" intent="accent" size="base" disabled>
+            Save variable
+          </Button>
+        </SideSheetActions>
+      </SideSheet>
+    ),
+  ],
+  [
+    "HKl94k7YHP|[data-slot=variable-row]|0",
+    "secrets, sheet row with key, value and description",
+    () => (
+      <VariableFields
+        fieldId={(field) => `env-sheet-${field}-0`}
+        draft={{ name: "", value: "", description: "" }}
+        onChange={noop}
+        namePlaceholder="CLIENT_KEY"
+        descriptionPlaceholder="When should Capy use this"
+      />
     ),
   ],
 ])

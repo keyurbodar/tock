@@ -342,7 +342,7 @@ export class TockDO extends DurableObject<Env> {
       case "models.refresh":
         return await this.refreshModels(frame.providers);
       case "vault.list":
-        return this.vault.listMeta();
+        return this.vault.listMeta().filter((meta) => meta.scopes !== "llm");
       case "vault.set":
         await this.vault.set(
           frame.name,

@@ -1,4 +1,5 @@
-const MINUTE = 60_000
+const SECOND = 1000
+const MINUTE = 60 * SECOND
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
@@ -14,6 +15,25 @@ export function relativeTime(timestamp: number | null, now = Date.now()): string
   if (elapsed < DAY) return `${Math.floor(elapsed / HOUR)}h`
   if (elapsed < 7 * DAY) return `${Math.floor(elapsed / DAY)}d`
   return dayFormat.format(timestamp)
+}
+
+export function timeAgo(timestamp: number, now = Date.now()): string {
+  const elapsed = now - timestamp
+  const size = Math.abs(elapsed)
+  if (size < 5 * SECOND) return "just now"
+  const span =
+    size < MINUTE
+      ? `${Math.floor(size / SECOND)}s`
+      : size < HOUR
+        ? `${Math.floor(size / MINUTE)}m`
+        : size < DAY
+          ? `${Math.floor(size / HOUR)}h`
+          : size < 7 * DAY
+            ? `${Math.floor(size / DAY)}d`
+            : size < 365 * DAY
+              ? `${Math.floor(size / (7 * DAY))}w`
+              : `${Math.floor(size / (365 * DAY))}y`
+  return elapsed < 0 ? `in ${span}` : `${span} ago`
 }
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })

@@ -35,8 +35,7 @@ export function Textarea({ className, mono, ...props }: ComponentProps<"textarea
     <textarea
       data-slot="textarea"
       className={cn(
-        FIELD,
-        "field-sizing-content min-h-(--h-control-base) w-full resize-none px-2.5 py-1.5",
+        "w-full min-w-0 resize-none text-foreground outline-none selection:bg-primary-20 placeholder:text-muted-foreground-3 disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive rounded bg-input px-2.5 text-sm font-normal border-[0.5px] border-border-2 focus-visible:outline-ring-inset field-sizing-content min-h-(--h-control-base) py-[calc((var(--h-control-base)-1lh-1px)/2)]",
         mono && "font-mono text-xs",
         className,
       )}
@@ -48,7 +47,8 @@ export function Textarea({ className, mono, ...props }: ComponentProps<"textarea
 export function Label({ className, ...props }: ComponentProps<"label">) {
   return (
     <label
-      className={cn("flex w-fit items-center gap-1.5 text-sm font-medium text-foreground select-none", className)}
+      data-slot="label"
+      className={cn("flex w-fit select-none items-center gap-1.5 text-sm font-medium text-foreground", className)}
       {...props}
     />
   )

@@ -114,8 +114,19 @@ export function RadioCards<T extends string>({
 
 const TRIGGER =
   "group/collapsible flex cursor-pointer items-center gap-1.5 rounded text-left font-medium outline-none select-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-(--icon-sm) focus-visible:outline-ring-inset focus-gutter w-fit text-base text-foreground"
-const PANEL =
-  "h-(--collapsible-panel-height) overflow-hidden transition-[height,opacity] duration-[150ms,150ms] ease-out-quint motion-reduce:transition-none data-[starting-style]:h-0 data-[starting-style]:opacity-0 data-[ending-style]:h-0 data-[ending-style]:opacity-0 data-[ending-style]:duration-[120ms,120ms] -mx-5 -my-1 px-5 py-1"
+const PANEL_BASE =
+  "h-(--collapsible-panel-height) overflow-hidden transition-[height,opacity] duration-[150ms,150ms] ease-out-quint motion-reduce:transition-none data-[starting-style]:h-0 data-[starting-style]:opacity-0 data-[ending-style]:h-0 data-[ending-style]:opacity-0 data-[ending-style]:duration-[120ms,120ms]"
+const PANEL = `${PANEL_BASE} -mx-5 -my-1 px-5 py-1`
+
+export function CollapsePanel({ open, children }: { open: boolean; children: ReactNode }) {
+  return (
+    <CollapsiblePrimitive.Root open={open}>
+      <CollapsiblePrimitive.Panel data-slot="collapsible-panel" className={PANEL_BASE}>
+        {children}
+      </CollapsiblePrimitive.Panel>
+    </CollapsiblePrimitive.Root>
+  )
+}
 
 export function Collapsible({
   title,
