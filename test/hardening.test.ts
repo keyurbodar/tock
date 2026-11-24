@@ -1,5 +1,5 @@
 import { env, evictDurableObject, runInDurableObject, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createModels,
   fauxAssistantMessage,
@@ -389,6 +389,52 @@ describe("tock production hardening", () => {
     expect(seen.devices[0]?.lastSeenAt).toBeGreaterThan(Number(listed.devices[0]?.lastSeenAt));
     const stranger = replies.get("stranger")?.data as { devices: unknown[] };
     expect(stranger.devices).toHaveLength(1);
+    ws.close();
+  });
+
+  it("lists MCP servers without header values and records a failed check", async () => {
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "mcp-view@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type: string; data?: unknown; error?: string }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type: string; data?: unknown };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    const reply = async (id: string) => {
+      await vi.waitFor(() => expect(replies.has(id)).toBe(true), { timeout: 15_000 });
+      return replies.get(id)?.data as Record<string, unknown>;
+    };
+    const server = { type: "mcp.upsert", name: "local", url: "http://localhost:9/mcp" };
+    ws.send(JSON.stringify({ ...server, id: "add", headers: { Authorization: "Bearer hidden" } }));
+    const added = await reply("add");
+    expect(added).toMatchObject({ name: "local", enabled: true, headerNames: ["Authorization"] });
+    expect(added).toMatchObject({ toolCount: null, checkedAt: null, lastError: null });
+    expect(JSON.stringify(added)).not.toContain("hidden");
+
+    ws.send(JSON.stringify({ ...server, id: "keep", url: "http://localhost:9/other" }));
+    expect((await reply("keep")).headerNames).toEqual(["Authorization"]);
+    ws.send(JSON.stringify({ ...server, id: "clear", headers: {} }));
+    expect((await reply("clear")).headerNames).toEqual([]);
+
+    ws.send(JSON.stringify({ id: "test", type: "mcp.test", idOrName: "local" }));
+    const tested = await reply("test");
+    expect(tested.toolCount).toBeNull();
+    expect(tested.checkedAt).toBeTypeOf("number");
+    expect(tested.lastError).toBeTypeOf("string");
+
+    ws.send(JSON.stringify({ id: "off", type: "mcp.enable", idOrName: "local", enabled: false }));
+    expect((await reply("off")).enabled).toBe(false);
+    ws.send(JSON.stringify({ id: "blocked", type: "mcp.test", idOrName: "local" }));
+    await reply("blocked");
+    expect(JSON.stringify(replies.get("blocked"))).toContain("mcp_server_disabled");
+    ws.send(JSON.stringify({ id: "list", type: "mcp.list" }));
+    await reply("list");
+    const listed = replies.get("list")?.data as Record<string, unknown>[];
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).not.toHaveProperty("headersJson");
     ws.close();
   });
 

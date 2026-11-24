@@ -1,6 +1,6 @@
 import { MCPClientManager } from "agents/mcp/client";
 import { DurableObjectOAuthClientProvider } from "agents/mcp/do-oauth-client-provider";
-import type { McpServerRecord } from "../types.js";
+import type { McpServerRecord, McpServerView } from "../types.js";
 import type { Vault } from "./vault.js";
 import type { ExecutionGuards } from "./guards.js";
 
@@ -23,6 +23,14 @@ function validateMcpUrl(raw: string): string {
     throw new Error(`MCP server URL must use https:// (got "${parsed.protocol}")`);
   }
   return parsed.toString();
+}
+
+const COLUMNS =
+  "id, name, url, headers_json, auth_mode, manager_server_id, enabled, updated_at, tool_count, checked_at, last_error";
+
+export function mcpServerView(server: McpServerRecord): McpServerView {
+  const { headersJson, managerServerId: _manager, ...rest } = server;
+  return { ...rest, headerNames: Object.keys(JSON.parse(headersJson || "{}") as object) };
 }
 
 export class McpHub {
@@ -49,7 +57,7 @@ export class McpHub {
   listServers(): McpServerRecord[] {
     const rows = this.sql
       .exec(
-        `SELECT id, name, url, headers_json, auth_mode, manager_server_id, enabled, updated_at
+        `SELECT ${COLUMNS}
          FROM tock_mcp_servers ORDER BY name ASC`,
       )
       .toArray();
@@ -59,17 +67,19 @@ export class McpHub {
   async upsertServer(
     name: string,
     url: string,
-    headers: Record<string, string> = {},
+    headers?: Record<string, string>,
     authMode: "headers" | "oauth" | "sse" = "headers",
   ): Promise<McpServerRecord> {
     const validatedUrl = validateMcpUrl(url);
-    const headersJson = JSON.stringify(headers);
     const previous = this.sql
       .exec(
         `SELECT id, manager_server_id, url, headers_json, auth_mode FROM tock_mcp_servers WHERE name = ?`,
         name,
       )
       .toArray()[0];
+    const headersJson = headers
+      ? JSON.stringify(headers)
+      : String(previous?.headers_json ?? "{}");
     const shouldReconnect =
       previous &&
       (authMode !== "oauth" ||
@@ -83,6 +93,7 @@ export class McpHub {
     }
     const id = crypto.randomUUID();
     const now = Date.now();
+    const changed = shouldReconnect ? 1 : 0;
     this.sql.exec(
       `INSERT INTO tock_mcp_servers (id, name, url, headers_json, auth_mode, manager_server_id, enabled, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 1, ?)
@@ -91,7 +102,10 @@ export class McpHub {
          headers_json = excluded.headers_json,
          auth_mode = excluded.auth_mode,
          enabled = 1,
-         updated_at = excluded.updated_at`,
+         updated_at = excluded.updated_at,
+         tool_count = CASE WHEN ? THEN NULL ELSE tool_count END,
+         checked_at = CASE WHEN ? THEN NULL ELSE checked_at END,
+         last_error = CASE WHEN ? THEN NULL ELSE last_error END`,
       id,
       name,
       validatedUrl,
@@ -99,11 +113,14 @@ export class McpHub {
       authMode,
       id,
       now,
+      changed,
+      changed,
+      changed,
     );
     this.toolCache.delete(name);
     const row = this.sql
       .exec(
-        `SELECT id, name, url, headers_json, auth_mode, manager_server_id, enabled, updated_at
+        `SELECT ${COLUMNS}
          FROM tock_mcp_servers WHERE name = ?`,
         name,
       )
@@ -148,6 +165,7 @@ export class McpHub {
     if (result.authSuccess && result.serverId) {
       await this.manager.establishConnection(result.serverId).catch(() => {});
       this.toolCache.clear();
+      await this.checkServer(result.serverId).catch(() => {});
     }
     return Response.json({
       ok: result.authSuccess,
@@ -174,6 +192,58 @@ export class McpHub {
     return true;
   }
 
+  async setEnabled(idOrName: string, enabled: boolean): Promise<McpServerRecord> {
+    const server = this.findServer(idOrName);
+    if (!enabled) {
+      this.toolCache.delete(server.name);
+      await this.manager.removeServer(server.managerServerId ?? server.id).catch(() => {});
+    }
+    this.sql.exec(
+      `UPDATE tock_mcp_servers SET enabled = ?, updated_at = ? WHERE id = ?`,
+      enabled ? 1 : 0,
+      Date.now(),
+      server.id,
+    );
+    return this.findServer(server.id);
+  }
+
+  async checkServer(idOrName: string): Promise<McpServerRecord> {
+    const server = this.findServer(idOrName);
+    if (!server.enabled) {
+      throw new Error(`mcp_server_disabled:${server.name}`);
+    }
+    try {
+      await this.discoverTools(server.name, true);
+    } catch (error) {
+      this.recordCheck(server.name, null, error instanceof Error ? error.message : String(error));
+    }
+    return this.findServer(server.id);
+  }
+
+  private findServer(idOrName: string): McpServerRecord {
+    const row = this.sql
+      .exec(
+        `SELECT ${COLUMNS} FROM tock_mcp_servers WHERE id = ? OR name = ? LIMIT 1`,
+        idOrName,
+        idOrName,
+      )
+      .toArray()[0];
+    if (!row) {
+      throw new Error(`mcp_server_not_found:${idOrName}`);
+    }
+    return this.mapRow(row);
+  }
+
+  private recordCheck(name: string, toolCount: number | null, error: string | null): void {
+    this.sql.exec(
+      `UPDATE tock_mcp_servers SET tool_count = ?, checked_at = ?, last_error = ? WHERE name = ?`,
+      toolCount,
+      Date.now(),
+      error,
+      name,
+    );
+  }
+
   private mapRow(r: Record<string, SqlStorageValue>): McpServerRecord {
     return {
       id: String(r.id),
@@ -184,13 +254,16 @@ export class McpHub {
       managerServerId: r.manager_server_id ? String(r.manager_server_id) : String(r.id),
       enabled: Number(r.enabled) === 1,
       updatedAt: Number(r.updated_at),
+      toolCount: r.tool_count === null ? null : Number(r.tool_count),
+      checkedAt: r.checked_at === null ? null : Number(r.checked_at),
+      lastError: r.last_error === null ? null : String(r.last_error),
     };
   }
 
   private getServer(name: string): McpServerRecord | undefined {
     const rows = this.sql
       .exec(
-        `SELECT id, name, url, headers_json, auth_mode, manager_server_id, enabled, updated_at
+        `SELECT ${COLUMNS}
          FROM tock_mcp_servers WHERE name = ? AND enabled = 1`,
         name,
       )
@@ -255,6 +328,7 @@ export class McpHub {
       inputSchema: (t.inputSchema ?? { type: "object", properties: {} }) as Record<string, unknown>,
     }));
     this.toolCache.set(serverName, tools);
+    this.recordCheck(serverName, tools.length, null);
     return tools;
   }
 

@@ -18,7 +18,7 @@ import { SettingsStore } from "./core/settings.js";
 import { Vault } from "./core/vault.js";
 import { UnifiedMemory } from "./core/memory.js";
 import { ExecutionGuards } from "./core/guards.js";
-import { McpHub } from "./core/mcp.js";
+import { McpHub, mcpServerView } from "./core/mcp.js";
 import { SubagentPool } from "./core/subagents.js";
 import { RoutineStore, sha256Hex, type RoutineInput } from "./core/routines.js";
 import { PushNotifier } from "./core/push.js";
@@ -355,9 +355,15 @@ export class TockDO extends DurableObject<Env> {
       case "vault.delete":
         return { deleted: this.vault.delete(frame.name) };
       case "mcp.list":
-        return this.mcp.listServers();
+        return this.mcp.listServers().map(mcpServerView);
       case "mcp.upsert":
-        return await this.mcp.upsertServer(frame.name, frame.url, frame.headers, frame.authMode);
+        return mcpServerView(
+          await this.mcp.upsertServer(frame.name, frame.url, frame.headers, frame.authMode),
+        );
+      case "mcp.test":
+        return mcpServerView(await this.mcp.checkServer(frame.idOrName));
+      case "mcp.enable":
+        return mcpServerView(await this.mcp.setEnabled(frame.idOrName, frame.enabled));
       case "mcp.delete":
         return { deleted: await this.mcp.deleteServer(frame.idOrName) };
       case "routine.list":

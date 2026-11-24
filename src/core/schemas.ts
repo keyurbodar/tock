@@ -173,6 +173,13 @@ const clientFrameSchema = union([
     authMode: opt(authModeSchema),
   }),
   obj({ id: str({ minLength: 1 }), type: lit("mcp.delete"), idOrName: str({ minLength: 1 }) }),
+  obj({ id: str({ minLength: 1 }), type: lit("mcp.test"), idOrName: str({ minLength: 1 }) }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("mcp.enable"),
+    idOrName: str({ minLength: 1 }),
+    enabled: bool(),
+  }),
   obj({ id: str({ minLength: 1 }), type: lit("routine.list") }),
   obj({
     id: str({ minLength: 1 }),

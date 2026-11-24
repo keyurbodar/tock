@@ -79,7 +79,14 @@ export interface McpServerRecord {
   managerServerId: string | null;
   enabled: boolean;
   updatedAt: number;
+  toolCount: number | null;
+  checkedAt: number | null;
+  lastError: string | null;
 }
+
+export type McpServerView = Omit<McpServerRecord, "headersJson" | "managerServerId"> & {
+  headerNames: string[];
+};
 
 export interface DevPluginRecord {
   id: string;
@@ -181,6 +188,8 @@ export type ClientFrame =
       authMode?: "headers" | "oauth" | "sse";
     }
   | { id: string; type: "mcp.delete"; idOrName: string }
+  | { id: string; type: "mcp.test"; idOrName: string }
+  | { id: string; type: "mcp.enable"; idOrName: string; enabled: boolean }
   | { id: string; type: "routine.list" }
   | {
       id: string;

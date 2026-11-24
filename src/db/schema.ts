@@ -199,6 +199,11 @@ const MIGRATIONS: readonly Migration[] = [
     addColumnIfMissing(sql, "tock_push_subs", "last_delivered_at", "INTEGER");
     addColumnIfMissing(sql, "tock_push_subs", "failed_at", "INTEGER");
   },
+  (sql) => {
+    addColumnIfMissing(sql, "tock_mcp_servers", "tool_count", "INTEGER");
+    addColumnIfMissing(sql, "tock_mcp_servers", "checked_at", "INTEGER");
+    addColumnIfMissing(sql, "tock_mcp_servers", "last_error", "TEXT");
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, defaultTimezone = "UTC"): void {
