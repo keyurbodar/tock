@@ -29,6 +29,8 @@ export function splitBlocks(source: string): string[] {
   return blocks
 }
 
+const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
+
 function render(source: string): ReactNode {
   const tree = processor.runSync(processor.parse(source))
   return toJsxRuntime(tree, {
@@ -37,6 +39,14 @@ function render(source: string): ReactNode {
     jsxs,
     components: {
       a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
+      img: ({ src, alt }) =>
+        typeof src === "string" && LOCAL_IMAGE.test(src) ? (
+          <img src={src} alt={alt ?? ""} />
+        ) : (
+          <a href={typeof src === "string" ? src : undefined} target="_blank" rel="noreferrer">
+            {alt || "Image"}
+          </a>
+        ),
     },
   })
 }
