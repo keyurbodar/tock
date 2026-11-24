@@ -51,7 +51,7 @@ export class DjsRuntime {
     const rows = this.sql
       .exec(
         `SELECT id, name, kind, description, schema_json, ts_source, enabled, updated_at
-         FROM tock_dev_plugins ORDER BY name ASC`
+         FROM tock_dev_plugins ORDER BY name ASC`,
       )
       .toArray();
     return rows.map((r) => ({
@@ -62,7 +62,7 @@ export class DjsRuntime {
       schemaJson: String(r.schema_json ?? "{}"),
       tsSource: String(r.ts_source),
       enabled: Number(r.enabled) === 1,
-      updatedAt: Number(r.updated_at)
+      updatedAt: Number(r.updated_at),
     }));
   }
 
@@ -72,7 +72,7 @@ export class DjsRuntime {
         `SELECT id, name, kind, description, schema_json, ts_source, enabled, updated_at
          FROM tock_dev_plugins WHERE id = ? OR name = ?`,
         idOrName,
-        idOrName
+        idOrName,
       )
       .toArray();
     const r = rows[0];
@@ -85,12 +85,12 @@ export class DjsRuntime {
       schemaJson: String(r.schema_json ?? "{}"),
       tsSource: String(r.ts_source),
       enabled: Number(r.enabled) === 1,
-      updatedAt: Number(r.updated_at)
+      updatedAt: Number(r.updated_at),
     };
   }
 
   upsertPlugin(
-    input: Omit<DevPluginRecord, "id" | "updatedAt"> & { id?: string }
+    input: Omit<DevPluginRecord, "id" | "updatedAt"> & { id?: string },
   ): DevPluginRecord {
     const id = input.id || crypto.randomUUID();
     const now = Date.now();
@@ -111,55 +111,24 @@ export class DjsRuntime {
       input.schemaJson,
       input.tsSource,
       input.enabled ? 1 : 0,
-      now
+      now,
     );
     return { ...input, id, updatedAt: now };
   }
 
   deletePlugin(id: string): boolean {
-    const exists = this.sql.exec(`SELECT id FROM tock_dev_plugins WHERE id = ? OR name = ?`, id, id).toArray().length;
+    const exists = this.sql
+      .exec(`SELECT id FROM tock_dev_plugins WHERE id = ? OR name = ?`, id, id)
+      .toArray().length;
     if (exists === 0) return false;
     this.sql.exec(`DELETE FROM tock_dev_plugins WHERE id = ? OR name = ?`, id, id);
     return true;
   }
 
-  saveContinuation(pluginId: string, dumpJs: string, fuelUsed: number, wakeAt: number): string {
-    const id = crypto.randomUUID();
-    const now = Date.now();
-    this.sql.exec(
-      `INSERT INTO tock_plugin_continuations (id, plugin_id, dump_js, fuel_used, wake_at, status, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'suspended', ?)`,
-      id,
-      pluginId,
-      dumpJs,
-      fuelUsed,
-      wakeAt,
-      now
-    );
-    return id;
-  }
-
-  async resumeContinuation(continuationId: string): Promise<DjsRunResult> {
-    const rows = this.sql
-      .exec(
-        `SELECT id, dump_js, fuel_used, status FROM tock_plugin_continuations WHERE id = ? AND status = 'suspended'`,
-        continuationId
-      )
-      .toArray();
-    const r = rows[0];
-    if (!r) return { ok: false, error: "continuation_not_found", logs: [] };
-    const remainingFuel = Math.max(100_000, DEFAULT_MAX_FUEL - Number(r.fuel_used ?? 0));
-    const res = await this.runCode(String(r.dump_js), {}, { maxFuel: remainingFuel });
-    this.sql.exec(
-      `UPDATE tock_plugin_continuations SET status = ?, updated_at = ? WHERE id = ?`,
-      res.ok ? "done" : "failed",
-      Date.now(),
-      continuationId
-    );
-    return res;
-  }
-
-  async runWebhookFilter(pluginIdOrName: string, payload: unknown): Promise<{ pass: boolean; summary?: string }> {
+  async runWebhookFilter(
+    pluginIdOrName: string,
+    payload: unknown,
+  ): Promise<{ pass: boolean; summary?: string }> {
     const plugin = this.getPlugin(pluginIdOrName);
     if (!plugin || !plugin.enabled || plugin.kind !== "webhook_filter") {
       return { pass: true };
@@ -167,7 +136,9 @@ export class DjsRuntime {
     const res = await this.runCode(plugin.tsSource, { payload });
     if (!res.ok) return { pass: true };
     try {
-      const parsed = JSON.parse(res.valueJson ?? "true") as boolean | { pass?: boolean; summary?: string };
+      const parsed = JSON.parse(res.valueJson ?? "true") as
+        | boolean
+        | { pass?: boolean; summary?: string };
       if (typeof parsed === "boolean") return { pass: parsed };
       return { pass: parsed.pass !== false, summary: parsed.summary };
     } catch {
@@ -178,7 +149,7 @@ export class DjsRuntime {
   async runCode(
     tsSource: string,
     params: Record<string, unknown> = {},
-    opts?: { maxFuel?: number; memoryLimit?: number }
+    opts?: { maxFuel?: number; memoryLimit?: number },
   ): Promise<DjsRunResult> {
     const logs: string[] = [];
     const pushLog = (...args: unknown[]) => {
@@ -197,7 +168,7 @@ export class DjsRuntime {
         info: pushLog,
         warn: pushLog,
         error: pushLog,
-        debug: pushLog
+        debug: pushLog,
       },
       asyncFunctions: {
         "tock.fetch": async (url: unknown, init?: unknown) => {
@@ -205,14 +176,20 @@ export class DjsRuntime {
           if (!check.allowed) {
             throw new Error(`subrequest_budget_exceeded_${check.limit}`);
           }
-          const resolvedUrl = await this.bridge.vault.injectTemplate(String(url));
+          const rawUrl = String(url);
+          const resolvedUrl = await this.bridge.vault.injectForUrl(rawUrl, rawUrl);
           const reqInit = (init && typeof init === "object" ? init : {}) as {
             method?: string;
             headers?: Record<string, string>;
             body?: string;
           };
-          const headers = reqInit.headers ? await this.bridge.vault.injectRecord(reqInit.headers) : undefined;
-          const body = typeof reqInit.body === "string" ? await this.bridge.vault.injectTemplate(reqInit.body) : undefined;
+          const headers = reqInit.headers
+            ? await this.bridge.vault.injectRecordForUrl(resolvedUrl, reqInit.headers)
+            : undefined;
+          const body =
+            typeof reqInit.body === "string"
+              ? await this.bridge.vault.injectForUrl(resolvedUrl, reqInit.body)
+              : undefined;
           const res = await fetch(resolvedUrl, { method: reqInit.method ?? "GET", headers, body });
           const rawText = await res.text();
           const safeText = await this.bridge.vault.redact(rawText);
@@ -223,7 +200,9 @@ export class DjsRuntime {
         },
         "tock.memorySave": (kind: unknown, content: unknown) => {
           const k = String(kind) as "fact" | "decision" | "summary" | "preference";
-          return this.bridge.memory.applyBatch({ addItems: [{ kind: k, content: String(content) }] });
+          return this.bridge.memory.applyBatch({
+            addItems: [{ kind: k, content: String(content) }],
+          });
         },
         "tock.readFile": async (id: unknown) => {
           const found = await this.bridge.files.readText(String(id));
@@ -232,11 +211,17 @@ export class DjsRuntime {
         },
         "tock.writeFile": async (name: unknown, content: unknown, mime?: unknown) => {
           const bytes = new TextEncoder().encode(String(content));
-          const meta = await this.bridge.files.put(String(name), String(mime ?? "text/plain"), bytes);
+          const meta = await this.bridge.files.put(
+            String(name),
+            String(mime ?? "text/plain"),
+            bytes,
+          );
           return { id: meta.id, name: meta.name, size: meta.size };
         },
         "tock.listFiles": () => {
-          return this.bridge.files.list().map((f) => ({ id: f.id, name: f.name, mime: f.mime, size: f.size }));
+          return this.bridge.files
+            .list()
+            .map((f) => ({ id: f.id, name: f.name, mime: f.mime, size: f.size }));
         },
         "tock.notify": async (title: unknown, body: unknown) => {
           await this.bridge.notifyOwner(String(title), String(body));
@@ -253,17 +238,21 @@ export class DjsRuntime {
           const res = await this.bridge.callMcpTool(
             String(server),
             String(tool),
-            (args && typeof args === "object" ? args : {}) as Record<string, unknown>
+            (args && typeof args === "object" ? args : {}) as Record<string, unknown>,
           );
           return this.bridge.vault.redact(typeof res === "string" ? res : JSON.stringify(res));
-        }
-      }
+        },
+      },
     });
 
     try {
       const value = await sb.runAsync(tsSource, params);
       const safeLogs = await Promise.all(logs.map((l) => this.bridge.vault.redact(l)));
-      return { ok: true, valueJson: value === undefined ? undefined : JSON.stringify(value), logs: safeLogs };
+      return {
+        ok: true,
+        valueJson: value === undefined ? undefined : JSON.stringify(value),
+        logs: safeLogs,
+      };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const safeError = await this.bridge.vault.redact(msg);

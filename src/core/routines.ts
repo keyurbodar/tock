@@ -6,8 +6,16 @@ export type RoutineInput = Omit<
 > & { id?: string };
 
 export interface RoutineSchedulerLike {
-  set(when: Date | string | number, callback: "runRoutine", payload: { routineId: string }): Promise<{ id: string }>;
-  every(intervalSeconds: number, callback: "runRoutine", payload: { routineId: string }): Promise<{ id: string }>;
+  set(
+    when: Date | string | number,
+    callback: "runRoutine",
+    payload: { routineId: string },
+  ): Promise<{ id: string }>;
+  every(
+    intervalSeconds: number,
+    callback: "runRoutine",
+    payload: { routineId: string },
+  ): Promise<{ id: string }>;
   cancel(id: string): Promise<boolean>;
 }
 
@@ -24,7 +32,7 @@ export class RoutineStore {
     const rows = this.sql
       .exec(
         `SELECT id, name, schedule, schedule_type, prompt, check_script, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at
-         FROM tock_routines ORDER BY name ASC`
+         FROM tock_routines ORDER BY name ASC`,
       )
       .toArray();
     return rows.map((r) => this.mapRow(r));
@@ -35,7 +43,7 @@ export class RoutineStore {
       .exec(
         `SELECT id, name, schedule, schedule_type, prompt, check_script, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at
          FROM tock_routines WHERE id = ?`,
-        id
+        id,
       )
       .toArray();
     return rows[0] ? this.mapRow(rows[0]) : undefined;
@@ -89,7 +97,7 @@ export class RoutineStore {
       input.enabled ? 1 : 0,
       schedulerJobId,
       existing?.lastRunAt ?? null,
-      now
+      now,
     );
 
     return this.get(id)!;
@@ -114,7 +122,7 @@ export class RoutineStore {
         `UPDATE tock_routines SET last_hash = ?, last_run_at = ? WHERE id = ?`,
         outputHash,
         Date.now(),
-        id
+        id,
       );
     }
     return { changed, isFirstRun };
@@ -132,8 +140,9 @@ export class RoutineStore {
       lastHash: r.last_hash ? String(r.last_hash) : null,
       enabled: Number(r.enabled) === 1,
       schedulerJobId: r.scheduler_job_id ? String(r.scheduler_job_id) : null,
-      lastRunAt: r.last_run_at !== null && r.last_run_at !== undefined ? Number(r.last_run_at) : null,
-      updatedAt: Number(r.updated_at)
+      lastRunAt:
+        r.last_run_at !== null && r.last_run_at !== undefined ? Number(r.last_run_at) : null,
+      updatedAt: Number(r.updated_at),
     };
   }
 }

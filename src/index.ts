@@ -1,7 +1,10 @@
 import { authenticateRequest } from "./core/auth.js";
-import type { Env, ThinkingLevelOption } from "./types.js";
+import { parseJsonBody, validators } from "./core/schemas.js";
+import type { Env } from "./types.js";
 
 export { TockDO } from "./do.js";
+
+const MAX_WEBHOOK_BYTES = 256 * 1024;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -16,7 +19,22 @@ export default {
       const owner = url.searchParams.get("owner") || "owner@local";
       const token = request.headers.get("x-tock-hook-token") ?? url.searchParams.get("token") ?? "";
       const filterPlugin = url.searchParams.get("filter") ?? undefined;
-      const payload = await request.json().catch(() => ({}));
+      const declaredLen = Number(request.headers.get("content-length") ?? "0");
+      if (Number.isFinite(declaredLen) && declaredLen > MAX_WEBHOOK_BYTES) {
+        return Response.json({ ok: false, error: "payload_too_large" }, { status: 413 });
+      }
+      const rawBytes = new Uint8Array(await request.arrayBuffer());
+      if (rawBytes.byteLength > MAX_WEBHOOK_BYTES) {
+        return Response.json({ ok: false, error: "payload_too_large" }, { status: 413 });
+      }
+      let payload: unknown = {};
+      if (rawBytes.byteLength > 0) {
+        try {
+          payload = JSON.parse(new TextDecoder().decode(rawBytes));
+        } catch {
+          return Response.json({ ok: false, error: "invalid_json" }, { status: 400 });
+        }
+      }
       const stub = env.TOCK_DO.get(env.TOCK_DO.idFromName(owner));
       const res = await stub.handleWebhook(hookId, token, payload, filterPlugin);
       return Response.json(res, { status: res.accepted ? 202 : 401 });
@@ -49,13 +67,32 @@ export default {
     }
 
     if (url.pathname === "/api/models/refresh" && request.method === "POST") {
-      const body = (await request.json().catch(() => ({}))) as { providers?: string[] };
-      return Response.json(await stub.refreshModels(body.providers));
+      const parsed = await parseJsonBody(request, validators.httpModelsRefresh);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(await stub.refreshModels(parsed.value.providers));
+    }
+
+    if (url.pathname === "/api/providers" && request.method === "GET") {
+      return Response.json({ providers: await stub.listProviders() });
+    }
+
+    const providerCredMatch = url.pathname.match(/^\/api\/providers\/([^/]+)\/credential$/);
+    if (providerCredMatch) {
+      const providerId = decodeURIComponent(providerCredMatch[1]!);
+      if (request.method === "POST") {
+        const parsed = await parseJsonBody(request, validators.httpProviderCredential);
+        if (!parsed.ok) return parsed.response;
+        return Response.json(await stub.setProviderCredential(providerId, parsed.value.apiKey));
+      }
+      if (request.method === "DELETE") {
+        return Response.json(await stub.deleteProviderCredential(providerId));
+      }
     }
 
     if (url.pathname === "/api/settings" && request.method === "PATCH") {
-      const patch = (await request.json()) as Record<string, unknown>;
-      return Response.json(await stub.updateSettings(patch));
+      const parsed = await parseJsonBody(request, validators.settingsPatch);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(await stub.updateSettings(parsed.value));
     }
 
     if (url.pathname === "/api/secrets" && request.method === "GET") {
@@ -63,8 +100,17 @@ export default {
     }
 
     if (url.pathname === "/api/secrets" && request.method === "POST") {
-      const body = (await request.json()) as { name: string; value: string; description?: string; scopes?: string };
-      return Response.json(await stub.setSecret(body.name, body.value, body.description, body.scopes));
+      const parsed = await parseJsonBody(request, validators.httpSecretSet);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(
+        await stub.setSecret(
+          parsed.value.name,
+          parsed.value.value,
+          parsed.value.description,
+          parsed.value.scopes,
+          parsed.value.origin,
+        ),
+      );
     }
 
     if (url.pathname === "/api/files" && request.method === "GET") {
@@ -73,7 +119,8 @@ export default {
     }
 
     if (url.pathname === "/api/files" && request.method === "POST") {
-      const name = request.headers.get("x-file-name") || url.searchParams.get("name") || "upload.bin";
+      const name =
+        request.headers.get("x-file-name") || url.searchParams.get("name") || "upload.bin";
       const mime = request.headers.get("content-type") || "application/octet-stream";
       const sessionId = url.searchParams.get("sessionId") ?? undefined;
       const bytes = new Uint8Array(await request.arrayBuffer());
@@ -85,7 +132,10 @@ export default {
       const found = await stub.getFile(fileId);
       if (!found) return Response.json({ ok: false, error: "not_found" }, { status: 404 });
       return new Response(found.bytes, {
-        headers: { "content-type": found.meta.mime, "content-disposition": `inline; filename="${found.meta.name}"` }
+        headers: {
+          "content-type": found.meta.mime,
+          "content-disposition": `inline; filename="${found.meta.name}"`,
+        },
       });
     }
 
@@ -94,44 +144,70 @@ export default {
     }
 
     if (url.pathname === "/api/skills" && request.method === "POST") {
-      const body = (await request.json()) as { name?: string; description?: string; bodyMd: string; files?: Record<string, string> };
-      return Response.json(await stub.upsertSkill(body), { status: 201 });
+      const parsed = await parseJsonBody(request, validators.httpSkillUpsert);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(await stub.upsertSkill(parsed.value), { status: 201 });
     }
 
     if (url.pathname === "/api/skills/import" && request.method === "POST") {
-      const body = (await request.json()) as { source: string };
-      return Response.json({ installed: await stub.importSkill(body.source) }, { status: 201 });
+      const parsed = await parseJsonBody(request, validators.httpSkillImport);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(
+        { installed: await stub.importSkill(parsed.value.source) },
+        { status: 201 },
+      );
     }
 
     if (url.pathname === "/api/mcp/oauth" && request.method === "POST") {
-      const body = (await request.json()) as { name: string; url: string };
-      return Response.json(await stub.connectMcpOAuth(body.name, body.url, url.origin));
+      const parsed = await parseJsonBody(request, validators.httpMcpOAuth);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(
+        await stub.connectMcpOAuth(parsed.value.name, parsed.value.url, url.origin),
+      );
     }
 
     if (url.pathname === "/api/codemode" && request.method === "POST") {
-      const body = (await request.json()) as { code: string; params?: Record<string, unknown> };
-      return Response.json(await stub.runCodemode(body.code, body.params));
+      const parsed = await parseJsonBody(request, validators.httpCodemode);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(await stub.runCodemode(parsed.value.code, parsed.value.params));
     }
 
     if (url.pathname.startsWith("/api/sessions/") && request.method === "PATCH") {
       const sessionId = decodeURIComponent(url.pathname.slice("/api/sessions/".length));
-      const body = (await request.json()) as { model?: string; thinkingLevel?: ThinkingLevelOption };
-      return Response.json(await stub.configureSession(sessionId, body));
+      const parsed = await parseJsonBody(request, validators.httpSessionConfigure);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(await stub.configureSession(sessionId, parsed.value));
     }
 
     if (url.pathname === "/api/chat" && request.method === "POST") {
-      const body = (await request.json()) as { text: string; sessionId?: string; model?: string; thinkingLevel?: ThinkingLevelOption };
-      return Response.json(await stub.chatPrompt(body.text, body.sessionId, { model: body.model, thinkingLevel: body.thinkingLevel }));
+      const parsed = await parseJsonBody(request, validators.httpChat);
+      if (!parsed.ok) return parsed.response;
+      return Response.json(
+        await stub.chatPrompt(parsed.value.text, parsed.value.sessionId, {
+          model: parsed.value.model,
+          thinkingLevel: parsed.value.thinkingLevel,
+        }),
+      );
     }
 
     return Response.json({ ok: false, error: "not_found" }, { status: 404 });
   },
 
   async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
-    const owner = message.to || "owner@local";
+    const allowedDomain = env.EMAIL_DOMAIN?.trim().toLowerCase();
+    const to = (message.to || "").trim();
+    if (allowedDomain) {
+      const atIdx = to.lastIndexOf("@");
+      const recipientDomain = atIdx >= 0 ? to.slice(atIdx + 1).toLowerCase() : "";
+      if (recipientDomain !== allowedDomain) {
+        message.setReject(`Recipient domain "${recipientDomain}" is not allowed`);
+        return;
+      }
+    }
+    const owner = env.EMAIL_OWNER?.trim() || to || "owner@local";
     const subject = message.headers.get("subject") ?? "(no subject)";
     const raw = await new Response(message.raw).text();
     const stub = env.TOCK_DO.get(env.TOCK_DO.idFromName(owner));
-    await stub.handleEmail(message.from, message.to, subject, raw);
-  }
+    await stub.handleEmail(message.from, to, subject, raw);
+  },
 };

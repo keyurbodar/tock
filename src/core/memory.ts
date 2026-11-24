@@ -42,11 +42,13 @@ export class UnifiedMemory {
 
   getCore(): { content: string; version: number; updatedAt: number } {
     if (this.coreCache) return this.coreCache;
-    const row = this.sql.exec(`SELECT content, version, updated_at FROM tock_memory_core WHERE id = 1`).one();
+    const row = this.sql
+      .exec(`SELECT content, version, updated_at FROM tock_memory_core WHERE id = 1`)
+      .one();
     this.coreCache = {
       content: String(row.content ?? ""),
       version: Number(row.version ?? 1),
-      updatedAt: Number(row.updated_at ?? 0)
+      updatedAt: Number(row.updated_at ?? 0),
     };
     return this.coreCache;
   }
@@ -56,7 +58,7 @@ export class UnifiedMemory {
       .exec(
         `SELECT id, title, context, session_id, status, due_at, updated_at
          FROM tock_open_items WHERE status = ? ORDER BY updated_at DESC LIMIT 20`,
-        status
+        status,
       )
       .toArray();
     return rows.map((r) => ({
@@ -66,7 +68,7 @@ export class UnifiedMemory {
       sessionId: r.session_id ? String(r.session_id) : null,
       status: r.status === "resolved" ? "resolved" : "open",
       dueAt: r.due_at !== null && r.due_at !== undefined ? Number(r.due_at) : null,
-      updatedAt: Number(r.updated_at)
+      updatedAt: Number(r.updated_at),
     }));
   }
 
@@ -82,7 +84,7 @@ export class UnifiedMemory {
          ORDER BY bm25(tock_memory_fts) ASC, m.created_at DESC
          LIMIT ?`,
         fts,
-        limit
+        limit,
       )
       .toArray();
     return rows.map((r) => ({
@@ -91,7 +93,7 @@ export class UnifiedMemory {
       content: String(r.content),
       sourceSessionId: r.source_session_id ? String(r.source_session_id) : null,
       supersededBy: r.superseded_by ? String(r.superseded_by) : null,
-      createdAt: Number(r.created_at)
+      createdAt: Number(r.created_at),
     }));
   }
 
@@ -102,7 +104,7 @@ export class UnifiedMemory {
          FROM tock_memory_items
          WHERE superseded_by IS NULL
          ORDER BY created_at DESC LIMIT ?`,
-        limit
+        limit,
       )
       .toArray();
     return rows.map((r) => ({
@@ -111,7 +113,7 @@ export class UnifiedMemory {
       content: String(r.content),
       sourceSessionId: r.source_session_id ? String(r.source_session_id) : null,
       supersededBy: r.superseded_by ? String(r.superseded_by) : null,
-      createdAt: Number(r.created_at)
+      createdAt: Number(r.created_at),
     }));
   }
 
@@ -128,7 +130,7 @@ export class UnifiedMemory {
           `UPDATE tock_memory_core SET content = ?, version = ?, updated_at = ? WHERE id = 1`,
           batch.coreContent,
           nextVersion,
-          now
+          now,
         );
         this.coreCache = { content: batch.coreContent, version: nextVersion, updatedAt: now };
       }
@@ -142,11 +144,15 @@ export class UnifiedMemory {
           item.kind,
           item.content,
           item.sourceSessionId ?? null,
-          now
+          now,
         );
         this.sql.exec(`INSERT INTO tock_memory_fts (id, content) VALUES (?, ?)`, id, item.content);
         if (item.supersedesId) {
-          this.sql.exec(`UPDATE tock_memory_items SET superseded_by = ? WHERE id = ?`, id, item.supersedesId);
+          this.sql.exec(
+            `UPDATE tock_memory_items SET superseded_by = ? WHERE id = ?`,
+            id,
+            item.supersedesId,
+          );
           this.sql.exec(`DELETE FROM tock_memory_fts WHERE id = ?`, item.supersedesId);
         }
         addedIds.push(id);
@@ -170,7 +176,7 @@ export class UnifiedMemory {
           open.sessionId ?? null,
           open.status ?? "open",
           open.dueAt ?? null,
-          now
+          now,
         );
         openIds.push(id);
       }
@@ -179,7 +185,7 @@ export class UnifiedMemory {
     return { addedIds, openIds };
   }
 
-  renderAutoContext(queryText: string): string {
+  renderStableContext(): string {
     const parts: string[] = [];
     const core = this.getCore();
     if (core.content.trim()) {
@@ -187,9 +193,27 @@ export class UnifiedMemory {
     }
     const open = this.listOpenItems("open");
     if (open.length > 0) {
-      const lines = open.map((o) => `- [${o.id.slice(0, 8)}] ${o.title}${o.context ? ` — ${o.context}` : ""}`);
+      const lines = open.map(
+        (o) => `- [${o.id.slice(0, 8)}] ${o.title}${o.context ? ` — ${o.context}` : ""}`,
+      );
       parts.push(`## Open Items\n${lines.join("\n")}`);
     }
+    return parts.join("\n\n");
+  }
+
+  renderQueryRecall(queryText: string, limit = 6): string {
+    const trimmed = queryText.trim();
+    if (!trimmed) return "";
+    const hits = this.search(trimmed, limit);
+    if (hits.length === 0) return "";
+    const lines = hits.map((h) => `- (${h.kind}) ${h.content}`);
+    return `## Relevant Memory\n${lines.join("\n")}`;
+  }
+
+  renderAutoContext(queryText: string): string {
+    const parts: string[] = [];
+    const stable = this.renderStableContext();
+    if (stable) parts.push(stable);
     const hits = this.search(queryText, 6);
     if (hits.length > 0) {
       const lines = hits.map((h) => `- (${h.kind}) ${h.content}`);
@@ -202,26 +226,28 @@ export class UnifiedMemory {
     models: Models,
     model: Model<Api>,
     sessionId: string,
-    transcriptText: string
+    transcriptText: string,
+    redact?: (text: string) => Promise<string>,
   ): Promise<{ updated: boolean; addedFacts: number; updatedOpen: number }> {
+    const scrubbedTranscript = redact ? await redact(transcriptText) : transcriptText;
     const currentCore = this.getCore().content;
     const currentOpen = this.listOpenItems("open");
     const systemPrompt = [
       "You consolidate personal agent memory across threads. Return strict JSON only with shape:",
       '{"coreContent":"optional updated compact markdown dossier under 1200 words","addItems":[{"kind":"fact|decision|summary|preference","content":"..."}],"upsertOpenItems":[{"id":"optional","title":"...","context":"...","status":"open|resolved"}]}',
-      "Preserve active projects, preferences, and ongoing tasks so any new chat immediately knows them. Omit unchanged fields."
+      "Preserve active projects, preferences, and ongoing tasks so any new chat immediately knows them. Never store secrets or tokens. Omit unchanged fields.",
     ].join("\n");
 
     const userPrompt = [
       `Current Core Memory:\n${currentCore || "(empty)"}`,
       `Current Open Items:\n${JSON.stringify(currentOpen)}`,
-      `Recent Transcript (session ${sessionId}):\n${transcriptText.slice(-8000)}`
+      `Recent Transcript (session ${sessionId}):\n${scrubbedTranscript.slice(-8000)}`,
     ].join("\n\n");
 
     const msg = await models.completeSimple(
       model,
       { systemPrompt, messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }] },
-      { sessionId: `tock-mem-${sessionId}` }
+      { sessionId: `tock-mem-${sessionId}` },
     );
     const raw = contentText(msg.content).trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -234,24 +260,35 @@ export class UnifiedMemory {
       return { updated: false, addedFacts: 0, updatedOpen: 0 };
     }
 
-    const addItems = (parsed.addItems ?? []).map((i) => ({
-      ...i,
-      sourceSessionId: sessionId
-    }));
-    const upsertOpenItems = (parsed.upsertOpenItems ?? []).map((o) => ({
-      ...o,
-      sessionId
-    }));
+    const coreContent =
+      typeof parsed.coreContent === "string" && parsed.coreContent.trim()
+        ? redact
+          ? await redact(parsed.coreContent.trim())
+          : parsed.coreContent.trim()
+        : undefined;
 
-    const res = this.applyBatch({
-      coreContent: typeof parsed.coreContent === "string" && parsed.coreContent.trim() ? parsed.coreContent.trim() : undefined,
-      addItems,
-      upsertOpenItems
-    });
+    const addItems = await Promise.all(
+      (parsed.addItems ?? []).map(async (i) => ({
+        ...i,
+        content: redact ? await redact(i.content) : i.content,
+        sourceSessionId: sessionId,
+      })),
+    );
+
+    const upsertOpenItems = await Promise.all(
+      (parsed.upsertOpenItems ?? []).map(async (o) => ({
+        ...o,
+        title: redact ? await redact(o.title) : o.title,
+        context: o.context && redact ? await redact(o.context) : o.context,
+        sessionId,
+      })),
+    );
+
+    const res = this.applyBatch({ coreContent, addItems, upsertOpenItems });
     return {
       updated: true,
       addedFacts: res.addedIds.length,
-      updatedOpen: res.openIds.length
+      updatedOpen: res.openIds.length,
     };
   }
 }

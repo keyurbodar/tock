@@ -8,7 +8,9 @@ export interface Env {
   ACCESS_AUD?: string;
   DEV_ALLOW_ANON?: string;
   DEFAULT_TIMEZONE?: string;
-  AI_GATEWAY_ID?: string;
+  AI_GATEWAY_URL?: string;
+  EMAIL_DOMAIN?: string;
+  EMAIL_OWNER?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
@@ -49,6 +51,7 @@ export interface SecretMeta {
   name: string;
   description: string;
   scopes: string;
+  origin: string;
   updatedAt: number;
 }
 
@@ -73,6 +76,7 @@ export interface McpServerRecord {
   url: string;
   headersJson: string;
   authMode: "headers" | "oauth" | "sse";
+  managerServerId: string | null;
   enabled: boolean;
   updatedAt: number;
 }
@@ -123,9 +127,23 @@ export interface WsAttachment {
 }
 
 export type ClientFrame =
-  | { id: string; type: "chat.send"; sessionId?: string; text: string; operationId?: string; model?: string; thinkingLevel?: ThinkingLevelOption }
-  | { id: string; type: "session.configure"; sessionId?: string; model?: string; thinkingLevel?: ThinkingLevelOption }
-  | { id: string; type: "chat.subscribe"; sessionId?: string }
+  | {
+      id: string;
+      type: "chat.send";
+      sessionId?: string;
+      text: string;
+      operationId?: string;
+      model?: string;
+      thinkingLevel?: ThinkingLevelOption;
+    }
+  | {
+      id: string;
+      type: "session.configure";
+      sessionId?: string;
+      model?: string;
+      thinkingLevel?: ThinkingLevelOption;
+    }
+  | { id: string; type: "chat.subscribe"; sessionId?: string; cursor?: number }
   | { id: string; type: "chat.abort"; sessionId?: string; operationId?: string }
   | { id: string; type: "session.list" }
   | { id: string; type: "session.create"; title?: string }
@@ -135,23 +153,52 @@ export type ClientFrame =
   | { id: string; type: "models.list"; provider?: string }
   | { id: string; type: "models.refresh"; providers?: string[] }
   | { id: string; type: "vault.list" }
-  | { id: string; type: "vault.set"; name: string; value: string; description?: string; scopes?: string }
+  | {
+      id: string;
+      type: "vault.set";
+      name: string;
+      value: string;
+      description?: string;
+      scopes?: string;
+      origin?: string;
+    }
   | { id: string; type: "vault.delete"; name: string }
   | { id: string; type: "mcp.list" }
-  | { id: string; type: "mcp.upsert"; name: string; url: string; headers?: Record<string, string>; authMode?: "headers" | "oauth" | "sse" }
+  | {
+      id: string;
+      type: "mcp.upsert";
+      name: string;
+      url: string;
+      headers?: Record<string, string>;
+      authMode?: "headers" | "oauth" | "sse";
+    }
   | { id: string; type: "mcp.delete"; idOrName: string }
   | { id: string; type: "routine.list" }
   | {
       id: string;
       type: "routine.upsert";
-      routine: Omit<RoutineRecord, "id" | "lastHash" | "schedulerJobId" | "lastRunAt" | "updatedAt"> & { id?: string };
+      routine: Omit<
+        RoutineRecord,
+        "id" | "lastHash" | "schedulerJobId" | "lastRunAt" | "updatedAt"
+      > & { id?: string };
     }
   | { id: string; type: "routine.delete"; routineId: string }
   | { id: string; type: "plugin.list" }
-  | { id: string; type: "plugin.upsert"; plugin: Omit<DevPluginRecord, "id" | "updatedAt"> & { id?: string } }
+  | {
+      id: string;
+      type: "plugin.upsert";
+      plugin: Omit<DevPluginRecord, "id" | "updatedAt"> & { id?: string };
+    }
   | { id: string; type: "plugin.delete"; pluginId: string }
   | { id: string; type: "skill.list" }
-  | { id: string; type: "skill.upsert"; name: string; description?: string; bodyMd: string; files?: Record<string, string> }
+  | {
+      id: string;
+      type: "skill.upsert";
+      name: string;
+      description?: string;
+      bodyMd: string;
+      files?: Record<string, string>;
+    }
   | { id: string; type: "skill.import"; source: string }
   | { id: string; type: "skill.delete"; name: string }
   | { id: string; type: "file.list"; sessionId?: string }
