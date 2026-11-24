@@ -1,8 +1,20 @@
 import { contentText, type Api, type Model, type Models } from "@earendil-works/pi-ai";
+import { arr, compile, lit, nullable, num, obj, opt, str, union } from "@earendil-works/pi-schema";
 import type { MemoryItem, OpenItem } from "../types.js";
+
+const MAX_REVISIONS = 50;
+
+export interface MemoryRevision {
+  id: number;
+  version: number;
+  source: string;
+  content: string;
+  createdAt: number;
+}
 
 export interface MemoryBatchInput {
   coreContent?: string;
+  coreSource?: string;
   addItems?: Array<{
     kind: MemoryItem["kind"];
     content: string;
@@ -19,15 +31,56 @@ export interface MemoryBatchInput {
   }>;
 }
 
+const consolidationSchema = obj({
+  coreContent: opt(str()),
+  addItems: opt(
+    arr(
+      obj({
+        kind: union([lit("fact"), lit("decision"), lit("summary"), lit("preference")]),
+        content: str({ minLength: 1 }),
+        supersedesId: opt(str()),
+      }),
+    ),
+  ),
+  upsertOpenItems: opt(
+    arr(
+      obj({
+        id: opt(str()),
+        title: str({ minLength: 1 }),
+        context: opt(str()),
+        status: opt(union([lit("open"), lit("resolved")])),
+        dueAt: opt(nullable(num())),
+      }),
+    ),
+  ),
+});
+
+const consolidationValidator = compile(consolidationSchema);
+
+function normalizeFact(text: string): string {
+  return text
+    .replace(/^\s*[-*]\s*/, "")
+    .replace(/\s+/g, " ")
+    .replace(/[.!]+$/, "")
+    .trim()
+    .toLowerCase();
+}
+
 function sanitizeFtsQuery(raw: string): string {
   const tokens = raw
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .split(/\s+/)
     .filter((t) => t.length >= 2)
-    .slice(0, 8);
+    .slice(0, 12);
   if (tokens.length === 0) return "";
-  return tokens.map((t) => `"${t}"`).join(" OR ");
+  return tokens
+    .map((t) => {
+      const escaped = t.replace(/"/g, '""');
+      return t.length >= 3 ? `"${escaped}"*` : `"${escaped}"`;
+    })
+    .join(" OR ");
 }
 
 export class UnifiedMemory {
@@ -51,6 +104,36 @@ export class UnifiedMemory {
       updatedAt: Number(row.updated_at ?? 0),
     };
     return this.coreCache;
+  }
+
+  listCoreRevisions(limit = 20): MemoryRevision[] {
+    return this.sql
+      .exec<{ id: number; version: number; source: string; content: string; created_at: number }>(
+        `SELECT id, version, source, content, created_at
+         FROM tock_memory_revisions ORDER BY id DESC LIMIT ?`,
+        limit,
+      )
+      .toArray()
+      .map((r) => ({
+        id: Number(r.id),
+        version: Number(r.version),
+        source: String(r.source),
+        content: String(r.content),
+        createdAt: Number(r.created_at),
+      }));
+  }
+
+  restoreCoreRevision(revisionId: number): { restored: boolean; version?: number } {
+    const rows = this.sql
+      .exec<{ content: string }>(
+        `SELECT content FROM tock_memory_revisions WHERE id = ?`,
+        revisionId,
+      )
+      .toArray();
+    const target = rows[0];
+    if (!target) return { restored: false };
+    this.applyBatch({ coreContent: String(target.content), coreSource: `restore:${revisionId}` });
+    return { restored: true, version: this.getCore().version };
   }
 
   listOpenItems(status: OpenItem["status"] = "open"): OpenItem[] {
@@ -125,37 +208,69 @@ export class UnifiedMemory {
     this.storage.transactionSync(() => {
       if (batch.coreContent !== undefined) {
         const cur = this.getCore();
-        const nextVersion = cur.version + 1;
-        this.sql.exec(
-          `UPDATE tock_memory_core SET content = ?, version = ?, updated_at = ? WHERE id = 1`,
-          batch.coreContent,
-          nextVersion,
-          now,
-        );
-        this.coreCache = { content: batch.coreContent, version: nextVersion, updatedAt: now };
+        if (batch.coreContent !== cur.content) {
+          const nextVersion = cur.version + 1;
+          this.sql.exec(
+            `UPDATE tock_memory_core SET content = ?, version = ?, updated_at = ? WHERE id = 1`,
+            batch.coreContent,
+            nextVersion,
+            now,
+          );
+          this.sql.exec(
+            `INSERT INTO tock_memory_revisions (version, source, content, created_at) VALUES (?, ?, ?, ?)`,
+            nextVersion,
+            batch.coreSource ?? "update",
+            batch.coreContent,
+            now,
+          );
+          this.sql.exec(
+            `DELETE FROM tock_memory_revisions WHERE id <= (SELECT MAX(id) FROM tock_memory_revisions) - ?`,
+            MAX_REVISIONS,
+          );
+          this.coreCache = { content: batch.coreContent, version: nextVersion, updatedAt: now };
+        }
       }
 
-      for (const item of batch.addItems ?? []) {
-        const id = crypto.randomUUID();
-        this.sql.exec(
-          `INSERT INTO tock_memory_items (id, kind, content, source_session_id, superseded_by, created_at)
-           VALUES (?, ?, ?, ?, NULL, ?)`,
-          id,
-          item.kind,
-          item.content,
-          item.sourceSessionId ?? null,
-          now,
+      if (batch.addItems && batch.addItems.length > 0) {
+        const existingNormalized = new Set(
+          this.sql
+            .exec<{ content: string }>(
+              `SELECT content FROM tock_memory_items WHERE superseded_by IS NULL`,
+            )
+            .toArray()
+            .map((r) => normalizeFact(String(r.content))),
         );
-        this.sql.exec(`INSERT INTO tock_memory_fts (id, content) VALUES (?, ?)`, id, item.content);
-        if (item.supersedesId) {
+
+        for (const item of batch.addItems) {
+          const norm = normalizeFact(item.content);
+          if (!norm) continue;
+          if (!item.supersedesId && existingNormalized.has(norm)) continue;
+          existingNormalized.add(norm);
+          const id = crypto.randomUUID();
           this.sql.exec(
-            `UPDATE tock_memory_items SET superseded_by = ? WHERE id = ?`,
+            `INSERT INTO tock_memory_items (id, kind, content, source_session_id, superseded_by, created_at)
+             VALUES (?, ?, ?, ?, NULL, ?)`,
             id,
-            item.supersedesId,
+            item.kind,
+            item.content,
+            item.sourceSessionId ?? null,
+            now,
           );
-          this.sql.exec(`DELETE FROM tock_memory_fts WHERE id = ?`, item.supersedesId);
+          this.sql.exec(
+            `INSERT INTO tock_memory_fts (id, content) VALUES (?, ?)`,
+            id,
+            item.content,
+          );
+          if (item.supersedesId) {
+            this.sql.exec(
+              `UPDATE tock_memory_items SET superseded_by = ? WHERE id = ?`,
+              id,
+              item.supersedesId,
+            );
+            this.sql.exec(`DELETE FROM tock_memory_fts WHERE id = ?`, item.supersedesId);
+          }
+          addedIds.push(id);
         }
-        addedIds.push(id);
       }
 
       for (const open of batch.upsertOpenItems ?? []) {
@@ -253,12 +368,15 @@ export class UnifiedMemory {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { updated: false, addedFacts: 0, updatedOpen: 0 };
 
-    let parsed: MemoryBatchInput;
+    let rawParsed: unknown;
     try {
-      parsed = JSON.parse(jsonMatch[0]) as MemoryBatchInput;
+      rawParsed = JSON.parse(jsonMatch[0]);
     } catch {
       return { updated: false, addedFacts: 0, updatedOpen: 0 };
     }
+    const validated = consolidationValidator.validate(rawParsed);
+    if (!validated.ok) return { updated: false, addedFacts: 0, updatedOpen: 0 };
+    const parsed = validated.value;
 
     const coreContent =
       typeof parsed.coreContent === "string" && parsed.coreContent.trim()
@@ -284,7 +402,12 @@ export class UnifiedMemory {
       })),
     );
 
-    const res = this.applyBatch({ coreContent, addItems, upsertOpenItems });
+    const res = this.applyBatch({
+      coreContent,
+      coreSource: `consolidate:${sessionId}`,
+      addItems,
+      upsertOpenItems,
+    });
     return {
       updated: true,
       addedFacts: res.addedIds.length,

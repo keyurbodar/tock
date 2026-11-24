@@ -85,6 +85,16 @@ export default {
       return Response.json(await stub.getHealth());
     }
 
+    if (url.pathname === "/api/memory/revisions" && request.method === "GET") {
+      return Response.json({ revisions: await stub.listMemoryRevisions() });
+    }
+
+    const memRestoreMatch = url.pathname.match(/^\/api\/memory\/revisions\/(\d+)\/restore$/);
+    if (memRestoreMatch && request.method === "POST") {
+      const id = Number(memRestoreMatch[1]);
+      return Response.json(await stub.restoreMemoryRevision(id));
+    }
+
     if (url.pathname === "/api/models" && request.method === "GET") {
       const provider = url.searchParams.get("provider") ?? undefined;
       return Response.json({ models: await stub.listAvailableModels(provider) });

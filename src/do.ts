@@ -638,6 +638,16 @@ export class TockDO extends DurableObject<Env> {
     return this.memory.renderAutoContext(query);
   }
 
+  async listMemoryRevisions(limit = 20) {
+    await this.lifecycle.start();
+    return this.memory.listCoreRevisions(limit);
+  }
+
+  async restoreMemoryRevision(revisionId: number) {
+    await this.lifecycle.start();
+    return this.memory.restoreCoreRevision(revisionId);
+  }
+
   async chatPrompt(
     text: string,
     sessionId = ROOT_SESSION,
