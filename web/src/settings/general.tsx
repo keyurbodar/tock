@@ -23,7 +23,7 @@ function Timezone({ value, onPick }: { value: string; onPick: (zone: string) => 
   const zones = (ZONES.includes(value) ? ZONES : [value, ...ZONES]).filter((zone) => zone.toLowerCase().includes(needle))
   return (
     <Menu onOpenChange={(open) => (open ? undefined : setQuery(""))}>
-      <MenuTrigger render={<MenuSelectButton aria-label="Timezone" className="w-56" />}>{value}</MenuTrigger>
+      <MenuTrigger render={<MenuSelectButton className="w-56" />}>{value}</MenuTrigger>
       <MenuContent align="start" className="w-56">
         <MenuSearch label="Search timezones" value={query} onValueChange={setQuery} />
         <MenuRule />
