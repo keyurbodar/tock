@@ -41,3 +41,20 @@ test("a call cut off by Stop before it ran is cancelled", () => {
 test("a call a provider error left without a result is not cancelled", () => {
   expect(status([call("error")])).toBe("done")
 })
+
+test("a routine run is its own row, named by the routine and without the prompt tag", () => {
+  const entry: EntryRecord = {
+    id: "u",
+    kind: "tock.routine",
+    data: { routineId: "r1", name: "Tea [daily] check" },
+    model: [{ role: "user", content: "[routine:Tea [daily] check] Summarise the tea news.", timestamp: 5 }],
+  }
+  expect(buildItems([entry], null, [])).toEqual([
+    { kind: "routine", key: "u:0", name: "Tea [daily] check", text: "Summarise the tea news.", at: 5 },
+  ])
+})
+
+test("a typed message that looks like a routine tag stays a user message", () => {
+  const entry: EntryRecord = { id: "u", kind: "pi.user", model: [{ role: "user", content: "[routine:x] hello", timestamp: 5 }] }
+  expect(buildItems([entry], null, [])[0]?.kind).toBe("user")
+})

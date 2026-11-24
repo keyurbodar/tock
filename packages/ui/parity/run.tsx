@@ -29,9 +29,11 @@ for (const file of [...new Glob("cases/*.tsx").scanSync(dir)].sort()) {
       console.log(`MISSING ${item.component} ${item.ref} ${item.name}`)
       continue
     }
-    const result = compare(fixture.html, renderToStaticMarkup(item.render()).replace(/<link rel="preload"[^>]*>/g, ""))
+    const frame = (item.measured ?? []).reduce((html, property) => html.replace(new RegExp(`\\s*${property}:[^;"]*;?`, "g"), ""), fixture.html)
+    const result = compare(frame, renderToStaticMarkup(item.render()).replace(/<link rel="preload"[^>]*>/g, ""))
     if (result.mismatches.length === 0) {
-      console.log(`pass ${item.component} ${item.ref} ${item.name} (${result.nodes} nodes)`)
+      const note = item.measured ? `, ${item.measured.join(", ")} set at run time` : ""
+      console.log(`pass ${item.component} ${item.ref} ${item.name} (${result.nodes} nodes${note})`)
       continue
     }
     failed += 1

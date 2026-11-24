@@ -3,7 +3,7 @@ import { DotGrid } from "@tock/ui/dot-grid"
 import { Markdown } from "@tock/ui/markdown"
 import { ActivityLine, ActivityLiveStatus, ActivityStatus, WorkGroup } from "@tock/ui/chat/activity-line"
 import { Step as StepView, StepBody, StepCard, StepOutput, StepThought } from "@tock/ui/chat/step"
-import { AgentMessage, CopyMessageButton, MessageSection, UserMessage } from "@tock/ui/chat/message"
+import { AgentMessage, AutomationMessage, CopyMessageButton, MessageSection, UserMessage } from "@tock/ui/chat/message"
 import { ChatStamp, ProgressEdge, ROW, ScrollToEnd } from "@tock/ui/timeline"
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { ToolResultMessage } from "../api/types"
@@ -104,8 +104,23 @@ function UserRow({ item }: { item: Extract<Item, { kind: "user" }> }) {
   )
 }
 
+function RoutineRow({ item }: { item: Extract<Item, { kind: "routine" }> }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <AutomationMessage
+      title={item.name}
+      detail="ran"
+      time={item.at === null ? undefined : messageTime(item.at)}
+      clamp={{ text: item.text, expanded, onToggle: () => setExpanded((value) => !value) }}
+    >
+      <Markdown>{item.text}</Markdown>
+    </AutomationMessage>
+  )
+}
+
 function Row({ item }: { item: Item }) {
   if (item.kind === "user") return <UserRow item={item} />
+  if (item.kind === "routine") return <RoutineRow item={item} />
   if (item.kind === "work") return <Work item={item} />
   if (item.kind === "text") {
     return (
@@ -133,7 +148,7 @@ export function Transcript({ state }: { state: ThreadState }) {
   const items = useMemo(() => buildItems(state.entries, state.live, state.pending), [state.entries, state.live, state.pending])
   const working = isWorking(state)
   const last = items.at(-1)
-  const idle = working && (last === undefined || last.kind === "user" || (last.kind === "work" && !last.active))
+  const idle = working && (last === undefined || last.kind === "user" || last.kind === "routine" || (last.kind === "work" && !last.active))
   const first = items.find((item) => item.kind === "user")
 
   useLayoutEffect(() => {

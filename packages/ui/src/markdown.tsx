@@ -91,7 +91,7 @@ export function renderMarkdown(source: string): ReactNode {
           <table {...props} />
         </div>
       ),
-      a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+      a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
     },
   })
 }

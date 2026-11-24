@@ -16,7 +16,7 @@ export interface ClampFade {
 const DEFAULT_FADE: ClampFade = { rest: "3.5rem", hover: "5rem" }
 
 export interface ClampProps {
-  readonly maxHeight: number
+  readonly maxHeight: number | { readonly lines: number }
   readonly fade?: ClampFade
   readonly expanded: boolean
   readonly onToggle: () => void
@@ -31,26 +31,36 @@ export function Clamp({ maxHeight, fade = DEFAULT_FADE, expanded, onToggle, clas
   const toggled = useRef(false)
   const previous = useRef(expanded)
   const [overflows, setOverflows] = useState(true)
-  const [initial] = useState(() => (expanded ? undefined : maxHeight))
+  const lines = typeof maxHeight === "number" ? undefined : maxHeight.lines
+  const limit = useRef(typeof maxHeight === "number" ? maxHeight : 0)
+  const [initial] = useState(() => (expanded || typeof maxHeight !== "number" ? undefined : maxHeight))
   const open = expanded || !overflows
 
   useLayoutEffect(() => {
     const element = content.current
     if (element === null) return
-    const measure = () => setOverflows(element.getBoundingClientRect().height > maxHeight + 1)
+    if (lines === undefined && typeof maxHeight === "number") limit.current = maxHeight
+    const measure = () => {
+      if (lines !== undefined) {
+        const line = element.querySelector("p, li, pre, h1, h2, h3, h4, h5, h6") ?? element
+        limit.current = lines * Number.parseFloat(getComputedStyle(line).lineHeight)
+      }
+      setOverflows(element.getBoundingClientRect().height > limit.current + 1)
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [maxHeight])
+  }, [maxHeight, lines])
 
   useLayoutEffect(() => {
     const outer = body.current
     const inner = content.current
     if (outer === null || inner === null) return
+    const max = limit.current
     const settle = () => {
       outer.style.height = ""
-      outer.style.maxHeight = open ? "" : `${maxHeight}px`
+      outer.style.maxHeight = open ? "" : `${max}px`
     }
     if (previous.current === expanded) {
       settle()
@@ -62,7 +72,7 @@ export function Clamp({ maxHeight, fade = DEFAULT_FADE, expanded, onToggle, clas
     outer.style.height = `${expanded ? from : (visibleHeight(outer) ?? from)}px`
     outer.getBoundingClientRect()
     const full = inner.getBoundingClientRect().height
-    outer.style.height = `${expanded ? full : Math.min(maxHeight, full)}px`
+    outer.style.height = `${expanded ? full : Math.min(max, full)}px`
     const animations = outer.getAnimations()
     if (animations.length === 0) {
       settle()

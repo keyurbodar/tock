@@ -21,6 +21,7 @@ export type Step =
 
 export type Item =
   | { readonly kind: "user"; readonly key: string; readonly text: string; readonly images: readonly ImageBlock[]; readonly at: number | null }
+  | { readonly kind: "routine"; readonly key: string; readonly name: string; readonly text: string; readonly at: number | null }
   | { readonly kind: "work"; readonly key: string; readonly steps: readonly Step[]; readonly active: boolean }
   | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
   | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string }
@@ -36,6 +37,12 @@ const userText = (message: Extract<Message, { role: "user" }>) =>
   typeof message.content === "string"
     ? message.content
     : message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n")
+
+const routineName = (entry: EntryRecord) => {
+  if (entry.kind !== "tock.routine") return undefined
+  const data = entry.data
+  return typeof data === "object" && data !== null && "name" in data && typeof data.name === "string" ? data.name : undefined
+}
 
 const abortedResult = (data: unknown) => {
   if (typeof data !== "object" || data === null || !("diagnostics" in data) || !Array.isArray(data.diagnostics)) return false
@@ -105,7 +112,14 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
     (entry.model ?? []).forEach((message, index) => {
       const key = `${entry.id}:${index}`
       if (message.role === "user") {
-        items.push({ kind: "user", key, text: userText(message), images: userImages(message), at: message.timestamp ?? null })
+        const text = userText(message)
+        const routine = routineName(entry)
+        if (routine === undefined) {
+          items.push({ kind: "user", key, text, images: userImages(message), at: message.timestamp ?? null })
+        } else {
+          const tag = `[routine:${routine}] `
+          items.push({ kind: "routine", key, name: routine, text: text.startsWith(tag) ? text.slice(tag.length) : text, at: message.timestamp ?? null })
+        }
       } else if (message.role === "assistant") {
         assistant(message, key, false)
       }
