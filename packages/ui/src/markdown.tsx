@@ -8,6 +8,7 @@ import remarkRehype from "remark-rehype"
 import remend from "remend"
 import { unified } from "unified"
 import { useStreamFade } from "./chat/stream-fade"
+import { MarkdownCode } from "./markdown-code"
 
 const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
 
@@ -40,6 +41,19 @@ const processor = unified()
   .use(rehypeSanitize)
   .use(remoteImagesAsLinks)
 
+const textOf = (node: HtmlNode): string => node.value ?? (node.children ?? []).map(textOf).join("")
+
+const languageOf = (code: HtmlNode | undefined) => {
+  const names = code?.properties?.className
+  const name = Array.isArray(names) ? names.find((item) => typeof item === "string" && item.startsWith("language-")) : undefined
+  return typeof name === "string" ? name.slice("language-".length) : undefined
+}
+
+function Pre({ node }: { node?: HtmlNode }) {
+  const code = node?.children?.find((child) => child.tagName === "code")
+  return <MarkdownCode text={(code ? textOf(code) : "").replace(/\n$/, "")} language={languageOf(code)} />
+}
+
 const FENCE = /^\s*(```|~~~)/
 
 export function splitBlocks(source: string): string[] {
@@ -59,14 +73,21 @@ export function splitBlocks(source: string): string[] {
   return blocks
 }
 
-function render(source: string): ReactNode {
+export function renderMarkdown(source: string): ReactNode {
   const tree = processor.runSync(processor.parse(source))
   return toJsxRuntime(tree, {
     Fragment,
     jsx,
     jsxs,
+    passNode: true,
     components: {
-      a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
+      pre: Pre,
+      table: ({ node: _node, ...props }) => (
+        <div data-slot="markdown-table">
+          <table {...props} />
+        </div>
+      ),
+      a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
     },
   })
 }
@@ -75,7 +96,7 @@ const Block = memo(function Block({ source, streaming, owner }: { source: string
   const fade = useStreamFade(source, streaming, owner)
   return (
     <div ref={fade} data-md-fade-owner={owner} data-markdown-block="">
-      {render(source)}
+      {renderMarkdown(source)}
     </div>
   )
 })
