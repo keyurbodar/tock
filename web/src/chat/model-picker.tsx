@@ -116,7 +116,7 @@ export function ModelPicker({
     empty: (
       <span className="flex flex-col gap-1">
         No provider is connected yet
-        <Link to="/settings/$section" params={{ section: "models" }} className="text-(--text-link) underline-offset-2 hover:underline">
+        <Link to="." search={(previous) => ({ ...previous, settings: "models" as const })} className="text-(--text-link) underline-offset-2 hover:underline">
           Add a provider key
         </Link>
       </span>

@@ -1,6 +1,5 @@
 import {
   Add01Icon,
-  ArrowLeft01Icon,
   BrainIcon,
   Clock01Icon,
   Folder01Icon,
@@ -14,12 +13,10 @@ import { Link } from "@tanstack/react-router"
 import { buttonVariants, Button } from "@tock/ui/button"
 import { DotGrid } from "@tock/ui/dot-grid"
 import { Icon, type IconData } from "@tock/ui/icon"
-import { Input } from "@tock/ui/input"
 import { useState } from "react"
 import { AGENT } from "../agent"
 import type { SessionSummary } from "../api/types"
 import { relativeTime } from "../lib/format"
-import { SECTIONS } from "../settings/sections"
 
 const ICON_LINK = buttonVariants({ variant: "ghost", size: "icon-sm" })
 const ITEM = "flow-root p-0.5 [@media(min-width:768px),(hover:hover)_and_(pointer:fine)]:py-0"
@@ -80,57 +77,14 @@ function Threads({ sessions }: { sessions: readonly SessionSummary[] }) {
   )
 }
 
-const SETTINGS_BACK =
-  "flex h-7 min-w-0 flex-1 items-center gap-2 rounded px-2 text-sm font-medium text-muted-foreground-1 outline-none select-none transition-colors duration-100 hover:bg-secondary hover:text-foreground focus-visible:outline-ring-inset [&_svg]:size-(--icon-sm) [&_svg]:shrink-0"
-const SETTINGS_LINK =
-  "group/nav flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded px-2 text-sm font-medium text-muted-foreground-1 outline-none select-none transition-colors duration-100 hover:bg-secondary hover:text-foreground focus-visible:outline-ring-inset [&.active]:bg-secondary [&.active]:text-foreground [&_svg]:size-(--icon-sm) [&_svg]:shrink-0"
-
-function SettingsNav() {
-  const [query, setQuery] = useState("")
-  const term = query.trim().toLowerCase()
-  return (
-    <>
-      <div className="shrink-0 px-2 pb-1">
-        <span data-slot="input-group" className="relative inline-flex w-full">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-icon-muted [&_svg]:size-(--icon-sm)"
-          >
-            <Icon icon={Search01Icon} />
-          </span>
-          <Input
-            aria-label="Search settings"
-            placeholder="Search settings"
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
-            className="h-(--h-control-sm) w-full px-2 pl-7"
-          />
-        </span>
-      </div>
-      <div className="flex flex-col gap-4 px-2 py-1">
-        <nav aria-label="Settings" className="flex flex-col gap-px">
-          {SECTIONS.filter((section) => section.label.toLowerCase().includes(term)).map((section) => (
-            <Link key={section.id} to="/settings/$section" params={{ section: section.id }} className={SETTINGS_LINK}>
-              <Icon icon={section.icon} />
-              <span className="min-w-0 truncate">{section.label}</span>
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </>
-  )
-}
-
 export function Sidebar({
   sessions,
   owner,
-  settings,
   onSearch,
   onToggle,
 }: {
   sessions: readonly SessionSummary[]
   owner: string
-  settings: boolean
   onSearch: () => void
   onToggle: () => void
 }) {
@@ -144,36 +98,24 @@ export function Sidebar({
         className="flex h-full min-w-0 flex-1 flex-col transition-[opacity,translate] delay-[40ms] duration-base ease-out-quint group-data-[sidebar=closed]/shell:opacity-0 motion-reduce:transition-[opacity] motion-reduce:delay-0 motion-reduce:duration-[110ms]"
       >
         <div className="flex h-full min-h-0 w-full flex-col pt-2">
-          {settings ? (
-            <header className="flex h-11 shrink-0 items-center gap-1 px-2">
-              <Link to="/" className={SETTINGS_BACK}>
-                <Icon icon={ArrowLeft01Icon} />
-                Settings
+          <header className="flex h-11 shrink-0 items-center gap-1 px-2 pl-4">
+            <Link to="/" aria-label="Home" className={`${ICON_LINK} -ml-1`}>
+              <img src={AGENT.character} alt="" className="h-5 w-auto" />
+            </Link>
+            <div className="ml-auto flex items-center">
+              <Button variant="ghost" size="icon-sm" aria-label="Search" onClick={onSearch}>
+                <Icon icon={Search01Icon} />
+              </Button>
+              <Link to="/" aria-label="New chat" className={ICON_LINK}>
+                <Icon icon={PencilEdit02Icon} />
               </Link>
-              <Button variant="ghost" size="icon-sm" aria-label="Close sidebar" onClick={onToggle}>
+              <Button variant="ghost" size="icon-sm" aria-label="Toggle sidebar" onClick={onToggle}>
                 <Icon icon={SidebarLeftIcon} />
               </Button>
-            </header>
-          ) : (
-            <header className="flex h-11 shrink-0 items-center gap-1 px-2 pl-4">
-              <Link to="/" aria-label="Home" className={`${ICON_LINK} -ml-1`}>
-                <img src={AGENT.character} alt="" className="h-5 w-auto" />
-              </Link>
-              <div className="ml-auto flex items-center">
-                <Button variant="ghost" size="icon-sm" aria-label="Search" onClick={onSearch}>
-                  <Icon icon={Search01Icon} />
-                </Button>
-                <Link to="/" aria-label="New chat" className={ICON_LINK}>
-                  <Icon icon={PencilEdit02Icon} />
-                </Link>
-                <Button variant="ghost" size="icon-sm" aria-label="Toggle sidebar" onClick={onToggle}>
-                  <Icon icon={SidebarLeftIcon} />
-                </Button>
-              </div>
-            </header>
-          )}
+            </div>
+          </header>
           <nav className="scroll-fade-y min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-            {settings ? <SettingsNav /> : <Threads sessions={sessions} />}
+            <Threads sessions={sessions} />
           </nav>
           <footer className="flex shrink-0 items-center gap-1 border-t-[0.5px] border-border-1 p-2">
             <span
@@ -188,7 +130,7 @@ export function Sidebar({
                   <Icon icon={page.icon} />
                 </Link>
               ))}
-              <Link to="/settings/$section" params={{ section: "general" }} aria-label="Settings" className={ICON_LINK}>
+              <Link to="." search={(previous) => ({ ...previous, settings: "general" as const })} aria-label="Settings" className={ICON_LINK}>
                 <Icon icon={Settings01Icon} />
               </Link>
             </nav>

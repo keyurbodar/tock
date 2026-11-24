@@ -4,11 +4,13 @@ import { buttonVariants } from "./button"
 import { cn } from "./cn"
 import { glyphs } from "./glyph"
 
-const OVERLAY =
+export const DIALOG_OVERLAY =
   "fixed inset-0 z-(--z-dialog) bg-overlay transition-opacity duration-base ease-out data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 data-[ending-style]:duration-fast"
 
-const CONTENT =
-  "relative flex w-full max-w-lg flex-col overflow-y-auto rounded-(--radius-panel) border-[0.5px] border-border-2 bg-popover text-left shadow-overlay [--table-lead-bg:var(--popover)] outline-none transition-[opacity,scale] duration-base ease-out-quint data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[ending-style]:duration-fast"
+export const DIALOG_MOTION =
+  "outline-none transition-[opacity,scale] duration-base ease-out-quint data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[ending-style]:duration-fast"
+
+const CONTENT = `relative flex w-full max-w-lg flex-col overflow-y-auto rounded-(--radius-panel) border-[0.5px] border-border-2 bg-popover text-left shadow-overlay [--table-lead-bg:var(--popover)] ${DIALOG_MOTION}`
 
 const PASSWORD_MANAGER_TAGS = ["com-1password-", "bitwarden-", "lpform-", "dashlanefr-", "protonpass-"]
 const PASSWORD_MANAGER_FIELDS = ["keepassxc-username-field", "keepassxc-password-field"]
@@ -48,7 +50,7 @@ export function DialogClose(props: ComponentProps<typeof DialogPrimitive.Close>)
 export function DialogContent({ className, ...props }: ComponentProps<typeof DialogPrimitive.Popup>) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop data-slot="dialog-overlay" className={OVERLAY} />
+      <DialogPrimitive.Backdrop data-slot="dialog-overlay" className={DIALOG_OVERLAY} />
       <div className="fixed inset-0 z-(--z-dialog) flex h-dvh items-center justify-center px-4 pt-[calc(1rem+var(--safe-top))] pb-[calc(1rem+var(--safe-bottom))]">
         <DialogPrimitive.Popup data-slot="dialog-content" className={cn(CONTENT, "max-h-full", className)} {...props} />
       </div>

@@ -146,3 +146,10 @@
     transition-delay: 0s !important;
   }
 }
+
+@keyframes settings-push {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}

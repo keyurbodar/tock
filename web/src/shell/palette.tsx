@@ -101,7 +101,7 @@ export function Palette() {
         group: "Settings",
         label: section.label,
         icon: section.icon,
-        run: () => navigate({ to: "/settings/$section", params: { section: section.id } }),
+        run: () => navigate({ to: ".", search: (previous) => ({ ...previous, settings: section.id }) }),
       })),
       ...MODES.map(({ mode, label, icon }) => ({
         id: `mode-${mode}`,

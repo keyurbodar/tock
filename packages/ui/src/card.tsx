@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react"
+import { createContext, use, type ComponentProps, type ReactNode } from "react"
 import { cn } from "./cn"
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
@@ -43,6 +43,8 @@ export function SettingsRow({
   )
 }
 
+export const PageEmbedded = createContext(false)
+
 export function Page({
   title,
   description,
@@ -54,20 +56,25 @@ export function Page({
   action?: ReactNode
   children: ReactNode
 }) {
+  const embedded = use(PageEmbedded)
+  const content = (
+    <>
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <h1 className="text-xl font-medium text-foreground">{title}</h1>
+            {description ? <p className="text-sm font-normal text-muted-foreground-1">{description}</p> : null}
+          </div>
+          {action}
+        </div>
+      </header>
+      {children}
+    </>
+  )
+  if (embedded) return <div className="flex flex-col gap-10">{content}</div>
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto md:scroll-fade-y">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 pt-6 pb-10 md:pt-16">
-        <header className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <h1 className="text-xl font-medium text-foreground">{title}</h1>
-              {description ? <p className="text-sm font-normal text-muted-foreground-1">{description}</p> : null}
-            </div>
-            {action}
-          </div>
-        </header>
-        {children}
-      </div>
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 pt-6 pb-10 md:pt-16">{content}</div>
     </div>
   )
 }

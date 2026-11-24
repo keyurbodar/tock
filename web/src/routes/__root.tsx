@@ -4,13 +4,19 @@ import { Backdrop } from "@tock/ui/backdrop"
 import { useEffect, useState } from "react"
 import { Toaster } from "@tock/ui/toast"
 import { ShellContext, type SidebarState } from "../shell/context"
+import { SettingsHost } from "../settings/dialog"
+import { isSettingsView, type SettingsView } from "../settings/sections"
 import { Palette } from "../shell/palette"
 import { Sidebar } from "../shell/sidebar"
 import { useAppearance } from "../state/appearance"
 import { paletteAtom, useSessions } from "../state/data"
 import { registry } from "../state/registry"
 
-export const Route = createRootRoute({ component: Root })
+export const Route = createRootRoute({
+  component: Root,
+  validateSearch: (search: Record<string, unknown>): { settings?: SettingsView } =>
+    isSettingsView(search.settings) ? { settings: search.settings } : {},
+})
 
 const DESKTOP = "(min-width: 768px)"
 
@@ -33,7 +39,6 @@ function Root() {
           <Sidebar
             sessions={sessions}
             owner="Keyur"
-            settings={pathname.startsWith("/settings")}
             onSearch={() => registry.set(paletteAtom, true)}
             onToggle={toggleSidebar}
           />
@@ -60,6 +65,7 @@ function Root() {
         </div>
       </div>
       <Palette />
+      <SettingsHost />
       <Toaster position="bottom-right" />
     </ShellContext>
   )
