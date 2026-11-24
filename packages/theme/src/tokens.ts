@@ -192,8 +192,8 @@ export const THEME: Tokens = {
 }
 
 export const FONT: Tokens = {
-  "font-inter": "-apple-system, \"SF Pro Text\", \"Inter\", ui-sans-serif, system-ui, sans-serif",
-  "font-geist-mono": "\"SF Mono\", \"Geist Mono\", ui-monospace, monospace",
+  "font-inter": "\"Inter\", ui-sans-serif, system-ui, sans-serif",
+  "font-geist-mono": "\"Geist Mono\", ui-monospace, monospace",
   "font-terminal": "\"JetBrainsMono Nerd Font Mono\", var(--font-geist-mono)",
 }
 
