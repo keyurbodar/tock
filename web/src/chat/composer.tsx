@@ -115,7 +115,8 @@ export function Composer({
   const effective: ModelChoice = { model: choice.model ?? settings?.model ?? null, thinkingLevel: choice.thinkingLevel }
   const files = attachments.entries.flatMap((entry) => (entry.meta === undefined ? [] : [entry.meta]))
   const uploading = attachments.entries.some((entry) => entry.status.phase === "uploading")
-  const content = !empty || attachments.entries.length > 0
+  const ready = attachments.entries.some((entry) => entry.status.phase === "ready")
+  const content = !empty || ready
   const commands = useCommands(effective)
   const [previewing, setPreviewing] = useState<string>()
   const media = attachments.entries.flatMap((entry): MediaEntry[] =>
