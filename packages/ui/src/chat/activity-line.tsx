@@ -119,7 +119,9 @@ export function ActivityLine({ status, open, defaultOpen = false, onOpenChange, 
 }
 
 export function WorkGroup({ children }: { children: ReactNode }) {
-  const expanded = useContext(ExpandedContext)
+  const lineExpanded = useContext(ExpandedContext)
+  const [inspected, setInspected] = useState(false)
+  const expanded = lineExpanded || inspected
   return (
     <div className="flex min-w-0 flex-col">
       <div inert aria-hidden="true" className={HEADER_CLOSED}>
@@ -134,7 +136,7 @@ export function WorkGroup({ children }: { children: ReactNode }) {
         </div>
       </div>
       <Collapse open slot="work-group-panel">
-        <Tail clamped={!expanded}>
+        <Tail clamped={!expanded} onInspect={() => setInspected(true)}>
           <div className={LIST}>
             {Children.toArray(children).map((row, index) => (
               <div key={index} className="min-w-0">

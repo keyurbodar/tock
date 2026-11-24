@@ -7,7 +7,17 @@ export const InspectContext = createContext<() => void>(() => {})
 const TAIL =
   "focus-gutter min-w-0 overflow-clip data-tail:[mask-image:linear-gradient(to_bottom,transparent,black_var(--tail-fade,0px))] data-tail:will-change-[opacity]"
 
-export function Tail({ clamped, signal, children }: { clamped: boolean; signal?: unknown; children: ReactNode }) {
+export function Tail({
+  clamped,
+  signal,
+  onInspect,
+  children,
+}: {
+  clamped: boolean
+  signal?: unknown
+  onInspect?: () => void
+  children: ReactNode
+}) {
   const frame = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const offset = useRef(0)
@@ -40,6 +50,7 @@ export function Tail({ clamped, signal, children }: { clamped: boolean; signal?:
   }, [clamped, signal])
 
   const inspect = () => {
+    onInspect?.()
     if (clamped) pinned.current = pinned.current ?? offset.current
   }
 
