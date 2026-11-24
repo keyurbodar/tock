@@ -100,6 +100,7 @@ export function Clamp({ maxHeight, fade = DEFAULT_FADE, expanded, onToggle, clas
     const start = press.current
     press.current = null
     if (!overflows || event.detail !== 1) return
+    if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
     toggled.current = false
     if (start?.selected) return
     if (start !== null && Math.abs(event.clientX - start.x) + Math.abs(event.clientY - start.y) > DRAG_PX) return
