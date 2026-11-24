@@ -564,12 +564,15 @@ export function ModelPickerDrawer<Step extends string>({
 }: ModelPickerPanelProps<Step> & { open: boolean }) {
   const [query, setQuery] = useState("")
   const [opened, setOpened] = useState<string | null>(null)
+  const [highlight, setHighlight] = useState<string | null>(null)
+  const list = useRef<HTMLDivElement>(null)
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
     setWasOpen(open)
     if (!open) {
       setQuery("")
       setOpened(null)
+      setHighlight(null)
     }
   }
   const { browsing, found, entries } = listOf(groups, query)
@@ -582,10 +585,32 @@ export function ModelPickerDrawer<Step extends string>({
       group={group}
       model={model}
       selected={model.key === selected}
+      highlighted={highlight === nav}
       onClick={() => onSelect(model)}
       onMore={() => setOpened(nav)}
     />
   )
+
+  const onKey = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.metaKey || event.ctrlKey || event.nativeEvent.isComposing) return
+    const all = [...(list.current?.querySelectorAll<HTMLElement>("[data-nav]") ?? [])]
+    const at = all.findIndex((item) => item.dataset.nav === highlight)
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      const delta = event.key === "ArrowDown" ? 1 : -1
+      const next = all[at === -1 ? (delta > 0 ? 0 : all.length - 1) : (at + delta + all.length) % all.length]
+      if (next !== undefined) {
+        setHighlight(next.dataset.nav ?? null)
+        next.scrollIntoView({ block: "nearest" })
+      }
+      event.preventDefault()
+      return
+    }
+    if (event.key !== "Enter") return
+    const target = all[at] ?? (browsing ? undefined : all[0])
+    if (target === undefined) return
+    target.click()
+    event.preventDefault()
+  }
 
   return (
     <DrawerContent
@@ -604,11 +629,15 @@ export function ModelPickerDrawer<Step extends string>({
                 className="h-(--h-menu-row) w-full min-w-0 bg-transparent px-2 text-sm font-normal text-foreground outline-none placeholder:text-muted-foreground-3"
                 placeholder="Search models"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value)
+                  setHighlight(null)
+                }}
+                onKeyDown={onKey}
               />
             </div>
             <MenuSeparator />
-            <div role="listbox" aria-label="Models" className={cn("relative min-w-0 flex-1", !browsing && "pt-1")}>
+            <div ref={list} role="listbox" aria-label="Models" className={cn("relative min-w-0 flex-1", !browsing && "pt-1")}>
               {entries.length === 0 ? (
                 <div className="px-2 py-4 text-center text-sm font-normal text-muted-foreground-2">{browsing ? empty : "No models found"}</div>
               ) : browsing ? (
