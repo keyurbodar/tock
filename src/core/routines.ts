@@ -52,9 +52,6 @@ export class RoutineStore {
   async upsert(input: RoutineInput): Promise<RoutineRecord> {
     const id = input.id || crypto.randomUUID();
     const existing = this.get(id);
-    if (existing?.schedulerJobId) {
-      await this.scheduler.cancel(existing.schedulerJobId);
-    }
 
     let schedulerJobId: string | null = null;
     if (input.enabled) {
@@ -70,6 +67,10 @@ export class RoutineStore {
         const job = await this.scheduler.set(input.schedule, "runRoutine", { routineId: id });
         schedulerJobId = job.id;
       }
+    }
+
+    if (existing?.schedulerJobId) {
+      await this.scheduler.cancel(existing.schedulerJobId);
     }
 
     const now = Date.now();
