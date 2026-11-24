@@ -41,6 +41,16 @@ describe("tock backend", () => {
     expect(updated.devMode).toBe(true);
   });
 
+  it("lists built-in opencode-go models dynamically with zero hardcoded model ids", async () => {
+    const res = await SELF.fetch("https://tock.local/api/models?provider=opencode-go", {
+      headers: { "x-tock-owner": "models@test" }
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { models: Array<{ provider: string; id: string }> };
+    expect(body.models.length).toBeGreaterThan(0);
+    expect(body.models.some((m) => m.provider === "opencode-go")).toBe(true);
+  });
+
   it("encrypts secrets in AES-256-GCM vault and never leaks plaintext metadata", async () => {
     const saveRes = await SELF.fetch("https://tock.local/api/secrets", {
       method: "POST",
@@ -88,6 +98,39 @@ describe("tock backend", () => {
     expect(ctx).toContain("Review Hub Block Q4 calendar");
   });
 
+  it("runs zero-LLM djs watch routines and only wakes the model when state changes", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("watch@test"));
+    const r1 = await stub.upsertRoutine({
+      name: "repo-watch",
+      schedule: "600",
+      scheduleType: "interval",
+      prompt: "Notify user about new commits",
+      checkScript: `return { sha: "empty" };`,
+      quietIfUnchanged: true,
+      enabled: true
+    });
+
+    const first = await stub.triggerRoutineNow(r1.id);
+    expect(first).toEqual({ ran: true, skippedUnchanged: true, wokeModel: false });
+
+    const second = await stub.triggerRoutineNow(r1.id);
+    expect(second).toEqual({ ran: true, skippedUnchanged: true, wokeModel: false });
+
+    await stub.upsertRoutine({
+      id: r1.id,
+      name: "repo-watch",
+      schedule: "600",
+      scheduleType: "interval",
+      prompt: "Notify user about new commits",
+      checkScript: `return { sha: "9423388" };`,
+      quietIfUnchanged: true,
+      enabled: true
+    });
+
+    const third = await stub.triggerRoutineNow(r1.id);
+    expect(third).toEqual({ ran: true, skippedUnchanged: false, wokeModel: true });
+  });
+
   it("executes TypeScript codemode inside @earendil-works/djs WASM sandbox with memory access and fuel caps", async () => {
     const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("djs@test"));
     await stub.writeMemory({
@@ -102,7 +145,8 @@ describe("tock backend", () => {
       return { count, first: items[0]?.content ?? null };
       `
     );
-    if (!okRun.ok) throw new Error("DJS_ERR: " + okRun.error); expect(okRun.ok).toBe(true);
+    if (!okRun.ok) throw new Error("DJS_ERR: " + okRun.error);
+    expect(okRun.ok).toBe(true);
     const parsed = JSON.parse(okRun.valueJson ?? "{}") as { count: number; first: string };
     expect(parsed.count).toBeGreaterThanOrEqual(1);
     expect(parsed.first).toContain("Cloudflare Workers Free Plan");

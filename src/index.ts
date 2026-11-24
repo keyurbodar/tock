@@ -28,6 +28,10 @@ export default {
 
     const stub = env.TOCK_DO.get(env.TOCK_DO.idFromName(auth.owner));
 
+    if (url.pathname.startsWith("/mcp/oauth/")) {
+      return stub.fetch(request);
+    }
+
     if (url.pathname === "/ws" && request.headers.get("upgrade")?.toLowerCase() === "websocket") {
       const headers = new Headers(request.headers);
       headers.set("x-tock-owner", auth.owner);
@@ -36,6 +40,11 @@ export default {
 
     if (url.pathname === "/api/status" && request.method === "GET") {
       return Response.json(await stub.getHealth());
+    }
+
+    if (url.pathname === "/api/models" && request.method === "GET") {
+      const provider = url.searchParams.get("provider") ?? undefined;
+      return Response.json({ models: await stub.listAvailableModels(provider) });
     }
 
     if (url.pathname === "/api/settings" && request.method === "PATCH") {
@@ -52,9 +61,19 @@ export default {
       return Response.json(await stub.setSecret(body.name, body.value, body.description, body.scopes));
     }
 
+    if (url.pathname === "/api/mcp/oauth" && request.method === "POST") {
+      const body = (await request.json()) as { name: string; url: string };
+      return Response.json(await stub.connectMcpOAuth(body.name, body.url, url.origin));
+    }
+
     if (url.pathname === "/api/codemode" && request.method === "POST") {
       const body = (await request.json()) as { code: string; params?: Record<string, unknown> };
       return Response.json(await stub.runCodemode(body.code, body.params));
+    }
+
+    if (url.pathname === "/api/chat" && request.method === "POST") {
+      const body = (await request.json()) as { text: string; sessionId?: string };
+      return Response.json(await stub.chatPrompt(body.text, body.sessionId));
     }
 
     return Response.json({ ok: false, error: "not_found" }, { status: 404 });

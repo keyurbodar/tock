@@ -1,3 +1,4 @@
+import { contentText, type Api, type Model, type Models } from "@earendil-works/pi-ai";
 import type { MemoryItem, OpenItem } from "../types.js";
 
 export interface MemoryBatchInput {
@@ -195,5 +196,61 @@ export class UnifiedMemory {
       parts.push(`## Relevant Memory\n${lines.join("\n")}`);
     }
     return parts.join("\n\n");
+  }
+
+  async consolidateWithModel(
+    models: Models,
+    model: Model<Api>,
+    sessionId: string,
+    transcriptText: string
+  ): Promise<{ updated: boolean; addedFacts: number; updatedOpen: number }> {
+    const currentCore = this.getCore().content;
+    const currentOpen = this.listOpenItems("open");
+    const systemPrompt = [
+      "You consolidate personal agent memory across threads. Return strict JSON only with shape:",
+      '{"coreContent":"optional updated compact markdown dossier under 1200 words","addItems":[{"kind":"fact|decision|summary|preference","content":"..."}],"upsertOpenItems":[{"id":"optional","title":"...","context":"...","status":"open|resolved"}]}',
+      "Preserve active projects, preferences, and ongoing tasks so any new chat immediately knows them. Omit unchanged fields."
+    ].join("\n");
+
+    const userPrompt = [
+      `Current Core Memory:\n${currentCore || "(empty)"}`,
+      `Current Open Items:\n${JSON.stringify(currentOpen)}`,
+      `Recent Transcript (session ${sessionId}):\n${transcriptText.slice(-8000)}`
+    ].join("\n\n");
+
+    const msg = await models.completeSimple(model, {
+      systemPrompt,
+      messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }]
+    });
+    const raw = contentText(msg.content).trim();
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { updated: false, addedFacts: 0, updatedOpen: 0 };
+
+    let parsed: MemoryBatchInput;
+    try {
+      parsed = JSON.parse(jsonMatch[0]) as MemoryBatchInput;
+    } catch {
+      return { updated: false, addedFacts: 0, updatedOpen: 0 };
+    }
+
+    const addItems = (parsed.addItems ?? []).map((i) => ({
+      ...i,
+      sourceSessionId: sessionId
+    }));
+    const upsertOpenItems = (parsed.upsertOpenItems ?? []).map((o) => ({
+      ...o,
+      sessionId
+    }));
+
+    const res = this.applyBatch({
+      coreContent: typeof parsed.coreContent === "string" && parsed.coreContent.trim() ? parsed.coreContent.trim() : undefined,
+      addItems,
+      upsertOpenItems
+    });
+    return {
+      updated: true,
+      addedFacts: res.addedIds.length,
+      updatedOpen: res.openIds.length
+    };
   }
 }
