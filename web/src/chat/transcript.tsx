@@ -1,16 +1,14 @@
-import { Alert02Icon, IdeaIcon, Tick02Icon } from "@hugeicons/core-free-icons"
 import { DotGrid } from "@tock/ui/dot-grid"
-import { Icon } from "@tock/ui/icon"
 import { Markdown } from "@tock/ui/markdown"
+import { ActivityLine, ActivityLiveStatus, ActivityStatus, WorkGroup } from "@tock/ui/chat/activity-line"
+import { Step as StepView, StepBody, StepCard, StepOutput, StepThought } from "@tock/ui/chat/step"
 import {
-  ActivityLine,
   AgentMessage,
   Alert,
   ChatStamp,
   ProgressEdge,
   ROW,
   ScrollToEnd,
-  TimelineRow,
   UserBubble,
 } from "@tock/ui/timeline"
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
@@ -33,87 +31,53 @@ function argumentPreview(args: Readonly<Record<string, unknown>>): string {
   return flat.length > ARGUMENT_PREVIEW ? `${flat.slice(0, ARGUMENT_PREVIEW - 1)}…` : flat
 }
 
-function Detail({ children }: { children: string }) {
-  return (
-    <pre className="mb-1 max-h-64 overflow-auto rounded-(--radius-card) border-[0.5px] border-border-1 bg-card px-3 py-2 font-mono text-xs font-normal whitespace-pre-wrap text-muted-foreground-1 [overflow-wrap:anywhere]">
-      {children}
-    </pre>
-  )
-}
-
 function StepRow({ step }: { step: Step }) {
-  const [open, setOpen] = useState(false)
   if (step.kind === "thinking") {
     return (
-      <TimelineRow
-        icon={step.active ? <DotGrid state="working" className="size-(--icon-sm)" /> : <Icon icon={IdeaIcon} />}
-        open={open}
-        onToggle={() => setOpen((value) => !value)}
-        detail={
-          <div className="pb-1 pl-5.5">
+      <StepView kind="thought" state={step.active ? "live" : "rest"} label={step.active ? "Thinking" : "Thought"}>
+        <StepBody>
+          <StepThought>
             <Markdown size="sm" tone="muted" streaming={step.active}>
               {step.text}
             </Markdown>
-          </div>
-        }
-      >
-        <span className={step.active ? "text-shimmer" : undefined}>{step.active ? "Thinking" : "Thought"}</span>
-      </TimelineRow>
+          </StepThought>
+        </StepBody>
+      </StepView>
     )
   }
   const output = resultText(step.result)
   const preview = argumentPreview(step.call.arguments)
+  const label = preview ? `${titleCase(step.call.name)} ${preview}` : titleCase(step.call.name)
   return (
-    <TimelineRow
-      icon={
-        step.status === "running" ? (
-          <DotGrid state="working" className="size-(--icon-sm)" />
-        ) : step.status === "failed" ? (
-          <span className="flex text-destructive [&_svg]:size-(--icon-sm)">
-            <Icon icon={Alert02Icon} />
-          </span>
-        ) : (
-          <span className="flex text-success [&_svg]:size-(--icon-sm)">
-            <Icon icon={Tick02Icon} />
-          </span>
-        )
-      }
-      open={open}
-      onToggle={() => setOpen((value) => !value)}
-      detail={
-        <div className="flex flex-col gap-1 pl-5.5">
-          <Detail>{JSON.stringify(step.call.arguments, null, 2)}</Detail>
-          {output ? <Detail>{output}</Detail> : null}
-        </div>
-      }
-    >
-      <span className={step.status === "running" ? "text-shimmer" : undefined}>{titleCase(step.call.name)}</span>
-      {preview ? <span className="pl-1.5 font-normal text-muted-foreground-2">{preview}</span> : null}
-    </TimelineRow>
+    <StepView state={step.status === "running" ? "live" : "rest"} label={label} failed={step.status === "failed"}>
+      <StepBody>
+        <StepCard>
+          <StepOutput>{JSON.stringify(step.call.arguments, null, 2)}</StepOutput>
+        </StepCard>
+        {output ? (
+          <StepCard>
+            <StepOutput>{output}</StepOutput>
+          </StepCard>
+        ) : null}
+      </StepBody>
+    </StepView>
   )
 }
 
-function WorkGroup({ item }: { item: Extract<Item, { kind: "work" }> }) {
-  const [override, setOverride] = useState<boolean | null>(null)
-  const open = override ?? item.active
-  const count = item.steps.length
+function Work({ item }: { item: Extract<Item, { kind: "work" }> }) {
+  const [open, setOpen] = useState(false)
   return (
     <ActivityLine
       open={open}
-      onToggle={() => setOverride(!open)}
-      label={
-        item.active ? (
-          <span className="text-shimmer">Working</span>
-        ) : (
-          <span className="min-w-0 truncate">
-            Worked through {count} {count === 1 ? "step" : "steps"}
-          </span>
-        )
-      }
+      onOpenChange={setOpen}
+      peek={item.active}
+      status={item.active ? <ActivityLiveStatus label="Working" /> : <ActivityStatus label="Worked" />}
     >
-      {item.steps.map((step) => (
-        <StepRow key={step.key} step={step} />
-      ))}
+      <WorkGroup>
+        {item.steps.map((step) => (
+          <StepRow key={step.key} step={step} />
+        ))}
+      </WorkGroup>
     </ActivityLine>
   )
 }
@@ -139,7 +103,7 @@ function Row({ item }: { item: Item }) {
       </UserBubble>
     )
   }
-  if (item.kind === "work") return <WorkGroup item={item} />
+  if (item.kind === "work") return <Work item={item} />
   if (item.kind === "text") {
     return (
       <AgentMessage>

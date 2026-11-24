@@ -13,6 +13,7 @@
     "./apply": "./src/apply.ts",
     "./tokens.css": "./src/tokens.css",
     "./css": "./src/css.ts",
+    "./motion": "./src/motion.ts",
     "./package.json": "./package.json"
   },
   "scripts": {
