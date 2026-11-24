@@ -1,5 +1,5 @@
 import { toJsxRuntime } from "hast-util-to-jsx-runtime"
-import { memo, type ReactNode, useId } from "react"
+import { createContext, memo, type ReactNode, useContext, useId } from "react"
 import { Fragment, jsx, jsxs } from "react/jsx-runtime"
 import rehypeSanitize from "rehype-sanitize"
 import remarkGfm from "remark-gfm"
@@ -49,9 +49,13 @@ const languageOf = (code: HtmlNode | undefined) => {
   return typeof name === "string" ? name.slice("language-".length) : undefined
 }
 
+const BlockComplete = createContext(true)
+
 function Pre({ node }: { node?: HtmlNode }) {
   const code = node?.children?.find((child) => child.tagName === "code")
-  return <MarkdownCode text={(code ? textOf(code) : "").replace(/\n$/, "")} language={languageOf(code)} />
+  const complete = useContext(BlockComplete)
+  const key = useId()
+  return <MarkdownCode text={(code ? textOf(code) : "").replace(/\n$/, "")} language={languageOf(code)} complete={complete} blockKey={key} />
 }
 
 const FENCE = /^\s*(```|~~~)/
@@ -92,11 +96,11 @@ export function renderMarkdown(source: string): ReactNode {
   })
 }
 
-const Block = memo(function Block({ source, streaming, owner }: { source: string; streaming: boolean; owner: string }) {
+const Block = memo(function Block({ source, streaming, complete, owner }: { source: string; streaming: boolean; complete: boolean; owner: string }) {
   const fade = useStreamFade(source, streaming, owner)
   return (
     <div ref={fade} data-md-fade-owner={owner} data-markdown-block="">
-      {renderMarkdown(source)}
+      <BlockComplete value={complete}>{renderMarkdown(source)}</BlockComplete>
     </div>
   )
 })
@@ -117,7 +121,13 @@ export const Markdown = memo(function Markdown({
   return (
     <div data-component="markdown" data-size={size} data-tone={tone}>
       {blocks.map((block, index) => (
-        <Block key={index} source={block} streaming={streaming === true} owner={`${owner}${index}`} />
+        <Block
+          key={index}
+          source={block}
+          streaming={streaming === true}
+          complete={streaming !== true || index < blocks.length - 1}
+          owner={`${owner}${index}`}
+        />
       ))}
     </div>
   )

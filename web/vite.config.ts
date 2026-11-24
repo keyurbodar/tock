@@ -9,6 +9,7 @@ const hosts = devHosts === "*" ? true : devHosts.split(",").filter(Boolean)
 
 export default defineConfig({
   plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
+  worker: { format: "es" },
   server: {
     port: 5173,
     host: true,

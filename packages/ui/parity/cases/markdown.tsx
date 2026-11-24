@@ -14,7 +14,7 @@ export default cases("Markdown", [
   [
     "pLhSrUNX0g|[data-component=markdown-code]|1",
     "plain text code block with wrap and copy",
-    () => <MarkdownCode text="0x9449f363443EcfcFd6B85C82F584F652BEd7c5C2" />,
+    () => <MarkdownCode text="0x9449f363443EcfcFd6B85C82F584F652BEd7c5C2" complete blockKey="parity" />,
   ],
   ["pLhSrUNX0g|[data-slot=markdown-table]|1", "table inside its scroll wrapper", () => <>{renderMarkdown(TABLE)}</>],
 ])
