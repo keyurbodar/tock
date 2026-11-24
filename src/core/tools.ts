@@ -16,7 +16,9 @@ import type { McpHub } from "./mcp.js";
 import type { SubagentPool } from "./subagents.js";
 import type { SettingsStore } from "./settings.js";
 import type { RoutineStore } from "./routines.js";
-import type { DjsRuntime } from "../dev/djs.js";
+import type { FileStore } from "./files.js";
+import type { SkillStore } from "./skills.js";
+import { TOCK_CODEMODE_DTS, type DjsRuntime } from "../dev/djs.js";
 
 export interface TockToolsDeps {
   memory: UnifiedMemory;
@@ -26,34 +28,26 @@ export interface TockToolsDeps {
   subagents: SubagentPool;
   settings: SettingsStore;
   routines: RoutineStore;
+  files: FileStore;
+  skills: SkillStore;
   djs: DjsRuntime;
   notifyOwner: (title: string, body: string) => Promise<void>;
   scheduleFollowup: (delaySeconds: number, note: string, sessionId?: string) => Promise<string>;
 }
 
-const MemorySearchParams = obj({
-  query: str(),
-  limit: opt(num())
-});
-
+const MemorySearchParams = obj({ query: str(), limit: opt(num()) });
 const MemorySaveParams = obj({
   kind: union([lit("fact"), lit("decision"), lit("summary"), lit("preference")]),
   content: str(),
   supersedesId: opt(str())
 });
-
 const OpenItemParams = obj({
   id: opt(str()),
   title: str(),
   context: opt(str()),
   status: opt(union([lit("open"), lit("resolved")]))
 });
-
-const ScheduleFollowupParams = obj({
-  delaySeconds: num(),
-  note: str()
-});
-
+const ScheduleFollowupParams = obj({ delaySeconds: num(), note: str() });
 const RoutineUpsertParams = obj({
   id: opt(str()),
   name: str(),
@@ -64,40 +58,24 @@ const RoutineUpsertParams = obj({
   quietIfUnchanged: opt(bool()),
   enabled: opt(bool())
 });
-
-const RoutineDeleteParams = obj({
-  id: str()
-});
-
+const RoutineDeleteParams = obj({ id: str() });
 const EmptyParams = obj({});
-
-const NotifyOwnerParams = obj({
-  title: str(),
-  body: str()
+const NotifyOwnerParams = obj({ title: str(), body: str() });
+const McpListParams = obj({ server: opt(str()) });
+const McpCallParams = obj({ server: str(), tool: str(), args: opt(map(unknown())) });
+const SubagentParams = obj({ task: str() });
+const CodemodeParams = obj({ code: str(), params: opt(map(unknown())) });
+const PluginParams = obj({ args: opt(map(unknown())) });
+const HttpRequestParams = obj({
+  method: union([lit("GET"), lit("POST"), lit("PUT"), lit("PATCH"), lit("DELETE")]),
+  url: str(),
+  headers: opt(map(str())),
+  query: opt(map(str())),
+  body: opt(str())
 });
-
-const McpListParams = obj({
-  server: opt(str())
-});
-
-const McpCallParams = obj({
-  server: str(),
-  tool: str(),
-  args: opt(map(unknown()))
-});
-
-const SubagentParams = obj({
-  task: str()
-});
-
-const CodemodeParams = obj({
-  code: str(),
-  params: opt(map(unknown()))
-});
-
-const PluginParams = obj({
-  args: opt(map(unknown()))
-});
+const FileReadParams = obj({ id: str() });
+const FileWriteParams = obj({ name: str(), content: str(), mime: opt(str()) });
+const SkillReadParams = obj({ name: str(), file: opt(str()) });
 
 export function createTockExtension(deps: TockToolsDeps): Extension {
   const memorySearchTool = defineTool({
@@ -106,8 +84,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     parameters: MemorySearchParams,
     replay: "safe",
     async execute(args) {
-      const hits = deps.memory.search(args.query, args.limit ?? 8);
-      return { output: [{ type: "text", text: JSON.stringify(hits) }] };
+      return { output: [{ type: "text", text: JSON.stringify(deps.memory.search(args.query, args.limit ?? 8)) }] };
     }
   });
 
@@ -117,14 +94,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     parameters: MemorySaveParams,
     async execute(args, api) {
       const res = deps.memory.applyBatch({
-        addItems: [
-          {
-            kind: args.kind,
-            content: args.content,
-            sourceSessionId: String(api.conversationId),
-            supersedesId: args.supersedesId
-          }
-        ]
+        addItems: [{ kind: args.kind, content: args.content, sourceSessionId: String(api.conversationId), supersedesId: args.supersedesId }]
       });
       return { output: [{ type: "text", text: JSON.stringify(res) }] };
     }
@@ -132,21 +102,81 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
 
   const openItemTool = defineTool({
     name: "open_item_set",
-    description: "Create, update, or resolve an active open item that tock is tracking across threads.",
+    description: "Create, update, or resolve an active open item tracked across threads.",
     parameters: OpenItemParams,
     async execute(args, api) {
       const res = deps.memory.applyBatch({
-        upsertOpenItems: [
-          {
-            id: args.id,
-            title: args.title,
-            context: args.context,
-            sessionId: String(api.conversationId),
-            status: args.status ?? "open"
-          }
-        ]
+        upsertOpenItems: [{ id: args.id, title: args.title, context: args.context, sessionId: String(api.conversationId), status: args.status ?? "open" }]
       });
       return { output: [{ type: "text", text: JSON.stringify(res) }] };
+    }
+  });
+
+  const httpRequestTool = defineTool({
+    name: "http_request",
+    description: "Call any external REST API directly. Supports {{secret:name}} placeholders in url, headers, and body with automatic secret redaction.",
+    parameters: HttpRequestParams,
+    async execute(args) {
+      const check = deps.guards.recordSubrequest(1);
+      if (!check.allowed) {
+        return { output: [{ type: "text", text: JSON.stringify({ ok: false, error: `subrequest_budget_exceeded_${check.limit}` }) }] };
+      }
+      const baseUrl = await deps.vault.injectTemplate(args.url);
+      const u = new URL(baseUrl);
+      if (args.query) {
+        for (const [k, v] of Object.entries(args.query)) {
+          u.searchParams.set(k, await deps.vault.injectTemplate(v));
+        }
+      }
+      const headers = args.headers ? await deps.vault.injectRecord(args.headers) : undefined;
+      const body = args.body !== undefined ? await deps.vault.injectTemplate(args.body) : undefined;
+      const res = await fetch(u.toString(), { method: args.method, headers, body });
+      const text = await deps.vault.redact((await res.text()).slice(0, 16_000));
+      return { output: [{ type: "text", text: JSON.stringify({ status: res.status, ok: res.ok, body: text }) }] };
+    }
+  });
+
+  const fileListTool = defineTool({
+    name: "file_list",
+    description: "List uploaded or generated files stored in R2 or SQLite.",
+    parameters: EmptyParams,
+    replay: "safe",
+    async execute() {
+      return { output: [{ type: "text", text: JSON.stringify(deps.files.list()) }] };
+    }
+  });
+
+  const fileReadTool = defineTool({
+    name: "file_read",
+    description: "Read a stored text file by id.",
+    parameters: FileReadParams,
+    replay: "safe",
+    async execute(args) {
+      const found = await deps.files.readText(args.id);
+      if (!found) return { output: [{ type: "text", text: JSON.stringify({ error: "file_not_found" }) }] };
+      const safe = await deps.vault.redact(found.text.slice(0, 24_000));
+      return { output: [{ type: "text", text: JSON.stringify({ meta: found.meta, text: safe }) }] };
+    }
+  });
+
+  const fileWriteTool = defineTool({
+    name: "file_write",
+    description: "Save a file to R2 (or SQLite fallback) and return its file id.",
+    parameters: FileWriteParams,
+    async execute(args, api) {
+      const meta = await deps.files.put(args.name, args.mime ?? "text/plain", new TextEncoder().encode(args.content), String(api.conversationId));
+      return { output: [{ type: "text", text: JSON.stringify(meta) }] };
+    }
+  });
+
+  const skillReadTool = defineTool({
+    name: "skill_read",
+    description: "Load the full instructions or a reference file of an installed skill on demand.",
+    parameters: SkillReadParams,
+    replay: "safe",
+    async execute(args) {
+      const content = deps.skills.readFile(args.name, args.file);
+      return { output: [{ type: "text", text: content ?? `skill_not_found:${args.name}` }] };
     }
   });
 
@@ -162,8 +192,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
 
   const routineUpsertTool = defineTool({
     name: "routine_upsert",
-    description:
-      "Create or update a recurring watch or routine. Pass checkScript (TypeScript run in djs using tock.fetch) to hash external state with zero LLM tokens and only wake when it changes.",
+    description: "Create or update a recurring watch or routine. Pass checkScript (TypeScript run in djs using tock.fetch) to hash external state with zero LLM tokens and only wake when it changes.",
     parameters: RoutineUpsertParams,
     async execute(args) {
       const saved = await deps.routines.upsert({
@@ -201,7 +230,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
 
   const notifyOwnerTool = defineTool({
     name: "notify_owner",
-    description: "Send a proactive alert to the owner (WS + offline webhook/Telegram push).",
+    description: "Send a proactive alert to the owner (WS + offline webhook/Telegram/VAPID push).",
     parameters: NotifyOwnerParams,
     async execute(args) {
       await deps.notifyOwner(args.title, args.body);
@@ -226,7 +255,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
 
   const mcpCallTool = defineTool({
     name: "mcp_call",
-    description: "Invoke any tool on any connected Remote MCP server (including coding-agent hubs like t3code).",
+    description: "Invoke any tool on any connected Remote MCP server (including coding-agent hubs like t3code or Composio).",
     parameters: McpCallParams,
     async execute(args) {
       const result = await deps.mcp.callTool(args.server, args.tool, args.args ?? {});
@@ -251,21 +280,14 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
       const childId = await api.commit(async (tx) => {
         const existing = (await tx.scanConversations({ ownerTaskId: api.taskId }, 1)).items[0];
         if (existing) return existing.id;
-        const created = await tx.createConversation({
-          ownership: { kind: "task", taskId: api.taskId }
-        });
+        const created = await tx.createConversation({ ownership: { kind: "task", taskId: api.taskId } });
         return created.id;
       }, context);
 
       await deps.subagents.acquire(taskKey, String(childId), context.abortSignal);
       const childConv = await api.conversation(childId, context);
       await childConv?.submit(
-        {
-          type: "input",
-          content: args.task,
-          requestId: `subagent:${taskKey}`,
-          notify: { taskId: api.taskId, key: "answered" }
-        },
+        { type: "input", content: args.task, requestId: `subagent:${taskKey}`, notify: { taskId: api.taskId, key: "answered" } },
         context
       );
 
@@ -275,7 +297,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
 
   const codemodeTool = defineTool({
     name: "codemode",
-    description: "Execute a TypeScript script in the @earendil-works/djs WASM sandbox with tock.fetch, tock.callMcp, tock.memorySearch, tock.memorySave, tock.scheduleFollowup, and tock.notify.",
+    description: "Execute TypeScript in the @earendil-works/djs WASM sandbox with full tock.* APIs (fetch, callMcp, memory, files, scheduleFollowup, notify).",
     parameters: CodemodeParams,
     async execute(args) {
       const res = await deps.djs.runCode(args.code, args.params ?? {});
@@ -287,6 +309,11 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     memorySearchTool as unknown as ToolRegistration,
     memorySaveTool as unknown as ToolRegistration,
     openItemTool as unknown as ToolRegistration,
+    httpRequestTool as unknown as ToolRegistration,
+    fileListTool as unknown as ToolRegistration,
+    fileReadTool as unknown as ToolRegistration,
+    fileWriteTool as unknown as ToolRegistration,
+    skillReadTool as unknown as ToolRegistration,
     scheduleFollowupTool as unknown as ToolRegistration,
     routineUpsertTool as unknown as ToolRegistration,
     routineListTool as unknown as ToolRegistration,
@@ -320,20 +347,19 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     if (mem) sections.push(mem);
     const manifest = deps.vault.renderManifest();
     if (manifest) sections.push(`## Vault Handles (never ask for these)\n${manifest}`);
+    const skillIndex = deps.skills.renderIndex();
+    if (skillIndex) sections.push(`## Installed Skills (call skill_read to load)\n${skillIndex}`);
     const servers = deps.mcp.listServers().filter((s) => s.enabled);
     if (servers.length > 0) {
-      sections.push(`## Connected MCP Servers\n${servers.map((s) => `- ${s.name} (${s.url})`).join("\n")}`);
+      sections.push(`## Connected MCP Servers\n${servers.map((s) => `- ${s.name} (${s.url}) [${s.authMode}]`).join("\n")}`);
     }
     const activeRoutines = deps.routines.list().filter((r) => r.enabled);
     if (activeRoutines.length > 0) {
-      sections.push(
-        `## Active Routines\n${activeRoutines.map((r) => `- ${r.name} [${r.scheduleType}:${r.schedule}]`).join("\n")}`
-      );
+      sections.push(`## Active Routines\n${activeRoutines.map((r) => `- ${r.name} [${r.scheduleType}:${r.schedule}]`).join("\n")}`);
     }
+    sections.push(`## Codemode Runtime API\n\`\`\`ts\n${TOCK_CODEMODE_DTS}\n\`\`\``);
     const cfg = deps.settings.get();
-    sections.push(
-      `## Runtime\n- max_subagents: ${cfg.maxSubagents}\n- dev_mode: ${cfg.devMode}\n- timezone: ${cfg.timezone}`
-    );
+    sections.push(`## Runtime\n- max_subagents: ${cfg.maxSubagents}\n- dev_mode: ${cfg.devMode}\n- timezone: ${cfg.timezone}`);
     return sections.join("\n\n");
   });
 
@@ -341,9 +367,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     beforeTool(call, api) {
       const loop = deps.guards.checkLoop(String(api.conversationId), call.name, call.arguments);
       if (loop.blocked) {
-        return {
-          block: `loop_guard: tool "${call.name}" called identically ${loop.count} times in a row. Change strategy.`
-        };
+        return { block: `loop_guard: tool "${call.name}" called identically ${loop.count} times in a row. Change strategy.` };
       }
       return undefined;
     }

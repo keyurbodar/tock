@@ -3,7 +3,8 @@ import { Lifecycle } from "agents/lifecycle";
 import { Scheduler } from "agents/schedules";
 import { PiHarness, ROOT_SESSION } from "agents/harness/pi";
 import { createRegistry, Harness, type ConversationWatch } from "@earendil-works/pi-durable";
-import type { Models } from "@earendil-works/pi-ai";
+import { getSupportedThinkingLevels, type Models, type ModelThinkingLevel } from "@earendil-works/pi-ai";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ensureSchema } from "./db/schema.js";
 import { SettingsStore } from "./core/settings.js";
 import { Vault } from "./core/vault.js";
@@ -13,10 +14,12 @@ import { McpHub } from "./core/mcp.js";
 import { SubagentPool } from "./core/subagents.js";
 import { RoutineStore, sha256Hex, type RoutineInput } from "./core/routines.js";
 import { PushNotifier } from "./core/push.js";
+import { FileStore } from "./core/files.js";
+import { SkillStore } from "./core/skills.js";
 import { buildModels, parseModelSpec, resolveModel } from "./core/models.js";
 import { createTockExtension } from "./core/tools.js";
 import { DjsRuntime, type DjsRunResult } from "./dev/djs.js";
-import type { ClientFrame, Env, OwnerSettings, ServerFrame, WsAttachment } from "./types.js";
+import type { ClientFrame, Env, FileMeta, OwnerSettings, ServerFrame, SkillRecord, ThinkingLevelOption, WsAttachment } from "./types.js";
 
 export class TockDO extends DurableObject<Env> {
   private readonly settingsStore: SettingsStore;
@@ -25,6 +28,8 @@ export class TockDO extends DurableObject<Env> {
   private readonly guards: ExecutionGuards;
   private readonly mcp: McpHub;
   private readonly subagents: SubagentPool;
+  private readonly files: FileStore;
+  private readonly skills: SkillStore;
   private readonly djs: DjsRuntime;
   private readonly routines: RoutineStore;
   private readonly push: PushNotifier;
@@ -42,6 +47,9 @@ export class TockDO extends DurableObject<Env> {
       },
       consolidateMemory: async (payload: { sessionId: string }) => {
         await this.consolidateSessionMemory(payload.sessionId);
+      },
+      resumePlugin: async (payload: { continuationId: string }) => {
+        await this.djs.resumeContinuation(payload.continuationId);
       }
     }
   });
@@ -57,6 +65,8 @@ export class TockDO extends DurableObject<Env> {
         subagents: this.subagents,
         settings: this.settingsStore,
         routines: this.routines,
+        files: this.files,
+        skills: this.skills,
         djs: this.djs,
         notifyOwner: (title, body) => this.notifyOwner(title, body),
         scheduleFollowup: (delay, note, sid) => this.scheduleFollowup(delay, note, sid)
@@ -77,13 +87,20 @@ export class TockDO extends DurableObject<Env> {
     this.guards = new ExecutionGuards();
     this.mcp = new McpHub(ctx.storage, this.vault, this.guards);
     this.subagents = new SubagentPool(this.settingsStore);
+    this.files = new FileStore(ctx.storage.sql, env.FILES);
+    this.skills = new SkillStore(ctx.storage.sql, this.guards);
     this.routines = new RoutineStore(ctx.storage.sql, this.scheduler);
-    this.push = new PushNotifier(ctx.storage.sql, this.vault, this.guards);
+    this.push = new PushNotifier(ctx.storage.sql, this.vault, this.guards, {
+      publicKey: env.VAPID_PUBLIC_KEY,
+      privateKey: env.VAPID_PRIVATE_KEY,
+      subject: env.VAPID_SUBJECT
+    });
     this.models = buildModels(this.vault);
     this.djs = new DjsRuntime(ctx.storage.sql, {
       vault: this.vault,
       memory: this.memory,
       guards: this.guards,
+      files: this.files,
       notifyOwner: (title, body) => this.notifyOwner(title, body),
       scheduleFollowup: (delay, note) => this.scheduleFollowup(delay, note),
       callMcpTool: (server, tool, args) => this.mcp.callTool(server, tool, args)
@@ -153,16 +170,9 @@ export class TockDO extends DurableObject<Env> {
     this.activeWatches.set(sessionId, watch);
     watch.start(async (call) => {
       if (call.kind === "value") {
-        this.broadcastSession(sessionId, "session.delta", {
-          sessionId,
-          ops: call.ops,
-          value: call.value
-        });
+        this.broadcastSession(sessionId, "session.delta", { sessionId, ops: call.ops, value: call.value });
       } else {
-        this.broadcastSession(sessionId, "session.error", {
-          sessionId,
-          error: String(call.error)
-        });
+        this.broadcastSession(sessionId, "session.error", { sessionId, error: String(call.error) });
       }
     });
   }
@@ -181,25 +191,26 @@ export class TockDO extends DurableObject<Env> {
         await this.ensureSessionWatch(sessionId);
         return { sessionId, subscribed: true };
       }
+      case "session.configure":
+        return await this.configureSession(frame.sessionId ?? ROOT_SESSION, {
+          model: frame.model,
+          thinkingLevel: frame.thinkingLevel
+        });
       case "chat.send": {
         const sessionId = frame.sessionId ?? ROOT_SESSION;
-        await this.syncSessionModel(sessionId);
+        if (frame.model || frame.thinkingLevel) {
+          await this.configureSession(sessionId, { model: frame.model, thinkingLevel: frame.thinkingLevel });
+        } else {
+          await this.syncSessionModel(sessionId);
+        }
         await this.ensureSessionWatch(sessionId);
-        const receipt = await this.harness.submit(frame.text, {
-          session: sessionId,
-          operationId: frame.operationId
-        });
+        const receipt = await this.harness.submit(frame.text, { session: sessionId, operationId: frame.operationId });
         await this.scheduler.set(300, "consolidateMemory", { sessionId }, { idempotent: true });
         this.broadcastSession(sessionId, "chat.accepted", receipt);
         return receipt;
       }
       case "chat.abort":
-        return {
-          aborted: await this.harness.abort({
-            session: frame.sessionId ?? ROOT_SESSION,
-            operationId: frame.operationId
-          })
-        };
+        return { aborted: await this.harness.abort({ session: frame.sessionId ?? ROOT_SESSION, operationId: frame.operationId }) };
       case "session.list":
         return await this.harness.sessions.list();
       case "session.create": {
@@ -215,6 +226,8 @@ export class TockDO extends DurableObject<Env> {
         return await this.updateSettings(frame.patch);
       case "models.list":
         return this.listAvailableModels(frame.provider);
+      case "models.refresh":
+        return await this.refreshModels(frame.providers);
       case "vault.list":
         return this.vault.listMeta();
       case "vault.set":
@@ -240,16 +253,24 @@ export class TockDO extends DurableObject<Env> {
         return this.djs.upsertPlugin(frame.plugin);
       case "plugin.delete":
         return { deleted: this.djs.deletePlugin(frame.pluginId) };
+      case "skill.list":
+        return this.skills.list();
+      case "skill.upsert":
+        return this.skills.upsert({ name: frame.name, description: frame.description, bodyMd: frame.bodyMd, files: frame.files });
+      case "skill.import":
+        return await this.skills.importSource(frame.source);
+      case "skill.delete":
+        return { deleted: this.skills.delete(frame.name) };
+      case "file.list":
+        return this.files.list(frame.sessionId);
+      case "file.delete":
+        return { deleted: await this.files.delete(frame.fileId) };
       case "push.subscribe":
         return this.push.subscribe(frame.endpoint, frame.p256dh, frame.auth);
       case "push.unsubscribe":
         return { deleted: this.push.unsubscribe(frame.endpoint) };
       case "memory.get":
-        return {
-          core: this.memory.getCore(),
-          openItems: this.memory.listOpenItems("open"),
-          recent: this.memory.recent(10)
-        };
+        return { core: this.memory.getCore(), openItems: this.memory.listOpenItems("open"), recent: this.memory.recent(10) };
       case "memory.search":
         return this.memory.search(frame.query, frame.limit ?? 8);
     }
@@ -261,24 +282,52 @@ export class TockDO extends DurableObject<Env> {
     await this.harness.session(sessionId).setModel(parsed);
   }
 
-  listAvailableModels(provider?: string): Array<{ provider: string; id: string; name: string }> {
+  listAvailableModels(provider?: string): Array<{ provider: string; id: string; name: string; reasoning: boolean; thinkingLevels: ModelThinkingLevel[] }> {
     const providers = provider ? [provider] : this.models.getProviders().map((p) => p.id);
-    const out: Array<{ provider: string; id: string; name: string }> = [];
+    const out: Array<{ provider: string; id: string; name: string; reasoning: boolean; thinkingLevels: ModelThinkingLevel[] }> = [];
     for (const pid of providers) {
       for (const m of this.models.getModels(pid)) {
-        out.push({ provider: m.provider, id: m.id, name: m.name });
+        out.push({ provider: m.provider, id: m.id, name: m.name, reasoning: m.reasoning, thinkingLevels: getSupportedThinkingLevels(m) });
       }
     }
     return out;
   }
 
-  async getHealth(): Promise<{ ok: true; settings: OwnerSettings; activeSubagents: number; mcpServers: number }> {
+  async refreshModels(providers?: string[]): Promise<{ refreshed: boolean; errorCount: number }> {
+    await this.lifecycle.start();
+    const res = await this.models.refresh({ providers, force: true });
+    return { refreshed: !res.aborted, errorCount: res.errors.size };
+  }
+
+  async configureSession(
+    sessionId: string,
+    opts: { model?: string; thinkingLevel?: ThinkingLevelOption }
+  ): Promise<{ sessionId: string; model?: { provider: string; id: string }; thinkingLevel?: ThinkingLevelOption }> {
+    await this.lifecycle.start();
+    const conv = await this.harness.conversation(sessionId);
+    const parsedModel = opts.model ? parseModelSpec(opts.model) : undefined;
+    if (opts.model && !parsedModel) {
+      throw new Error("invalid_model_spec");
+    }
+    await conv.configure(
+      {
+        ...(parsedModel ? { model: { provider: parsedModel.provider, modelId: parsedModel.id } } : {}),
+        ...(opts.thinkingLevel ? { thinkingLevel: opts.thinkingLevel } : {})
+      },
+      BACKGROUND_CONTEXT
+    );
+    return { sessionId, model: parsedModel ?? undefined, thinkingLevel: opts.thinkingLevel };
+  }
+
+  async getHealth(): Promise<{ ok: true; settings: OwnerSettings; activeSubagents: number; mcpServers: number; skills: number; files: number }> {
     await this.lifecycle.start();
     return {
       ok: true,
       settings: this.settingsStore.get(),
       activeSubagents: this.subagents.runningCount,
-      mcpServers: this.mcp.listServers().length
+      mcpServers: this.mcp.listServers().length,
+      skills: this.skills.list().length,
+      files: this.files.list().length
     };
   }
 
@@ -305,11 +354,46 @@ export class TockDO extends DurableObject<Env> {
     return this.vault.listMeta();
   }
 
+  async uploadFile(name: string, mime: string, bytes: Uint8Array, sessionId?: string): Promise<FileMeta> {
+    await this.lifecycle.start();
+    return this.files.put(name, mime, bytes, sessionId ?? null);
+  }
+
+  async getFile(id: string): Promise<{ meta: FileMeta; bytes: Uint8Array } | null> {
+    await this.lifecycle.start();
+    return this.files.get(id);
+  }
+
+  async listFiles(sessionId?: string): Promise<FileMeta[]> {
+    await this.lifecycle.start();
+    return this.files.list(sessionId);
+  }
+
+  async upsertSkill(input: { name?: string; description?: string; bodyMd: string; files?: Record<string, string> }): Promise<SkillRecord> {
+    await this.lifecycle.start();
+    return this.skills.upsert(input);
+  }
+
+  async importSkill(source: string): Promise<SkillRecord[]> {
+    await this.lifecycle.start();
+    return this.skills.importSource(source);
+  }
+
+  async listSkills(): Promise<SkillRecord[]> {
+    await this.lifecycle.start();
+    return this.skills.list();
+  }
+
+  async upsertPlugin(plugin: Parameters<DjsRuntime["upsertPlugin"]>[0]) {
+    await this.lifecycle.start();
+    return this.djs.upsertPlugin(plugin);
+  }
+
   async upsertMcpServer(
     name: string,
     url: string,
     headers: Record<string, string> = {},
-    authMode: "headers" | "oauth" = "headers"
+    authMode: "headers" | "oauth" | "sse" = "headers"
   ) {
     await this.lifecycle.start();
     return this.mcp.upsertServer(name, url, headers, authMode);
@@ -351,24 +435,55 @@ export class TockDO extends DurableObject<Env> {
     return this.memory.renderAutoContext(query);
   }
 
-  async chatPrompt(text: string, sessionId = ROOT_SESSION): Promise<{ status: string; text?: string; reason?: string }> {
+  async chatPrompt(
+    text: string,
+    sessionId = ROOT_SESSION,
+    opts?: { model?: string; thinkingLevel?: ThinkingLevelOption }
+  ): Promise<{ status: string; text?: string; reason?: string }> {
     await this.lifecycle.start();
-    await this.syncSessionModel(sessionId);
+    if (opts?.model || opts?.thinkingLevel) {
+      await this.configureSession(sessionId, opts);
+    } else {
+      await this.syncSessionModel(sessionId);
+    }
     const res = await this.harness.prompt(text, { session: sessionId });
     return { status: res.status, text: res.text, reason: res.reason };
   }
 
-  async handleWebhook(hookId: string, token: string, payload: unknown): Promise<{ accepted: boolean; reason?: string }> {
+  async handleWebhook(
+    hookId: string,
+    token: string,
+    payload: unknown,
+    filterPlugin?: string
+  ): Promise<{ accepted: boolean; filtered?: boolean; reason?: string }> {
     await this.lifecycle.start();
     const expected = await this.vault.resolve(`webhook_${hookId}`);
     if (!expected || expected !== token) {
       return { accepted: false, reason: "invalid_webhook_token" };
     }
-    const text = `[webhook:${hookId}] ${JSON.stringify(payload).slice(0, 4000)}`;
+    let summary: string | undefined;
+    if (filterPlugin && this.settingsStore.get().devMode) {
+      const verdict = await this.djs.runWebhookFilter(filterPlugin, payload);
+      if (!verdict.pass) {
+        return { accepted: true, filtered: true };
+      }
+      summary = verdict.summary;
+    }
+    const text = summary
+      ? `[webhook:${hookId}] ${summary}`
+      : `[webhook:${hookId}] ${JSON.stringify(payload).slice(0, 4000)}`;
     await this.syncSessionModel(ROOT_SESSION);
+    await this.harness.submit(text, { session: ROOT_SESSION, entry: { kind: "tock.webhook", data: { hookId } } });
+    return { accepted: true, filtered: false };
+  }
+
+  async handleEmail(from: string, to: string, subject: string, body: string): Promise<{ accepted: boolean }> {
+    await this.lifecycle.start();
+    await this.syncSessionModel(ROOT_SESSION);
+    const text = `[inbound-email]\nFrom: ${from}\nTo: ${to}\nSubject: ${subject}\n\n${body.slice(0, 8000)}`;
     await this.harness.submit(text, {
       session: ROOT_SESSION,
-      entry: { kind: "tock.webhook", data: { hookId } }
+      entry: { kind: "tock.email", data: { from, to, subject } }
     });
     return { accepted: true };
   }
@@ -437,10 +552,7 @@ export class TockDO extends DurableObject<Env> {
     const cfg = this.settingsStore.get();
     const model = resolveModel(this.models, cfg.backgroundModel || cfg.model);
     if (model) {
-      const transcriptText = entries
-        .slice(-20)
-        .map((e) => JSON.stringify(e))
-        .join("\n");
+      const transcriptText = entries.slice(-20).map((e) => JSON.stringify(e)).join("\n");
       try {
         await this.memory.consolidateWithModel(this.models, model, sessionId, transcriptText);
         return;

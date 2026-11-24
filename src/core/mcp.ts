@@ -43,7 +43,7 @@ export class McpHub {
       name: String(r.name),
       url: String(r.url),
       headersJson: String(r.headers_json ?? "{}"),
-      authMode: r.auth_mode === "oauth" ? "oauth" : "headers",
+      authMode: r.auth_mode === "oauth" ? "oauth" : r.auth_mode === "sse" ? "sse" : "headers",
       enabled: Number(r.enabled) === 1,
       updatedAt: Number(r.updated_at)
     }));
@@ -53,7 +53,7 @@ export class McpHub {
     name: string,
     url: string,
     headers: Record<string, string> = {},
-    authMode: "headers" | "oauth" = "headers"
+    authMode: "headers" | "oauth" | "sse" = "headers"
   ): McpServerRecord {
     const id = crypto.randomUUID();
     const now = Date.now();
@@ -83,7 +83,7 @@ export class McpHub {
       name: String(row.name),
       url: String(row.url),
       headersJson: String(row.headers_json ?? "{}"),
-      authMode: row.auth_mode === "oauth" ? "oauth" : "headers",
+      authMode: row.auth_mode === "oauth" ? "oauth" : row.auth_mode === "sse" ? "sse" : "headers",
       enabled: Number(row.enabled) === 1,
       updatedAt: Number(row.updated_at)
     };
@@ -144,7 +144,7 @@ export class McpHub {
       name: String(r.name),
       url: String(r.url),
       headersJson: String(r.headers_json ?? "{}"),
-      authMode: r.auth_mode === "oauth" ? "oauth" : "headers",
+      authMode: r.auth_mode === "oauth" ? "oauth" : r.auth_mode === "sse" ? "sse" : "headers",
       enabled: Number(r.enabled) === 1,
       updatedAt: Number(r.updated_at)
     };
@@ -197,6 +197,18 @@ export class McpHub {
     return payload.result;
   }
 
+  private async ensureSseConnected(server: McpServerRecord): Promise<void> {
+    const rawHeaders = JSON.parse(server.headersJson || "{}") as Record<string, string>;
+    const resolvedHeaders = await this.vault.injectRecord(rawHeaders);
+    const url = await this.vault.injectTemplate(server.url);
+    await this.oauthManager.connect(url, {
+      transport: {
+        type: "sse",
+        headers: resolvedHeaders
+      }
+    });
+  }
+
   async discoverTools(serverName: string, force = false): Promise<McpToolDef[]> {
     if (!force && this.toolCache.has(serverName)) {
       return this.toolCache.get(serverName)!;
@@ -205,7 +217,10 @@ export class McpHub {
     if (!server) {
       throw new Error(`mcp_server_not_found:${serverName}`);
     }
-    if (server.authMode === "oauth") {
+    if (server.authMode === "oauth" || server.authMode === "sse") {
+      if (server.authMode === "sse") {
+        await this.ensureSseConnected(server);
+      }
       const list = this.oauthManager.listTools().filter((t) => t.serverId === server.id || t.serverId === server.name);
       const tools: McpToolDef[] = list.map((t) => ({
         serverName,
@@ -234,8 +249,11 @@ export class McpHub {
     if (!server) {
       throw new Error(`mcp_server_not_found:${serverName}`);
     }
+    if (server.authMode === "sse") {
+      await this.ensureSseConnected(server);
+    }
     const result =
-      server.authMode === "oauth"
+      server.authMode === "oauth" || server.authMode === "sse"
         ? await this.oauthManager.callTool({ serverId: server.id, name: toolName, arguments: args })
         : await this.rpc(server, "tools/call", { name: toolName, arguments: args });
     const serialized = typeof result === "string" ? result : JSON.stringify(result);

@@ -4,11 +4,25 @@ import type { DevPluginRecord } from "../types.js";
 import type { Vault } from "../core/vault.js";
 import type { UnifiedMemory } from "../core/memory.js";
 import type { ExecutionGuards } from "../core/guards.js";
+import type { FileStore } from "../core/files.js";
+
+export const TOCK_CODEMODE_DTS = `declare namespace tock {
+  function fetch(url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }): Promise<{ status: number; ok: boolean; body: string }>;
+  function callMcp(server: string, tool: string, args?: Record<string, unknown>): Promise<unknown>;
+  function memorySearch(query: string, limit?: number): Promise<Array<{ id: string; kind: string; content: string }>>;
+  function memorySave(kind: "fact" | "decision" | "summary" | "preference", content: string): Promise<{ addedIds: string[] }>;
+  function readFile(id: string): Promise<{ name: string; mime: string; text: string } | null>;
+  function writeFile(name: string, content: string, mime?: string): Promise<{ id: string; name: string; size: number }>;
+  function listFiles(): Promise<Array<{ id: string; name: string; mime: string; size: number }>>;
+  function scheduleFollowup(delaySeconds: number, note: string): Promise<{ scheduleId: string }>;
+  function notify(title: string, body: string): Promise<{ notified: boolean }>;
+}`;
 
 export interface DjsHostBridge {
   vault: Vault;
   memory: UnifiedMemory;
   guards: ExecutionGuards;
+  files: FileStore;
   notifyOwner: (title: string, body: string) => Promise<void>;
   scheduleFollowup: (delaySeconds: number, note: string) => Promise<string>;
   callMcpTool?: (server: string, tool: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -52,6 +66,29 @@ export class DjsRuntime {
     }));
   }
 
+  getPlugin(idOrName: string): DevPluginRecord | undefined {
+    const rows = this.sql
+      .exec(
+        `SELECT id, name, kind, description, schema_json, ts_source, enabled, updated_at
+         FROM tock_dev_plugins WHERE id = ? OR name = ?`,
+        idOrName,
+        idOrName
+      )
+      .toArray();
+    const r = rows[0];
+    if (!r) return undefined;
+    return {
+      id: String(r.id),
+      name: String(r.name),
+      kind: r.kind === "webhook_filter" ? "webhook_filter" : "tool",
+      description: String(r.description ?? ""),
+      schemaJson: String(r.schema_json ?? "{}"),
+      tsSource: String(r.ts_source),
+      enabled: Number(r.enabled) === 1,
+      updatedAt: Number(r.updated_at)
+    };
+  }
+
   upsertPlugin(
     input: Omit<DevPluginRecord, "id" | "updatedAt"> & { id?: string }
   ): DevPluginRecord {
@@ -84,6 +121,58 @@ export class DjsRuntime {
     if (exists === 0) return false;
     this.sql.exec(`DELETE FROM tock_dev_plugins WHERE id = ? OR name = ?`, id, id);
     return true;
+  }
+
+  saveContinuation(pluginId: string, dumpJs: string, fuelUsed: number, wakeAt: number): string {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    this.sql.exec(
+      `INSERT INTO tock_plugin_continuations (id, plugin_id, dump_js, fuel_used, wake_at, status, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'suspended', ?)`,
+      id,
+      pluginId,
+      dumpJs,
+      fuelUsed,
+      wakeAt,
+      now
+    );
+    return id;
+  }
+
+  async resumeContinuation(continuationId: string): Promise<DjsRunResult> {
+    const rows = this.sql
+      .exec(
+        `SELECT id, dump_js, fuel_used, status FROM tock_plugin_continuations WHERE id = ? AND status = 'suspended'`,
+        continuationId
+      )
+      .toArray();
+    const r = rows[0];
+    if (!r) return { ok: false, error: "continuation_not_found", logs: [] };
+    const remainingFuel = Math.max(100_000, DEFAULT_MAX_FUEL - Number(r.fuel_used ?? 0));
+    const res = await this.runCode(String(r.dump_js), {}, { maxFuel: remainingFuel });
+    this.sql.exec(
+      `UPDATE tock_plugin_continuations SET status = ?, updated_at = ? WHERE id = ?`,
+      res.ok ? "done" : "failed",
+      Date.now(),
+      continuationId
+    );
+    return res;
+  }
+
+  async runWebhookFilter(pluginIdOrName: string, payload: unknown): Promise<{ pass: boolean; summary?: string }> {
+    const plugin = this.getPlugin(pluginIdOrName);
+    if (!plugin || !plugin.enabled || plugin.kind !== "webhook_filter") {
+      return { pass: true };
+    }
+    const res = await this.runCode(plugin.tsSource, { payload });
+    if (!res.ok) return { pass: true };
+    try {
+      const parsed = JSON.parse(res.valueJson ?? "true") as boolean | { pass?: boolean; summary?: string };
+      if (typeof parsed === "boolean") return { pass: parsed };
+      return { pass: parsed.pass !== false, summary: parsed.summary };
+    } catch {
+      return { pass: true };
+    }
   }
 
   async runCode(
@@ -135,6 +224,19 @@ export class DjsRuntime {
         "tock.memorySave": (kind: unknown, content: unknown) => {
           const k = String(kind) as "fact" | "decision" | "summary" | "preference";
           return this.bridge.memory.applyBatch({ addItems: [{ kind: k, content: String(content) }] });
+        },
+        "tock.readFile": async (id: unknown) => {
+          const found = await this.bridge.files.readText(String(id));
+          if (!found) return null;
+          return { name: found.meta.name, mime: found.meta.mime, text: found.text };
+        },
+        "tock.writeFile": async (name: unknown, content: unknown, mime?: unknown) => {
+          const bytes = new TextEncoder().encode(String(content));
+          const meta = await this.bridge.files.put(String(name), String(mime ?? "text/plain"), bytes);
+          return { id: meta.id, name: meta.name, size: meta.size };
+        },
+        "tock.listFiles": () => {
+          return this.bridge.files.list().map((f) => ({ id: f.id, name: f.name, mime: f.mime, size: f.size }));
         },
         "tock.notify": async (title: unknown, body: unknown) => {
           await this.bridge.notifyOwner(String(title), String(body));
