@@ -19,6 +19,7 @@ export const motion = {
     card: { inset: 5, lead: 14, edge: 8, gap: 11, railGap: 59 },
     rail: { reveal: 32, active: 24, end: 2 },
   },
+  drawer: { slop: 4, close: 0.25, fling: 0.4, resist: 8, smooth: 0.6 },
   slider: { thumb: 20 },
   dither: { cell: 2, bayer: [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5] },
   reveal: { steps: 24, duration: 160, merge: 0.25, fresh: 64, curve: 2.4 },

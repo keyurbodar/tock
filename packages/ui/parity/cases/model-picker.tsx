@@ -16,6 +16,7 @@ const anthropic: PickerGroup<(typeof steps)[number]> = {
     model("claude-haiku-5-5", "Claude Haiku 5.5", "$0.10 / $0.50"),
   ],
 }
+const fable = model("claude-fable-5-2", "Claude Fable 5.2", "$8 / $40")
 const opus = {
   ...model("claude-opus-5-5", "Claude Opus 5.5", "$4 / $20"),
   stats: [
@@ -41,6 +42,11 @@ export default cases("ModelPicker", [
         ))}
       </PickerSection>
     ),
+  ],
+  [
+    "Hp9T9TWcIL|[data-slot=drawer-content] [data-anchor=anthropic] [role=option]|0",
+    "priced row in the touch drawer, with its settings button",
+    () => <PickerRow nav="m:lab:anthropic/claude-fable-5-2" group={anthropic} model={fable} selected={false} onMore={noop} />,
   ],
   [
     "cY2sEsDwge|[data-slot=picker-lab-card] > div > div.relative.-mx-1|0",

@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router"
 import { BrandIcon, familyOf } from "@tock/ui/brand-icon"
 import { Button } from "@tock/ui/button"
+import { Drawer, DrawerTrigger, useTouchLayout } from "@tock/ui/drawer"
 import { ChevronDown } from "@tock/ui/glyph"
-import { ModelPickerPanel, type PickerGroup, type PickerModel } from "@tock/ui/model-picker"
+import { ModelPickerDrawer, ModelPickerPanel, type ModelPickerPanelProps, type PickerGroup, type PickerModel } from "@tock/ui/model-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@tock/ui/popover"
 import { useMemo, useState } from "react"
 import type { ModelInfo, ThinkingLevel } from "../api/types"
@@ -56,6 +57,7 @@ export function ModelPicker({
   const models = useModels()
   const providers = useProviders()
   const [open, setOpen] = useState(false)
+  const touch = useTouchLayout()
   const [drafts, setDrafts] = useState<Readonly<Record<string, ThinkingLevel>>>({})
   const selected = findModel(models, value.model)
   const level = selected && value.thinkingLevel && selected.thinkingLevels.includes(value.thinkingLevel) ? value.thinkingLevel : null
@@ -76,47 +78,59 @@ export function ModelPicker({
     levelFor(model.steps, model.key === value.model ? level : (drafts[model.key] ?? value.thinkingLevel))
   const levelOf = (model: PickerModel<ThinkingLevel>) => chosen(model) ?? model.steps[0]
 
+  const toggle = (next: boolean) => {
+    setOpen(next)
+    setDrafts({})
+  }
+  const button = <Button variant="ghost" aria-label="Model" className="min-w-0" />
+  const label = (
+    <>
+      {selected ? (
+        <span className="relative -ml-0.5 flex shrink-0">
+          <BrandIcon provider={familyOf(selected.name) ?? selected.provider} name={selected.provider} className="mx-0! size-(--icon-sm)" />
+        </span>
+      ) : null}
+      <span className="min-w-0 truncate">{selected?.name ?? emptyLabel}</span>
+      {showLevel && shownLevel ? <span className="text-muted-foreground-2">{titleCase(shownLevel)}</span> : null}
+      <ChevronDown className="size-(--icon-sm) shrink-0 text-muted-foreground-3" />
+    </>
+  )
+  const panel: ModelPickerPanelProps<ThinkingLevel> = {
+    groups,
+    selected: value.model,
+    step: levelOf,
+    stepLabel: titleCase,
+    onSelect: (model) => {
+      onChange({ model: model.key, thinkingLevel: chosen(model) })
+      setOpen(false)
+    },
+    onStep: (model, next) => {
+      if (model.key === value.model) onChange({ model: value.model, thinkingLevel: next })
+      else setDrafts((current) => ({ ...current, [model.key]: next }))
+    },
+    empty: (
+      <span className="flex flex-col gap-1">
+        No provider is connected yet
+        <Link to="/settings/$section" params={{ section: "models" }} className="text-(--text-link) underline-offset-2 hover:underline">
+          Add a provider key
+        </Link>
+      </span>
+    ),
+  }
+
+  if (touch)
+    return (
+      <Drawer open={open} onOpenChange={toggle}>
+        <DrawerTrigger render={button}>{label}</DrawerTrigger>
+        <ModelPickerDrawer {...panel} open={open} />
+      </Drawer>
+    )
+
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next)
-        setDrafts({})
-      }}
-    >
-      <PopoverTrigger render={<Button variant="ghost" aria-label="Model" className="min-w-0" />}>
-        {selected ? (
-          <span className="relative -ml-0.5 flex shrink-0">
-            <BrandIcon provider={familyOf(selected.name) ?? selected.provider} name={selected.provider} className="mx-0! size-(--icon-sm)" />
-          </span>
-        ) : null}
-        <span className="min-w-0 truncate">{selected?.name ?? emptyLabel}</span>
-        {showLevel && shownLevel ? <span className="text-muted-foreground-2">{titleCase(shownLevel)}</span> : null}
-        <ChevronDown className="size-(--icon-sm) shrink-0 text-muted-foreground-3" />
-      </PopoverTrigger>
+    <Popover open={open} onOpenChange={toggle}>
+      <PopoverTrigger render={button}>{label}</PopoverTrigger>
       <PopoverContent side={side} align="start">
-        <ModelPickerPanel
-          groups={groups}
-          selected={value.model}
-          step={levelOf}
-          stepLabel={titleCase}
-          onSelect={(model) => {
-            onChange({ model: model.key, thinkingLevel: chosen(model) })
-            setOpen(false)
-          }}
-          onStep={(model, next) => {
-            if (model.key === value.model) onChange({ model: value.model, thinkingLevel: next })
-            else setDrafts((current) => ({ ...current, [model.key]: next }))
-          }}
-          empty={
-            <span className="flex flex-col gap-1">
-              No provider is connected yet
-              <Link to="/settings/$section" params={{ section: "models" }} className="text-(--text-link) underline-offset-2 hover:underline">
-                Add a provider key
-              </Link>
-            </span>
-          }
-        />
+        <ModelPickerPanel {...panel} />
       </PopoverContent>
     </Popover>
   )

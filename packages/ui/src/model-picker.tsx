@@ -2,8 +2,10 @@ import { motion } from "@tock/theme/motion"
 import { type ComponentProps, type KeyboardEvent, type PointerEvent, type ReactNode, type UIEvent, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { BrandIcon } from "./brand-icon"
 import { cn } from "./cn"
+import { Button } from "./button"
 import { Dither } from "./dither"
-import { Check } from "./glyph"
+import { DrawerContent } from "./drawer"
+import { Check, ChevronLeftSmall, ChevronRightSmall } from "./glyph"
 import { MenuSeparator } from "./menu"
 import { StepSlider } from "./step-slider"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
@@ -50,11 +52,32 @@ interface Entry<Step extends string> {
 
 const navOf = (scope: string, group: string, key: string) => `m:${scope}:${group}/${key}`
 
+const cardDither = (height: string) => (
+  <Dither
+    from={0}
+    to={0.55}
+    start={0.5}
+    slant={-0.45}
+    className={cn("inset-x-0 top-0 w-full [mask-image:linear-gradient(to_bottom,black,transparent)] text-primary opacity-40", height)}
+  />
+)
+
 const rank = (name: string, query: string) => {
   const text = name.toLowerCase()
   if (text === query) return 0
   if (text.startsWith(query)) return 1
   return text.split(/[\s\-_/.]+/).some((word) => word.startsWith(query)) ? 2 : 3
+}
+
+function listOf<Step extends string>(groups: ReadonlyArray<PickerGroup<Step>>, query: string) {
+  const needle = query.trim().toLowerCase()
+  const browsing = needle.length === 0
+  const all: Array<Entry<Step>> = groups.flatMap((group) => group.models.map((model) => ({ nav: navOf("lab", group.id, model.key), group, model })))
+  const found = all
+    .filter(({ model, group }) => `${model.name} ${model.key} ${group.name}`.toLowerCase().includes(needle))
+    .map((entry) => ({ ...entry, nav: navOf("search", entry.group.id, entry.model.key) }))
+    .sort((a, b) => rank(a.model.name, needle) - rank(b.model.name, needle))
+  return { browsing, found, entries: browsing ? all : found }
 }
 
 export function PickerRow<Step extends string>({
@@ -63,6 +86,7 @@ export function PickerRow<Step extends string>({
   model,
   selected,
   highlighted = false,
+  onMore,
   ...handlers
 }: {
   nav: string
@@ -70,6 +94,7 @@ export function PickerRow<Step extends string>({
   model: PickerModel<Step>
   selected: boolean
   highlighted?: boolean
+  onMore?: () => void
 } & Pick<ComponentProps<"div">, "onPointerMove" | "onPointerLeave" | "onClick">) {
   return (
     <div
@@ -78,7 +103,7 @@ export function PickerRow<Step extends string>({
       data-nav={nav}
       data-highlighted={highlighted ? "" : undefined}
       aria-selected={selected}
-      className={ROW}
+      className={cn(ROW, onMore !== undefined && "min-h-11")}
       onMouseDown={(event) => event.preventDefault()}
       {...handlers}
     >
@@ -96,6 +121,20 @@ export function PickerRow<Step extends string>({
           </Tooltip>
         )}
         {selected ? <Check className="size-(--icon-sm) shrink-0 text-foreground" /> : null}
+        {onMore === undefined ? null : (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={`${model.name} settings`}
+            className="-my-1 -mr-2 flex size-11 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground-2 focus-visible:outline-ring-inset"
+            onClick={(event) => {
+              event.stopPropagation()
+              onMore()
+            }}
+          >
+            <ChevronRightSmall className="size-(--icon-sm)" />
+          </button>
+        )}
       </span>
     </div>
   )
@@ -113,17 +152,24 @@ export function PickerSection<Step extends string>({ group, children }: { group:
   )
 }
 
-export function PickerCardHead<Step extends string>({ group, model }: { group: PickerGroup<Step>; model: PickerModel<Step> }) {
+export function PickerCardHead<Step extends string>({
+  group,
+  model,
+  onBack,
+}: {
+  group: PickerGroup<Step>
+  model: PickerModel<Step>
+  onBack?: () => void
+}) {
   return (
     <div className="relative -mx-1 -mt-1 overflow-hidden rounded-t-(--radius-overlay) px-1 pt-1">
-      <Dither
-        from={0}
-        to={0.55}
-        start={0.5}
-        slant={-0.45}
-        className="inset-x-0 top-0 w-full [mask-image:linear-gradient(to_bottom,black,transparent)] text-primary opacity-40 h-16"
-      />
+      {onBack === undefined ? cardDither("h-16") : null}
       <div className="relative flex h-(--h-menu-row) items-center gap-2 px-2 font-medium">
+        {onBack === undefined ? null : (
+          <button type="button" aria-label="Back to models" className="-my-1 -mr-2 -ml-3.5 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground-2 focus-visible:outline-ring-inset" onClick={onBack}>
+            <ChevronLeftSmall className="size-(--icon-sm)" />
+          </button>
+        )}
         <span className={ROW_ICON}>
           <BrandIcon provider={model.mark ?? group.id} name={group.name} className="size-(--icon-base)" />
         </span>
@@ -148,6 +194,7 @@ export function PickerCard<Step extends string>({
   stepLabel,
   onStep,
   onCommit,
+  onBack,
 }: {
   group: PickerGroup<Step>
   model: PickerModel<Step>
@@ -155,10 +202,11 @@ export function PickerCard<Step extends string>({
   stepLabel: (step: Step) => string
   onStep: (step: Step) => void
   onCommit?: () => void
+  onBack?: () => void
 }) {
   return (
     <div className="flex flex-col text-sm font-normal">
-      <PickerCardHead group={group} model={model} />
+      <PickerCardHead group={group} model={model} onBack={onBack} />
       {model.steps.length === 0 ? null : (
         <>
           <MenuSeparator />
@@ -176,6 +224,7 @@ export function PickerCard<Step extends string>({
               valueText={stepLabel}
               onChange={onStep}
               onCommit={onCommit}
+              touch={onBack !== undefined}
             />
           </div>
         </>
@@ -208,14 +257,7 @@ export function ModelPickerPanel<Step extends string>({
   const leave = useRef(0)
   const jumping = useRef(false)
 
-  const needle = query.trim().toLowerCase()
-  const browsing = needle.length === 0
-  const all: Array<Entry<Step>> = groups.flatMap((group) => group.models.map((model) => ({ nav: navOf("lab", group.id, model.key), group, model })))
-  const found = all
-    .filter(({ model, group }) => `${model.name} ${model.key} ${group.name}`.toLowerCase().includes(needle))
-    .map((entry) => ({ ...entry, nav: navOf("search", entry.group.id, entry.model.key) }))
-    .sort((a, b) => rank(a.model.name, needle) - rank(b.model.name, needle))
-  const entries = browsing ? all : found
+  const { browsing, found, entries } = listOf(groups, query)
   const shown = entries.find((entry) => entry.nav === highlight)
 
   useEffect(
@@ -507,5 +549,102 @@ export function ModelPickerPanel<Step extends string>({
         </div>
       )}
     </div>
+  )
+}
+
+export function ModelPickerDrawer<Step extends string>({
+  groups,
+  selected,
+  step,
+  stepLabel,
+  onSelect,
+  onStep,
+  empty = "No models found",
+  open,
+}: ModelPickerPanelProps<Step> & { open: boolean }) {
+  const [query, setQuery] = useState("")
+  const [opened, setOpened] = useState<string | null>(null)
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (!open) {
+      setQuery("")
+      setOpened(null)
+    }
+  }
+  const { browsing, found, entries } = listOf(groups, query)
+  const shown = entries.find((entry) => entry.nav === opened)
+
+  const row = ({ nav, group, model }: Entry<Step>) => (
+    <PickerRow
+      key={nav}
+      nav={nav}
+      group={group}
+      model={model}
+      selected={model.key === selected}
+      onClick={() => onSelect(model)}
+      onMore={() => setOpened(nav)}
+    />
+  )
+
+  return (
+    <DrawerContent
+      scrollFade={false}
+      ornament={
+        shown === undefined ? undefined : (
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 overflow-hidden rounded-t-(--radius-panel)">{cardDither("h-24")}</div>
+        )
+      }
+    >
+      <div className="flex flex-col px-2 pb-2">
+        {shown === undefined ? (
+          <>
+            <div data-slot="menu-search-row" className="flex shrink-0 items-center">
+              <input
+                className="h-(--h-menu-row) w-full min-w-0 bg-transparent px-2 text-sm font-normal text-foreground outline-none placeholder:text-muted-foreground-3"
+                placeholder="Search models"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+            <MenuSeparator />
+            <div role="listbox" aria-label="Models" className={cn("relative min-w-0 flex-1", !browsing && "pt-1")}>
+              {entries.length === 0 ? (
+                <div className="px-2 py-4 text-center text-sm font-normal text-muted-foreground-2">{browsing ? empty : "No models found"}</div>
+              ) : browsing ? (
+                groups.flatMap((group, at) => [
+                  at === 0 ? null : <MenuSeparator key={`${group.id}:rule`} />,
+                  <PickerSection key={group.id} group={group}>
+                    {group.models.map((model) => row({ nav: navOf("lab", group.id, model.key), group, model }))}
+                  </PickerSection>,
+                ])
+              ) : (
+                found.map((entry) => row(entry))
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="px-1 pt-1">
+              <PickerCard
+                group={shown.group}
+                model={shown.model}
+                current={step(shown.model)}
+                stepLabel={stepLabel}
+                onStep={(next) => onStep(shown.model, next)}
+                onBack={() => setOpened(null)}
+              />
+            </div>
+            {shown.model.key === selected ? null : (
+              <div className="px-1 pt-2">
+                <Button intent="accent" size="base" className="w-full justify-center" onClick={() => onSelect(shown.model)}>
+                  Use this model
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </DrawerContent>
   )
 }
