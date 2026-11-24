@@ -1,5 +1,6 @@
 import { createContext, use, type ComponentProps, type ReactNode } from "react"
 import { cn } from "./cn"
+import { ChevronRightSmall } from "./glyph"
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
@@ -21,7 +22,9 @@ export function SettingsRow({
   children,
   stacked,
   fill,
+  className,
 }: {
+  className?: string
   id?: string
   title: ReactNode
   description?: ReactNode
@@ -34,7 +37,7 @@ export function SettingsRow({
     <div
       data-slot="settings-row"
       id={id}
-      className={cn("group/row flex gap-6 p-4", stacked ? "flex-col gap-3" : fill ? "items-center" : "items-center justify-between")}
+      className={cn("group/row flex gap-6 p-4", stacked ? "flex-col gap-3" : fill ? "items-center" : "items-center justify-between", className)}
     >
       <div className={cn("flex items-center gap-3", shrink)}>
         <div className={cn("flex flex-col gap-0.5", shrink)}>
@@ -190,6 +193,40 @@ export function ListRow({
       </div>
       {children ? <div className="relative flex items-center gap-2 shrink-0">{children}</div> : null}
     </div>
+  )
+}
+
+export function SettingsRowLink({
+  icon,
+  title,
+  description,
+  children,
+  ...props
+}: Omit<ComponentProps<"a">, "title"> & { icon?: ReactNode; title: ReactNode; description?: ReactNode }) {
+  return (
+    <a
+      data-slot="settings-row-link"
+      className="flex items-center justify-between gap-6 p-4 transition-colors duration-100 outline-none select-none hover:bg-card-hover focus-visible:outline-ring-inset min-h-[60px]"
+      {...props}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        {icon ? (
+          <div className="grid size-8 shrink-0 place-items-center rounded-md bg-secondary text-foreground [&_svg:not([class*='size-'])]:size-4">
+            {icon}
+          </div>
+        ) : null}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="text-sm font-medium text-foreground">
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">{title}</span>
+          </div>
+          {description ? <div className="font-normal text-muted-foreground-2 text-xs">{description}</div> : null}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {children}
+        <ChevronRightSmall className="size-(--icon-sm) shrink-0 text-muted-foreground-3 max-sm:hidden" />
+      </div>
+    </a>
   )
 }
 

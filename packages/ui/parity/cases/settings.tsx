@@ -1,7 +1,8 @@
 import type { CSSProperties, ReactNode } from "react"
 import { cases } from "../case"
-import { Button } from "../../src/button"
-import { Card, ListCardHeader, ListRow, Section, SettingsRow } from "../../src/card"
+import { Button, ButtonIcon } from "../../src/button"
+import { Card, ListCardHeader, ListRow, Section, SettingsRow, SettingsRowLink } from "../../src/card"
+import { BackLink, FormLabel, FormRow, RadioCards } from "../../src/form"
 import { ChromeMark, glyphs } from "../../src/glyph"
 import { MENU_LABEL, MenuCheck, MenuSearch, menuItemClass } from "../../src/menu"
 import { MenuSelectButton } from "../../src/menu-select"
@@ -13,6 +14,20 @@ import { TableCell, TableGroup, TableHead, TableHeader } from "../../src/table"
 import { ModeButton, SplitPreview, SwatchChoice, ThemePreview } from "../../src/theme-swatch"
 
 const noop = () => {}
+
+const SELECT_FORM_INPUT: CSSProperties = {
+  clip: "rect(0px, 0px, 0px, 0px)",
+  overflow: "hidden",
+  whiteSpace: "nowrap",
+  position: "fixed",
+  top: 0,
+  left: 0,
+  border: 0,
+  padding: 0,
+  width: 1,
+  height: 1,
+  margin: -1,
+}
 
 const tokens = (bg: string, fg: string, primary: string, ink: string) =>
   ({ "--bg": bg, "--fg": fg, "--text": fg, "--primary": primary, "--primary-text": "#ffffff", "--shader-ink": ink }) as CSSProperties
@@ -293,5 +308,82 @@ export default cases("settings", [
     "W-8s6LsNeN|section|3",
     "notifications, devices section with badge beside the name",
     () => devices(thisDevice("Chrome on Mac"), "Not receiving push", "Enable on this device"),
+  ],
+  [
+    "WVoFiCsWN5|[data-slot=settings-row-link]|2",
+    "connections, server row link with tool count and connected badge",
+    () => (
+      <SettingsRowLink href="/settings/mcp/01M7FWCMS4FBPD9SD5Z71G0NBF" icon={glyphs.server} title="xeffect" description="MCP server · 9 tools">
+        <Badge tone="success" className="max-sm:hidden">
+          {glyphs.circleCheckLine}
+          Connected
+        </Badge>
+      </SettingsRowLink>
+    ),
+  ],
+  [
+    "Je1FzkdWdR|[role=radiogroup]|0",
+    "connections, authentication choice cards",
+    () => (
+      <RadioCards
+        label="Authentication"
+        value="none"
+        onChange={noop}
+        options={[
+          { value: "oauth", title: "Sign in", description: "Members sign in through the server's own login before Capy can use it" },
+          { value: "key", title: "API key", description: "A token Capy sends as a header on every request" },
+          { value: "none", title: "No sign-in", description: "The server accepts requests without credentials" },
+        ]}
+      />
+    ),
+  ],
+  [
+    "MKpswnbA_e|[data-slot=settings-row]|1",
+    "connections, status row with badge and test",
+    () => (
+      <SettingsRow title="Status" description="9 tools, checked 52m ago" className="max-sm:flex-col max-sm:items-start">
+        <Badge tone="success">
+          {glyphs.circleCheckLine}
+          Connected
+        </Badge>
+        <Button variant="ghost" size="sm">
+          {glyphs.pulse}
+          Test
+        </Button>
+        <Button variant="ghost" size="icon-sm" aria-label="Server actions" aria-expanded={false} aria-haspopup="menu" data-slot="menu-trigger" tabIndex={0}>
+          <ButtonIcon side="only">{glyphs.more}</ButtonIcon>
+        </Button>
+      </SettingsRow>
+    ),
+  ],
+  [
+    "MKpswnbA_e|main header a|0",
+    "connections, back link",
+    () => (
+      <BackLink href="https://capy.ai/settings/mcp" aria-current="page" data-status="active" className="active">
+        MCP &amp; plugins
+      </BackLink>
+    ),
+  ],
+  [
+    "Je1FzkdWdR|main [data-slot=card]:has([data-slot=menu-select-trigger][aria-label=Transport]) > div|0",
+    "connections, form row with select",
+    () => (
+      <FormRow title="Transport" description="Capy speaks MCP over HTTP to a listening server">
+        <MenuSelectButton role="combobox" aria-haspopup="listbox" aria-expanded={false} aria-label="Transport" tabIndex={0} className="w-40">
+          Streamable HTTP
+        </MenuSelectButton>
+        <input aria-hidden tabIndex={-1} value="url" readOnly style={SELECT_FORM_INPUT} />
+      </FormRow>
+    ),
+  ],
+  [
+    "Je1FzkdWdR|main [data-slot=card]:has([data-slot=menu-select-trigger][aria-label=Transport]) > label|0",
+    "connections, ruled form label with input",
+    () => (
+      <FormLabel label="URL" ruled>
+        <Input type="url" placeholder="https://mcp.example.com/mcp" aria-invalid={false} value="" onChange={noop} />
+      </FormLabel>
+    ),
   ],
 ])

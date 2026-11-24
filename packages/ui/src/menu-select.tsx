@@ -25,7 +25,9 @@ export function MenuSelect<T extends string>({
   placeholder,
   searchLabel,
   className,
+  label: name,
 }: {
+  label?: string
   value: T | null
   options: readonly { value: T; label: string }[]
   onChange: (value: T) => void
@@ -38,7 +40,7 @@ export function MenuSelect<T extends string>({
   const label = options.find((option) => option.value === value)?.label
   return (
     <Menu onOpenChange={(open) => (open ? undefined : setQuery(""))}>
-      <MenuTrigger render={<MenuSelectButton className={className} data-placeholder={label === undefined ? "" : undefined} />}>
+      <MenuTrigger render={<MenuSelectButton aria-label={name} className={className} data-placeholder={label === undefined ? "" : undefined} />}>
         {label ?? placeholder}
       </MenuTrigger>
       <MenuContent align="start" className={className}>

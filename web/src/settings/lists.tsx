@@ -5,7 +5,6 @@ import {
   Key01Icon,
   LockKeyIcon,
   MoreHorizontalIcon,
-  Plug01Icon,
   PuzzleIcon,
   RefreshIcon,
   SparklesIcon,
@@ -23,14 +22,14 @@ import { Table, TableCell, TableHead, TableHeader, TableRow } from "@tock/ui/tab
 import { useMemo, useState, type ReactNode } from "react"
 import { http, post } from "../api/http"
 import { socket } from "../api/socket"
-import type { DevPluginRecord, McpAuthMode, McpServerRecord, SecretMeta, SkillRecord } from "../api/types"
+import type { DevPluginRecord, SecretMeta, SkillRecord } from "../api/types"
 import { act, useRemote } from "../lib/remote"
 import { FormDialog, Segmented } from "../shell/form-dialog"
 import { modelSpec, refreshModels, useModels, useProviders } from "../state/data"
 
-const count = (total: number, noun: string) => `${total} ${noun}${total === 1 ? "" : "s"}`
+export const count = (total: number, noun: string) => `${total} ${noun}${total === 1 ? "" : "s"}`
 
-function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
+export function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <Button variant="ghost" size="icon-sm" aria-label={label} onClick={onClick}>
       <Icon icon={Add01Icon} />
@@ -53,7 +52,7 @@ function RowMenu({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function RemoveItem({ onSelect }: { onSelect: () => void }) {
+export function RemoveItem({ onSelect }: { onSelect: () => void }) {
   return (
     <MenuItem danger onSelect={onSelect}>
       <Icon icon={Delete02Icon} />
@@ -208,69 +207,6 @@ export function Models() {
         <Field label="API key">
           <Input autoFocus={replacing} required type="password" autoComplete="off" value={key} onChange={(event) => setKey(event.currentTarget.value)} />
         </Field>
-      </FormDialog>
-    </Page>
-  )
-}
-
-const loadServers = () => socket.request<readonly McpServerRecord[]>("mcp.list")
-
-const AUTH_MODES: readonly { value: McpAuthMode; label: string }[] = [
-  { value: "headers", label: "Headers" },
-  { value: "oauth", label: "OAuth" },
-  { value: "sse", label: "SSE" },
-]
-
-export function Connections() {
-  const { data, reload } = useRemote(loadServers, [])
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ name: "", url: "", authMode: "headers" as McpAuthMode, header: "", value: "" })
-  const submit = async () => {
-    if (form.authMode === "oauth") {
-      const result = await post<{ authUrl?: string }>("/api/mcp/oauth", { name: form.name.trim(), url: form.url.trim() })
-      if (result.authUrl) window.open(result.authUrl, "_blank", "noopener")
-      return
-    }
-    await socket.request("mcp.upsert", {
-      name: form.name.trim(),
-      url: form.url.trim(),
-      authMode: form.authMode,
-      headers: form.header.trim() ? { [form.header.trim()]: form.value } : undefined,
-    })
-  }
-  return (
-    <Page title="Connections" description="MCP servers give your agent tools from other services.">
-      <Section>
-        <ListCard title={count(data.length, "server")} actions={<AddButton label="Add server" onClick={() => setOpen(true)} />}>
-          {data.length > 0
-            ? data.map((server) => (
-                <ListRow key={server.id} icon={<Icon icon={Plug01Icon} />} title={server.name} description={server.url}>
-                  <RowMenu label={`${server.name} options`}>
-                    <RemoveItem onSelect={() => void act(() => socket.request("mcp.delete", { idOrName: server.id }).then(reload))} />
-                  </RowMenu>
-                </ListRow>
-              ))
-            : null}
-        </ListCard>
-      </Section>
-      <FormDialog open={open} onOpenChange={setOpen} title="Add server" submitLabel="Add" onSubmit={() => act(() => submit().then(reload))}>
-        <Field label="Name">
-          <Input autoFocus required value={form.name} onChange={(event) => setForm({ ...form, name: event.currentTarget.value })} />
-        </Field>
-        <Field label="URL">
-          <Input required type="url" placeholder="https://" value={form.url} onChange={(event) => setForm({ ...form, url: event.currentTarget.value })} />
-        </Field>
-        <Field label="Sign-in">
-          <Segmented label="Sign-in" value={form.authMode} options={AUTH_MODES} onChange={(authMode) => setForm({ ...form, authMode })} />
-        </Field>
-        {form.authMode === "oauth" ? null : (
-          <Field label="Header" hint="Optional, for example Authorization and a bearer token.">
-            <div className="flex gap-2">
-              <Input aria-label="Header name" placeholder="Authorization" value={form.header} onChange={(event) => setForm({ ...form, header: event.currentTarget.value })} className="w-40" />
-              <Input aria-label="Header value" type="password" autoComplete="off" value={form.value} onChange={(event) => setForm({ ...form, value: event.currentTarget.value })} className="flex-1" />
-            </div>
-          </Field>
-        )}
       </FormDialog>
     </Page>
   )

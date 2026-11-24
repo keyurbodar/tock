@@ -177,6 +177,10 @@ export interface McpServerRecord {
   readonly authMode: McpAuthMode
   readonly enabled: boolean
   readonly updatedAt: number
+  readonly toolCount: number | null
+  readonly checkedAt: number | null
+  readonly lastError: string | null
+  readonly headerNames: readonly string[]
 }
 
 export interface DevPluginRecord {

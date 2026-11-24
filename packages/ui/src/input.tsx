@@ -16,7 +16,7 @@ export function Input({
   ...props
 }: Omit<ComponentProps<"input">, "size"> & { icon?: ReactNode; size?: keyof typeof INPUT_SIZE }) {
   const sized = INPUT_SIZE[size]
-  if (icon === undefined) return <input data-slot="input" className={cn(FIELD, sized.field, className)} {...props} />
+  if (icon === undefined) return <input data-slot="input" className={cn("w-full", FIELD, sized.field, className)} {...props} />
   return (
     <span data-slot="input-group" className="relative inline-flex w-full">
       <span
@@ -70,9 +70,15 @@ const BADGE_ACCENT =
   "[--intent-text:var(--primary-ink)] [--intent-text-hover:color-mix(in_oklch,var(--primary-ink)_80%,transparent)] [--intent-bg:var(--primary)] [--intent-text-on-bg:var(--primary-text)] [--intent-border-solid:color-mix(in_oklch,var(--primary)_80%,black)] [--intent-highlight:oklch(1_0_0_/_0.12)]"
 const BADGE_BASE = "h-(--h-badge-base) px-2 gap-1 [&_svg:not([class*='size-'])]:size-(--icon-sm) [&_svg:first-of-type]:-ml-0.5 select-none"
 
-export function Badge({ children, tone }: { children: React.ReactNode; tone?: "accent" }) {
+const BADGE_SUCCESS =
+  "[--intent-text:light-dark(var(--success),color-mix(in_oklch,var(--success)_72%,white))] [--intent-text-hover:color-mix(in_oklch,var(--success)_80%,transparent)] [--intent-bg:var(--success)] [--intent-text-on-bg:light-dark(var(--fg),var(--bg))]"
+
+export function Badge({ children, tone, className }: { children: React.ReactNode; tone?: "accent" | "success"; className?: string }) {
   return (
-    <div data-slot="badge" className={cn(BADGE, tone === "accent" && BADGE_ACCENT, BADGE_BASE)}>
+    <div
+      data-slot="badge"
+      className={cn(BADGE, tone === "accent" && BADGE_ACCENT, tone === "success" && BADGE_SUCCESS, BADGE_BASE, className)}
+    >
       {children}
     </div>
   )
