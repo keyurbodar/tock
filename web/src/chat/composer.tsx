@@ -104,7 +104,7 @@ export function Composer({
               size={fileSize(entry.sizeBytes)}
               status={entry.status}
               previewUrl={entry.previewUrl}
-              onPreview={() => setPreviewing(entry.localId)}
+              onPreview={media.some((item) => item.key === entry.localId) ? () => setPreviewing(entry.localId) : undefined}
               onRemove={() => attachments.remove(entry.localId)}
             />
           ))}
