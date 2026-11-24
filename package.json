@@ -1,0 +1,31 @@
+{
+  "name": "tock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsgo --noEmit",
+    "lint": "oxlint src test",
+    "fmt": "oxfmt src test",
+    "test": "vitest run",
+    "check": "bun run typecheck && bun run lint && bun run test"
+  },
+  "dependencies": {
+    "@earendil-works/djs": "^0.2.0",
+    "@earendil-works/pi-ai": "~1.6.0",
+    "@earendil-works/pi-durable": "~1.6.0",
+    "@modelcontextprotocol/client": "2.4.0",
+    "agents": "^0.34.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.9.1",
+    "@cloudflare/workers-types": "latest",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+    "oxfmt": "^0.80.0",
+    "oxlint": "^1.95.0",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.167.0"
+  }
+}
