@@ -169,6 +169,8 @@ export default {
         headers: {
           "content-type": found.meta.mime,
           "content-disposition": `inline; filename="${found.meta.name}"`,
+          "content-security-policy": "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'",
+          "x-content-type-options": "nosniff",
         },
       });
     }
