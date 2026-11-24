@@ -15,11 +15,13 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
 }
 
 export function SettingsRow({
+  id,
   title,
   description,
   children,
   stacked,
 }: {
+  id?: string
   title: ReactNode
   description?: ReactNode
   children?: ReactNode
@@ -28,12 +30,13 @@ export function SettingsRow({
   return (
     <div
       data-slot="settings-row"
+      id={id}
       className={cn("group/row flex gap-6 p-4", stacked ? "flex-col gap-3" : "items-center justify-between")}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <div className="truncate text-sm font-medium text-foreground">{title}</div>
-          {description ? <div className="text-sm font-normal text-muted-foreground-2">{description}</div> : null}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="text-sm font-medium text-foreground">{title}</div>
+          {description ? <div className="font-normal text-muted-foreground-2 text-sm">{description}</div> : null}
         </div>
       </div>
       {children ? (

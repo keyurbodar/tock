@@ -4,14 +4,14 @@ import {
   MenuItem as MenuItemPart,
   MenuTrigger as MenuTriggerPart,
 } from "@ui-sdk/react/menu"
-import type { ComponentProps, ReactNode } from "react"
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react"
 import { cn } from "./cn"
 
 export const POPUP =
   "z-(--z-overlay-content) origin-(--transform-origin) rounded-(--radius-overlay) border-[0.5px] border-border-2 bg-popover p-1 text-foreground shadow-overlay outline-none transition-[opacity,scale] duration-fast ease-out-quint data-[starting-style]:scale-[0.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0 data-[ending-style]:duration-[120ms] motion-reduce:transition-none"
 
 export const MENU_CONTENT =
-  "rounded-(--radius-overlay) border-[0.5px] border-border-2 bg-popover p-1 text-foreground shadow-overlay flex flex-col overflow-hidden origin-(--transform-origin) outline-none transition-[opacity,scale] duration-fast ease-out-quint data-[starting-style]:scale-[0.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0 data-[ending-style]:duration-[120ms] data-[instant]:transition-none max-h-[min(60dvh,var(--available-height))]"
+  "rounded-(--radius-overlay) border-[0.5px] border-border-2 bg-popover p-1 text-foreground shadow-overlay flex min-w-32 flex-col overflow-hidden origin-(--transform-origin) outline-none transition-[opacity,scale] duration-fast ease-out-quint data-[starting-style]:scale-[0.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.97] data-[ending-style]:opacity-0 data-[ending-style]:duration-[120ms] data-[instant]:transition-none max-h-[min(60dvh,var(--available-height))]"
 
 export const MENU_ITEM =
   "relative flex w-full min-w-0 cursor-pointer items-center gap-2 rounded px-2 text-left text-sm font-normal outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-(--icon-sm) h-(--h-menu-row) data-[highlighted]:bg-[var(--menu-row-highlight,var(--popover-hover))] data-[popup-open]:bg-[var(--menu-row-highlight,var(--popover-hover))]"
@@ -105,3 +105,48 @@ export function MenuSeparator() {
 export function MenuRule() {
   return <div data-slot="menu-separator" className={`${SEPARATOR} shrink-0`} />
 }
+
+const itemAfter = (row: HTMLElement) =>
+  [...(row.closest("[data-slot=menu-content]")?.querySelectorAll<HTMLElement>("[data-slot=menu-item]:not([data-disabled])") ?? [])].find(
+    (item) => (row.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+  )
+
+export function MenuSearch({ label, value, onValueChange }: { label: string; value: string; onValueChange: (value: string) => void }) {
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => input.current?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  return (
+    <div
+      data-slot="menu-search-row"
+      className="flex shrink-0 items-center"
+      onKeyDownCapture={(event) => {
+        if (event.key !== "Enter" || event.nativeEvent.isComposing || value.trim() === "") return
+        const first = itemAfter(event.currentTarget)
+        if (first === undefined) return
+        event.preventDefault()
+        first.click()
+      }}
+    >
+      <input
+        ref={input}
+        aria-label={label}
+        placeholder={label}
+        value={value}
+        onChange={(event) => onValueChange(event.currentTarget.value)}
+        className="h-(--h-menu-row) w-full min-w-0 bg-transparent px-2 text-sm font-normal text-foreground outline-none placeholder:text-muted-foreground-3"
+      />
+    </div>
+  )
+}
+
+export function MenuCheck() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="ml-auto size-(--icon-sm) shrink-0 text-foreground">
+      <path d="M5 12.75L10 19L19 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export const MENU_LABEL = "mask-fade-r min-w-0 flex-1 overflow-hidden whitespace-nowrap"
