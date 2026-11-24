@@ -1,11 +1,33 @@
-import type { ComponentProps } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { cn } from "./cn"
 
 const FIELD =
-  "min-w-0 rounded border-[0.5px] border-border-2 bg-input text-sm font-normal text-foreground outline-none selection:bg-primary-20 placeholder:text-muted-foreground-3 focus-visible:outline-ring-inset disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive"
+  "min-w-0 rounded text-sm font-normal text-foreground placeholder:text-muted-foreground-3 selection:bg-primary-20 outline-none disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive bg-input border-[0.5px] border-border-2 focus-visible:outline-ring-inset"
 
-export function Input({ className, ...props }: ComponentProps<"input">) {
-  return <input data-slot="input" className={cn(FIELD, "h-(--h-control-base) px-2.5", className)} {...props} />
+const INPUT_SIZE = {
+  sm: { field: "h-(--h-control-sm) px-2", inset: "pl-7", icon: "left-2" },
+  base: { field: "h-(--h-control-base) px-2.5", inset: "pl-8", icon: "left-2.5" },
+}
+
+export function Input({
+  className,
+  icon,
+  size = "base",
+  ...props
+}: Omit<ComponentProps<"input">, "size"> & { icon?: ReactNode; size?: keyof typeof INPUT_SIZE }) {
+  const sized = INPUT_SIZE[size]
+  if (icon === undefined) return <input data-slot="input" className={cn(FIELD, sized.field, className)} {...props} />
+  return (
+    <span data-slot="input-group" className="relative inline-flex w-full">
+      <span
+        aria-hidden="true"
+        className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-icon-muted [&_svg]:size-(--icon-sm)", sized.icon)}
+      >
+        {icon}
+      </span>
+      <input data-slot="input" className={cn("w-full", FIELD, sized.field, sized.inset, className)} {...props} />
+    </span>
+  )
 }
 
 export function Textarea({ className, mono, ...props }: ComponentProps<"textarea"> & { mono?: boolean }) {

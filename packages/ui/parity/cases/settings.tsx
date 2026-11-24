@@ -7,7 +7,9 @@ import { MENU_LABEL, MenuCheck, MenuSearch, menuItemClass } from "../../src/menu
 import { MenuSelectButton } from "../../src/menu-select"
 import { Slider } from "../../src/slider"
 import { Switch } from "../../src/switch"
-import { TableCell, TableHead } from "../../src/table"
+import { Input } from "../../src/input"
+import { KeybindingButton } from "../../src/keybinding"
+import { TableCell, TableGroup, TableHead, TableHeader } from "../../src/table"
 import { ModeButton, SplitPreview, SwatchChoice, ThemePreview } from "../../src/theme-swatch"
 
 const noop = () => {}
@@ -194,5 +196,51 @@ export default cases("settings", [
         </span>
       </TableCell>
     ),
+  ],
+  [
+    "5fVhyCBDQk|section [data-slot=input-group]|0",
+    "search field with icon",
+    () => <Input icon={glyphs.search} placeholder="Search shortcuts" aria-label="Search shortcuts" value="" onChange={noop} />,
+  ],
+  [
+    "5fVhyCBDQk|div.justify-between.gap-6 > button|0",
+    "ghost button, disabled",
+    () => (
+      <Button variant="ghost" size="base" disabled>
+        Reset all
+      </Button>
+    ),
+  ],
+  [
+    "5fVhyCBDQk|[role=table] > [role=row]|0",
+    "table header row",
+    () => (
+      <TableHeader>
+        <TableHead>Command</TableHead>
+        <TableHead>Keybinding</TableHead>
+        <TableHead>When</TableHead>
+        <TableHead aria-hidden />
+      </TableHeader>
+    ),
+  ],
+  ["5fVhyCBDQk|[role=table] > [role=row]|1", "table group row with count", () => <TableGroup label="General" count={49} />],
+  [
+    "5fVhyCBDQk|[role=table] > [role=row]:nth-child(3) > [role=cell]|0",
+    "table cell, command name",
+    () => <TableCell className="text-sm font-medium text-foreground">Open command menu</TableCell>,
+  ],
+  [
+    "5fVhyCBDQk|[role=table] > [role=row]:nth-child(3) > [role=cell]|1",
+    "table cell, keybinding button",
+    () => (
+      <TableCell>
+        <KeybindingButton aria-label="Edit shortcut for Open command menu" bindings={[["Ctrl", "K"]]} />
+      </TableCell>
+    ),
+  ],
+  [
+    "5fVhyCBDQk|[role=table] > [role=row]:nth-child(3) > [role=cell]|2",
+    "table cell, when",
+    () => <TableCell className="text-xs text-muted-foreground-1">Always</TableCell>,
   ],
 ])

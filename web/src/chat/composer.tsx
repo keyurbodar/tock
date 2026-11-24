@@ -13,18 +13,15 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { socket } from "../api/socket"
 import type { SkillRecord, ThinkingLevel } from "../api/types"
 import { fileSize, titleCase } from "../lib/format"
-import { chord } from "../lib/platform"
 import { useRemote } from "../lib/remote"
 import { modelSpec, useModels, useProviders, useSettings } from "../state/data"
+import { useCommand, useShortcutLabel } from "../shortcuts/store"
 import { registry } from "../state/registry"
 import { withAttachments } from "./attached"
 import { AttachmentLightbox, type MediaEntry } from "./attachment-lightbox"
 import { useAttachments } from "./attachments"
 import { findModel, levelFor, ModelPicker, type ModelChoice } from "./model-picker"
 
-const ATTACH_KEYS = chord("/")
-const EDITABLE = "input, textarea, select, [contenteditable=true]"
-const OVERLAY = "[role=dialog], [role=menu], [role=listbox]"
 
 const choiceAtom = Atom.make<ModelChoice>({ model: null, thinkingLevel: null }).pipe(Atom.keepAlive)
 const loadSkills = () => socket.request<readonly SkillRecord[]>("skill.list")
@@ -143,24 +140,14 @@ export function Composer({
   }
 
   const attach = attachments.add
-  const surface = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "/" || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
-      const focused = document.activeElement
-      const inside = surface.current?.contains(focused) === true
-      if (!inside && (focused?.matches(EDITABLE) === true || document.querySelector(OVERLAY) !== null)) return
-      event.preventDefault()
-      picker.current?.click()
-    }
-    addEventListener("keydown", onKey)
-    return () => removeEventListener("keydown", onKey)
-  }, [])
+  const attachKeys = useShortcutLabel("composer.attach")
+  useCommand("composer.attach", () => picker.current?.click())
+  useCommand("composer.focus", () => editor.current?.focus())
+  useCommand("thread.stop", () => (working && onStop ? onStop() : false))
 
   return (
     <ComposerSurface
-      ref={surface}
       translucent={sessionId === undefined}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
@@ -215,7 +202,7 @@ export function Composer({
                 {glyphs.add}
               </MenuTrigger>
               <MenuContent side="top" align="start" className="w-max min-w-56 max-w-sm">
-                <MenuItem icon={glyphs.attach} keys={ATTACH_KEYS} onSelect={() => picker.current?.click()}>
+                <MenuItem icon={glyphs.attach} keys={attachKeys} onSelect={() => picker.current?.click()}>
                   Upload attachment
                 </MenuItem>
               </MenuContent>

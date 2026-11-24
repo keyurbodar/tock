@@ -5,9 +5,10 @@ import { version } from "../../package.json"
 import { AGENT } from "../agent"
 import { socket, type ConnectionState } from "../api/socket"
 import { Appearance } from "./appearance"
-import { Notifications, Shortcuts } from "./device"
+import { Notifications } from "./device"
 import { General } from "./general"
 import { Connections, Models, Plugins, Secrets, Skills } from "./lists"
+import { Shortcuts } from "./shortcuts"
 import { isSection, SECTIONS, type SectionId, type SettingsView } from "./sections"
 
 const VIEWS: Readonly<Record<SectionId, () => React.ReactNode>> = {

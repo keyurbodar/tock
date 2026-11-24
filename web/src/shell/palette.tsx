@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AGENT } from "../agent"
 import { relativeTime } from "../lib/format"
 import { SECTIONS } from "../settings/sections"
+import { useCommand } from "../shortcuts/store"
 import { setAppearance } from "../state/appearance"
 import { paletteAtom, useSessions } from "../state/data"
 import { registry } from "../state/registry"
@@ -70,15 +71,7 @@ export function Palette() {
   const [filter, setFilter] = useState(ALL)
   const list = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "k" || !(event.metaKey || event.ctrlKey)) return
-      event.preventDefault()
-      registry.set(paletteAtom, !registry.get(paletteAtom))
-    }
-    addEventListener("keydown", onKey)
-    return () => removeEventListener("keydown", onKey)
-  }, [])
+  useCommand("commandMenu.toggle", () => registry.set(paletteAtom, !registry.get(paletteAtom)))
 
   const commands = useMemo<readonly Command[]>(
     () => [

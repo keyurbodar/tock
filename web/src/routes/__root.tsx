@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router"
+import { createRootRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router"
 import { wallpaperImage } from "@tock/theme/apply"
 import { Backdrop } from "@tock/ui/backdrop"
 import { useEffect, useState } from "react"
@@ -8,6 +8,7 @@ import { SettingsHost } from "../settings/dialog"
 import { isSettingsView, type SettingsView } from "../settings/sections"
 import { Palette } from "../shell/palette"
 import { Sidebar } from "../shell/sidebar"
+import { useCommand } from "../shortcuts/store"
 import { useAppearance } from "../state/appearance"
 import { paletteAtom, useSessions } from "../state/data"
 import { registry } from "../state/registry"
@@ -22,6 +23,7 @@ const DESKTOP = "(min-width: 768px)"
 
 function Root() {
   const [sidebar, setSidebar] = useState<SidebarState>(() => (matchMedia(DESKTOP).matches ? "open" : "closed"))
+  const navigate = useNavigate()
   const pathname = useLocation({ select: (location) => location.pathname })
   const appearance = useAppearance()
   const sessions = useSessions().filter((session) => session.messageCount > 0)
@@ -31,6 +33,10 @@ function Root() {
   useEffect(() => {
     if (!matchMedia(DESKTOP).matches) setSidebar("closed")
   }, [pathname])
+
+  useCommand("sidebar.toggle", toggleSidebar)
+  useCommand("thread.new", () => void navigate({ to: "/" }))
+  useCommand("settings.open", () => void navigate({ to: ".", search: (previous) => ({ ...previous, settings: "general" }) }))
 
   return (
     <ShellContext value={{ sidebar, toggleSidebar }}>

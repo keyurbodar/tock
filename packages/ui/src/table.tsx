@@ -1,4 +1,4 @@
-import { createContext, use, type ComponentProps } from "react"
+import { createContext, use, type ComponentProps, type ReactNode } from "react"
 import { cn } from "./cn"
 
 const LEAD =
@@ -86,6 +86,20 @@ export function TableHead({ numeric, className, ...props }: ComponentProps<"div"
       )}
       {...props}
     />
+  )
+}
+
+export function TableGroup({ label, count }: { label: ReactNode; count?: number }) {
+  return (
+    <div role="row" className="relative col-span-full mb-0.5 grid h-8 grid-cols-subgrid items-center [--table-lead-bg:var(--section)]">
+      <div className="absolute inset-y-0 -inset-x-2 rounded-(--radius-card) bg-section" />
+      <span className="relative flex items-center text-xs font-medium text-muted-foreground-1 col-span-full">
+        <span className="flex items-center gap-1.5 max-md:sticky max-md:left-0">
+          {label}
+          {count === undefined ? null : <span className="text-muted-foreground-3 tabular-nums">{count}</span>}
+        </span>
+      </span>
+    </div>
   )
 }
 
