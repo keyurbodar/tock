@@ -47,6 +47,11 @@ export function pushSupport(): PushSupport {
 
 export const thisDevice = (): string => deviceLabel(navigator.userAgent, navigator.maxTouchPoints)
 
+async function worker(): Promise<ServiceWorkerRegistration> {
+  await navigator.serviceWorker.register(WORKER, { updateViaCache: "none" })
+  return navigator.serviceWorker.ready
+}
+
 export async function showSystemNotification(notice: SystemNotification, open: (href: string) => void): Promise<boolean> {
   if (permission() !== "granted") return false
   try {
@@ -58,8 +63,9 @@ export async function showSystemNotification(notice: SystemNotification, open: (
     }
     return true
   } catch {
-    const registration = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration(WORKER) : undefined
-    if (registration === undefined) return false
+    if (!("serviceWorker" in navigator)) return false
+    const registration = await worker().catch(() => null)
+    if (registration === null) return false
     return registration.showNotification(notice.title, { body: notice.body, tag: notice.tag, data: { href: notice.href } }).then(
       () => true,
       () => false,
@@ -90,8 +96,7 @@ export async function listDevices(endpoint: string | null): Promise<readonly Pus
 
 export async function enablePush(publicKey: string): Promise<"granted" | "denied"> {
   if ((await Notification.requestPermission()) !== "granted") return "denied"
-  await navigator.serviceWorker.register(WORKER, { updateViaCache: "none" })
-  const registration = await navigator.serviceWorker.ready
+  const registration = await worker()
   const created = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(publicKey) })
   await socket.request("push.subscribe", {
     endpoint: created.endpoint,
