@@ -35,6 +35,11 @@ const entry = (model: ModelInfo, levels: boolean): PickerModel<ThinkingLevel> =>
   steps: levels && model.thinkingLevels.length > 1 ? model.thinkingLevels : [],
 })
 
+export const levelFor = (levels: readonly ThinkingLevel[], wanted: ThinkingLevel | null | undefined): ThinkingLevel | null => {
+  if (wanted === null || wanted === undefined) return null
+  return levels.includes(wanted) ? wanted : (levels[0] ?? null)
+}
+
 export function ModelPicker({
   value,
   onChange,
@@ -67,11 +72,8 @@ export function ModelPicker({
     return [...byProvider].map(([id, list]): PickerGroup<ThinkingLevel> => ({ id, name: names.get(id) ?? id, models: list }))
   }, [models, providers, showLevel])
 
-  const chosen = (model: PickerModel<ThinkingLevel>) => {
-    const wanted = model.key === value.model ? level : (drafts[model.key] ?? value.thinkingLevel)
-    if (wanted === null || wanted === undefined) return null
-    return model.steps.includes(wanted) ? wanted : (model.steps[0] ?? null)
-  }
+  const chosen = (model: PickerModel<ThinkingLevel>) =>
+    levelFor(model.steps, model.key === value.model ? level : (drafts[model.key] ?? value.thinkingLevel))
   const levelOf = (model: PickerModel<ThinkingLevel>) => chosen(model) ?? model.steps[0]
 
   return (
