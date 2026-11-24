@@ -225,6 +225,7 @@ export type ClientFrame =
       bodyMd: string;
       files?: Record<string, string>;
     }
+  | { id: string; type: "skill.update"; name: string; description: string; bodyMd: string }
   | { id: string; type: "skill.import"; source: string }
   | { id: string; type: "skill.delete"; name: string }
   | { id: string; type: "file.list"; sessionId?: string }

@@ -126,6 +126,18 @@ export class SkillStore {
     return this.get(name)!;
   }
 
+  update(name: string, changes: { description: string; bodyMd: string }): SkillRecord {
+    if (!this.get(name)) throw new Error(`skill_not_found:${name}`);
+    this.sql.exec(
+      `UPDATE tock_skills SET description = ?, body_md = ?, updated_at = ? WHERE name = ?`,
+      changes.description,
+      changes.bodyMd,
+      Date.now(),
+      name,
+    );
+    return this.get(name)!;
+  }
+
   delete(name: string): boolean {
     const exists = this.sql
       .exec(`SELECT name FROM tock_skills WHERE name = ?`, name)

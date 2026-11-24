@@ -10,6 +10,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createRegistry, Harness } from "@earendil-works/pi-durable";
 import { openPiSessionStore } from "agents/harness/pi";
 import type { McpHub } from "../src/core/mcp.js";
+import type { SkillStore } from "../src/core/skills.js";
 import { Vault } from "../src/core/vault.js";
 import { encryptWebPushPayload, fitPushPayload } from "../src/core/push.js";
 import { ensureSchema } from "../src/db/schema.js";
@@ -501,6 +502,46 @@ describe("tock production hardening", () => {
     const listed = replies.get("list")?.data as Record<string, unknown>[];
     expect(listed.map((meta) => meta.name)).toEqual(["gh"]);
     expect(listed[0]).not.toHaveProperty("value");
+    ws.close();
+  });
+
+  it("edits a skill's description and instructions without losing where it came from", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("skill-update@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { skills } = instance as unknown as { skills: SkillStore };
+      skills.upsert({
+        name: "release-check",
+        description: "old",
+        source: "github:acme/skills/release-check",
+        commitSha: "abc1234",
+        bodyMd: "old body",
+        files: { "notes.md": "kept" },
+      });
+    });
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "skill-update@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type?: string; data?: unknown }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type?: string };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    ws.send(
+      JSON.stringify({ id: "edit", type: "skill.update", name: "release-check", description: "new", bodyMd: "new body" }),
+    );
+    ws.send(JSON.stringify({ id: "missing", type: "skill.update", name: "nope", description: "x", bodyMd: "y" }));
+    await vi.waitFor(() => expect(replies.size).toBe(2), { timeout: 15_000 });
+    expect(replies.get("edit")?.data).toMatchObject({
+      name: "release-check",
+      description: "new",
+      bodyMd: "new body",
+      source: "github:acme/skills/release-check",
+      commitSha: "abc1234",
+      filesJson: JSON.stringify({ "notes.md": "kept" }),
+    });
+    expect(replies.get("missing")?.type).toBe("error");
     ws.close();
   });
 

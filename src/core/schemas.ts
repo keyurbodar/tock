@@ -210,6 +210,13 @@ const clientFrameSchema = union([
     bodyMd: str({ minLength: 1 }),
     files: opt(map(str())),
   }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("skill.update"),
+    name: str({ minLength: 1 }),
+    description: str({ maxLength: 1024 }),
+    bodyMd: str({ minLength: 1 }),
+  }),
   obj({ id: str({ minLength: 1 }), type: lit("skill.import"), source: str({ minLength: 1 }) }),
   obj({ id: str({ minLength: 1 }), type: lit("skill.delete"), name: str({ minLength: 1 }) }),
   obj({ id: str({ minLength: 1 }), type: lit("file.list"), sessionId: opt(str()) }),

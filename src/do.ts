@@ -398,6 +398,8 @@ export class TockDO extends DurableObject<Env> {
           bodyMd: frame.bodyMd,
           files: frame.files,
         });
+      case "skill.update":
+        return this.skills.update(frame.name, { description: frame.description, bodyMd: frame.bodyMd });
       case "skill.import":
         return await this.skills.importSource(frame.source);
       case "skill.delete":
