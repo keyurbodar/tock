@@ -344,6 +344,9 @@ export class TockDO extends DurableObject<Env> {
       case "vault.list":
         return this.vault.listMeta().filter((meta) => meta.scopes !== "llm");
       case "vault.set":
+        if (this.vault.listMeta().some((meta) => meta.name === frame.name && meta.scopes === "llm")) {
+          throw new Error(`secret_exists:${frame.name}`);
+        }
         await this.vault.set(
           frame.name,
           frame.value,

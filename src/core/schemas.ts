@@ -108,6 +108,8 @@ const pluginUpsertInnerSchema = obj({
   enabled: bool(),
 });
 
+
+const secretName = str({ minLength: 1, maxLength: 128, pattern: "^[a-zA-Z0-9_.-]+$" });
 const clientFrameSchema = union([
   obj({
     id: str({ minLength: 1 }),
@@ -156,7 +158,7 @@ const clientFrameSchema = union([
   obj({
     id: str({ minLength: 1 }),
     type: lit("vault.set"),
-    name: str({ minLength: 1, maxLength: 128 }),
+    name: secretName,
     value: str({ minLength: 1 }),
     description: opt(str()),
     scopes: opt(str()),
@@ -166,7 +168,7 @@ const clientFrameSchema = union([
     id: str({ minLength: 1 }),
     type: lit("vault.update"),
     name: str({ minLength: 1 }),
-    rename: opt(str({ minLength: 1, maxLength: 128 })),
+    rename: opt(secretName),
     value: opt(str({ minLength: 1 })),
     description: opt(str()),
     origin: opt(str()),

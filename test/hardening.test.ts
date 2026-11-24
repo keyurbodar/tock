@@ -504,6 +504,36 @@ describe("tock production hardening", () => {
     ws.close();
   });
 
+  it("refuses secret names that requests cannot reference or that belong to a provider", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("vault-names@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { vault } = instance as unknown as { vault: Vault };
+      await vault.set("provider_key", "sk-provider", "provider API key", "llm");
+      await vault.set("gh", "ghp_value", "GitHub", "", "https://api.github.com");
+    });
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "vault-names@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type?: string }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type?: string };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    ws.send(JSON.stringify({ id: "provider", type: "vault.set", name: "provider_key", value: "mine" }));
+    ws.send(JSON.stringify({ id: "spaced", type: "vault.set", name: "my key", value: "v" }));
+    ws.send(JSON.stringify({ id: "rename", type: "vault.update", name: "gh", rename: "git hub" }));
+    await vi.waitFor(() => expect(replies.size).toBe(3), { timeout: 15_000 });
+    expect([...replies.values()].map((reply) => reply.type)).toEqual(["error", "error", "error"]);
+    ws.close();
+    await runInDurableObject(stub, async (instance) => {
+      const { vault } = instance as unknown as { vault: Vault };
+      expect(await vault.resolve("provider_key")).toBe("sk-provider");
+      expect(vault.listMeta().map((meta) => meta.name).sort()).toEqual(["gh", "provider_key"]);
+    });
+  });
+
   it("keeps a sign-in MCP server's pending approval when it is tested", async () => {
     const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("mcp-signin@test"));
     await runInDurableObject(stub, async (instance) => {
