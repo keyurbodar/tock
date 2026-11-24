@@ -4,7 +4,8 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
 const worker = process.env.TOCK_WORKER_URL ?? "http://localhost:8787"
-const hosts = (process.env.TOCK_DEV_HOSTS ?? "").split(",").filter(Boolean)
+const devHosts = process.env.TOCK_DEV_HOSTS ?? ""
+const hosts = devHosts === "*" ? true : devHosts.split(",").filter(Boolean)
 
 export default defineConfig({
   plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
