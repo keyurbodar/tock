@@ -1,9 +1,10 @@
+import { ErrorAlert } from "@tock/ui/alert"
 import { DotGrid } from "@tock/ui/dot-grid"
 import { Markdown } from "@tock/ui/markdown"
 import { ActivityLine, ActivityLiveStatus, ActivityStatus, WorkGroup } from "@tock/ui/chat/activity-line"
 import { Step as StepView, StepBody, StepCard, StepOutput, StepThought } from "@tock/ui/chat/step"
 import { AgentMessage, CopyMessageButton, MessageSection, UserMessage } from "@tock/ui/chat/message"
-import { Alert, ChatStamp, ProgressEdge, ROW, ScrollToEnd } from "@tock/ui/timeline"
+import { ChatStamp, ProgressEdge, ROW, ScrollToEnd } from "@tock/ui/timeline"
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { ToolResultMessage } from "../api/types"
 import { messageTime, stamp, titleCase } from "../lib/format"
@@ -116,9 +117,7 @@ function Row({ item }: { item: Item }) {
   }
   return (
     <div className="py-2">
-      <Alert title={item.title} tone="destructive">
-        {item.detail}
-      </Alert>
+      <ErrorAlert title={item.title}>{item.detail}</ErrorAlert>
     </div>
   )
 }
@@ -182,9 +181,7 @@ export function Transcript({ state }: { state: ThreadState }) {
             {state.error && !working ? (
               <div className={ROW}>
                 <div className="py-2">
-                  <Alert title="Something went wrong" tone="destructive">
-                    {state.error}
-                  </Alert>
+                  <ErrorAlert title="Something went wrong">{state.error}</ErrorAlert>
                 </div>
               </div>
             ) : null}
