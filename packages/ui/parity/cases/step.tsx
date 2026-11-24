@@ -12,6 +12,7 @@ export default cases("Step", [
   ["Xbmo0gIumz#67", "thinking live, not expandable", () => <Step kind="thought" state="live" label="Thinking" />],
   ["Xbmo0gIumz#72", "thinking live with rolling duration", () => <Step kind="thought" state="live" label="Thinking" duration="7s" rolling>{closed()}</Step>],
   ["Xbmo0gIumz#44", "tool failed", () => <Step state="live" label="Couldn't report back" failed>{closed()}</Step>],
+  ["5ltLc1BRJ7|[data-slot=collapsible]:not(:has([role=button]))|1", "tool cancelled, not expandable", () => <Step label="Cancelled operation Running the full capture against capy.ai" outcome="cancelled" />],
   ["Xbmo0gIumz#71", "summary closed with duration", () => <Step kind="summary" label="Ran 3 commands" duration="2s">{closed()}</Step>],
   [
     "Xbmo0gIumz#113",

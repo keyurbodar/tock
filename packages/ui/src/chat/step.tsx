@@ -187,6 +187,7 @@ export interface StepProps {
   readonly rolling?: boolean
   readonly entering?: boolean
   readonly failed?: boolean
+  readonly outcome?: string
   readonly open?: boolean
   readonly defaultOpen?: boolean
   readonly onOpenChange?: (open: boolean) => void
@@ -212,7 +213,7 @@ function Label({ kind, label, state }: Pick<StepProps, "kind" | "label" | "state
   )
 }
 
-function Title({ kind = "tool", label, state, duration, rolling, entering, failed }: StepProps) {
+function Title({ kind = "tool", label, state, duration, rolling, entering, failed, outcome }: StepProps) {
   if (kind === "thought") {
     return (
       <span className="flex min-w-0 items-baseline tabular-nums">
@@ -234,6 +235,7 @@ function Title({ kind = "tool", label, state, duration, rolling, entering, faile
           <Duration value={duration} rolling={rolling} />
         </span>
       ) : null}
+      {outcome ? <span className="shrink-0 text-muted-foreground-2 tabular-nums">{outcome}</span> : null}
       {failed ? FAILED : null}
     </>
   )

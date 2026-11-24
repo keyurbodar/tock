@@ -16,7 +16,7 @@ export type Step =
       readonly key: string
       readonly call: ToolCallBlock
       readonly result: ToolResultMessage | undefined
-      readonly status: "running" | "done" | "failed"
+      readonly status: "running" | "done" | "failed" | "cancelled"
     }
 
 export type Item =
@@ -63,9 +63,9 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
         if (block.text.trim() !== "") items.push({ kind: "text", key: blockKey, text: block.text, streaming })
         return
       }
-      const group = work(blockKey)
       if (block.type === "thinking") {
         if (block.thinking.trim() === "") return
+        const group = work(blockKey)
         const active = streaming && index === message.content.length - 1
         group.steps.push({ kind: "thinking", key: blockKey, text: block.thinking, active })
         group.active ||= active
@@ -74,12 +74,13 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
       const result = results.get(block.id)
       const slot = slots.get(block.id)
       const unfinished = result === undefined && (streaming || (running && slot?.status !== "done"))
+      const group = work(blockKey)
       group.steps.push({
         kind: "tool",
         key: blockKey,
         call: block,
         result,
-        status: unfinished ? "running" : result?.isError ? "failed" : "done",
+        status: unfinished ? "running" : result?.isError ? "failed" : result === undefined && !running ? "cancelled" : "done",
       })
       group.active ||= unfinished
     })

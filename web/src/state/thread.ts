@@ -38,6 +38,9 @@ function liveOf(view: ConversationView): LiveState | null {
   return isRecord(doc) ? (doc as LiveState) : null
 }
 
+const failureOf = (live: LiveState | null) =>
+  live?.runFailure && live.runFailure.reason !== "aborted" ? (live.runFailure.detail ?? live.runFailure.reason) : undefined
+
 const userCount = (entries: readonly EntryRecord[]) =>
   entries.reduce((count, entry) => count + (entry.model ?? []).filter((message) => message.role === "user").length, 0)
 
@@ -70,7 +73,7 @@ socket.onEvent(({ event, payload }) => {
       ...(view.before === undefined ? withEntries(state, view.entries) : state),
       phase: "ready",
       live,
-      error: live?.runFailure ? (live.runFailure.detail ?? live.runFailure.reason) : state.error,
+      error: failureOf(live) ?? state.error,
     }))
     if (view.before !== undefined || live?.run === undefined) void reload(sessionId)
     if (live?.run === undefined) void refreshSessions()

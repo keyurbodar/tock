@@ -48,6 +48,7 @@ function StepRow({ step }: { step: Step }) {
   const output = resultText(step.result)
   const preview = argumentPreview(step.call.arguments)
   const label = preview ? `${titleCase(step.call.name)} ${preview}` : titleCase(step.call.name)
+  if (step.status === "cancelled") return <StepView label={`Cancelled operation ${label}`} outcome="cancelled" />
   return (
     <StepView state={step.status === "running" ? "live" : "rest"} label={label} failed={step.status === "failed"}>
       <StepBody>
