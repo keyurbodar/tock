@@ -98,7 +98,10 @@ export function SettingsDialog({
     <DialogPrimitive.Root
       open={open}
       onOpenChange={(next) => {
-        if (!next) onClose()
+        if (next) return
+        const focused = document.activeElement
+        if (focused instanceof HTMLElement && popup.current?.contains(focused)) focused.blur()
+        onClose()
       }}
       onOpenChangeComplete={(next) => {
         if (!next) setQuery("")
