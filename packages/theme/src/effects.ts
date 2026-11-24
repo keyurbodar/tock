@@ -22,6 +22,15 @@ export const WALLPAPER_APPEARANCE: WallpaperAppearance = {
   inputOpacity: 100,
 }
 
+export const WALLPAPER_RANGE: WallpaperAppearance = {
+  brightness: 200,
+  blur: 24,
+  fade: 100,
+  opacity: 100,
+  overlay: 100,
+  inputOpacity: 100,
+}
+
 export const WEBGL_ATTRIBUTES: WebGLContextAttributes = {
   alpha: true,
   antialias: false,

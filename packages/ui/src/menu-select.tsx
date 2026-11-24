@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react"
 import { cn } from "./cn"
+import { MENU_LABEL, Menu, MenuCheck, MenuContent, MenuItem, MenuTrigger } from "./menu"
 
 const TRIGGER =
   "cursor-pointer relative inline-flex items-center shrink-0 whitespace-nowrap rounded [text-box-trim:trim-both] text-nowrap border-[0.5px] font-medium transition-colors duration-100 outline-none select-none focus-visible:outline-ring-inset pointer-coarse:after:absolute pointer-coarse:after:top-1/2 pointer-coarse:after:left-1/2 pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 pointer-coarse:after:-translate-x-1/2 pointer-coarse:after:-translate-y-1/2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-55 [&_svg]:pointer-events-none [&_svg]:shrink-0 data-[selected]:bg-secondary data-[selected]:text-foreground group/button bg-[var(--intent-bg,var(--button))] border-[var(--intent-border-solid,var(--intent-border,var(--border-2)))] text-[var(--intent-text-on-bg,var(--fg))] [--focus-ring:var(--intent-text-on-bg,var(--ring))] shadow-[inset_0_1px_var(--intent-highlight,var(--highlight-top)),var(--sh-plate)] hover:bg-[var(--intent-bg-solid-hover,var(--button-hover))] active:shadow-none active:brightness-97 h-(--h-control-sm) px-2.5 md:px-2 text-xs gap-1.5 [&_svg:not([class*='size-'])]:size-(--icon-sm) [&_svg:first-of-type]:-ml-0.5 [&_svg:last-of-type]:-mr-0.5 justify-between data-[placeholder]:text-muted-foreground-3"
@@ -14,5 +15,33 @@ export function MenuSelectButton({ className, children, ...props }: ComponentPro
         </svg>
       </span>
     </button>
+  )
+}
+
+export function MenuSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  value: T
+  options: readonly { value: T; label: string }[]
+  onChange: (value: T) => void
+  className?: string
+}) {
+  return (
+    <Menu>
+      <MenuTrigger render={<MenuSelectButton className={className} />}>
+        {options.find((option) => option.value === value)?.label}
+      </MenuTrigger>
+      <MenuContent align="start" className={className}>
+        {options.map((option) => (
+          <MenuItem key={option.value} onSelect={() => onChange(option.value)}>
+            <span className={MENU_LABEL}>{option.label}</span>
+            {option.value === value ? <MenuCheck /> : null}
+          </MenuItem>
+        ))}
+      </MenuContent>
+    </Menu>
   )
 }

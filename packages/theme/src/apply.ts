@@ -1,4 +1,4 @@
-import { DEFAULT_EFFECT, EFFECTS, WALLPAPER_APPEARANCE, type Effect, type WallpaperAppearance } from "./effects"
+import { DEFAULT_EFFECT, EFFECTS, WALLPAPER_APPEARANCE, WALLPAPER_RANGE, type Effect, type WallpaperAppearance } from "./effects"
 import { DEFAULT_WALLPAPER_THEME, WALLPAPER_THEMES, type WallpaperTheme } from "./themes"
 import { COLOR_THEMES } from "./tokens"
 
@@ -60,12 +60,12 @@ export function parseAppearance(raw: unknown): Appearance {
     wallpaper: typeof raw.wallpaper === "string" && wallpaperTheme(raw.wallpaper) ? raw.wallpaper : null,
     effect: EFFECTS.find((effect) => effect === raw.effect) ?? DEFAULT_EFFECT,
     look: {
-      brightness: clamp(look.brightness, WALLPAPER_APPEARANCE.brightness, 150),
-      blur: clamp(look.blur, WALLPAPER_APPEARANCE.blur, 40),
-      fade: clamp(look.fade, WALLPAPER_APPEARANCE.fade, 100),
-      opacity: clamp(look.opacity, WALLPAPER_APPEARANCE.opacity, 100),
-      overlay: clamp(look.overlay, WALLPAPER_APPEARANCE.overlay, 100),
-      inputOpacity: clamp(look.inputOpacity, WALLPAPER_APPEARANCE.inputOpacity, 100),
+      brightness: clamp(look.brightness, WALLPAPER_APPEARANCE.brightness, WALLPAPER_RANGE.brightness),
+      blur: clamp(look.blur, WALLPAPER_APPEARANCE.blur, WALLPAPER_RANGE.blur),
+      fade: clamp(look.fade, WALLPAPER_APPEARANCE.fade, WALLPAPER_RANGE.fade),
+      opacity: clamp(look.opacity, WALLPAPER_APPEARANCE.opacity, WALLPAPER_RANGE.opacity),
+      overlay: clamp(look.overlay, WALLPAPER_APPEARANCE.overlay, WALLPAPER_RANGE.overlay),
+      inputOpacity: clamp(look.inputOpacity, WALLPAPER_APPEARANCE.inputOpacity, WALLPAPER_RANGE.inputOpacity),
     },
     linked: raw.linked !== false,
   }

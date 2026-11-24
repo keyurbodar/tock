@@ -20,27 +20,37 @@ export function SettingsRow({
   description,
   children,
   stacked,
+  fill,
 }: {
   id?: string
   title: ReactNode
   description?: ReactNode
   children?: ReactNode
   stacked?: boolean
+  fill?: boolean
 }) {
+  const shrink = fill ? "shrink-0" : "min-w-0"
   return (
     <div
       data-slot="settings-row"
       id={id}
-      className={cn("group/row flex gap-6 p-4", stacked ? "flex-col gap-3" : "items-center justify-between")}
+      className={cn("group/row flex gap-6 p-4", stacked ? "flex-col gap-3" : fill ? "items-center" : "items-center justify-between")}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="flex flex-col gap-0.5 min-w-0">
+      <div className={cn("flex items-center gap-3", shrink)}>
+        <div className={cn("flex flex-col gap-0.5", shrink)}>
           <div className="text-sm font-medium text-foreground">{title}</div>
           {description ? <div className="font-normal text-muted-foreground-2 text-sm">{description}</div> : null}
         </div>
       </div>
       {children ? (
-        <div className={cn("relative flex items-center gap-2", stacked ? "min-w-0" : "shrink-0")}>{children}</div>
+        <div
+          className={cn(
+            "relative flex items-center gap-2",
+            stacked ? "min-w-0" : fill ? "min-w-0 flex-1 justify-end" : "shrink-0",
+          )}
+        >
+          {children}
+        </div>
       ) : null}
     </div>
   )
