@@ -15,7 +15,7 @@ import { withTheme, type Mode } from "@tock/theme/apply"
 import { WALLPAPER_THEMES } from "@tock/theme/themes"
 import { Button } from "@tock/ui/button"
 import { Icon, type IconData } from "@tock/ui/icon"
-import { Kbd } from "@tock/ui/input"
+import { Kbd } from "@tock/ui/kbd"
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from "@ui-sdk/react/dialog"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AGENT } from "../agent"
@@ -200,7 +200,7 @@ export function Palette() {
               <div className="flex shrink-0 items-center pr-2">
                 <Button variant="ghost" size="sm" tabIndex={-1} onClick={newChat} className="pointer-coarse:hidden">
                   New chat
-                  <Kbd>⇥</Kbd>
+                  <Kbd variant="chip" className="shrink-0 pointer-coarse:hidden">⇥</Kbd>
                 </Button>
               </div>
             </div>
@@ -277,14 +277,14 @@ export function Palette() {
               <span className="ml-auto flex items-center gap-4">
                 <span className={HINT}>
                   <span className="flex items-center gap-0.5">
-                    <Kbd>↵</Kbd>
+                    <Kbd variant="chip" className="shrink-0 pointer-coarse:hidden">↵</Kbd>
                   </span>
                   Open
                 </span>
                 <span className={HINT}>
                   <span className="flex items-center gap-0.5">
-                    <Kbd>←</Kbd>
-                    <Kbd>→</Kbd>
+                    <Kbd variant="chip" className="shrink-0 pointer-coarse:hidden">←</Kbd>
+                    <Kbd variant="chip" className="shrink-0 pointer-coarse:hidden">→</Kbd>
                   </span>
                   Category
                 </span>

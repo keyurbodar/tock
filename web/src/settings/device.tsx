@@ -1,5 +1,5 @@
 import { Card, Page, Section, SettingsRow } from "@tock/ui/card"
-import { Kbd } from "@tock/ui/input"
+import { Kbd } from "@tock/ui/kbd"
 import { Switch } from "@tock/ui/switch"
 import { useEffect, useState } from "react"
 import { http } from "../api/http"
@@ -126,7 +126,7 @@ export function Shortcuts() {
                     </div>
                     <div role="cell" className="relative flex min-h-[var(--table-row-h,50px)] min-w-0 items-center gap-1 text-xs font-normal">
                       {item.keys.map((key) => (
-                        <Kbd key={key}>{key}</Kbd>
+                        <Kbd key={key} variant="chip" className="shrink-0 pointer-coarse:hidden">{key}</Kbd>
                       ))}
                     </div>
                   </div>

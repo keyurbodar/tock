@@ -10,6 +10,7 @@ import type { FileMeta, ThinkingLevel } from "../api/types"
 import { fileSize } from "../lib/format"
 import { useSettings } from "../state/data"
 import { registry } from "../state/registry"
+import { AttachmentLightbox, type MediaEntry } from "./attachment-lightbox"
 import { useAttachments } from "./attachments"
 import { ModelPicker, type ModelChoice } from "./model-picker"
 
@@ -46,6 +47,13 @@ export function Composer({
   const files = attachments.entries.flatMap((entry) => (entry.meta === undefined ? [] : [entry.meta]))
   const uploading = attachments.entries.some((entry) => entry.status.phase === "uploading")
   const ready = (text.trim() !== "" || files.length > 0) && !uploading
+  const [previewing, setPreviewing] = useState<string>()
+  const media = attachments.entries.flatMap((entry): MediaEntry[] =>
+    entry.status.phase === "ready" && entry.previewUrl !== undefined
+      ? [{ key: entry.localId, kind: "image", label: entry.name, url: entry.previewUrl }]
+      : [],
+  )
+  const previewAt = media.findIndex((entry) => entry.key === previewing)
 
   const submit = () => {
     if (!ready) return
@@ -96,10 +104,19 @@ export function Composer({
               size={fileSize(entry.sizeBytes)}
               status={entry.status}
               previewUrl={entry.previewUrl}
+              onPreview={() => setPreviewing(entry.localId)}
               onRemove={() => attachments.remove(entry.localId)}
             />
           ))}
         </AttachmentStrip>
+      ) : null}
+      {previewAt >= 0 ? (
+        <AttachmentLightbox
+          entries={media}
+          index={previewAt}
+          onIndexChange={(index) => setPreviewing(media[index]?.key)}
+          onClose={() => setPreviewing(undefined)}
+        />
       ) : null}
       <ComposerToolbar
         leading={

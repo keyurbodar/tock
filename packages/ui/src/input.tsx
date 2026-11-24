@@ -42,14 +42,6 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   )
 }
 
-export function Kbd({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="pointer-events-none inline-flex h-4 min-w-4 shrink-0 items-center justify-center gap-0.5 rounded-(--radius-kbd) bg-secondary px-1 font-sans text-xs font-normal text-muted-foreground-1 select-none pointer-coarse:hidden">
-      {children}
-    </kbd>
-  )
-}
-
 export function Badge({ children, tone }: { children: React.ReactNode; tone?: "accent" | "destructive" }) {
   return (
     <div

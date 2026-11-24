@@ -154,3 +154,11 @@
     overflow: clip;
   }
 }
+
+@utility animate-tooltip-in {
+  animation: fade-in .14s var(--ease-out);
+}
+
+@utility animate-tooltip-out {
+  animation: fade-out .1s var(--ease-out) both;
+}
