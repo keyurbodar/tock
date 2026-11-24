@@ -70,12 +70,13 @@ export class McpHub {
         name,
       )
       .toArray()[0];
-    const changed =
+    const shouldReconnect =
       previous &&
-      (previous.url !== validatedUrl ||
+      (authMode !== "oauth" ||
+        previous.url !== validatedUrl ||
         previous.headers_json !== headersJson ||
         previous.auth_mode !== authMode);
-    if (previous && changed) {
+    if (previous && shouldReconnect) {
       await this.manager
         .removeServer(String(previous.manager_server_id ?? previous.id))
         .catch(() => {});
