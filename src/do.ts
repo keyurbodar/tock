@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { Lifecycle } from "agents/lifecycle";
 import { Scheduler } from "agents/schedules";
 import { PiHarness, ROOT_SESSION } from "agents/harness/pi";
+import { summarizeEntries } from "./core/summary.js";
 import { MCPClientManager } from "agents/mcp/client";
 import { createRegistry, Harness, type ConversationWatch } from "@earendil-works/pi-durable";
 import {
@@ -324,7 +325,7 @@ export class TockDO extends DurableObject<Env> {
           }),
         };
       case "session.list":
-        return await this.harness.sessions.list();
+        return await this.listSessionSummaries();
       case "session.create": {
         const session = await this.harness.sessions.create();
         await this.syncSessionModel(session.id);
@@ -401,6 +402,16 @@ export class TockDO extends DurableObject<Env> {
       case "memory.search":
         return this.memory.search(frame.query, frame.limit ?? 8);
     }
+  }
+
+  private async listSessionSummaries() {
+    const sessions = await this.harness.sessions.list();
+    return await Promise.all(
+      sessions.map(async (session) => ({
+        ...session,
+        ...summarizeEntries(await this.harness.session(session.id).messages()),
+      })),
+    );
   }
 
   private async syncSessionModel(sessionId: string): Promise<void> {
@@ -504,6 +515,7 @@ export class TockDO extends DurableObject<Env> {
     mcpServers: number;
     skills: number;
     files: number;
+    pushPublicKey: string | null;
   }> {
     await this.lifecycle.start();
     return {
@@ -513,6 +525,7 @@ export class TockDO extends DurableObject<Env> {
       mcpServers: this.mcp.listServers().length,
       skills: this.skills.list().length,
       files: this.files.list().length,
+      pushPublicKey: this.env.VAPID_PUBLIC_KEY ?? null,
     };
   }
 
