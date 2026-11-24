@@ -9,7 +9,7 @@ const defined = new Set([
   ...[THEME, FONT, SHELL, EFFECT_LIGHT, LIGHT, DARK, DESKTOP, COLOR_THEME_SHARED.light, COLOR_THEME_SHARED.dark].flatMap((table) => Object.keys(table)),
   ...PROPERTIES.map((property) => property.name),
 ])
-const inputs = new Set(["shimmer-surface-base", "shimmer-surface-gradient", "available-height", "transform-origin", "anchor-width", "mobile-offset-left", "mobile-offset-bottom", "mobile-offset-top", "mobile-offset-right", "width", "shiki-light", "shiki-light-font-style", "shiki-light-font-weight", "shiki-light-text-decoration", "shiki-dark", "shiki-dark-font-style", "shiki-dark-font-weight", "shiki-dark-text-decoration", "offset-right", "offset-left", "offset-top", "offset-bottom", "gap", "z-index", "toasts-before", "front-toast-height", "offset", "initial-height"])
+const inputs = new Set(["shimmer-surface-base", "shimmer-surface-gradient", "available-height", "transform-origin", "anchor-width", "mobile-offset-left", "mobile-offset-bottom", "mobile-offset-top", "mobile-offset-right", "width", "shiki-light", "shiki-light-font-style", "shiki-light-font-weight", "shiki-light-text-decoration", "shiki-dark", "shiki-dark-font-style", "shiki-dark-font-weight", "shiki-dark-text-decoration", "offset-right", "offset-left", "offset-top", "offset-bottom", "gap", "z-index", "toasts-before", "front-toast-height", "offset", "initial-height", "mermaid-block-lightness", "mermaid-block-chroma"])
 const missing = new Map<string, Set<string>>()
 
 for (const pattern of ["packages/ui/src/**/*.{css,tsx,ts}", "web/src/**/*.{css,tsx,ts}"]) {

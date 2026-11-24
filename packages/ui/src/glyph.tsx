@@ -37,6 +37,7 @@ export const glyphs = {
       <path d="M16 12V14L17.6667 15.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  expand: glyph(["M14 4H20V10", "M4 14V20H10", "M19.25 4.75L14 10", "M10 14L4.75 19.25"]),
   wrap: glyph(["M4 12H16.75C18.683 12 20.25 13.567 20.25 15.5C20.25 17.433 18.683 19 16.75 19H13", "M4 19H7", "M4 5H20", "M14.5 16.5L12 19L14.5 21.5"]),
   clipboard: (
     <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -112,6 +112,10 @@
   --pele-series-8: var(--chart-8);
   --mermaid-block-lightness: max(l, .9);
   --mermaid-block-chroma: min(c, .1);
+  &:is(.dark *) {
+    --mermaid-block-lightness: min(l, .27);
+    --mermaid-block-chroma: min(c, .06);
+  }
   & .pele-edge-label text {
     fill: var(--muted-foreground-1);
   }

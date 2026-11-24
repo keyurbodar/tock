@@ -1,5 +1,5 @@
 import { motion } from "@tock/theme/motion"
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, useCallback } from "react"
 
 const { zoom: Z } = motion
 
@@ -40,10 +40,16 @@ export function usePanZoom(limit: number = Z.max, touch?: TouchGestures, minZoom
   const gesture = useRef({ zoom: 1, startZoom: 1, distance: 0, pan: ORIGIN, pinched: false, moved: false, swipe: false })
   const lastTap = useRef<{ x: number; y: number; time: number } | null>(null)
 
-  const setZoom = (next: number | ((zoom: number) => number)) =>
-    setView((current) => ({ ...current, zoom: typeof next === "function" ? next(current.zoom) : next }))
-  const setPan = (next: Point | ((pan: Point) => Point)) =>
-    setView((current) => ({ ...current, pan: typeof next === "function" ? next(current.pan) : next }))
+  const setZoom = useCallback(
+    (next: number | ((zoom: number) => number)) =>
+      setView((current) => ({ ...current, zoom: typeof next === "function" ? next(current.zoom) : next })),
+    [],
+  )
+  const setPan = useCallback(
+    (next: Point | ((pan: Point) => Point)) =>
+      setView((current) => ({ ...current, pan: typeof next === "function" ? next(current.pan) : next })),
+    [],
+  )
 
   useLayoutEffect(() => {
     setView((current) => ({ ...current, zoom: clampZoom(current.zoom, maxZoom, minZoom) }))

@@ -1,4 +1,4 @@
-import { Component, Fragment, type CSSProperties, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { Component, type ComponentProps, Fragment, type CSSProperties, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Button } from "./button"
 import { disposeHighlight, highlight, type HighlightState } from "./code/highlight"
 import type { Token } from "./code/protocol"
@@ -77,7 +77,7 @@ class Boundary extends Component<{ fallback: ReactNode; children: ReactNode }, {
   }
 }
 
-function CopyCodeButton({ text }: { text: string }) {
+export function CopyCodeButton({ text, onClick, ...props }: { text: string } & Omit<ComponentProps<typeof Button>, "children">) {
   const [copied, setCopied] = useState(false)
   const timer = useRef(0)
   useEffect(() => () => window.clearTimeout(timer.current), [])
@@ -86,7 +86,9 @@ function CopyCodeButton({ text }: { text: string }) {
       variant="ghost"
       size="icon-xs"
       aria-label={copied ? "Copied" : "Copy code"}
-      onClick={() => {
+      {...props}
+      onClick={(event) => {
+        onClick?.(event)
         void navigator.clipboard?.writeText(text)
         setCopied(true)
         window.clearTimeout(timer.current)

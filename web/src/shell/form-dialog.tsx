@@ -1,5 +1,5 @@
 import { Button } from "@tock/ui/button"
-import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, DialogHeader } from "@tock/ui/dialog"
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@tock/ui/dialog"
 import { useState, type ReactNode } from "react"
 
 export function FormDialog({
@@ -26,7 +26,6 @@ export function FormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <form
-          className="flex min-h-0 flex-1 flex-col"
           onSubmit={async (event) => {
             event.preventDefault()
             setBusy(true)
@@ -35,11 +34,16 @@ export function FormDialog({
             if (done) onOpenChange(false)
           }}
         >
-          <DialogHeader title={title} description={description} />
-          {children ? <DialogBody>{children}</DialogBody> : null}
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            {description ? <DialogDescription>{description}</DialogDescription> : null}
+          </DialogHeader>
+          {children ? <DialogBody>{children}</DialogBody> : <div className="pb-2" />}
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" size="base" />}>Cancel</DialogClose>
-            <Button type="submit" variant="solid" intent={destructive ? "danger" : "accent"} size="base" disabled={busy}>
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" intent={destructive ? "danger" : "accent"} disabled={busy}>
               {submitLabel}
             </Button>
           </DialogFooter>

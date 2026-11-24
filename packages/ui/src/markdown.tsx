@@ -9,6 +9,7 @@ import remend from "remend"
 import { unified } from "unified"
 import { useStreamFade } from "./chat/stream-fade"
 import { MarkdownCode } from "./markdown-code"
+import { MarkdownMermaid } from "./markdown-mermaid"
 
 const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
 
@@ -55,7 +56,10 @@ function Pre({ node }: { node?: HtmlNode }) {
   const code = node?.children?.find((child) => child.tagName === "code")
   const complete = useContext(BlockComplete)
   const key = useId()
-  return <MarkdownCode text={(code ? textOf(code) : "").replace(/\n$/, "")} language={languageOf(code)} complete={complete} blockKey={key} />
+  const text = (code ? textOf(code) : "").replace(/\n$/, "")
+  const language = languageOf(code)
+  if (language === "mermaid") return <MarkdownMermaid text={text} complete={complete} />
+  return <MarkdownCode text={text} language={language} complete={complete} blockKey={key} />
 }
 
 const FENCE = /^\s*(```|~~~)/

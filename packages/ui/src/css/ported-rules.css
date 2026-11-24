@@ -40,6 +40,55 @@
     margin: 0px 0px 0.75em;
   }
 
+  [data-component="markdown-mermaid"] {
+    border: .5px solid var(--border-1);
+    border-radius: var(--radius-card);
+    background: var(--panel);
+    font-size: var(--text-sm);
+    margin: 0px 0px 0.75em;
+  }
+
+  [data-slot="markdown-mermaid-diagram"] {
+    overflow-x: auto;
+  }
+
+  [data-slot="markdown-mermaid-diagram"] > div {
+    justify-content: center;
+    display: flex;
+  }
+
+  [data-slot="markdown-mermaid-diagram"] svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  [data-component="markdown-mermaid"] pre {
+    color: var(--muted-foreground-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-code-block);
+    letter-spacing: var(--text-code-block--letter-spacing);
+    margin: 0px;
+    padding: 10px 12px;
+    line-height: 1.5;
+    overflow-x: auto;
+  }
+
+  [data-mermaid-fallback] {
+    color: var(--fg);
+  }
+
+  [data-slot="markdown-mermaid-error"] {
+    color: var(--muted-foreground-1);
+    font-size: var(--text-xs);
+    letter-spacing: var(--text-xs--letter-spacing);
+    line-height: var(--text-xs--line-height);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0px;
+    padding: 8px 12px 0px;
+    overflow: hidden;
+  }
+
   [data-slot="markdown-code-header"] {
     border-bottom: .5px solid var(--border-1);
     justify-content: space-between;
