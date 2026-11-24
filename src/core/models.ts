@@ -17,7 +17,9 @@ export function createVaultCredentialStore(vault: Vault): CredentialStore {
 
   return {
     async read(providerId: string): Promise<Credential | undefined> {
-      const apiKey = await vault.resolve(keyFor(providerId));
+      const apiKey =
+        (await vault.resolve(keyFor(providerId))) ??
+        (await vault.resolve(`${providerId.replace(/-/g, "_")}_api_key`));
       if (!apiKey) return undefined;
       return { type: "api_key", key: apiKey };
     },

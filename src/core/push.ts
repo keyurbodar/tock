@@ -5,6 +5,18 @@ import type { ExecutionGuards } from "./guards.js";
 const encoder = new TextEncoder();
 const RECORD_SIZE = 4096;
 const PAYLOAD_LIMIT = 3993;
+
+export function fitPushPayload(title: string, body: string): Uint8Array {
+  const ts = Date.now();
+  let t = Array.from(title).slice(0, 200);
+  let b = Array.from(body).slice(0, 1500);
+  for (;;) {
+    const bytes = encoder.encode(JSON.stringify({ title: t.join(""), body: b.join(""), ts }));
+    if (bytes.length <= PAYLOAD_LIMIT) return bytes;
+    if (b.length > 0) b = b.slice(0, Math.floor(b.length * 0.8));
+    else t = t.slice(0, Math.floor(t.length * 0.8));
+  }
+}
 const WEB_PUSH_INFO = encoder.encode("WebPush: info\0");
 const CONTENT_ENCODING_INFO = encoder.encode("Content-Encoding: aes128gcm\0");
 const NONCE_INFO = encoder.encode("Content-Encoding: nonce\0");
@@ -236,9 +248,7 @@ export class PushNotifier {
     }
 
     if (this.vapid.publicKey && this.vapid.privateKey) {
-      const payloadBytes = encoder.encode(
-        JSON.stringify({ title: title.slice(0, 200), body: body.slice(0, 1500), ts: Date.now() }),
-      );
+      const payloadBytes = fitPushPayload(title, body);
       for (const sub of this.listSubscriptions()) {
         const check = this.guards.recordSubrequest(1);
         if (!check.allowed) break;

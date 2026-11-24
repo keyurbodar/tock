@@ -169,11 +169,15 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
         : undefined;
       const body =
         args.body !== undefined ? await deps.vault.injectForUrl(finalUrl, args.body) : undefined;
-      const res = await fetch(finalUrl, { method: args.method, headers, body });
+      const res = await fetch(finalUrl, { method: args.method, headers, body, redirect: "manual" });
       const text = await deps.vault.redact((await res.text()).slice(0, 16_000));
+      const location = res.headers.get("location") ?? undefined;
       return {
         output: [
-          { type: "text", text: JSON.stringify({ status: res.status, ok: res.ok, body: text }) },
+          {
+            type: "text",
+            text: JSON.stringify({ status: res.status, ok: res.ok, location, body: text }),
+          },
         ],
       };
     },
@@ -380,8 +384,10 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     description:
       "Execute TypeScript in the @earendil-works/djs WASM sandbox with tock.* APIs (fetch, callMcp, memory, files, scheduleFollowup, notify).",
     parameters: CodemodeParams,
-    async execute(args) {
-      const res = await deps.djs.runCode(args.code, args.params ?? {});
+    async execute(args, api) {
+      const res = await deps.djs.runCode(args.code, args.params ?? {}, {
+        readOnly: deps.isBackgroundSession(String(api.conversationId)),
+      });
       return { output: [{ type: "text", text: JSON.stringify(res) }] };
     },
   });
@@ -391,7 +397,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     description:
       "Run an enabled dev-mode TypeScript tool plugin by name (requires devMode enabled).",
     parameters: DevPluginRunParams,
-    async execute(args) {
+    async execute(args, api) {
       if (!deps.settings.get().devMode) {
         return {
           output: [
@@ -410,7 +416,11 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
           ],
         };
       }
-      const res = await deps.djs.runCode(plugin.tsSource, { args: args.args ?? {} });
+      const res = await deps.djs.runCode(
+        plugin.tsSource,
+        { args: args.args ?? {} },
+        { readOnly: deps.isBackgroundSession(String(api.conversationId)) },
+      );
       return { output: [{ type: "text", text: JSON.stringify(res) }] };
     },
   });

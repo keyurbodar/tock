@@ -26,6 +26,7 @@ export interface DjsHostBridge {
   notifyOwner: (title: string, body: string) => Promise<void>;
   scheduleFollowup: (delaySeconds: number, note: string) => Promise<string>;
   callMcpTool?: (server: string, tool: string, args: Record<string, unknown>) => Promise<unknown>;
+  isMcpToolReadOnly?: (server: string, tool: string) => Promise<boolean>;
 }
 
 export interface DjsRunResult {
@@ -133,7 +134,7 @@ export class DjsRuntime {
     if (!plugin || !plugin.enabled || plugin.kind !== "webhook_filter") {
       return { pass: true };
     }
-    const res = await this.runCode(plugin.tsSource, { payload });
+    const res = await this.runCode(plugin.tsSource, { payload }, { readOnly: true });
     if (!res.ok) return { pass: true };
     try {
       const parsed = JSON.parse(res.valueJson ?? "true") as
@@ -149,7 +150,7 @@ export class DjsRuntime {
   async runCode(
     tsSource: string,
     params: Record<string, unknown> = {},
-    opts?: { maxFuel?: number; memoryLimit?: number },
+    opts?: { maxFuel?: number; memoryLimit?: number; readOnly?: boolean },
   ): Promise<DjsRunResult> {
     const logs: string[] = [];
     const pushLog = (...args: unknown[]) => {
@@ -183,6 +184,12 @@ export class DjsRuntime {
             headers?: Record<string, string>;
             body?: string;
           };
+          const method = (reqInit.method ?? "GET").toUpperCase();
+          if (opts?.readOnly && method !== "GET") {
+            throw new Error(
+              `background_read_only: tock.fetch ${method} is blocked during background turns`,
+            );
+          }
           const headers = reqInit.headers
             ? await this.bridge.vault.injectRecordForUrl(resolvedUrl, reqInit.headers)
             : undefined;
@@ -190,10 +197,16 @@ export class DjsRuntime {
             typeof reqInit.body === "string"
               ? await this.bridge.vault.injectForUrl(resolvedUrl, reqInit.body)
               : undefined;
-          const res = await fetch(resolvedUrl, { method: reqInit.method ?? "GET", headers, body });
+          const res = await fetch(resolvedUrl, {
+            method,
+            headers,
+            body,
+            redirect: "manual",
+          });
           const rawText = await res.text();
           const safeText = await this.bridge.vault.redact(rawText);
-          return { status: res.status, ok: res.ok, body: safeText };
+          const location = res.headers.get("location") ?? undefined;
+          return { status: res.status, ok: res.ok, location, body: safeText };
         },
         "tock.memorySearch": (query: unknown, limit?: unknown) => {
           return this.bridge.memory.search(String(query), typeof limit === "number" ? limit : 6);
@@ -234,6 +247,14 @@ export class DjsRuntime {
         "tock.callMcp": async (server: unknown, tool: unknown, args?: unknown) => {
           if (!this.bridge.callMcpTool) {
             throw new Error("mcp_not_available");
+          }
+          if (
+            opts?.readOnly &&
+            !(await this.bridge.isMcpToolReadOnly?.(String(server), String(tool)))
+          ) {
+            throw new Error(
+              `background_read_only: MCP tool "${String(tool)}" lacks readOnlyHint=true and is blocked during background turns`,
+            );
           }
           const res = await this.bridge.callMcpTool(
             String(server),

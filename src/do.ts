@@ -132,6 +132,7 @@ export class TockDO extends DurableObject<Env> {
       notifyOwner: (title, body) => this.notifyOwner(title, body),
       scheduleFollowup: (delay, note) => this.scheduleFollowup(delay, note),
       callMcpTool: (server, tool, args) => this.mcp.callTool(server, tool, args),
+      isMcpToolReadOnly: (server, tool) => this.mcp.isToolReadOnly(server, tool),
     });
   }
 
@@ -155,7 +156,8 @@ export class TockDO extends DurableObject<Env> {
       const owner = request.headers.get("x-tock-owner") ?? "owner";
       const url = new URL(request.url);
       const sessionId = url.searchParams.get("session") ?? ROOT_SESSION;
-      const cursorParam = Number(url.searchParams.get("cursor") ?? "");
+      const rawCursor = url.searchParams.get("cursor");
+      const cursorParam = rawCursor === null || rawCursor === "" ? Number.NaN : Number(rawCursor);
       const latestSeq = this.latestEventSeq();
       const cursor = Number.isInteger(cursorParam) && cursorParam >= 0 ? cursorParam : latestSeq;
       const attachment: WsAttachment = { cursor, sessionId, owner };
@@ -243,11 +245,12 @@ export class TockDO extends DurableObject<Env> {
     this.activeWatches.set(sessionId, watch);
     watch.start(async (call) => {
       if (call.kind === "value") {
-        this.broadcastSession(sessionId, "session.delta", {
+        this.broadcastSession(
           sessionId,
-          ops: call.ops,
-          value: call.value,
-        });
+          "session.delta",
+          { sessionId, ops: call.ops, value: call.value },
+          false,
+        );
       } else {
         this.broadcastSession(sessionId, "session.error", { sessionId, error: String(call.error) });
       }
@@ -294,7 +297,7 @@ export class TockDO extends DurableObject<Env> {
           operationId: frame.operationId,
         });
         await this.scheduler.set(300, "consolidateMemory", { sessionId }, { idempotent: true });
-        this.broadcastSession(sessionId, "chat.accepted", receipt);
+        this.broadcastSession(sessionId, "chat.accepted", receipt, false);
         return receipt;
       }
       case "chat.abort":
@@ -337,7 +340,7 @@ export class TockDO extends DurableObject<Env> {
       case "mcp.list":
         return this.mcp.listServers();
       case "mcp.upsert":
-        return this.mcp.upsertServer(frame.name, frame.url, frame.headers, frame.authMode);
+        return await this.mcp.upsertServer(frame.name, frame.url, frame.headers, frame.authMode);
       case "mcp.delete":
         return { deleted: await this.mcp.deleteServer(frame.idOrName) };
       case "routine.list":
@@ -633,11 +636,13 @@ export class TockDO extends DurableObject<Env> {
       await this.syncSessionModel(sessionId);
     }
     const res = await this.harness.prompt(text, { session: sessionId });
-    if (res.status !== "done") {
+    if (res.status !== "done" && (res.reason === "model_error" || res.reason === "no_model")) {
       const fallback = parseModelSpec(this.settingsStore.get().fallbackModel);
       if (fallback && this.settingsStore.get().fallbackModel !== opts?.model) {
-        await this.harness.session(sessionId).setModel(fallback);
-        const retry = await this.harness.prompt(text, { session: sessionId });
+        const session = this.harness.session(sessionId);
+        await session.setModel(fallback);
+        const receipt = await session.continue();
+        const retry = await session.wait(receipt.operationId);
         return { status: retry.status, text: retry.text, reason: retry.reason };
       }
     }
@@ -726,7 +731,7 @@ export class TockDO extends DurableObject<Env> {
 
     let checkPayload = "";
     if (routine.checkScript) {
-      const checkRes = await this.djs.runCode(routine.checkScript);
+      const checkRes = await this.djs.runCode(routine.checkScript, {}, { readOnly: true });
       if (!checkRes.ok) {
         return { ran: true, skippedUnchanged: false, wokeModel: false };
       }
@@ -833,7 +838,7 @@ export class TockDO extends DurableObject<Env> {
       .exec<{ seq: number; event: string; payload_json: string }>(
         `SELECT seq, event, payload_json FROM tock_events
          WHERE seq > ? AND (session_id IS NULL OR session_id = ?)
-         ORDER BY seq ASC LIMIT 100`,
+         ORDER BY seq ASC LIMIT ${MAX_STORED_EVENTS * 2}`,
         afterSeq,
         sessionId,
       )
@@ -869,8 +874,13 @@ export class TockDO extends DurableObject<Env> {
     }
   }
 
-  private broadcastSession(sessionId: string, event: string, payload: unknown): void {
-    const seq = this.recordEvent(sessionId, event, payload);
+  private broadcastSession(
+    sessionId: string,
+    event: string,
+    payload: unknown,
+    persist = true,
+  ): void {
+    const seq = persist ? this.recordEvent(sessionId, event, payload) : this.latestEventSeq();
     const encoded = JSON.stringify({ type: "event", seq, event, payload } satisfies ServerFrame);
     for (const ws of this.ctx.getWebSockets()) {
       const att = ws.deserializeAttachment() as WsAttachment | null;

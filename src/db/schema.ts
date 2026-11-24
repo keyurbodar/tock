@@ -1,5 +1,18 @@
 type Migration = (sql: SqlStorage, defaultTimezone: string) => void;
 
+function addColumnIfMissing(
+  sql: SqlStorage,
+  table: string,
+  column: string,
+  definition: string,
+): void {
+  const exists = sql
+    .exec<{ name: string }>(`PRAGMA table_info(${table})`)
+    .toArray()
+    .some((c) => c.name === column);
+  if (!exists) sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
 const MIGRATIONS: readonly Migration[] = [
   (sql, defaultTimezone) => {
     const statements = [
@@ -140,6 +153,15 @@ const MIGRATIONS: readonly Migration[] = [
     sql.exec(
       `INSERT OR IGNORE INTO tock_memory_core (id, content, version, updated_at) VALUES (1, '', 1, ?)`,
       now,
+    );
+  },
+  (sql) => {
+    addColumnIfMissing(sql, "tock_secrets", "origin", "TEXT NOT NULL DEFAULT ''");
+    addColumnIfMissing(sql, "tock_mcp_servers", "manager_server_id", "TEXT");
+    sql.exec(
+      `UPDATE OR IGNORE tock_secrets
+       SET name = 'llm:' || substr(description, 1, length(description) - length(' API key'))
+       WHERE scopes = 'llm' AND name NOT LIKE 'llm:%' AND description LIKE '% API key'`,
     );
   },
 ];

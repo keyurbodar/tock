@@ -56,13 +56,21 @@ export class McpHub {
     return rows.map((r) => this.mapRow(r));
   }
 
-  upsertServer(
+  async upsertServer(
     name: string,
     url: string,
     headers: Record<string, string> = {},
     authMode: "headers" | "oauth" | "sse" = "headers",
-  ): McpServerRecord {
+  ): Promise<McpServerRecord> {
     const validatedUrl = validateMcpUrl(url);
+    const previous = this.sql
+      .exec(`SELECT id, manager_server_id FROM tock_mcp_servers WHERE name = ?`, name)
+      .toArray()[0];
+    if (previous) {
+      await this.manager
+        .removeServer(String(previous.manager_server_id ?? previous.id))
+        .catch(() => {});
+    }
     const id = crypto.randomUUID();
     const now = Date.now();
     const headersJson = JSON.stringify(headers);
@@ -99,7 +107,7 @@ export class McpHub {
     url: string,
     callbackHost: string,
   ): Promise<{ id: string; authUrl?: string; clientId?: string; state: string }> {
-    const server = this.upsertServer(name, url, {}, "oauth");
+    const server = await this.upsertServer(name, url, {}, "oauth");
     const serverId = server.managerServerId ?? server.id;
     const callbackUrl = `${callbackHost.replace(/\/$/, "")}/mcp/oauth/callback`;
     const authProvider = new DurableObjectOAuthClientProvider(this.storage, "tock", callbackUrl);

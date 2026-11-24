@@ -6,6 +6,30 @@ export { TockDO } from "./do.js";
 
 const MAX_WEBHOOK_BYTES = 256 * 1024;
 
+async function readCapped(request: Request, maxBytes: number): Promise<Uint8Array | null> {
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.byteLength;
+  }
+  return out;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -23,8 +47,8 @@ export default {
       if (Number.isFinite(declaredLen) && declaredLen > MAX_WEBHOOK_BYTES) {
         return Response.json({ ok: false, error: "payload_too_large" }, { status: 413 });
       }
-      const rawBytes = new Uint8Array(await request.arrayBuffer());
-      if (rawBytes.byteLength > MAX_WEBHOOK_BYTES) {
+      const rawBytes = await readCapped(request, MAX_WEBHOOK_BYTES);
+      if (!rawBytes) {
         return Response.json({ ok: false, error: "payload_too_large" }, { status: 413 });
       }
       let payload: unknown = {};

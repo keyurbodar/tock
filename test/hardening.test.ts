@@ -10,7 +10,8 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createRegistry, Harness } from "@earendil-works/pi-durable";
 import { openPiSessionStore } from "agents/harness/pi";
 import { Vault } from "../src/core/vault.js";
-import { encryptWebPushPayload } from "../src/core/push.js";
+import { encryptWebPushPayload, fitPushPayload } from "../src/core/push.js";
+import { ensureSchema } from "../src/db/schema.js";
 import { isBackgroundReadOnlyViolation, needsRetry } from "../src/core/resilience.js";
 import type { Env } from "../src/types.js";
 
@@ -321,5 +322,54 @@ describe("tock production hardening", () => {
       headers: { "x-tock-owner": "creds@test" },
     });
     expect(del.status).toBe(200);
+  });
+  it("upgrades pre-migration databases in place and keeps legacy provider credentials", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("upgrade@test"));
+    await runInDurableObject(stub, async (_instance, state) => {
+      const sql = state.storage.sql;
+      sql.exec(`DELETE FROM tock_meta`);
+      sql.exec(`ALTER TABLE tock_secrets DROP COLUMN origin`);
+      sql.exec(`ALTER TABLE tock_mcp_servers DROP COLUMN manager_server_id`);
+      sql.exec(
+        `INSERT INTO tock_secrets (name, description, scopes, ciphertext_b64, iv_b64, updated_at)
+         VALUES ('opencode_api_key', 'opencode-go API key', 'llm', 'x', 'y', 0)`,
+      );
+      ensureSchema(sql);
+      const cols = sql
+        .exec<{ name: string }>(`PRAGMA table_info(tock_secrets)`)
+        .toArray()
+        .map((c) => c.name);
+      expect(cols).toContain("origin");
+      const mcpCols = sql
+        .exec<{ name: string }>(`PRAGMA table_info(tock_mcp_servers)`)
+        .toArray()
+        .map((c) => c.name);
+      expect(mcpCols).toContain("manager_server_id");
+      const names = sql
+        .exec<{ name: string }>(`SELECT name FROM tock_secrets`)
+        .toArray()
+        .map((r) => r.name);
+      expect(names).toContain("llm:opencode-go");
+    });
+  });
+
+  it("fits long multibyte push notifications inside one aes128gcm record", async () => {
+    const bytes = fitPushPayload("通知".repeat(300), "😀".repeat(1500));
+    expect(bytes.length).toBeLessThanOrEqual(3993);
+    const subscriber = await crypto.subtle.generateKey(
+      { name: "ECDH", namedCurve: "P-256" },
+      true,
+      ["deriveBits"],
+    );
+    if (!("publicKey" in subscriber)) throw new Error("expected key pair");
+    const rawPub = new Uint8Array(
+      (await crypto.subtle.exportKey("raw", subscriber.publicKey)) as ArrayBuffer,
+    );
+    const auth = crypto.getRandomValues(new Uint8Array(16));
+    const body = await encryptWebPushPayload(
+      { p256dh: base64UrlEncode(rawPub), auth: base64UrlEncode(auth) },
+      bytes,
+    );
+    expect(body.length).toBeGreaterThan(bytes.length);
   });
 });
