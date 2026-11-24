@@ -104,6 +104,27 @@ describe("tock backend", () => {
     expect(JSON.stringify(listBody)).not.toContain("ghp_super_secret_value_999");
   });
 
+  it("serves uploaded files whose names hold line breaks, quotes, or non-Latin characters", async () => {
+    const name = 'line\nbreak "quoted" 日本語.txt';
+    const upRes = await SELF.fetch("https://tock.local/api/files", {
+      method: "POST",
+      headers: { "x-tock-owner": "names@test", "content-type": "text/plain", "x-file-name": encodeURIComponent(name) },
+      body: "named",
+    });
+    expect(upRes.status).toBe(201);
+    const meta = (await upRes.json()) as { id: string; name: string };
+    expect(meta.name).toBe(name);
+
+    const dlRes = await SELF.fetch(`https://tock.local/api/files/${meta.id}`, {
+      headers: { "x-tock-owner": "names@test" },
+    });
+    expect(dlRes.status).toBe(200);
+    expect(await dlRes.text()).toBe("named");
+    expect(dlRes.headers.get("content-disposition")).toBe(
+      `inline; filename="line_break _quoted_ ___.txt"; filename*=UTF-8''${encodeURIComponent(name)}`,
+    );
+  });
+
   it("uploads, lists, and reads files with SQLite fallback when R2 is unbound and inside codemode", async () => {
     const upRes = await SELF.fetch("https://tock.local/api/files?name=notes.txt", {
       method: "POST",

@@ -6,6 +6,12 @@ export { TockDO } from "./do.js";
 
 const MAX_WEBHOOK_BYTES = 256 * 1024;
 
+function inlineDisposition(name: string): string {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_");
+  const encoded = encodeURIComponent(name).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
 function decodeHeader(value: string | null): string {
   if (!value) return "";
   try {
@@ -183,7 +189,7 @@ export default {
       return new Response(found.bytes, {
         headers: {
           "content-type": found.meta.mime,
-          "content-disposition": `inline; filename="${found.meta.name}"`,
+          "content-disposition": inlineDisposition(found.meta.name),
           "content-security-policy": "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'",
           "x-content-type-options": "nosniff",
         },
