@@ -372,4 +372,55 @@ describe("tock production hardening", () => {
     );
     expect(body.length).toBeGreaterThan(bytes.length);
   });
+
+  it("supports Unicode and Porter-stemmed FTS5 search, exact-fact dedupe, and core memory revisions/rollback", async () => {
+    const owner = "mem-upgrades@test";
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName(owner));
+    const r1 = await stub.writeMemory({
+      coreContent: "Version one dossier",
+      addItems: [
+        { kind: "fact", content: "Keyur deploys Tock on Cloudflare Workers." },
+        { kind: "fact", content: "keyur deploys tock on cloudflare workers!" },
+        { kind: "fact", content: "会議は毎週火曜日の東京時間に行います" },
+        { kind: "fact", content: "Café résumé naïve notes" },
+      ],
+    });
+    expect(r1.addedIds).toHaveLength(3);
+
+    const stemmedHits = await stub.searchMemory("deploying");
+    expect(stemmedHits.some((h) => h.content.includes("deploys Tock"))).toBe(true);
+
+    const accentedHits = await stub.searchMemory("café");
+    expect(accentedHits.some((h) => h.content.includes("Café"))).toBe(true);
+
+    const unicodeHits = await stub.searchMemory("会議は毎週火曜日の東京時間に行います");
+    expect(unicodeHits.some((h) => h.content.includes("東京"))).toBe(true);
+
+    await stub.writeMemory({ coreContent: "Version two bad overwrite" });
+
+    const revRes = await SELF.fetch("https://tock.local/api/memory/revisions", {
+      headers: { "x-tock-owner": owner },
+    });
+    expect(revRes.status).toBe(200);
+    const { revisions } = (await revRes.json()) as {
+      revisions: Array<{ id: number; version: number; content: string }>;
+    };
+    expect(revisions.length).toBe(2);
+    const v1 = revisions.find((r) => r.content === "Version one dossier")!;
+    expect(v1).toBeDefined();
+
+    const restoreRes = await SELF.fetch(
+      `https://tock.local/api/memory/revisions/${v1.id}/restore`,
+      {
+        method: "POST",
+        headers: { "x-tock-owner": owner },
+      },
+    );
+    expect(restoreRes.status).toBe(200);
+    const restored = (await restoreRes.json()) as { restored: boolean; version: number };
+    expect(restored.restored).toBe(true);
+
+    const ctx = await stub.renderAutoContext("");
+    expect(ctx).toContain("Version one dossier");
+  });
 });
