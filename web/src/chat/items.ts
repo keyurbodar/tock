@@ -40,7 +40,7 @@ const userText = (message: Extract<Message, { role: "user" }>) =>
 const userImages = (message: Extract<Message, { role: "user" }>) =>
   typeof message.content === "string" ? [] : message.content.filter((block) => block.type === "image")
 
-export function buildItems(entries: readonly EntryRecord[], live: LiveState | null, pending: readonly string[]): Item[] {
+export function buildItems(entries: readonly EntryRecord[], live: LiveState | null, pending: readonly { readonly text: string }[]): Item[] {
   const items: (Exclude<Item, { kind: "work" }> | Work)[] = []
   const results = new Map<string, ToolResultMessage>()
   const slots = new Map<string, ToolSlot>((live?.tools ?? []).map((slot) => [slot.callId, slot]))
@@ -97,7 +97,7 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
       }
     })
   }
-  pending.forEach((text, index) => items.push({ kind: "user", key: `pending:${index}`, text, images: [], at: null }))
+  pending.forEach(({ text }, index) => items.push({ kind: "user", key: `pending:${index}`, text, images: [], at: null }))
   if (live?.generation?.message) assistant(live.generation.message, "live", true)
   if (live?.generation?.retry)
     items.push({ kind: "error", key: "retry", title: "Retrying", detail: live.generation.retry.error })

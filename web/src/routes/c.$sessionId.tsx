@@ -21,7 +21,7 @@ function Thread() {
   const { sidebar, toggleSidebar } = useShell()
   const session = useSessions().find((item) => item.id === sessionId)
   const working = isWorking(state)
-  const title = session?.title || state.pending[0] || "New chat"
+  const title = session?.title || state.pending[0]?.text || "New chat"
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
