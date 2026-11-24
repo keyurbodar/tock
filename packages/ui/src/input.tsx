@@ -1,8 +1,13 @@
 import type { ComponentProps, ReactNode } from "react"
 import { cn } from "./cn"
 
-const FIELD =
-  "min-w-0 rounded text-sm font-normal text-foreground placeholder:text-muted-foreground-3 selection:bg-primary-20 outline-none disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive bg-input border-[0.5px] border-border-2 focus-visible:outline-ring-inset"
+const FIELD_BASE =
+  "min-w-0 rounded text-sm font-normal text-foreground placeholder:text-muted-foreground-3 selection:bg-primary-20 outline-none disabled:cursor-not-allowed disabled:opacity-55 aria-invalid:border-destructive"
+
+const INPUT_VARIANT = {
+  default: "bg-input border-[0.5px] border-border-2 focus-visible:outline-ring-inset",
+  blank: "bg-transparent border-0",
+}
 
 const INPUT_SIZE = {
   sm: { field: "h-(--h-control-sm) px-2", inset: "pl-7", icon: "left-2" },
@@ -13,9 +18,11 @@ export function Input({
   className,
   icon,
   size = "base",
+  variant = "default",
   ...props
-}: Omit<ComponentProps<"input">, "size"> & { icon?: ReactNode; size?: keyof typeof INPUT_SIZE }) {
+}: Omit<ComponentProps<"input">, "size"> & { icon?: ReactNode; size?: keyof typeof INPUT_SIZE; variant?: keyof typeof INPUT_VARIANT }) {
   const sized = INPUT_SIZE[size]
+  const FIELD = cn(FIELD_BASE, INPUT_VARIANT[variant])
   if (icon === undefined) return <input data-slot="input" className={cn("w-full", FIELD, sized.field, className)} {...props} />
   return (
     <span data-slot="input-group" className="relative inline-flex w-full">
@@ -51,6 +58,16 @@ export function Label({ className, ...props }: ComponentProps<"label">) {
       className={cn("flex w-fit select-none items-center gap-1.5 text-sm font-medium text-foreground", className)}
       {...props}
     />
+  )
+}
+
+export function LabeledField({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+      <span>{label}</span>
+      {children}
+      {error === undefined ? null : <span className="text-xs font-normal text-destructive">{error}</span>}
+    </label>
   )
 }
 

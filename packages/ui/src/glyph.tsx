@@ -84,6 +84,17 @@ export const glyphs = {
   previous: glyph(["M10 6L4 12L10 18", "M5 12H20"]),
   next: glyph(["M14 6L20 12L14 18", "M19 12H4"]),
   add: glyph(["M12 5.5V12M12 12V18.5M12 12H5.5M12 12H18.5"], false),
+  skill: (
+    <svg className="" xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4.00001 13L4 17C3.99999 18.6569 5.34314 20 7 20H17C18.6569 20 20 18.6569 20 17V13M4.00001 13L4.00003 7C4.00004 5.34315 5.34318 4.00001 7.00003 4L17 4C18.6569 4 20 5.34315 20 7V13M4.00001 13H8.12601C8.57005 14.7252 10.1362 16 12 16C13.8638 16 15.4299 14.7252 15.874 13H20"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="square"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
   send: glyph(["M12 5V20", "M6 10L12 4L18 10"]),
   stop: (
     <svg aria-hidden="true" width="24px" height="24px" viewBox="0 0 24 24" fill="none" style={{ margin: "0px" }}>

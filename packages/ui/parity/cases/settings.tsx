@@ -3,7 +3,7 @@ import { cases } from "../case"
 import { Button, ButtonIcon } from "../../src/button"
 import { Card, ListCardHeader, ListRow, Section, SettingsRow, SettingsRowLink } from "../../src/card"
 import { BackLink, FormLabel, FormRow, RadioCards } from "../../src/form"
-import { ChromeMark, glyphs } from "../../src/glyph"
+import { ChevronRightSmall, ChromeMark, glyphs } from "../../src/glyph"
 import { MENU_LABEL, MenuCheck, MenuSearch, menuItemClass } from "../../src/menu"
 import { MenuSelectButton } from "../../src/menu-select"
 import { Slider } from "../../src/slider"
@@ -59,6 +59,12 @@ const thisDevice = (text: string) => (
     {text}
     <Badge tone="accent">This device</Badge>
   </span>
+)
+
+const newSkill = (
+  <Button variant="ghost" size="icon-sm" data-slot="menu-trigger" aria-label="New skill" title="New skill" tabIndex={0} aria-haspopup="menu" aria-expanded={false}>
+    {glyphs.add}
+  </Button>
 )
 
 const devices = (title: ReactNode, description: ReactNode, action: string) => (
@@ -210,6 +216,37 @@ export default cases("settings", [
           </Button>
         }
       />
+    ),
+  ],
+  [
+    "pTuXxDeG5t|[data-slot=card-list-header]|0",
+    "skills, list header with count, search and new skill",
+    () => (
+      <ListCardHeader
+        title="6 skills"
+        search={{ value: "", onChange: () => undefined, placeholder: "Search skills" }}
+        actions={newSkill}
+      />
+    ),
+  ],
+  ["OOqMn9xhY1|[data-slot=card-list-header]|0", "skills, empty list header", () => <ListCardHeader title="No skills" actions={newSkill} />],
+  [
+    "pTuXxDeG5t|[data-slot=settings-row]|0",
+    "skills, clickable row with name, scope, description and chevron",
+    () => (
+      <ListRow
+        icon={glyphs.skill}
+        title={
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate">break-ui</span>
+            <span className="truncate text-xs font-normal text-muted-foreground-2">Home</span>
+          </span>
+        }
+        description={<span className="block truncate">{`Try to break a piece of UI by feeding it worst-case data — long names, unbreakable emails, one-letter names, missing fields, huge counts, zero items, long labels, non-Latin text, emoji, extreme numbers — then render it behind a "Demo data / Worst case" toggle and report everything that broke, with the fix for each. Use when the user asks to stress-test, break, or find edge cases in a component or screen, or to "try the worst case". For visual design critique use emil-design-eng; for motion use review-animations.`}</span>}
+        onClick={() => undefined}
+      >
+        <ChevronRightSmall className="size-(--icon-sm) shrink-0 text-muted-foreground-3" />
+      </ListRow>
     ),
   ],
   ["ODpLEfAwFP|div.max-w-3xl [role=columnheader]|1", "table header cell, numeric", () => <TableHead numeric>Context</TableHead>],

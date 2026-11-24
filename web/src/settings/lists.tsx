@@ -1,12 +1,10 @@
 import {
   Add01Icon,
   Delete02Icon,
-  Globe02Icon,
   Key01Icon,
   MoreHorizontalIcon,
   PuzzleIcon,
   RefreshIcon,
-  SparklesIcon,
 } from "@hugeicons/core-free-icons"
 import { BrandIcon, modelMarkOf } from "@tock/ui/brand-icon"
 import { Button } from "@tock/ui/button"
@@ -21,7 +19,7 @@ import { Table, TableCell, TableHead, TableHeader, TableRow } from "@tock/ui/tab
 import { useMemo, useState, type ReactNode } from "react"
 import { http, post } from "../api/http"
 import { socket } from "../api/socket"
-import type { DevPluginRecord, SkillRecord } from "../api/types"
+import type { DevPluginRecord } from "../api/types"
 import { act, useRemote } from "../lib/remote"
 import { FormDialog, Segmented } from "../shell/form-dialog"
 import { modelSpec, refreshModels, useModels, useProviders } from "../state/data"
@@ -205,76 +203,6 @@ export function Models() {
         )}
         <Field label="API key">
           <Input autoFocus={replacing} required type="password" autoComplete="off" value={key} onChange={(event) => setKey(event.currentTarget.value)} />
-        </Field>
-      </FormDialog>
-    </Page>
-  )
-}
-
-const loadSkills = () => socket.request<readonly SkillRecord[]>("skill.list")
-
-export function Skills() {
-  const { data, reload } = useRemote(loadSkills, [])
-  const [mode, setMode] = useState<"new" | "import" | null>(null)
-  const [form, setForm] = useState({ name: "", description: "", bodyMd: "", source: "" })
-  return (
-    <Page title="Skills" description="Instructions your agent loads when a task calls for them.">
-      <Section>
-        <ListCard
-          title={count(data.length, "skill")}
-          actions={
-            <>
-              <Button variant="ghost" size="icon-sm" aria-label="Import skill" onClick={() => setMode("import")}>
-                <Icon icon={Globe02Icon} />
-              </Button>
-              <AddButton label="New skill" onClick={() => setMode("new")} />
-            </>
-          }
-        >
-          {data.length > 0
-            ? data.map((skill) => (
-                <ListRow key={skill.name} icon={<Icon icon={SparklesIcon} />} title={skill.name} description={skill.description}>
-                  <RowMenu label={`${skill.name} options`}>
-                    <RemoveItem onSelect={() => void act(() => socket.request("skill.delete", { name: skill.name }).then(reload))} />
-                  </RowMenu>
-                </ListRow>
-              ))
-            : null}
-        </ListCard>
-      </Section>
-      <FormDialog
-        open={mode === "new"}
-        onOpenChange={(open) => setMode(open ? "new" : null)}
-        title="New skill"
-        submitLabel="Create"
-        onSubmit={() =>
-          act(() =>
-            socket
-              .request("skill.upsert", { name: form.name.trim(), description: form.description.trim(), bodyMd: form.bodyMd })
-              .then(reload),
-          )
-        }
-      >
-        <Field label="Name">
-          <Input autoFocus required value={form.name} onChange={(event) => setForm({ ...form, name: event.currentTarget.value })} />
-        </Field>
-        <Field label="Description">
-          <Input value={form.description} onChange={(event) => setForm({ ...form, description: event.currentTarget.value })} />
-        </Field>
-        <Field label="Instructions">
-          <Textarea required mono rows={8} value={form.bodyMd} onChange={(event) => setForm({ ...form, bodyMd: event.currentTarget.value })} />
-        </Field>
-      </FormDialog>
-      <FormDialog
-        open={mode === "import"}
-        onOpenChange={(open) => setMode(open ? "import" : null)}
-        title="Import skill"
-        description="Paste a link to a skill file or repository."
-        submitLabel="Import"
-        onSubmit={() => act(() => socket.request("skill.import", { source: form.source.trim() }).then(reload))}
-      >
-        <Field label="Link">
-          <Input autoFocus required placeholder="https://github.com/owner/repo" value={form.source} onChange={(event) => setForm({ ...form, source: event.currentTarget.value })} />
         </Field>
       </FormDialog>
     </Page>

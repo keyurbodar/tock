@@ -1,6 +1,8 @@
-import { createContext, use, type ComponentProps, type ReactNode } from "react"
+import { createContext, use, useState, type ComponentProps, type ReactNode } from "react"
+import { Button } from "./button"
 import { cn } from "./cn"
-import { ChevronRightSmall } from "./glyph"
+import { ChevronRightSmall, glyphs } from "./glyph"
+import { Input } from "./input"
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
@@ -143,14 +145,71 @@ export function Empty({ title, description, children }: { title: string; descrip
   )
 }
 
-export function ListCardHeader({ title, actions, divided }: { title: ReactNode; actions?: ReactNode; divided?: boolean }) {
+export interface ListSearch {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+}
+
+export function ListCardHeader({
+  title,
+  actions,
+  search,
+  divided,
+}: {
+  title: ReactNode
+  actions?: ReactNode
+  search?: ListSearch
+  divided?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const searching = search !== undefined && (open || search.value !== "")
+  const stop = () => {
+    search?.onChange("")
+    setOpen(false)
+  }
   return (
     <div
       data-slot="card-list-header"
       className={cn("flex min-h-[60px] items-center justify-between gap-3 py-3 pr-2 pl-4", divided ? "border-b-[0.5px] border-border-1" : "")}
     >
-      <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</span>
-      <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
+      <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
+        {searching ? (
+          <Input
+            variant="blank"
+            size="sm"
+            className="-ml-2"
+            autoFocus
+            placeholder={search.placeholder}
+            aria-label={search.placeholder}
+            value={search.value}
+            onChange={(event) => search.onChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return
+              event.stopPropagation()
+              stop()
+            }}
+            onBlur={() => {
+              if (search.value === "") setOpen(false)
+            }}
+          />
+        ) : (
+          title
+        )}
+      </span>
+      <div className="flex shrink-0 items-center gap-0.5">
+        {search === undefined || searching ? null : (
+          <Button variant="ghost" size="icon-sm" aria-label={search.placeholder} title={search.placeholder} onClick={() => setOpen(true)}>
+            {glyphs.search}
+          </Button>
+        )}
+        {searching ? (
+          <Button variant="ghost" size="icon-sm" aria-label="Clear search" title="Clear search" onClick={stop}>
+            {glyphs.close}
+          </Button>
+        ) : null}
+        {actions}
+      </div>
     </div>
   )
 }
@@ -171,15 +230,23 @@ export function ListRow({
   icon,
   title,
   description,
+  onClick,
   children,
 }: {
   icon?: ReactNode
   title: ReactNode
   description?: ReactNode
+  onClick?: () => void
   children?: ReactNode
 }) {
   return (
-    <div data-slot="settings-row" className="group/row flex gap-6 p-4 items-center justify-between min-h-[60px]">
+    <div
+      data-slot="settings-row"
+      className={cn(
+        "group/row flex gap-6 p-4 items-center justify-between min-h-[60px]",
+        onClick ? "relative cursor-pointer transition-colors duration-100 hover:bg-card-hover" : "",
+      )}
+    >
       <div className="flex items-center gap-3 min-w-0">
         {icon ? (
           <div className="grid size-8 shrink-0 place-items-center rounded-md bg-secondary text-foreground [&_svg:not([class*='size-'])]:size-4">
@@ -187,11 +254,31 @@ export function ListRow({
           </div>
         ) : null}
         <div className="flex flex-col gap-0.5 min-w-0">
-          <div className="text-sm font-medium text-foreground">{title}</div>
+          <div className="text-sm font-medium text-foreground">
+            {onClick ? (
+              <button type="button" className="text-left outline-none after:absolute after:inset-0 focus-visible:after:outline-ring-inset" onClick={onClick}>
+                {title}
+              </button>
+            ) : (
+              title
+            )}
+          </div>
           {description ? <div className="font-normal text-muted-foreground-2 text-xs">{description}</div> : null}
         </div>
       </div>
-      {children ? <div className="relative flex items-center gap-2 shrink-0">{children}</div> : null}
+      {children ? (
+        <div
+          className={cn(
+            "relative flex items-center gap-2",
+            onClick
+              ? "pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_[role=switch]]:pointer-events-auto"
+              : "",
+            "shrink-0",
+          )}
+        >
+          {children}
+        </div>
+      ) : null}
     </div>
   )
 }
