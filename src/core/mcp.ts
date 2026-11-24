@@ -195,12 +195,7 @@ export class McpHub {
     const server = this.findServer(idOrName);
     if (!enabled) {
       this.toolCache.delete(server.name);
-      const serverId = server.managerServerId ?? server.id;
-      const stop =
-        server.authMode === "oauth"
-          ? this.manager.closeConnection(serverId)
-          : this.manager.removeServer(serverId);
-      await stop.catch(() => {});
+      await this.manager.removeServer(server.managerServerId ?? server.id).catch(() => {});
     }
     this.sql.exec(
       `UPDATE tock_mcp_servers SET enabled = ?, updated_at = ? WHERE id = ?`,
@@ -293,20 +288,12 @@ export class McpHub {
     const rawHeaders = JSON.parse(server.headersJson || "{}") as Record<string, string>;
     const resolvedHeaders = await this.vault.injectRecordForUrl(server.url, rawHeaders);
     const transportType = server.authMode === "sse" ? "sse" : "auto";
-    const callbackUrl =
-      server.authMode === "oauth"
-        ? this.manager.listServers().find((row) => row.id === serverId)?.callback_url || undefined
-        : undefined;
     await this.manager.registerServer(serverId, {
       url: server.url,
       name: server.name,
-      callbackUrl,
       transport: {
         type: transportType,
         headers: Object.keys(resolvedHeaders).length > 0 ? resolvedHeaders : undefined,
-        authProvider: callbackUrl
-          ? new DurableObjectOAuthClientProvider(this.storage, "tock", callbackUrl)
-          : undefined,
       },
     });
     const conn = await this.manager.connectToServer(serverId);
