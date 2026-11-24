@@ -67,10 +67,11 @@ export function ModelPicker({
     return [...byProvider].map(([id, list]): PickerGroup<ThinkingLevel> => ({ id, name: names.get(id) ?? id, models: list }))
   }, [models, providers, showLevel])
 
-  const levelOf = (model: PickerModel<ThinkingLevel>) => {
+  const chosen = (model: PickerModel<ThinkingLevel>) => {
     const wanted = model.key === value.model ? level : (drafts[model.key] ?? value.thinkingLevel)
-    return wanted !== null && wanted !== undefined && model.steps.includes(wanted) ? wanted : model.steps[0]
+    return wanted !== null && wanted !== undefined && model.steps.includes(wanted) ? wanted : null
   }
+  const levelOf = (model: PickerModel<ThinkingLevel>) => chosen(model) ?? model.steps[0]
 
   return (
     <Popover
@@ -97,7 +98,7 @@ export function ModelPicker({
           step={levelOf}
           stepLabel={titleCase}
           onSelect={(model) => {
-            onChange({ model: model.key, thinkingLevel: levelOf(model) ?? null })
+            onChange({ model: model.key, thinkingLevel: chosen(model) })
             setOpen(false)
           }}
           onStep={(model, next) => {
