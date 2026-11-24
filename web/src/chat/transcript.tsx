@@ -3,16 +3,23 @@ import { DotGrid } from "@tock/ui/dot-grid"
 import { Markdown } from "@tock/ui/markdown"
 import { ActivityLine, ActivityLiveStatus, ActivityStatus, WorkGroup } from "@tock/ui/chat/activity-line"
 import { Step as StepView, StepBody, StepCard, StepOutput, StepThought } from "@tock/ui/chat/step"
+import { SentAttachment, SentAttachments } from "@tock/ui/chat/attachments"
 import { AgentMessage, AutomationMessage, CopyMessageButton, MessageSection, UserMessage } from "@tock/ui/chat/message"
 import { ChatStamp, ProgressEdge, ROW, ScrollToEnd } from "@tock/ui/timeline"
-import { useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { ToolResultMessage } from "../api/types"
-import { messageTime, stamp, titleCase } from "../lib/format"
+import { fileSize, messageTime, stamp, titleCase } from "../lib/format"
+import { ensureFiles, useFiles } from "../state/files"
 import type { ThreadState } from "../state/thread"
 import { isWorking } from "../state/thread"
+import { splitAttachments, withAttachments } from "./attached"
+import { AttachmentLightbox, type MediaEntry } from "./attachment-lightbox"
+import { RENDERABLE } from "./attachments"
 import { buildItems, type Item, type Step } from "./items"
 
 const STICK_THRESHOLD = 48
+
+const fileUrl = (id: string) => `/api/files/${encodeURIComponent(id)}`
 const ARGUMENT_PREVIEW = 80
 
 const resultText = (result: ToolResultMessage | undefined) =>
@@ -79,28 +86,64 @@ function Work({ item }: { item: Extract<Item, { kind: "work" }> }) {
 
 function UserRow({ item }: { item: Extract<Item, { kind: "user" }> }) {
   const [expanded, setExpanded] = useState(false)
+  const [previewing, setPreviewing] = useState<string>()
+  const files = useFiles()
+  const sent = useMemo(() => splitAttachments(item.text), [item.text])
+  useEffect(() => ensureFiles(sent.refs.map((ref) => ref.id)), [sent.refs])
+  const attached = sent.refs.flatMap((ref) => files.byId.get(ref.id) ?? [])
+  const text = withAttachments(
+    sent.text,
+    sent.refs.filter((ref) => !files.byId.has(ref.id) && files.settled.has(ref.id)),
+  )
+  const media = attached.flatMap((file): MediaEntry[] =>
+    RENDERABLE.has(file.mime.toLowerCase()) ? [{ key: file.id, kind: "image", label: file.name, url: fileUrl(file.id) }] : [],
+  )
+  const previewAt = media.findIndex((entry) => entry.key === previewing)
   return (
-    <UserMessage
-      time={item.at === null ? undefined : messageTime(item.at)}
-      actions={item.text === "" ? undefined : <CopyMessageButton text={item.text} />}
-      clamp={{ text: item.text, expanded, onToggle: () => setExpanded((value) => !value) }}
-      attachments={
-        item.images.length > 0 ? (
-          <div className="flex max-w-full flex-wrap justify-end gap-1.5">
-            {item.images.map((image, index) => (
-              <img
-                key={index}
-                alt=""
-                src={`data:${image.mimeType};base64,${image.data}`}
-                className="max-h-40 rounded-(--radius-card) border-[0.5px] border-border-1 object-cover"
-              />
-            ))}
-          </div>
-        ) : undefined
-      }
-    >
-      <Markdown>{item.text}</Markdown>
-    </UserMessage>
+    <>
+      <UserMessage
+        time={item.at === null ? undefined : messageTime(item.at)}
+        actions={text === "" ? undefined : <CopyMessageButton text={text} />}
+        clamp={{ text, expanded, onToggle: () => setExpanded((value) => !value) }}
+        attachments={
+          attached.length > 0 || item.images.length > 0 ? (
+            <SentAttachments align="end">
+              {attached.map((file) => {
+                const preview = media.find((entry) => entry.key === file.id)
+                return (
+                  <SentAttachment
+                    key={file.id}
+                    name={file.name}
+                    mediaType={file.mime}
+                    size={fileSize(file.size)}
+                    previewUrl={preview?.url}
+                    onOpen={() => (preview === undefined ? window.open(fileUrl(file.id), "_blank", "noopener") : setPreviewing(file.id))}
+                  />
+                )
+              })}
+              {item.images.map((image, index) => (
+                <img
+                  key={index}
+                  alt=""
+                  src={`data:${image.mimeType};base64,${image.data}`}
+                  className="max-h-40 rounded-(--radius-card) border-[0.5px] border-border-1 object-cover"
+                />
+              ))}
+            </SentAttachments>
+          ) : undefined
+        }
+      >
+        {text === "" ? undefined : <Markdown>{text}</Markdown>}
+      </UserMessage>
+      {previewAt >= 0 ? (
+        <AttachmentLightbox
+          entries={media}
+          index={previewAt}
+          onIndexChange={(index) => setPreviewing(media[index]?.key)}
+          onClose={() => setPreviewing(undefined)}
+        />
+      ) : null}
+    </>
   )
 }
 

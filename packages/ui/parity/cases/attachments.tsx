@@ -1,5 +1,5 @@
 import { cases } from "../case"
-import { AttachmentStrip, AttachmentTile } from "../../src/chat/attachments"
+import { AttachmentStrip, AttachmentTile, SentAttachment } from "../../src/chat/attachments"
 
 const noop = () => {}
 
@@ -30,6 +30,24 @@ export default cases("AttachmentStrip", [
           onRemove={noop}
         />
       </AttachmentStrip>
+    ),
+  ],
+  [
+    "9kSoR-Dh7N|button[aria-label='Open kiko-design-system-kds (1).zip']|0",
+    "sent file card under a user message",
+    () => <SentAttachment name="kiko-design-system-kds (1).zip" mediaType="application/zip" size="8.3 MB" onOpen={noop} />,
+  ],
+  [
+    "9kSoR-Dh7N|span[data-slot=context-menu-trigger]:has(> button[aria-label='Preview screenshot.png'])|1",
+    "sent image card while its thumbnail loads",
+    () => (
+      <SentAttachment
+        name="screenshot.png"
+        mediaType="image/png"
+        size="881 KB"
+        previewUrl="/api/files/file_01M7FW0VKR6Y54TCTY9H6RAYJC.preview"
+        onOpen={noop}
+      />
     ),
   ],
 ])

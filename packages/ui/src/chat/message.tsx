@@ -149,26 +149,31 @@ export function UserMessage({
   actions,
   clamp,
 }: {
-  children: ReactNode
+  children?: ReactNode
   attachments?: ReactNode
   time?: ReactNode
   actions?: ReactNode
   clamp?: MessageClamp
 }) {
+  const footer =
+    time === undefined && actions === undefined ? null : (
+      <div className={RAIL}>
+        <MessageFooter time={time} touch>
+          {actions}
+        </MessageFooter>
+      </div>
+    )
   return (
     <div data-slot="user-message" className="group/message flex min-w-0 flex-col gap-1.5 py-2 items-end">
-      <div className="relative flex max-w-[77%] min-w-0 flex-col gap-1.5 group/rail items-end">
+      <div className={cn("relative flex max-w-[77%] min-w-0 flex-col gap-1.5 group/rail", attachments !== undefined && "w-full", "items-end")}>
+        {children === undefined ? null : (
+          <div className="relative flex max-w-full min-w-0 flex-col gap-1.5 items-end">
+            <MessageBubble clamp={clamp}>{children}</MessageBubble>
+            {footer}
+          </div>
+        )}
         {attachments}
-        <div className="relative flex max-w-full min-w-0 flex-col gap-1.5 items-end">
-          <MessageBubble clamp={clamp}>{children}</MessageBubble>
-          {time === undefined && actions === undefined ? null : (
-            <div className={RAIL}>
-              <MessageFooter time={time} touch>
-                {actions}
-              </MessageFooter>
-            </div>
-          )}
-        </div>
+        {children === undefined ? footer : null}
       </div>
     </div>
   )

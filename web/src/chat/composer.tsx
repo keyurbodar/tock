@@ -11,12 +11,13 @@ import { Menu, MenuContent, MenuItem, MenuTrigger } from "@tock/ui/menu"
 import * as Atom from "effect/reactivity/Atom"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { socket } from "../api/socket"
-import type { FileMeta, SkillRecord, ThinkingLevel } from "../api/types"
+import type { SkillRecord, ThinkingLevel } from "../api/types"
 import { fileSize, titleCase } from "../lib/format"
 import { chord } from "../lib/platform"
 import { useRemote } from "../lib/remote"
 import { modelSpec, useModels, useProviders, useSettings } from "../state/data"
 import { registry } from "../state/registry"
+import { withAttachments } from "./attached"
 import { AttachmentLightbox, type MediaEntry } from "./attachment-lightbox"
 import { useAttachments } from "./attachments"
 import { findModel, levelFor, ModelPicker, type ModelChoice } from "./model-picker"
@@ -35,8 +36,6 @@ export interface Outgoing {
   readonly thinkingLevel?: ThinkingLevel
 }
 
-const withAttachments = (text: string, files: readonly FileMeta[]) =>
-  files.length === 0 ? text : `${text}\n\n${files.map((file) => `[attached file: ${file.name} (${file.id})]`).join("\n")}`
 
 function useCommands(effective: ModelChoice): readonly Command[] {
   const models = useModels()

@@ -28,6 +28,11 @@ def canvases(node):
         for name in ('width', 'height'): canvas.attrs.pop(name, None)
     return node
 
+def unsigned(node):
+    for media in node.select('[src*="X-Amz-"]'):
+        media['src'] = '/api/files/' + media['src'].split('?')[0].rsplit('/', 1)[-1]
+    return node
+
 def specimen(ref):
     if '#' in ref:
         fid, idx = ref.split('#')
@@ -35,7 +40,7 @@ def specimen(ref):
         cap = sp.select_one('.sp-cap')
         return {'html': sp.select_one('.sp-box').decode_contents(), 'cap': ' | '.join(c.get_text(' ', strip=True) for c in cap.find_all('span')) if cap else '', 'box': sp.select_one('.sp-box').get('style', '')}
     fid, sel, idx = ref.split('|')
-    return {'html': str(canvases(frame(fid).select(sel)[int(idx)])), 'cap': f'{fid} {sel}', 'box': ''}
+    return {'html': str(unsigned(canvases(frame(fid).select(sel)[int(idx)]))), 'cap': f'{fid} {sel}', 'box': ''}
 
 refs = sorted({m for f in glob.glob(f'{ROOT}/cases/*.tsx') for m in re.findall(r'\[\s*"([\w-]+(?:#\d+|\|[^"]+\|\d+))"', open(f).read())})
 out = {ref: specimen(ref) for ref in refs}

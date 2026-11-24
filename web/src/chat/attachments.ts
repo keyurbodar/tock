@@ -2,8 +2,9 @@ import type { AttachmentStatus } from "@tock/ui/chat/attachments"
 import { useEffect, useRef, useState } from "react"
 import { upload } from "../api/http"
 import type { FileMeta } from "../api/types"
+import { rememberFile } from "../state/files"
 
-const RENDERABLE = new Set([
+export const RENDERABLE = new Set([
   "image/jpeg",
   "image/png",
   "image/gif",
@@ -77,7 +78,10 @@ export function useAttachments(sessionId: string | undefined) {
           if (!abort.signal.aborted) patch(attachment.localId, { status: { phase: "uploading", progress } })
         },
       }).then(
-        (meta) => patch(attachment.localId, { status: { phase: "ready" }, meta }),
+        (meta) => {
+          rememberFile(meta)
+          patch(attachment.localId, { status: { phase: "ready" }, meta })
+        },
         (error: unknown) => {
           if (abort.signal.aborted) return
           patch(attachment.localId, {
