@@ -34,6 +34,15 @@ const loadSecrets = () => socket.request<readonly SecretMeta[]>("vault.list")
 const optional = (text: string) => text.trim() || undefined
 const validSite = (origin: string) => origin.trim() === "" || (URL.canParse(origin.trim()) && new URL(origin.trim()).protocol === "https:")
 const saved = (total: number) => `${count(total, "secret")} saved`
+const KEY = /^[a-zA-Z0-9_.-]{1,128}$/
+const keyError = (name: string, exists: boolean) =>
+  name === ""
+    ? undefined
+    : !KEY.test(name)
+      ? "Use up to 128 letters, numbers, dots, dashes and underscores"
+      : exists
+        ? `${name} already exists`
+        : undefined
 
 function SiteField({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
   return (
@@ -72,22 +81,25 @@ function AddSheet({
   const names = rows.map((row) => row.name.trim())
   const clash = (index: number) => {
     const name = names[index] ?? ""
-    return name !== "" && (taken.has(name) || names.indexOf(name) !== index) ? `${name} already exists` : undefined
+    return keyError(name, taken.has(name) || names.indexOf(name) !== index)
   }
   const ready = rows.every((row, index) => row.name.trim() !== "" && row.value !== "" && validSite(row.origin) && clash(index) === undefined)
   const change = (index: number, next: Draft) => setRows(rows.map((row, at) => (at === index ? next : row)))
   const save = async () => {
     setBusy(true)
     const done = await act(async () => {
-      for (const row of rows) {
-        await socket.request("vault.set", {
-          name: row.name.trim(),
-          value: row.value,
-          description: optional(row.description),
-          origin: optional(row.origin),
-        })
+      try {
+        for (const row of rows) {
+          await socket.request("vault.set", {
+            name: row.name.trim(),
+            value: row.value,
+            description: optional(row.description),
+            origin: optional(row.origin),
+          })
+        }
+      } finally {
+        await onSaved()
       }
-      await onSaved()
     }, saved(rows.length))
     setBusy(false)
     if (done) onOpenChange(false)
@@ -153,12 +165,7 @@ function SecretRow({
   const [busy, setBusy] = useState(false)
   const name = draft.name.trim()
   const moved = draft.origin.trim() !== secret.origin
-  const error =
-    name === ""
-      ? "Enter a key"
-      : name !== secret.name && taken.has(name)
-        ? `${name} already exists`
-        : undefined
+  const error = name === "" ? "Enter a key" : name === secret.name ? undefined : keyError(name, taken.has(name))
   const blocked = error !== undefined || !validSite(draft.origin) || (moved && draft.value === "")
   const close = () => {
     setEditing(false)
@@ -180,7 +187,9 @@ function SecretRow({
       saved(1),
     )
     setBusy(false)
-    if (done) setEditing(false)
+    if (!done) return
+    setEditing(false)
+    setDraft((current) => ({ ...current, value: "" }))
   }
   return (
     <div>
