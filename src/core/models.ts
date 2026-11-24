@@ -1,16 +1,21 @@
-import { createModels, type Credential, type CredentialInfo, type CredentialStore, type Models } from "@earendil-works/pi-ai";
+import type { Api, Credential, CredentialInfo, CredentialStore, Model, Models } from "@earendil-works/pi-ai";
+import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import type { Vault } from "./vault.js";
 
 const PROVIDER_SECRET_KEYS: Record<string, string> = {
+  "opencode-go": "opencode_api_key",
+  opencode: "opencode_api_key",
   openai: "openai_api_key",
   anthropic: "anthropic_api_key",
   google: "google_api_key",
+  deepseek: "deepseek_api_key",
   openrouter: "openrouter_api_key",
-  xai: "xai_api_key"
+  xai: "xai_api_key",
+  groq: "groq_api_key"
 };
 
 export function createVaultCredentialStore(vault: Vault): CredentialStore {
-  const keyFor = (providerId: string) => PROVIDER_SECRET_KEYS[providerId] ?? `${providerId}_api_key`;
+  const keyFor = (providerId: string) => PROVIDER_SECRET_KEYS[providerId] ?? `${providerId.replace(/-/g, "_")}_api_key`;
 
   return {
     async read(providerId: string): Promise<Credential | undefined> {
@@ -46,7 +51,20 @@ export function createVaultCredentialStore(vault: Vault): CredentialStore {
 }
 
 export function buildModels(vault: Vault): Models {
-  return createModels({
+  return builtinModels({
     credentials: createVaultCredentialStore(vault)
   });
+}
+
+export function parseModelSpec(spec: string | null | undefined): { provider: string; id: string } | null {
+  if (!spec) return null;
+  const idx = spec.indexOf("/");
+  if (idx <= 0 || idx === spec.length - 1) return null;
+  return { provider: spec.slice(0, idx), id: spec.slice(idx + 1) };
+}
+
+export function resolveModel(models: Models, spec: string | null | undefined): Model<Api> | undefined {
+  const parsed = parseModelSpec(spec);
+  if (!parsed) return undefined;
+  return models.getModel(parsed.provider, parsed.id) as Model<Api> | undefined;
 }

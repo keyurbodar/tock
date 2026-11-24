@@ -55,6 +55,7 @@ export interface RoutineRecord {
   schedule: string;
   scheduleType: "cron" | "interval" | "delayed";
   prompt: string;
+  checkScript: string | null;
   quietIfUnchanged: boolean;
   lastHash: string | null;
   enabled: boolean;
@@ -68,6 +69,7 @@ export interface McpServerRecord {
   name: string;
   url: string;
   headersJson: string;
+  authMode: "headers" | "oauth";
   enabled: boolean;
   updatedAt: number;
 }
@@ -83,6 +85,13 @@ export interface DevPluginRecord {
   updatedAt: number;
 }
 
+export interface PushSubscriptionRecord {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  createdAt: number;
+}
+
 export interface WsAttachment {
   cursor: number;
   sessionId: string;
@@ -91,24 +100,32 @@ export interface WsAttachment {
 
 export type ClientFrame =
   | { id: string; type: "chat.send"; sessionId?: string; text: string; operationId?: string }
+  | { id: string; type: "chat.subscribe"; sessionId?: string }
   | { id: string; type: "chat.abort"; sessionId?: string; operationId?: string }
   | { id: string; type: "session.list" }
   | { id: string; type: "session.create"; title?: string }
   | { id: string; type: "session.messages"; sessionId?: string }
   | { id: string; type: "settings.get" }
   | { id: string; type: "settings.update"; patch: Partial<Omit<OwnerSettings, "updatedAt">> }
+  | { id: string; type: "models.list"; provider?: string }
   | { id: string; type: "vault.list" }
   | { id: string; type: "vault.set"; name: string; value: string; description?: string; scopes?: string }
   | { id: string; type: "vault.delete"; name: string }
   | { id: string; type: "mcp.list" }
-  | { id: string; type: "mcp.upsert"; name: string; url: string; headers?: Record<string, string> }
+  | { id: string; type: "mcp.upsert"; name: string; url: string; headers?: Record<string, string>; authMode?: "headers" | "oauth" }
   | { id: string; type: "mcp.delete"; idOrName: string }
   | { id: string; type: "routine.list" }
-  | { id: string; type: "routine.upsert"; routine: Omit<RoutineRecord, "id" | "lastHash" | "schedulerJobId" | "lastRunAt" | "updatedAt"> & { id?: string } }
+  | {
+      id: string;
+      type: "routine.upsert";
+      routine: Omit<RoutineRecord, "id" | "lastHash" | "schedulerJobId" | "lastRunAt" | "updatedAt"> & { id?: string };
+    }
   | { id: string; type: "routine.delete"; routineId: string }
   | { id: string; type: "plugin.list" }
   | { id: string; type: "plugin.upsert"; plugin: Omit<DevPluginRecord, "id" | "updatedAt"> & { id?: string } }
   | { id: string; type: "plugin.delete"; pluginId: string }
+  | { id: string; type: "push.subscribe"; endpoint: string; p256dh: string; auth: string }
+  | { id: string; type: "push.unsubscribe"; endpoint: string }
   | { id: string; type: "memory.get" }
   | { id: string; type: "memory.search"; query: string; limit?: number }
   | { id: string; type: "ping" };

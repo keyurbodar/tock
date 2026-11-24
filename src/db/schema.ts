@@ -51,6 +51,7 @@ const SCHEMA_STATEMENTS = [
     schedule TEXT NOT NULL,
     schedule_type TEXT NOT NULL,
     prompt TEXT NOT NULL,
+    check_script TEXT,
     quiet_if_unchanged INTEGER NOT NULL DEFAULT 1,
     last_hash TEXT,
     enabled INTEGER NOT NULL DEFAULT 1,
@@ -63,6 +64,7 @@ const SCHEMA_STATEMENTS = [
     name TEXT NOT NULL UNIQUE,
     url TEXT NOT NULL,
     headers_json TEXT NOT NULL DEFAULT '{}',
+    auth_mode TEXT NOT NULL DEFAULT 'headers',
     enabled INTEGER NOT NULL DEFAULT 1,
     updated_at INTEGER NOT NULL
   )`,
@@ -80,6 +82,7 @@ const SCHEMA_STATEMENTS = [
     id TEXT PRIMARY KEY,
     plugin_id TEXT NOT NULL,
     dump_js TEXT NOT NULL,
+    fuel_used INTEGER NOT NULL DEFAULT 0,
     wake_at INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'suspended',
     updated_at INTEGER NOT NULL

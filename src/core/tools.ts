@@ -8,13 +8,14 @@ import {
   type Extension,
   type ToolRegistration
 } from "@earendil-works/pi-durable";
-import { lit, map, num, obj, opt, str, union, unknown } from "@earendil-works/pi-schema";
+import { bool, lit, map, num, obj, opt, str, union, unknown } from "@earendil-works/pi-schema";
 import type { UnifiedMemory } from "./memory.js";
 import type { Vault } from "./vault.js";
 import type { ExecutionGuards } from "./guards.js";
 import type { McpHub } from "./mcp.js";
 import type { SubagentPool } from "./subagents.js";
 import type { SettingsStore } from "./settings.js";
+import type { RoutineStore } from "./routines.js";
 import type { DjsRuntime } from "../dev/djs.js";
 
 export interface TockToolsDeps {
@@ -24,6 +25,7 @@ export interface TockToolsDeps {
   mcp: McpHub;
   subagents: SubagentPool;
   settings: SettingsStore;
+  routines: RoutineStore;
   djs: DjsRuntime;
   notifyOwner: (title: string, body: string) => Promise<void>;
   scheduleFollowup: (delaySeconds: number, note: string, sessionId?: string) => Promise<string>;
@@ -51,6 +53,23 @@ const ScheduleFollowupParams = obj({
   delaySeconds: num(),
   note: str()
 });
+
+const RoutineUpsertParams = obj({
+  id: opt(str()),
+  name: str(),
+  schedule: str(),
+  scheduleType: union([lit("cron"), lit("interval"), lit("delayed")]),
+  prompt: str(),
+  checkScript: opt(str()),
+  quietIfUnchanged: opt(bool()),
+  enabled: opt(bool())
+});
+
+const RoutineDeleteParams = obj({
+  id: str()
+});
+
+const EmptyParams = obj({});
 
 const NotifyOwnerParams = obj({
   title: str(),
@@ -141,9 +160,48 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     }
   });
 
+  const routineUpsertTool = defineTool({
+    name: "routine_upsert",
+    description:
+      "Create or update a recurring watch or routine. Pass checkScript (TypeScript run in djs using tock.fetch) to hash external state with zero LLM tokens and only wake when it changes.",
+    parameters: RoutineUpsertParams,
+    async execute(args) {
+      const saved = await deps.routines.upsert({
+        id: args.id,
+        name: args.name,
+        schedule: args.schedule,
+        scheduleType: args.scheduleType,
+        prompt: args.prompt,
+        checkScript: args.checkScript ?? null,
+        quietIfUnchanged: args.quietIfUnchanged ?? true,
+        enabled: args.enabled ?? true
+      });
+      return { output: [{ type: "text", text: JSON.stringify(saved) }] };
+    }
+  });
+
+  const routineListTool = defineTool({
+    name: "routine_list",
+    description: "List all active and paused routines and watchers.",
+    parameters: EmptyParams,
+    replay: "safe",
+    async execute() {
+      return { output: [{ type: "text", text: JSON.stringify(deps.routines.list()) }] };
+    }
+  });
+
+  const routineDeleteTool = defineTool({
+    name: "routine_delete",
+    description: "Delete a routine or watcher by id.",
+    parameters: RoutineDeleteParams,
+    async execute(args) {
+      return { output: [{ type: "text", text: JSON.stringify({ deleted: await deps.routines.delete(args.id) }) }] };
+    }
+  });
+
   const notifyOwnerTool = defineTool({
     name: "notify_owner",
-    description: "Send a proactive alert to the owner when something genuinely needs attention.",
+    description: "Send a proactive alert to the owner (WS + offline webhook/Telegram push).",
     parameters: NotifyOwnerParams,
     async execute(args) {
       await deps.notifyOwner(args.title, args.body);
@@ -158,7 +216,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     replay: "safe",
     async execute(args) {
       if (!args.server) {
-        const servers = deps.mcp.listServers().map((s) => ({ name: s.name, url: s.url, enabled: s.enabled }));
+        const servers = deps.mcp.listServers().map((s) => ({ name: s.name, url: s.url, authMode: s.authMode, enabled: s.enabled }));
         return { output: [{ type: "text", text: JSON.stringify({ servers }) }] };
       }
       const tools = await deps.mcp.discoverTools(args.server);
@@ -230,6 +288,9 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     memorySaveTool as unknown as ToolRegistration,
     openItemTool as unknown as ToolRegistration,
     scheduleFollowupTool as unknown as ToolRegistration,
+    routineUpsertTool as unknown as ToolRegistration,
+    routineListTool as unknown as ToolRegistration,
+    routineDeleteTool as unknown as ToolRegistration,
     notifyOwnerTool as unknown as ToolRegistration,
     mcpListTool as unknown as ToolRegistration,
     mcpCallTool as unknown as ToolRegistration,
@@ -262,6 +323,12 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     const servers = deps.mcp.listServers().filter((s) => s.enabled);
     if (servers.length > 0) {
       sections.push(`## Connected MCP Servers\n${servers.map((s) => `- ${s.name} (${s.url})`).join("\n")}`);
+    }
+    const activeRoutines = deps.routines.list().filter((r) => r.enabled);
+    if (activeRoutines.length > 0) {
+      sections.push(
+        `## Active Routines\n${activeRoutines.map((r) => `- ${r.name} [${r.scheduleType}:${r.schedule}]`).join("\n")}`
+      );
     }
     const cfg = deps.settings.get();
     sections.push(

@@ -23,7 +23,7 @@ export class RoutineStore {
   list(): RoutineRecord[] {
     const rows = this.sql
       .exec(
-        `SELECT id, name, schedule, schedule_type, prompt, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at
+        `SELECT id, name, schedule, schedule_type, prompt, check_script, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at
          FROM tock_routines ORDER BY name ASC`
       )
       .toArray();
@@ -33,7 +33,7 @@ export class RoutineStore {
   get(id: string): RoutineRecord | undefined {
     const rows = this.sql
       .exec(
-        `SELECT id, name, schedule, schedule_type, prompt, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at
+        `SELECT id, name, schedule, schedule_type, prompt, check_script, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at
          FROM tock_routines WHERE id = ?`,
         id
       )
@@ -66,13 +66,14 @@ export class RoutineStore {
 
     const now = Date.now();
     this.sql.exec(
-      `INSERT INTO tock_routines (id, name, schedule, schedule_type, prompt, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO tock_routines (id, name, schedule, schedule_type, prompt, check_script, quiet_if_unchanged, last_hash, enabled, scheduler_job_id, last_run_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          schedule = excluded.schedule,
          schedule_type = excluded.schedule_type,
          prompt = excluded.prompt,
+         check_script = excluded.check_script,
          quiet_if_unchanged = excluded.quiet_if_unchanged,
          enabled = excluded.enabled,
          scheduler_job_id = excluded.scheduler_job_id,
@@ -82,6 +83,7 @@ export class RoutineStore {
       input.schedule,
       input.scheduleType,
       input.prompt,
+      input.checkScript ?? null,
       input.quietIfUnchanged ? 1 : 0,
       existing?.lastHash ?? null,
       input.enabled ? 1 : 0,
@@ -103,16 +105,19 @@ export class RoutineStore {
     return true;
   }
 
-  markRun(id: string, outputHash: string): { changed: boolean } {
+  markRun(id: string, outputHash: string): { changed: boolean; isFirstRun: boolean } {
     const existing = this.get(id);
+    const isFirstRun = existing?.lastHash === null || existing?.lastHash === undefined;
     const changed = existing?.lastHash !== outputHash;
-    this.sql.exec(
-      `UPDATE tock_routines SET last_hash = ?, last_run_at = ? WHERE id = ?`,
-      outputHash,
-      Date.now(),
-      id
-    );
-    return { changed };
+    if (changed) {
+      this.sql.exec(
+        `UPDATE tock_routines SET last_hash = ?, last_run_at = ? WHERE id = ?`,
+        outputHash,
+        Date.now(),
+        id
+      );
+    }
+    return { changed, isFirstRun };
   }
 
   private mapRow(r: Record<string, SqlStorageValue>): RoutineRecord {
@@ -122,6 +127,7 @@ export class RoutineStore {
       schedule: String(r.schedule),
       scheduleType: (String(r.schedule_type) as RoutineRecord["scheduleType"]) || "cron",
       prompt: String(r.prompt),
+      checkScript: r.check_script ? String(r.check_script) : null,
       quietIfUnchanged: Number(r.quiet_if_unchanged) === 1,
       lastHash: r.last_hash ? String(r.last_hash) : null,
       enabled: Number(r.enabled) === 1,
