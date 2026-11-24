@@ -2,7 +2,8 @@ import { BRAND_FAMILIES, BRAND_MARKS } from "./brand-marks"
 import { cn } from "./cn"
 
 const KEYS = Object.keys(BRAND_MARKS).sort((a, b) => b.length - a.length)
-const family = (text: string) => BRAND_FAMILIES[/^[a-z]+/.exec(text.toLowerCase())?.[0] ?? ""]
+const word = (text: string) => /^[a-z]+/.exec(text.toLowerCase())?.[0] ?? ""
+const family = (text: string) => BRAND_FAMILIES[word(text)]
 
 export const brandOf = (provider: string): string | undefined => {
   const id = provider.toLowerCase()
@@ -10,6 +11,9 @@ export const brandOf = (provider: string): string | undefined => {
 }
 
 export const familyOf = (modelName: string): string | undefined => family(modelName)
+
+export const modelMarkOf = (modelName: string): string | undefined =>
+  word(modelName) in BRAND_MARKS ? word(modelName) : family(modelName)
 
 export function BrandIcon({ provider, name, className }: { provider: string; name: string; className?: string }) {
   const brand = brandOf(provider)

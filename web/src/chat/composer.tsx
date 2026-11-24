@@ -7,17 +7,23 @@ import type { Command } from "@tock/ui/chat/command-menu"
 import { ComposerSurface, ComposerToolbar } from "@tock/ui/composer"
 import { ComposerEditor, type ComposerHandle } from "@tock/ui/composer-editor"
 import { glyphs } from "@tock/ui/glyph"
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "@tock/ui/menu"
 import * as Atom from "effect/reactivity/Atom"
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { socket } from "../api/socket"
 import type { FileMeta, SkillRecord, ThinkingLevel } from "../api/types"
 import { fileSize, titleCase } from "../lib/format"
+import { chord } from "../lib/platform"
 import { useRemote } from "../lib/remote"
 import { modelSpec, useModels, useProviders, useSettings } from "../state/data"
 import { registry } from "../state/registry"
 import { AttachmentLightbox, type MediaEntry } from "./attachment-lightbox"
 import { useAttachments } from "./attachments"
 import { findModel, levelFor, ModelPicker, type ModelChoice } from "./model-picker"
+
+const ATTACH_KEYS = chord("/")
+const EDITABLE = "input, textarea, select, [contenteditable=true]"
+const OVERLAY = "[role=dialog], [role=menu], [role=listbox]"
 
 const choiceAtom = Atom.make<ModelChoice>({ model: null, thinkingLevel: null }).pipe(Atom.keepAlive)
 const loadSkills = () => socket.request<readonly SkillRecord[]>("skill.list")
@@ -138,9 +144,25 @@ export function Composer({
   }
 
   const attach = attachments.add
+  const surface = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "/" || !(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
+      const focused = document.activeElement
+      const inside = surface.current?.contains(focused) === true
+      if (!inside && (focused?.matches(EDITABLE) === true || document.querySelector(OVERLAY) !== null)) return
+      event.preventDefault()
+      picker.current?.click()
+    }
+    addEventListener("keydown", onKey)
+    return () => removeEventListener("keydown", onKey)
+  }, [])
 
   return (
     <ComposerSurface
+      ref={surface}
+      translucent={sessionId === undefined}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault()
@@ -189,21 +211,26 @@ export function Composer({
       <ComposerToolbar
         leading={
           <>
-            <span className="flex items-center gap-0.5">
-              <Button variant="ghost" size="icon-sm" aria-label="Add to message" onClick={() => picker.current?.click()}>
+            <Menu>
+              <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Add to message" className="relative" />}>
                 {glyphs.add}
-              </Button>
-              <input
-                ref={picker}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(event) => {
-                  attach(Array.from(event.currentTarget.files ?? []))
-                  event.currentTarget.value = ""
-                }}
-              />
-            </span>
+              </MenuTrigger>
+              <MenuContent side="top" align="start" className="w-max min-w-56 max-w-sm">
+                <MenuItem icon={glyphs.attach} keys={ATTACH_KEYS} onSelect={() => picker.current?.click()}>
+                  Upload attachment
+                </MenuItem>
+              </MenuContent>
+            </Menu>
+            <input
+              ref={picker}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                attach(Array.from(event.currentTarget.files ?? []))
+                event.currentTarget.value = ""
+              }}
+            />
             <span className="ml-1 flex min-w-0 items-center gap-0.5">
               <ModelPicker value={effective} onChange={(next) => registry.set(choiceAtom, next)} />
             </span>

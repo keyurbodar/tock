@@ -1,9 +1,15 @@
 import { Link } from "@tanstack/react-router"
-import { BrandIcon, familyOf } from "@tock/ui/brand-icon"
+import { BrandIcon, familyOf, modelMarkOf } from "@tock/ui/brand-icon"
 import { Button } from "@tock/ui/button"
 import { Drawer, DrawerTrigger, useTouchLayout } from "@tock/ui/drawer"
-import { ChevronDown } from "@tock/ui/glyph"
-import { ModelPickerDrawer, ModelPickerPanel, type ModelPickerPanelProps, type PickerGroup, type PickerModel } from "@tock/ui/model-picker"
+import {
+  ModelPickerDrawer,
+  ModelPickerPanel,
+  type ModelPickerPanelProps,
+  ModelTriggerLabel,
+  type PickerGroup,
+  type PickerModel,
+} from "@tock/ui/model-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@tock/ui/popover"
 import { useMemo, useState } from "react"
 import type { ModelInfo, ThinkingLevel } from "../api/types"
@@ -82,18 +88,17 @@ export function ModelPicker({
     setOpen(next)
     setDrafts({})
   }
-  const button = <Button variant="ghost" aria-label="Model" className="min-w-0" />
+  const button = <Button variant="ghost" aria-label="Model" />
   const label = (
-    <>
-      {selected ? (
-        <span className="relative -ml-0.5 flex shrink-0">
-          <BrandIcon provider={familyOf(selected.name) ?? selected.provider} name={selected.provider} className="mx-0! size-(--icon-sm)" />
-        </span>
-      ) : null}
-      <span className="min-w-0 truncate">{selected?.name ?? emptyLabel}</span>
-      {showLevel && shownLevel ? <span className="text-muted-foreground-2">{titleCase(shownLevel)}</span> : null}
-      <ChevronDown className="size-(--icon-sm) shrink-0 text-muted-foreground-3" />
-    </>
+    <ModelTriggerLabel
+      brand={
+        selected ? (
+          <BrandIcon provider={modelMarkOf(selected.name) ?? selected.provider} name={selected.provider} className="mx-0! size-(--icon-sm)" />
+        ) : undefined
+      }
+      name={selected?.name ?? emptyLabel}
+      level={showLevel && shownLevel ? titleCase(shownLevel) : undefined}
+    />
   )
   const panel: ModelPickerPanelProps<ThinkingLevel> = {
     groups,
@@ -120,18 +125,22 @@ export function ModelPicker({
 
   if (touch)
     return (
-      <Drawer open={open} onOpenChange={toggle}>
-        <DrawerTrigger render={button}>{label}</DrawerTrigger>
-        <ModelPickerDrawer {...panel} open={open} />
-      </Drawer>
+      <span className="contents">
+        <Drawer open={open} onOpenChange={toggle}>
+          <DrawerTrigger render={button}>{label}</DrawerTrigger>
+          <ModelPickerDrawer {...panel} open={open} />
+        </Drawer>
+      </span>
     )
 
   return (
-    <Popover open={open} onOpenChange={toggle}>
-      <PopoverTrigger render={button}>{label}</PopoverTrigger>
-      <PopoverContent side={side} align="start">
-        <ModelPickerPanel {...panel} />
-      </PopoverContent>
-    </Popover>
+    <span className="contents">
+      <Popover open={open} onOpenChange={toggle}>
+        <PopoverTrigger render={button}>{label}</PopoverTrigger>
+        <PopoverContent side={side} align="start">
+          <ModelPickerPanel {...panel} />
+        </PopoverContent>
+      </Popover>
+    </span>
   )
 }

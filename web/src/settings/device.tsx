@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { http } from "../api/http"
 import { socket } from "../api/socket"
 import { act } from "../lib/remote"
+import { MOD } from "../lib/platform"
 
 const toKey = (value: string) => {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=")
@@ -76,8 +77,6 @@ export function Notifications() {
     </Page>
   )
 }
-
-const MOD = navigator.platform.toLowerCase().includes("mac") ? "⌘" : "Ctrl"
 
 const SHORTCUTS: readonly { group: string; items: readonly { label: string; keys: readonly string[] }[] }[] = [
   { group: "General", items: [{ label: "Open command menu", keys: [MOD, "K"] }] },

@@ -5,8 +5,8 @@ import { cn } from "./cn"
 import { Button } from "./button"
 import { Dither } from "./dither"
 import { DrawerContent } from "./drawer"
-import { Check, ChevronLeftSmall, ChevronRightSmall } from "./glyph"
-import { MenuSeparator } from "./menu"
+import { Check, ChevronDown, ChevronLeftSmall, ChevronRightSmall } from "./glyph"
+import { MenuRule } from "./menu"
 import { StepSlider } from "./step-slider"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 
@@ -209,7 +209,7 @@ export function PickerCard<Step extends string>({
       <PickerCardHead group={group} model={model} onBack={onBack} />
       {model.steps.length === 0 ? null : (
         <>
-          <MenuSeparator />
+          <MenuRule />
           <div className={cn(LABEL, "px-2 justify-between")}>
             Reasoning
             <span className="flex items-baseline gap-2 text-sm font-normal">
@@ -456,7 +456,7 @@ export function ModelPickerPanel<Step extends string>({
           onKeyDown={onKey}
         />
       </div>
-      <MenuSeparator />
+      <MenuRule />
       <div className="relative -mx-1 -mb-1 flex min-h-0">
         <div className="relative flex min-w-0 flex-1 overflow-hidden rounded-b-(--radius-overlay)">
           <div
@@ -478,7 +478,7 @@ export function ModelPickerPanel<Step extends string>({
               <div className="px-2 py-4 text-center text-sm font-normal text-muted-foreground-2">{browsing ? empty : "No models found"}</div>
             ) : browsing ? (
               groups.flatMap((group, at) => [
-                at === 0 ? null : <MenuSeparator key={`${group.id}:rule`} />,
+                at === 0 ? null : <MenuRule key={`${group.id}:rule`} />,
                 <PickerSection key={group.id} group={group}>
                   {group.models.map((model) => row({ nav: navOf("lab", group.id, model.key), group, model }))}
                 </PickerSection>,
@@ -636,13 +636,13 @@ export function ModelPickerDrawer<Step extends string>({
                 onKeyDown={onKey}
               />
             </div>
-            <MenuSeparator />
+            <MenuRule />
             <div ref={list} role="listbox" aria-label="Models" className={cn("relative min-w-0 flex-1", !browsing && "pt-1")}>
               {entries.length === 0 ? (
                 <div className="px-2 py-4 text-center text-sm font-normal text-muted-foreground-2">{browsing ? empty : "No models found"}</div>
               ) : browsing ? (
                 groups.flatMap((group, at) => [
-                  at === 0 ? null : <MenuSeparator key={`${group.id}:rule`} />,
+                  at === 0 ? null : <MenuRule key={`${group.id}:rule`} />,
                   <PickerSection key={group.id} group={group}>
                     {group.models.map((model) => row({ nav: navOf("lab", group.id, model.key), group, model }))}
                   </PickerSection>,
@@ -675,5 +675,16 @@ export function ModelPickerDrawer<Step extends string>({
         )}
       </div>
     </DrawerContent>
+  )
+}
+
+export function ModelTriggerLabel({ brand, name, level }: { brand?: ReactNode; name: string; level?: string }) {
+  return (
+    <>
+      {brand === undefined ? null : <span className="flex shrink-0 -ml-0.5 text-primary-ink">{brand}</span>}
+      <span>{name}</span>
+      {level === undefined ? null : <span className="text-muted-foreground-2">{level}</span>}
+      <ChevronDown className="size-(--icon-sm) shrink-0 text-muted-foreground-3" />
+    </>
   )
 }

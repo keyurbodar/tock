@@ -426,33 +426,35 @@ export function ComposerEditor({
   const known = useRef(true)
   return (
     <LexicalComposer initialConfig={{ namespace: "tock-composer", theme: { paragraph: "" }, onError: (error) => console.error(error) }}>
-      <div className="relative">
-        <PlainTextPlugin
-          contentEditable={<ContentEditable aria-label="Message" className={cn(EDITOR, "whitespace-pre-wrap [overflow-wrap:anywhere]", className)} />}
-          ErrorBoundary={LexicalErrorBoundary}
-        />
-        {blank ? (
-          <div aria-hidden className="pointer-events-none absolute top-1 left-1 text-base font-normal text-muted-foreground-3">
-            {placeholder}
-          </div>
-        ) : null}
-        <HistoryPlugin />
-        {commands.length > 0 ? <CommandPlugin commands={commands} /> : null}
-        {autoFocus ? <AutoFocusPlugin /> : null}
-        <OnChangePlugin
-          ignoreSelectionChange
-          onChange={(state) => {
-            const { raw, empty } = state.read(() => {
-              const content = $getRoot().getTextContent()
-              return { raw: content === "", empty: content.trim().length === 0 }
-            })
-            setBlank(raw)
-            if (empty === known.current) return
-            known.current = empty
-            onEmptyChange?.(empty)
-          }}
-        />
-        <Behavior handle={ref} commands={commands} onSubmit={onSubmit} onFiles={onFiles} />
+      <div>
+        <div className="relative">
+          <PlainTextPlugin
+            contentEditable={<ContentEditable aria-label="Message" className={cn(EDITOR, "whitespace-pre-wrap [overflow-wrap:anywhere]", className)} />}
+            ErrorBoundary={LexicalErrorBoundary}
+          />
+          {blank ? (
+            <div aria-hidden className="pointer-events-none absolute top-1 left-1 text-base font-normal text-muted-foreground-3">
+              {placeholder}
+            </div>
+          ) : null}
+          <HistoryPlugin />
+          {commands.length > 0 ? <CommandPlugin commands={commands} /> : null}
+          {autoFocus ? <AutoFocusPlugin /> : null}
+          <OnChangePlugin
+            ignoreSelectionChange
+            onChange={(state) => {
+              const { raw, empty } = state.read(() => {
+                const content = $getRoot().getTextContent()
+                return { raw: content === "", empty: content.trim().length === 0 }
+              })
+              setBlank(raw)
+              if (empty === known.current) return
+              known.current = empty
+              onEmptyChange?.(empty)
+            }}
+          />
+          <Behavior handle={ref} commands={commands} onSubmit={onSubmit} onFiles={onFiles} />
+        </div>
       </div>
     </LexicalComposer>
   )

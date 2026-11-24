@@ -1,13 +1,22 @@
-import type { ComponentProps, ReactNode } from "react"
+import type { ComponentProps, CSSProperties, ReactNode } from "react"
 import { cn } from "./cn"
 
-export function ComposerSurface({ children, className, ...props }: ComponentProps<"div">) {
+const TRANSLUCENT = {
+  "--composer-surface": "color-mix(in srgb, var(--card) calc(var(--composer-opacity, 1) * 100%), transparent)",
+} as CSSProperties
+
+export function ComposerSurface({
+  children,
+  className,
+  translucent = false,
+  ...props
+}: ComponentProps<"div"> & { translucent?: boolean }) {
   return (
-    <div className="relative rounded-(--radius-card)">
+    <div className="relative rounded-(--radius-card)" style={translucent ? TRANSLUCENT : undefined}>
       <div
         data-slot="composer"
         className={cn(
-          "@container/composer relative rounded-(--radius-card) bg-[color:color-mix(in_srgb,var(--composer-surface,var(--card))_calc(var(--composer-opacity,1)*100%),transparent)] p-3 shadow-composer",
+          "relative @container/composer rounded-(--radius-card) bg-[color:var(--composer-surface,var(--card))] p-3 shadow-composer",
           className,
         )}
         {...props}
