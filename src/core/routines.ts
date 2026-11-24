@@ -69,7 +69,7 @@ export class RoutineStore {
       }
     }
 
-    if (existing?.schedulerJobId) {
+    if (existing?.schedulerJobId && existing.schedulerJobId !== schedulerJobId) {
       await this.scheduler.cancel(existing.schedulerJobId);
     }
 

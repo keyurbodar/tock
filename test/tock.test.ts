@@ -233,7 +233,7 @@ describe("tock backend", () => {
     const second = await stub.triggerRoutineNow(r1.id);
     expect(second).toEqual({ ran: true, skippedUnchanged: true, wokeModel: false });
 
-    await stub.upsertRoutine({
+    const r2 = await stub.upsertRoutine({
       id: r1.id,
       name: "repo-watch",
       schedule: "600",
@@ -246,6 +246,11 @@ describe("tock backend", () => {
 
     const third = await stub.triggerRoutineNow(r1.id);
     expect(third).toEqual({ ran: true, skippedUnchanged: false, wokeModel: true });
+
+    const scheduled = await runInDurableObject(stub, async (instance) =>
+      (await instance.scheduler.list()).map((job) => job.id),
+    );
+    expect(scheduled).toContain(r2.schedulerJobId);
   });
 
   it("executes TypeScript codemode inside @earendil-works/djs WASM sandbox with memory access and fuel caps", async () => {
