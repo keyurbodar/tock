@@ -114,7 +114,16 @@ export async function send(
   }
 }
 
-export const abort = (sessionId: string) => socket.request("chat.abort", { sessionId }).catch(() => undefined)
+export async function abort(sessionId: string): Promise<void> {
+  const queued = registry.get(threadAtom(sessionId)).pending
+  try {
+    await socket.request("chat.abort", { sessionId })
+    const entries = await socket.request<readonly EntryRecord[]>("session.messages", { sessionId })
+    patch(sessionId, (state) => ({ ...state, entries, pending: state.pending.filter((item) => !queued.includes(item)) }))
+  } catch {
+    return
+  }
+}
 
 export async function createSession(): Promise<string> {
   const { id } = await socket.request<{ id: string }>("session.create")
