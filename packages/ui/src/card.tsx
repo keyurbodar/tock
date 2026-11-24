@@ -6,7 +6,7 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col divide-y-[0.5px] divide-border-1 overflow-clip rounded-(--radius-card) border-[0.5px] border-(--card-hairline) bg-card shadow-card",
+        "flex flex-col overflow-clip bg-card rounded-(--radius-card) border-[0.5px] border-(--card-hairline) shadow-card divide-y-[0.5px] divide-border-1",
         className,
       )}
       {...props}
@@ -65,7 +65,7 @@ export function Page({
       <header className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <h1 className="text-xl font-medium text-foreground">{title}</h1>
+            <h1 className="font-medium text-foreground text-xl">{title}</h1>
             {description ? <p className="text-sm font-normal text-muted-foreground-1">{description}</p> : null}
           </div>
           {action}
@@ -77,7 +77,7 @@ export function Page({
   if (embedded) return <div className="flex flex-col gap-10">{content}</div>
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto md:scroll-fade-y">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 pt-6 pb-10 md:pt-16">{content}</div>
+      <div className="mx-auto flex w-full flex-col gap-10 px-6 pt-6 pb-10 md:pt-16 max-w-3xl">{content}</div>
     </div>
   )
 }

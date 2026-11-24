@@ -35,8 +35,11 @@ interface Parsed {
   readonly content?: Parsed
 }
 
+const formProxy = (node: Parsed) =>
+  node.nodeName === "input" && (node.attrs ?? []).some(({ name, value }) => name === "aria-hidden" && value === "true")
+
 const walk = (node: Parsed, path: string, out: Node[]) => {
-  if (node.nodeName === "#comment") return
+  if (node.nodeName === "#comment" || formProxy(node)) return
   if (node.nodeName === "#text") {
     const text = node.value ?? ""
     if (text.trim()) out.push([path, "text", text.replace(/\s+/g, " ").trim()])
@@ -53,7 +56,7 @@ const walk = (node: Parsed, path: string, out: Node[]) => {
   }
   let index = 0
   for (const child of node.childNodes ?? []) {
-    if (child.nodeName === "#comment" || (child.nodeName === "#text" && !(child.value ?? "").trim())) continue
+    if (child.nodeName === "#comment" || formProxy(child) || (child.nodeName === "#text" && !(child.value ?? "").trim())) continue
     walk(child, `${path}/${index}`, out)
     index += 1
   }
