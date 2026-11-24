@@ -281,6 +281,9 @@ export class McpHub {
     ) {
       return serverId;
     }
+    if (server.authMode === "oauth") {
+      throw new Error(`mcp_${server.name}_sign_in_required`);
+    }
     const check = this.guards.recordSubrequest(1);
     if (!check.allowed) {
       throw new Error(`subrequest_budget_exceeded_${check.limit}`);

@@ -9,6 +9,7 @@ import {
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createRegistry, Harness } from "@earendil-works/pi-durable";
 import { openPiSessionStore } from "agents/harness/pi";
+import type { McpHub } from "../src/core/mcp.js";
 import { Vault } from "../src/core/vault.js";
 import { encryptWebPushPayload, fitPushPayload } from "../src/core/push.js";
 import { ensureSchema } from "../src/db/schema.js";
@@ -476,6 +477,32 @@ describe("tock production hardening", () => {
     expect(listed).toHaveLength(1);
     expect(listed[0]).not.toHaveProperty("headersJson");
     ws.close();
+  });
+
+  it("keeps a sign-in MCP server's pending approval when it is tested", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("mcp-signin@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { mcp } = instance as unknown as { mcp: McpHub };
+      const server = await instance.upsertMcpServer(
+        "signin",
+        "https://mcp.example.com/mcp",
+        {},
+        "oauth",
+      );
+      const id = server.managerServerId ?? server.id;
+      await mcp.manager.registerServer(id, {
+        url: server.url,
+        name: server.name,
+        callbackUrl: "https://tock.local/mcp/oauth/callback",
+        transport: { type: "auto" },
+      });
+      const approval = new Request(`https://tock.local/mcp/oauth/callback?code=c&state=n.${id}`);
+      expect(mcp.manager.isCallbackRequest(approval)).toBe(true);
+
+      const checked = await mcp.checkServer("signin");
+      expect(checked.lastError).toBe("mcp_signin_sign_in_required");
+      expect(mcp.manager.isCallbackRequest(approval)).toBe(true);
+    });
   });
 
   it("fits long multibyte push notifications inside one aes128gcm record", async () => {
