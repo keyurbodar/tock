@@ -365,7 +365,17 @@ export function Plugins() {
                   <Switch
                     aria-label={`Enable ${plugin.name}`}
                     checked={plugin.enabled}
-                    onCheckedChange={(enabled) => void save({ ...plugin, enabled })}
+                    onCheckedChange={(enabled) =>
+                      void save({
+                        id: plugin.id,
+                        name: plugin.name,
+                        kind: plugin.kind,
+                        description: plugin.description,
+                        schemaJson: plugin.schemaJson,
+                        tsSource: plugin.tsSource,
+                        enabled,
+                      })
+                    }
                   />
                   <RowMenu label={`${plugin.name} options`}>
                     <RemoveItem onSelect={() => void act(() => socket.request("plugin.delete", { pluginId: plugin.id }).then(reload))} />

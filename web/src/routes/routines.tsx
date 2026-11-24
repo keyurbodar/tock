@@ -35,6 +35,17 @@ const SCHEDULE_TYPES: readonly { value: ScheduleType; label: string; hint: strin
   { value: "delayed", label: "Once", hint: "Seconds from now.", placeholder: "600" },
 ]
 
+const toDraft = (routine: RoutineRecord): Draft => ({
+  id: routine.id,
+  name: routine.name,
+  schedule: routine.schedule,
+  scheduleType: routine.scheduleType,
+  prompt: routine.prompt,
+  checkScript: routine.checkScript,
+  quietIfUnchanged: routine.quietIfUnchanged,
+  enabled: routine.enabled,
+})
+
 const load = () => socket.request<readonly RoutineRecord[]>("routine.list")
 
 function Routines() {
@@ -42,17 +53,6 @@ function Routines() {
   const [draft, setDraft] = useState<Draft | null>(null)
   const kind = SCHEDULE_TYPES.find((type) => type.value === draft?.scheduleType) ?? SCHEDULE_TYPES[0]
   const save = (routine: Draft) => act(() => socket.request("routine.upsert", { routine }).then(reload))
-  const edit = (routine: RoutineRecord) =>
-    setDraft({
-      id: routine.id,
-      name: routine.name,
-      schedule: routine.schedule,
-      scheduleType: routine.scheduleType,
-      prompt: routine.prompt,
-      checkScript: routine.checkScript,
-      quietIfUnchanged: routine.quietIfUnchanged,
-      enabled: routine.enabled,
-    })
   return (
     <ListPage
       title="Routines"
@@ -78,13 +78,13 @@ function Routines() {
               title={routine.name}
               meta={routine.enabled ? routine.schedule : "Paused"}
               time={relativeTime(routine.lastRunAt)}
-              onClick={() => edit(routine)}
+              onClick={() => setDraft(toDraft(routine))}
               trailing={
                 <>
                   <Switch
                     aria-label={`Enable ${routine.name}`}
                     checked={routine.enabled}
-                    onCheckedChange={(enabled) => void save({ ...routine, enabled })}
+                    onCheckedChange={(enabled) => void save({ ...toDraft(routine), enabled })}
                   />
                   <Button
                     size="icon-sm"
