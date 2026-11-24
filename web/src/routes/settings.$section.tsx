@@ -3,6 +3,7 @@ import { Appearance } from "../settings/appearance"
 import { Notifications, Shortcuts } from "../settings/device"
 import { General } from "../settings/general"
 import { Connections, Models, Plugins, Secrets, Skills } from "../settings/lists"
+import { PageHeader } from "../shell/page-header"
 import { isSection, type SectionId } from "../settings/sections"
 
 export const Route = createFileRoute("/settings/$section")({
@@ -28,5 +29,10 @@ function Settings() {
   const { section } = Route.useParams()
   if (!isSection(section)) return null
   const View = VIEWS[section]
-  return <View />
+  return (
+    <>
+      <PageHeader />
+      <View />
+    </>
+  )
 }

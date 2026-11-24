@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { Composer } from "../chat/composer"
+import { HomeSidebarButton } from "../shell/page-header"
 import { createSession, send } from "../state/thread"
 
 export const Route = createFileRoute("/")({ component: Home })
@@ -9,6 +10,7 @@ function Home() {
   const navigate = useNavigate()
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-clip">
+      <HomeSidebarButton />
       <div className="relative flex flex-1 items-center justify-center px-6">
         <div className="flex w-full max-w-[712px] flex-col pb-[10dvh]">
           <Composer
