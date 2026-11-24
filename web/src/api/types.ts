@@ -88,6 +88,7 @@ export interface EntryRecord {
   readonly id: string
   readonly kind: string
   readonly model?: readonly Message[]
+  readonly data?: unknown
 }
 
 export interface ToolSlot {

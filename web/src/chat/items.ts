@@ -37,6 +37,13 @@ const userText = (message: Extract<Message, { role: "user" }>) =>
     ? message.content
     : message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n")
 
+const abortedResult = (data: unknown) => {
+  if (typeof data !== "object" || data === null || !("diagnostics" in data) || !Array.isArray(data.diagnostics)) return false
+  return data.diagnostics.some(
+    (diagnostic: unknown) => typeof diagnostic === "object" && diagnostic !== null && "code" in diagnostic && diagnostic.code === "aborted",
+  )
+}
+
 const userImages = (message: Extract<Message, { role: "user" }>) =>
   typeof message.content === "string" ? [] : message.content.filter((block) => block.type === "image")
 
@@ -45,8 +52,13 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
   const results = new Map<string, ToolResultMessage>()
   const slots = new Map<string, ToolSlot>((live?.tools ?? []).map((slot) => [slot.callId, slot]))
   const running = live?.run !== undefined
+  const aborted = new Set<string>()
   for (const entry of entries)
-    for (const message of entry.model ?? []) if (message.role === "toolResult") results.set(message.toolCallId, message)
+    for (const message of entry.model ?? []) {
+      if (message.role !== "toolResult") continue
+      results.set(message.toolCallId, message)
+      if (abortedResult(entry.data)) aborted.add(message.toolCallId)
+    }
 
   const work = (key: string): Work => {
     const last = items.at(-1)
@@ -74,13 +86,14 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
       const result = results.get(block.id)
       const slot = slots.get(block.id)
       const unfinished = result === undefined && (streaming || (running && slot?.status !== "done"))
+      const cancelled = result === undefined ? !unfinished && message.stopReason === "aborted" : aborted.has(block.id)
       const group = work(blockKey)
       group.steps.push({
         kind: "tool",
         key: blockKey,
         call: block,
         result,
-        status: unfinished ? "running" : result?.isError ? "failed" : result === undefined && !running ? "cancelled" : "done",
+        status: unfinished ? "running" : cancelled ? "cancelled" : result?.isError ? "failed" : "done",
       })
       group.active ||= unfinished
     })
