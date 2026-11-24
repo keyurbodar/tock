@@ -1,0 +1,52 @@
+diff --git a/dist/harness/pi/index.d.ts b/dist/harness/pi/index.d.ts
+index 321f17c95aaf8d3fc0e60d79f5831b4390d5a964..70721eeab226eddf82e3bcc7b4bddc96e67e6106 100644
+--- a/dist/harness/pi/index.d.ts
++++ b/dist/harness/pi/index.d.ts
+@@ -20,6 +20,7 @@ import {
+   Page,
+   SignalResult,
+   SignalToken,
++  Storage,
+   SubmissionNotify,
+   TaskId,
+   UserInput,
+@@ -159,7 +160,7 @@ declare const ROOT_SESSION: PiSessionId;
+  * onReport) the factory builds itself.
+  */
+ type PiHarnessContext = {
+-  /** pi's storage over this object's SQLite, its migrations already run. */ readonly storage: SqliteStorage /** Background context, for the open itself. */;
++  /** pi's storage over this object's SQLite, its migrations already run. */ readonly storage: Storage /** Background context, for the open itself. */;
+   readonly context: Context;
+   /**
+    * Pass this to `Harness.open` as its `onWake` option. pi calls it when it
+@@ -223,6 +224,7 @@ type PiSessionDefaults = {
+ /** `PiHarness`'s options. Only `harness`, which opens pi, is required. */
+ type PiHarnessOptions = {
+   /** Opens pi's `Harness` over the storage this object prepared. */ readonly harness: PiHarnessFactory /** What a new session starts with. */;
++  readonly storage?: (doStorage: DurableObjectStorage) => Promise<Storage>;
+   readonly defaults?: PiSessionDefaults;
+ };
+ /** What `harness.root()` returns. */
+@@ -337,7 +339,7 @@ declare class PiHarness extends LifecycleCapability {
+    */
+   conversation(session: PiSessionId): Promise<Conversation>;
+   /** @internal */
+-  storage(): Promise<SqliteStorage>;
++  storage(): Promise<Storage>;
+   /** @internal */
+   enqueue(
+     session: PiSessionId,
+diff --git a/dist/harness/pi/index.js b/dist/harness/pi/index.js
+index 94639f0e03251f4c418298fd22b2103874c41c75..d7365b7cfa3fa76ce3c1827256f9b392936763dc 100644
+--- a/dist/harness/pi/index.js
++++ b/dist/harness/pi/index.js
+@@ -542,7 +542,8 @@ async function _open() {
+ }
+ async function _doOpen(onClose) {
+ 	await _classPrivateFieldGet2(_lastClose, this);
+-	const storage = await openPiSessionStore(this.lifecycle.storage);
++	const openStorage = _classPrivateFieldGet2(_options, this).storage;
++	const storage = openStorage ? await openStorage(this.lifecycle.storage) : await openPiSessionStore(this.lifecycle.storage);
+ 	const pi = await _classPrivateFieldGet2(_options, this).harness({
+ 		storage,
+ 		context: BG,

@@ -12,6 +12,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { ensureSchema } from "./db/schema.js";
+import { JournalStorage } from "./db/journal.js";
 import { SettingsStore } from "./core/settings.js";
 import { Vault } from "./core/vault.js";
 import { UnifiedMemory } from "./core/memory.js";
@@ -75,6 +76,7 @@ export class TockDO extends DurableObject<Env> {
   });
 
   readonly harness = new PiHarness({
+    storage: (doStorage) => JournalStorage.open(doStorage, BACKGROUND_CONTEXT),
     harness: async ({ storage, context, onWake }) => {
       const registry = createRegistry();
       const ext = createTockExtension({

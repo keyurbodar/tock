@@ -59,7 +59,7 @@ describe("Free Plan write budget", () => {
       await new Promise((r) => setTimeout(r, 1500));
       return { warm, idle: meter.rows() };
     });
-    for (const n of results.warm) expect(n).toBeLessThanOrEqual(65);
+    for (const n of results.warm) expect(n).toBeLessThanOrEqual(10);
     expect(results.idle).toBeLessThanOrEqual(2);
   });
 
@@ -114,6 +114,6 @@ describe("Free Plan write budget", () => {
     const deltas = frames.filter((f) => f.event === "session.delta").length;
     ws.close();
     expect(deltas).toBeGreaterThan(0);
-    for (const n of counts) expect(n).toBeLessThanOrEqual(65);
+    for (const n of counts) expect(n).toBeLessThanOrEqual(10);
   });
 });
