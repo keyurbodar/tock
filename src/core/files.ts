@@ -15,7 +15,7 @@ export class FileStore {
     name: string,
     mime: string,
     bytes: Uint8Array,
-    sessionId: string | null = null
+    sessionId: string | null = null,
   ): Promise<FileMeta> {
     const id = crypto.randomUUID();
     const now = Date.now();
@@ -33,7 +33,7 @@ export class FileStore {
         size,
         r2Key,
         sessionId,
-        now
+        now,
       );
       return { id, name, mime, size, storageKind: "r2", sessionId, createdAt: now };
     }
@@ -50,7 +50,7 @@ export class FileStore {
       size,
       bytes,
       sessionId,
-      now
+      now,
     );
     return { id, name, mime, size, storageKind: "sqlite", sessionId, createdAt: now };
   }
@@ -60,7 +60,7 @@ export class FileStore {
       .exec(
         `SELECT id, name, mime, size, storage_kind, r2_key, blob_data, session_id, created_at
          FROM tock_files WHERE id = ?`,
-        id
+        id,
       )
       .toArray();
     const r = rows[0];
@@ -73,7 +73,7 @@ export class FileStore {
       size: Number(r.size),
       storageKind: r.storage_kind === "r2" ? "r2" : "sqlite",
       sessionId: r.session_id ? String(r.session_id) : null,
-      createdAt: Number(r.created_at)
+      createdAt: Number(r.created_at),
     };
 
     if (meta.storageKind === "r2" && this.bucket && r.r2_key) {
@@ -104,13 +104,13 @@ export class FileStore {
           .exec(
             `SELECT id, name, mime, size, storage_kind, session_id, created_at
              FROM tock_files WHERE session_id = ? ORDER BY created_at DESC LIMIT 50`,
-            sessionId
+            sessionId,
           )
           .toArray()
       : this.sql
           .exec(
             `SELECT id, name, mime, size, storage_kind, session_id, created_at
-             FROM tock_files ORDER BY created_at DESC LIMIT 50`
+             FROM tock_files ORDER BY created_at DESC LIMIT 50`,
           )
           .toArray();
     return rows.map((r) => ({
@@ -120,7 +120,7 @@ export class FileStore {
       size: Number(r.size),
       storageKind: r.storage_kind === "r2" ? "r2" : "sqlite",
       sessionId: r.session_id ? String(r.session_id) : null,
-      createdAt: Number(r.created_at)
+      createdAt: Number(r.created_at),
     }));
   }
 

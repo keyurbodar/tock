@@ -19,11 +19,31 @@ function fromB64(b64: string): Uint8Array {
   return out;
 }
 
+export function normalizeSecretOrigin(origin: string): string {
+  const trimmed = origin.trim();
+  if (!trimmed) return "";
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(`Invalid secret origin: "${origin}". Expected https://host`);
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error(`Secret origin must use https:// (got "${parsed.protocol}")`);
+  }
+  return parsed.origin;
+}
+
+interface CachedSecret {
+  value: string;
+  origin: string;
+}
+
 export class Vault {
   private readonly sql: SqlStorage;
   private readonly masterSecret: string;
   private keyPromise: Promise<CryptoKey> | null = null;
-  private plainCache: Map<string, string> | null = null;
+  private plainCache: Map<string, CachedSecret> | null = null;
 
   constructor(sql: SqlStorage, masterSecret: string) {
     this.sql = sql;
@@ -32,43 +52,65 @@ export class Vault {
 
   private async getKey(): Promise<CryptoKey> {
     if (!this.keyPromise) {
+      const secret = this.masterSecret.trim();
+      if (!secret) {
+        throw new Error("VAULT_MASTER_KEY is required");
+      }
       this.keyPromise = (async () => {
-        const raw = new TextEncoder().encode(this.masterSecret || "tock-dev-ephemeral-key");
+        const raw = new TextEncoder().encode(secret);
         const digest = await crypto.subtle.digest("SHA-256", raw);
-        return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+        return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, [
+          "encrypt",
+          "decrypt",
+        ]);
       })();
     }
     return this.keyPromise;
   }
 
-  async set(name: string, value: string, description = "", scopes = ""): Promise<void> {
+  async set(
+    name: string,
+    value: string,
+    description = "",
+    scopes = "",
+    origin = "",
+  ): Promise<void> {
+    const normalizedOrigin = normalizeSecretOrigin(origin);
     const key = await this.getKey();
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(value));
+    const ct = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      new TextEncoder().encode(value),
+    );
     const now = Date.now();
     this.sql.exec(
-      `INSERT INTO tock_secrets (name, description, scopes, ciphertext_b64, iv_b64, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO tock_secrets (name, description, scopes, origin, ciphertext_b64, iv_b64, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(name) DO UPDATE SET
          description = excluded.description,
          scopes = excluded.scopes,
+         origin = excluded.origin,
          ciphertext_b64 = excluded.ciphertext_b64,
          iv_b64 = excluded.iv_b64,
          updated_at = excluded.updated_at`,
       name,
       description,
       scopes,
+      normalizedOrigin,
       toB64(new Uint8Array(ct)),
       toB64(iv),
-      now
+      now,
     );
     if (this.plainCache) {
-      this.plainCache.set(name, value);
+      this.plainCache.set(name, { value, origin: normalizedOrigin });
     }
   }
 
   delete(name: string): boolean {
-    const before = this.sql.exec(`SELECT name FROM tock_secrets WHERE name = ?`, name).toArray().length;
+    const before = this.sql
+      .exec(`SELECT name FROM tock_secrets WHERE name = ?`, name)
+      .toArray().length;
     if (before === 0) return false;
     this.sql.exec(`DELETE FROM tock_secrets WHERE name = ?`, name);
     this.plainCache?.delete(name);
@@ -77,29 +119,37 @@ export class Vault {
 
   listMeta(): SecretMeta[] {
     const rows = this.sql
-      .exec(`SELECT name, description, scopes, updated_at FROM tock_secrets ORDER BY name ASC`)
+      .exec(
+        `SELECT name, description, scopes, origin, updated_at FROM tock_secrets ORDER BY name ASC`,
+      )
       .toArray();
     return rows.map((r) => ({
       name: String(r.name),
       description: String(r.description ?? ""),
       scopes: String(r.scopes ?? ""),
-      updatedAt: Number(r.updated_at)
+      origin: String(r.origin ?? ""),
+      updatedAt: Number(r.updated_at),
     }));
   }
 
-  private async ensureCache(): Promise<Map<string, string>> {
+  private async ensureCache(): Promise<Map<string, CachedSecret>> {
     if (this.plainCache) return this.plainCache;
     const key = await this.getKey();
-    const rows = this.sql.exec(`SELECT name, ciphertext_b64, iv_b64 FROM tock_secrets`).toArray();
-    const cache = new Map<string, string>();
+    const rows = this.sql
+      .exec(`SELECT name, origin, ciphertext_b64, iv_b64 FROM tock_secrets`)
+      .toArray();
+    const cache = new Map<string, CachedSecret>();
     for (const r of rows) {
       try {
         const pt = await crypto.subtle.decrypt(
           { name: "AES-GCM", iv: fromB64(String(r.iv_b64)) },
           key,
-          fromB64(String(r.ciphertext_b64))
+          fromB64(String(r.ciphertext_b64)),
         );
-        cache.set(String(r.name), new TextDecoder().decode(pt));
+        cache.set(String(r.name), {
+          value: new TextDecoder().decode(pt),
+          origin: String(r.origin ?? ""),
+        });
       } catch {
         continue;
       }
@@ -110,22 +160,45 @@ export class Vault {
 
   async resolve(name: string): Promise<string | undefined> {
     const cache = await this.ensureCache();
-    return cache.get(name);
+    return cache.get(name)?.value;
   }
 
-  async injectTemplate(input: string): Promise<string> {
+  async injectForUrl(targetUrl: string, input: string): Promise<string> {
     if (!input.includes("{{secret:")) return input;
+    let parsed: URL;
+    try {
+      parsed = new URL(targetUrl);
+    } catch {
+      throw new Error("Invalid target URL for secret injection");
+    }
+    if (parsed.protocol !== "https:") {
+      throw new Error("Secrets can only be injected into https:// requests");
+    }
     const cache = await this.ensureCache();
     return input.replace(SECRET_TEMPLATE_RE, (match, name: string) => {
-      const val = cache.get(name);
-      return val !== undefined ? val : match;
+      const entry = cache.get(name);
+      if (!entry) return match;
+      if (!entry.origin) {
+        throw new Error(
+          `Secret "${name}" is not bound to an https:// origin and cannot be sent in HTTP requests`,
+        );
+      }
+      if (entry.origin !== parsed.origin) {
+        throw new Error(
+          `Secret "${name}" is locked to ${entry.origin}, refusing to send to ${parsed.origin}`,
+        );
+      }
+      return entry.value;
     });
   }
 
-  async injectRecord(record: Record<string, string>): Promise<Record<string, string>> {
+  async injectRecordForUrl(
+    targetUrl: string,
+    record: Record<string, string>,
+  ): Promise<Record<string, string>> {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(record)) {
-      out[k] = await this.injectTemplate(v);
+      out[k] = await this.injectForUrl(targetUrl, v);
     }
     return out;
   }
@@ -134,19 +207,36 @@ export class Vault {
     if (!text) return text;
     const cache = await this.ensureCache();
     let result = text;
-    for (const [name, value] of cache.entries()) {
-      if (value.length >= 6 && result.includes(value)) {
-        result = result.split(value).join(`[REDACTED:${name}]`);
+    for (const [name, { value }] of cache.entries()) {
+      if (value.length < 6) continue;
+      const replacement = `[REDACTED:${name}]`;
+      if (result.includes(value)) {
+        result = result.split(value).join(replacement);
+      }
+      const urlEncoded = encodeURIComponent(value);
+      if (urlEncoded !== value && result.includes(urlEncoded)) {
+        result = result.split(urlEncoded).join(replacement);
+      }
+      try {
+        const b64 = btoa(value);
+        if (b64.length >= 8 && result.includes(b64)) {
+          result = result.split(b64).join(replacement);
+        }
+      } catch {
+        continue;
       }
     }
     return result;
   }
 
   renderManifest(): string {
-    const metas = this.listMeta();
+    const metas = this.listMeta().filter((m) => m.origin);
     if (metas.length === 0) return "";
     return metas
-      .map((m) => `- {{secret:${m.name}}}${m.description ? ` — ${m.description}` : ""}${m.scopes ? ` [${m.scopes}]` : ""}`)
+      .map(
+        (m) =>
+          `- {{secret:${m.name}}} (origin: ${m.origin})${m.description ? ` — ${m.description}` : ""}${m.scopes ? ` [${m.scopes}]` : ""}`,
+      )
       .join("\n");
   }
 }

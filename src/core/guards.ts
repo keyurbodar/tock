@@ -5,7 +5,7 @@ export interface GuardBudget {
 
 export const DEFAULT_GUARD_BUDGET: GuardBudget = {
   maxConsecutiveIdentical: 3,
-  maxSubrequestsPerSlice: 35
+  maxSubrequestsPerSlice: 35,
 };
 
 export class ExecutionGuards {
@@ -26,11 +26,15 @@ export class ExecutionGuards {
     return {
       allowed: this.sliceSubrequests <= this.budget.maxSubrequestsPerSlice,
       used: this.sliceSubrequests,
-      limit: this.budget.maxSubrequestsPerSlice
+      limit: this.budget.maxSubrequestsPerSlice,
     };
   }
 
-  checkLoop(sessionId: string, toolName: string, args: unknown): { blocked: boolean; count: number } {
+  checkLoop(
+    sessionId: string,
+    toolName: string,
+    args: unknown,
+  ): { blocked: boolean; count: number } {
     const sig = `${toolName}:${JSON.stringify(args ?? null)}`;
     const prev = this.lastCallBySession.get(sessionId);
     const count = prev && prev.sig === sig ? prev.count + 1 : 1;

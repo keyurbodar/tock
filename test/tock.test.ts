@@ -1,4 +1,4 @@
-import { env, SELF } from "cloudflare:test";
+import { env, runInDurableObject, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { ExecutionGuards } from "../src/core/guards.js";
 import { SubagentPool } from "../src/core/subagents.js";
@@ -17,13 +17,16 @@ describe("tock backend", () => {
   it("enforces fail-closed auth when DEV_ALLOW_ANON is off", async () => {
     const { authenticateRequest } = await import("../src/core/auth.js");
     const lockedEnv = { ...testEnv, DEV_ALLOW_ANON: "0", ACCESS_TEAM_DOMAIN: "", ACCESS_AUD: "" };
-    const result = await authenticateRequest(new Request("https://tock.local/api/status"), lockedEnv);
+    const result = await authenticateRequest(
+      new Request("https://tock.local/api/status"),
+      lockedEnv,
+    );
     expect(result).toEqual({ ok: false, reason: "access_not_configured" });
   });
 
   it("persists owner settings including configurable maxSubagents and devMode", async () => {
     const res1 = await SELF.fetch("https://tock.local/api/status", {
-      headers: { "x-tock-owner": "settings@test" }
+      headers: { "x-tock-owner": "settings@test" },
     });
     expect(res1.status).toBe(200);
     const body1 = (await res1.json()) as { settings: { maxSubagents: number; devMode: boolean } };
@@ -33,7 +36,7 @@ describe("tock backend", () => {
     const res2 = await SELF.fetch("https://tock.local/api/settings", {
       method: "PATCH",
       headers: { "x-tock-owner": "settings@test", "content-type": "application/json" },
-      body: JSON.stringify({ maxSubagents: 6, devMode: true })
+      body: JSON.stringify({ maxSubagents: 6, devMode: true }),
     });
     expect(res2.status).toBe(200);
     const updated = (await res2.json()) as { maxSubagents: number; devMode: boolean };
@@ -45,19 +48,19 @@ describe("tock backend", () => {
     const res = await SELF.fetch("https://tock.local/api/sessions/1", {
       method: "PATCH",
       headers: { "x-tock-owner": "switch@test", "content-type": "application/json" },
-      body: JSON.stringify({ model: "opencode-go/deepseek-v4.1-flash", thinkingLevel: "high" })
+      body: JSON.stringify({ model: "opencode-go/deepseek-v4.1-flash", thinkingLevel: "high" }),
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       sessionId: "1",
       model: { provider: "opencode-go", id: "deepseek-v4.1-flash" },
-      thinkingLevel: "high"
+      thinkingLevel: "high",
     });
 
     const res2 = await SELF.fetch("https://tock.local/api/sessions/1", {
       method: "PATCH",
       headers: { "x-tock-owner": "switch@test", "content-type": "application/json" },
-      body: JSON.stringify({ thinkingLevel: "off" })
+      body: JSON.stringify({ thinkingLevel: "off" }),
     });
     expect(res2.status).toBe(200);
     expect(await res2.json()).toEqual({ sessionId: "1", thinkingLevel: "off" });
@@ -65,14 +68,16 @@ describe("tock backend", () => {
 
   it("lists built-in opencode-go models dynamically with per-model reasoning capabilities", async () => {
     const res = await SELF.fetch("https://tock.local/api/models?provider=opencode-go", {
-      headers: { "x-tock-owner": "models@test" }
+      headers: { "x-tock-owner": "models@test" },
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       models: Array<{ provider: string; id: string; reasoning: boolean; thinkingLevels: string[] }>;
     };
     expect(body.models.length).toBeGreaterThan(0);
-    expect(body.models.every((m) => Array.isArray(m.thinkingLevels) && m.thinkingLevels.length >= 1)).toBe(true);
+    expect(
+      body.models.every((m) => Array.isArray(m.thinkingLevels) && m.thinkingLevels.length >= 1),
+    ).toBe(true);
   });
 
   it("encrypts secrets in AES-256-GCM vault and never leaks plaintext metadata", async () => {
@@ -83,15 +88,17 @@ describe("tock backend", () => {
         name: "github_pat",
         value: "ghp_super_secret_value_999",
         description: "GitHub token",
-        scopes: "repo"
-      })
+        scopes: "repo",
+      }),
     });
     expect(saveRes.status).toBe(200);
 
     const listRes = await SELF.fetch("https://tock.local/api/secrets", {
-      headers: { "x-tock-owner": "vault@test" }
+      headers: { "x-tock-owner": "vault@test" },
     });
-    const listBody = (await listRes.json()) as { secrets: Array<{ name: string; description: string }> };
+    const listBody = (await listRes.json()) as {
+      secrets: Array<{ name: string; description: string }>;
+    };
     expect(listBody.secrets).toHaveLength(1);
     expect(listBody.secrets[0]?.name).toBe("github_pat");
     expect(JSON.stringify(listBody)).not.toContain("ghp_super_secret_value_999");
@@ -101,7 +108,7 @@ describe("tock backend", () => {
     const upRes = await SELF.fetch("https://tock.local/api/files?name=notes.txt", {
       method: "POST",
       headers: { "x-tock-owner": "files@test", "content-type": "text/plain" },
-      body: "Hub Block launch checklist: 1. Ship tock."
+      body: "Hub Block launch checklist: 1. Ship tock.",
     });
     expect(upRes.status).toBe(201);
     const meta = (await upRes.json()) as { id: string; name: string; storageKind: string };
@@ -109,7 +116,7 @@ describe("tock backend", () => {
     expect(meta.storageKind).toBe("sqlite");
 
     const dlRes = await SELF.fetch(`https://tock.local/api/files/${meta.id}`, {
-      headers: { "x-tock-owner": "files@test" }
+      headers: { "x-tock-owner": "files@test" },
     });
     expect(dlRes.status).toBe(200);
     expect(await dlRes.text()).toBe("Hub Block launch checklist: 1. Ship tock.");
@@ -121,7 +128,7 @@ describe("tock backend", () => {
       const saved = await tock.writeFile("out.txt", f.text.toUpperCase(), "text/plain");
       return { orig: f.name, savedId: saved.id };
       `,
-      { id: meta.id }
+      { id: meta.id },
     );
     expect(cm.ok).toBe(true);
     const parsed = JSON.parse(cm.valueJson ?? "{}") as { orig: string; savedId: string };
@@ -134,8 +141,9 @@ describe("tock backend", () => {
       method: "POST",
       headers: { "x-tock-owner": "skills@test", "content-type": "application/json" },
       body: JSON.stringify({
-        bodyMd: "---\nname: linear-api\ndescription: Manage Linear issues over REST\n---\n# Linear API\nUse http_request."
-      })
+        bodyMd:
+          "---\nname: linear-api\ndescription: Manage Linear issues over REST\n---\n# Linear API\nUse http_request.",
+      }),
     });
     expect(res.status).toBe(201);
     const saved = (await res.json()) as { name: string; description: string };
@@ -143,7 +151,7 @@ describe("tock backend", () => {
     expect(saved.description).toBe("Manage Linear issues over REST");
 
     const listRes = await SELF.fetch("https://tock.local/api/skills", {
-      headers: { "x-tock-owner": "skills@test" }
+      headers: { "x-tock-owner": "skills@test" },
     });
     const listBody = (await listRes.json()) as { skills: Array<{ name: string }> };
     expect(listBody.skills.map((s) => s.name)).toContain("linear-api");
@@ -159,13 +167,23 @@ describe("tock backend", () => {
       description: "Only wake agent on pushes to main",
       schemaJson: "{}",
       tsSource: `return { pass: payload.ref === "refs/heads/main", summary: "Push to main by " + payload.pusher };`,
-      enabled: true
+      enabled: true,
     });
 
-    const skipRes = await stub.handleWebhook("gh", "hook-secret-123", { ref: "refs/heads/dev", pusher: "bot" }, "only-main-push");
+    const skipRes = await stub.handleWebhook(
+      "gh",
+      "hook-secret-123",
+      { ref: "refs/heads/dev", pusher: "bot" },
+      "only-main-push",
+    );
     expect(skipRes).toEqual({ accepted: true, filtered: true });
 
-    const passRes = await stub.handleWebhook("gh", "hook-secret-123", { ref: "refs/heads/main", pusher: "keyur" }, "only-main-push");
+    const passRes = await stub.handleWebhook(
+      "gh",
+      "hook-secret-123",
+      { ref: "refs/heads/main", pusher: "keyur" },
+      "only-main-push",
+    );
     expect(passRes).toEqual({ accepted: true, filtered: false });
   });
 
@@ -174,10 +192,15 @@ describe("tock backend", () => {
     const write1 = await stub.writeMemory({
       coreContent: "User manages Hub Block content tasks every Tuesday.",
       addItems: [
-        { kind: "fact", content: "Hub Block newsletter ships on Tuesdays with 3 founder spotlights" },
-        { kind: "preference", content: "Prefer Bun and tsgo over npm and tsc" }
+        {
+          kind: "fact",
+          content: "Hub Block newsletter ships on Tuesdays with 3 founder spotlights",
+        },
+        { kind: "preference", content: "Prefer Bun and tsgo over npm and tsc" },
       ],
-      upsertOpenItems: [{ title: "Review Hub Block Q4 calendar", context: "Waiting on draft links" }]
+      upsertOpenItems: [
+        { title: "Review Hub Block Q4 calendar", context: "Waiting on draft links" },
+      ],
     });
     expect(write1.addedIds).toHaveLength(2);
     expect(write1.openIds).toHaveLength(1);
@@ -201,7 +224,7 @@ describe("tock backend", () => {
       prompt: "Notify user about new commits",
       checkScript: `return { sha: "empty" };`,
       quietIfUnchanged: true,
-      enabled: true
+      enabled: true,
     });
 
     const first = await stub.triggerRoutineNow(r1.id);
@@ -218,7 +241,7 @@ describe("tock backend", () => {
       prompt: "Notify user about new commits",
       checkScript: `return { sha: "9423388" };`,
       quietIfUnchanged: true,
-      enabled: true
+      enabled: true,
     });
 
     const third = await stub.triggerRoutineNow(r1.id);
@@ -228,7 +251,7 @@ describe("tock backend", () => {
   it("executes TypeScript codemode inside @earendil-works/djs WASM sandbox with memory access and fuel caps", async () => {
     const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("djs@test"));
     await stub.writeMemory({
-      addItems: [{ kind: "fact", content: "Project tock runs on Cloudflare Workers Free Plan" }]
+      addItems: [{ kind: "fact", content: "Project tock runs on Cloudflare Workers Free Plan" }],
     });
 
     const okRun = await stub.runCodemode(
@@ -237,7 +260,7 @@ describe("tock backend", () => {
       const count: number = items.length;
       console.log("found", count);
       return { count, first: items[0]?.content ?? null };
-      `
+      `,
     );
     if (!okRun.ok) throw new Error("DJS_ERR: " + okRun.error);
     expect(okRun.ok).toBe(true);
@@ -251,25 +274,34 @@ describe("tock backend", () => {
     expect(fuelRun.error?.toLowerCase()).toContain("fuel");
   });
 
-  it("enforces configurable subagent concurrency limits and loop/subrequest guards", async () => {
-    const fakeSettings = { get: () => ({ maxSubagents: 2 }) } as unknown as SettingsStore;
-    const pool = new SubagentPool(fakeSettings);
-    await pool.acquire("t1", "c1");
-    await pool.acquire("t2", "c2");
-    expect(pool.runningCount).toBe(2);
+  it("enforces durable subagent concurrency limits and loop/subrequest guards", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("subagent@test"));
+    await runInDurableObject(stub, async (_instance, state) => {
+      const fakeSettings = { get: () => ({ maxSubagents: 2 }) } as unknown as SettingsStore;
+      const pool = new SubagentPool(state.storage.sql, fakeSettings);
+      await pool.acquire("t1", "c1");
+      await pool.acquire("t2", "c2");
+      expect(pool.runningCount).toBe(2);
 
-    let t3Acquired = false;
-    const p3 = pool.acquire("t3", "c3").then(() => {
-      t3Acquired = true;
+      let t3Acquired = false;
+      const p3 = pool.acquire("t3", "c3").then(() => {
+        t3Acquired = true;
+      });
+      await Promise.resolve();
+      expect(t3Acquired).toBe(false);
+      expect(pool.queuedCount).toBe(1);
+
+      pool.release("t1");
+      await p3;
+      expect(t3Acquired).toBe(true);
+      expect(pool.runningCount).toBe(2);
+
+      const poolAfterRestart = new SubagentPool(state.storage.sql, fakeSettings);
+      expect(poolAfterRestart.runningCount).toBe(2);
+      poolAfterRestart.release("t2");
+      poolAfterRestart.release("t3");
+      expect(poolAfterRestart.runningCount).toBe(0);
     });
-    await Promise.resolve();
-    expect(t3Acquired).toBe(false);
-    expect(pool.queuedCount).toBe(1);
-
-    pool.release("t1");
-    await p3;
-    expect(t3Acquired).toBe(true);
-    expect(pool.runningCount).toBe(2);
 
     const guards = new ExecutionGuards({ maxConsecutiveIdentical: 2, maxSubrequestsPerSlice: 3 });
     expect(guards.checkLoop("s1", "mcp_call", { a: 1 }).blocked).toBe(false);

@@ -13,7 +13,8 @@ interface JwksCache {
 let jwksCache: JwksCache | null = null;
 
 function base64UrlToBytes(input: string): Uint8Array {
-  const padded = input.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (input.length % 4)) % 4);
+  const padded =
+    input.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (input.length % 4)) % 4);
   const binary = atob(padded);
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -41,7 +42,7 @@ async function getAccessKeys(teamDomain: string): Promise<Map<string, CryptoKey>
       jwk,
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false,
-      ["verify"]
+      ["verify"],
     );
     keys.set(jwk.kid, key);
   }
@@ -59,7 +60,10 @@ export interface AuthFailure {
   reason: string;
 }
 
-export async function authenticateRequest(request: Request, env: Env): Promise<AuthResult | AuthFailure> {
+export async function authenticateRequest(
+  request: Request,
+  env: Env,
+): Promise<AuthResult | AuthFailure> {
   if (env.DEV_ALLOW_ANON === "1") {
     const devOwner = request.headers.get("x-tock-owner") || "owner@local";
     return { ok: true, owner: devOwner };
@@ -85,7 +89,13 @@ export async function authenticateRequest(request: Request, env: Env): Promise<A
   const [headerB64, payloadB64, sigB64] = parts as [string, string, string];
 
   let header: { kid?: string; alg?: string };
-  let payload: { aud?: string[] | string; email?: string; sub?: string; exp?: number; iss?: string };
+  let payload: {
+    aud?: string[] | string;
+    email?: string;
+    sub?: string;
+    exp?: number;
+    iss?: string;
+  };
   try {
     header = JSON.parse(new TextDecoder().decode(base64UrlToBytes(headerB64)));
     payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64)));
