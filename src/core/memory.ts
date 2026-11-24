@@ -218,10 +218,11 @@ export class UnifiedMemory {
       `Recent Transcript (session ${sessionId}):\n${transcriptText.slice(-8000)}`
     ].join("\n\n");
 
-    const msg = await models.completeSimple(model, {
-      systemPrompt,
-      messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }]
-    });
+    const msg = await models.completeSimple(
+      model,
+      { systemPrompt, messages: [{ role: "user", content: userPrompt, timestamp: Date.now() }] },
+      { sessionId: `tock-mem-${sessionId}` }
+    );
     const raw = contentText(msg.content).trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { updated: false, addedFacts: 0, updatedOpen: 0 };

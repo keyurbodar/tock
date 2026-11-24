@@ -87,6 +87,27 @@ const SCHEMA_STATEMENTS = [
     status TEXT NOT NULL DEFAULT 'suspended',
     updated_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS tock_files (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    storage_kind TEXT NOT NULL,
+    r2_key TEXT,
+    blob_data BLOB,
+    session_id TEXT,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS tock_skills (
+    name TEXT PRIMARY KEY,
+    description TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'manual',
+    commit_sha TEXT,
+    body_md TEXT NOT NULL,
+    files_json TEXT NOT NULL DEFAULT '{}',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    updated_at INTEGER NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS tock_webhooks (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -104,7 +125,8 @@ const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_memory_items_active ON tock_memory_items(superseded_by, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_open_items_status ON tock_open_items(status, updated_at DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_continuations_wake ON tock_plugin_continuations(status, wake_at)`
+  `CREATE INDEX IF NOT EXISTS idx_continuations_wake ON tock_plugin_continuations(status, wake_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_files_created ON tock_files(created_at DESC)`
 ] as const;
 
 export function ensureSchema(sql: SqlStorage, defaultTimezone = "UTC"): void {

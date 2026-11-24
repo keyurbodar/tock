@@ -2,6 +2,7 @@ import type { TockDO } from "./do.js";
 
 export interface Env {
   TOCK_DO: DurableObjectNamespace<TockDO>;
+  FILES?: R2Bucket;
   VAULT_MASTER_KEY: string;
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
@@ -12,6 +13,8 @@ export interface Env {
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
 }
+
+export type ThinkingLevelOption = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export interface OwnerSettings {
   devMode: boolean;
@@ -69,7 +72,7 @@ export interface McpServerRecord {
   name: string;
   url: string;
   headersJson: string;
-  authMode: "headers" | "oauth";
+  authMode: "headers" | "oauth" | "sse";
   enabled: boolean;
   updatedAt: number;
 }
@@ -81,6 +84,27 @@ export interface DevPluginRecord {
   description: string;
   schemaJson: string;
   tsSource: string;
+  enabled: boolean;
+  updatedAt: number;
+}
+
+export interface FileMeta {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  storageKind: "r2" | "sqlite";
+  sessionId: string | null;
+  createdAt: number;
+}
+
+export interface SkillRecord {
+  name: string;
+  description: string;
+  source: string;
+  commitSha: string | null;
+  bodyMd: string;
+  filesJson: string;
   enabled: boolean;
   updatedAt: number;
 }
@@ -99,7 +123,8 @@ export interface WsAttachment {
 }
 
 export type ClientFrame =
-  | { id: string; type: "chat.send"; sessionId?: string; text: string; operationId?: string }
+  | { id: string; type: "chat.send"; sessionId?: string; text: string; operationId?: string; model?: string; thinkingLevel?: ThinkingLevelOption }
+  | { id: string; type: "session.configure"; sessionId?: string; model?: string; thinkingLevel?: ThinkingLevelOption }
   | { id: string; type: "chat.subscribe"; sessionId?: string }
   | { id: string; type: "chat.abort"; sessionId?: string; operationId?: string }
   | { id: string; type: "session.list" }
@@ -108,11 +133,12 @@ export type ClientFrame =
   | { id: string; type: "settings.get" }
   | { id: string; type: "settings.update"; patch: Partial<Omit<OwnerSettings, "updatedAt">> }
   | { id: string; type: "models.list"; provider?: string }
+  | { id: string; type: "models.refresh"; providers?: string[] }
   | { id: string; type: "vault.list" }
   | { id: string; type: "vault.set"; name: string; value: string; description?: string; scopes?: string }
   | { id: string; type: "vault.delete"; name: string }
   | { id: string; type: "mcp.list" }
-  | { id: string; type: "mcp.upsert"; name: string; url: string; headers?: Record<string, string>; authMode?: "headers" | "oauth" }
+  | { id: string; type: "mcp.upsert"; name: string; url: string; headers?: Record<string, string>; authMode?: "headers" | "oauth" | "sse" }
   | { id: string; type: "mcp.delete"; idOrName: string }
   | { id: string; type: "routine.list" }
   | {
@@ -124,6 +150,12 @@ export type ClientFrame =
   | { id: string; type: "plugin.list" }
   | { id: string; type: "plugin.upsert"; plugin: Omit<DevPluginRecord, "id" | "updatedAt"> & { id?: string } }
   | { id: string; type: "plugin.delete"; pluginId: string }
+  | { id: string; type: "skill.list" }
+  | { id: string; type: "skill.upsert"; name: string; description?: string; bodyMd: string; files?: Record<string, string> }
+  | { id: string; type: "skill.import"; source: string }
+  | { id: string; type: "skill.delete"; name: string }
+  | { id: string; type: "file.list"; sessionId?: string }
+  | { id: string; type: "file.delete"; fileId: string }
   | { id: string; type: "push.subscribe"; endpoint: string; p256dh: string; auth: string }
   | { id: string; type: "push.unsubscribe"; endpoint: string }
   | { id: string; type: "memory.get" }

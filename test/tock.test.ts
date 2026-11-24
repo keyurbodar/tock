@@ -41,14 +41,38 @@ describe("tock backend", () => {
     expect(updated.devMode).toBe(true);
   });
 
-  it("lists built-in opencode-go models dynamically with zero hardcoded model ids", async () => {
+  it("changes model and reasoning level mid-session without resetting the thread", async () => {
+    const res = await SELF.fetch("https://tock.local/api/sessions/1", {
+      method: "PATCH",
+      headers: { "x-tock-owner": "switch@test", "content-type": "application/json" },
+      body: JSON.stringify({ model: "opencode-go/deepseek-v4.1-flash", thinkingLevel: "high" })
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      sessionId: "1",
+      model: { provider: "opencode-go", id: "deepseek-v4.1-flash" },
+      thinkingLevel: "high"
+    });
+
+    const res2 = await SELF.fetch("https://tock.local/api/sessions/1", {
+      method: "PATCH",
+      headers: { "x-tock-owner": "switch@test", "content-type": "application/json" },
+      body: JSON.stringify({ thinkingLevel: "off" })
+    });
+    expect(res2.status).toBe(200);
+    expect(await res2.json()).toEqual({ sessionId: "1", thinkingLevel: "off" });
+  });
+
+  it("lists built-in opencode-go models dynamically with per-model reasoning capabilities", async () => {
     const res = await SELF.fetch("https://tock.local/api/models?provider=opencode-go", {
       headers: { "x-tock-owner": "models@test" }
     });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { models: Array<{ provider: string; id: string }> };
+    const body = (await res.json()) as {
+      models: Array<{ provider: string; id: string; reasoning: boolean; thinkingLevels: string[] }>;
+    };
     expect(body.models.length).toBeGreaterThan(0);
-    expect(body.models.some((m) => m.provider === "opencode-go")).toBe(true);
+    expect(body.models.every((m) => Array.isArray(m.thinkingLevels) && m.thinkingLevels.length >= 1)).toBe(true);
   });
 
   it("encrypts secrets in AES-256-GCM vault and never leaks plaintext metadata", async () => {
@@ -73,6 +97,78 @@ describe("tock backend", () => {
     expect(JSON.stringify(listBody)).not.toContain("ghp_super_secret_value_999");
   });
 
+  it("uploads, lists, and reads files with SQLite fallback when R2 is unbound and inside codemode", async () => {
+    const upRes = await SELF.fetch("https://tock.local/api/files?name=notes.txt", {
+      method: "POST",
+      headers: { "x-tock-owner": "files@test", "content-type": "text/plain" },
+      body: "Hub Block launch checklist: 1. Ship tock."
+    });
+    expect(upRes.status).toBe(201);
+    const meta = (await upRes.json()) as { id: string; name: string; storageKind: string };
+    expect(meta.name).toBe("notes.txt");
+    expect(meta.storageKind).toBe("sqlite");
+
+    const dlRes = await SELF.fetch(`https://tock.local/api/files/${meta.id}`, {
+      headers: { "x-tock-owner": "files@test" }
+    });
+    expect(dlRes.status).toBe(200);
+    expect(await dlRes.text()).toBe("Hub Block launch checklist: 1. Ship tock.");
+
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("files@test"));
+    const cm = await stub.runCodemode(
+      `
+      const f = await tock.readFile(id);
+      const saved = await tock.writeFile("out.txt", f.text.toUpperCase(), "text/plain");
+      return { orig: f.name, savedId: saved.id };
+      `,
+      { id: meta.id }
+    );
+    expect(cm.ok).toBe(true);
+    const parsed = JSON.parse(cm.valueJson ?? "{}") as { orig: string; savedId: string };
+    expect(parsed.orig).toBe("notes.txt");
+    expect(parsed.savedId.length).toBeGreaterThan(10);
+  });
+
+  it("installs and lists skills via direct SKILL.md upsert", async () => {
+    const res = await SELF.fetch("https://tock.local/api/skills", {
+      method: "POST",
+      headers: { "x-tock-owner": "skills@test", "content-type": "application/json" },
+      body: JSON.stringify({
+        bodyMd: "---\nname: linear-api\ndescription: Manage Linear issues over REST\n---\n# Linear API\nUse http_request."
+      })
+    });
+    expect(res.status).toBe(201);
+    const saved = (await res.json()) as { name: string; description: string };
+    expect(saved.name).toBe("linear-api");
+    expect(saved.description).toBe("Manage Linear issues over REST");
+
+    const listRes = await SELF.fetch("https://tock.local/api/skills", {
+      headers: { "x-tock-owner": "skills@test" }
+    });
+    const listBody = (await listRes.json()) as { skills: Array<{ name: string }> };
+    expect(listBody.skills.map((s) => s.name)).toContain("linear-api");
+  });
+
+  it("filters webhooks deterministically via dev_mode djs webhook_filter plugins", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("hooks@test"));
+    await stub.updateSettings({ devMode: true });
+    await stub.setSecret("webhook_gh", "hook-secret-123");
+    await stub.upsertPlugin({
+      name: "only-main-push",
+      kind: "webhook_filter",
+      description: "Only wake agent on pushes to main",
+      schemaJson: "{}",
+      tsSource: `return { pass: payload.ref === "refs/heads/main", summary: "Push to main by " + payload.pusher };`,
+      enabled: true
+    });
+
+    const skipRes = await stub.handleWebhook("gh", "hook-secret-123", { ref: "refs/heads/dev", pusher: "bot" }, "only-main-push");
+    expect(skipRes).toEqual({ accepted: true, filtered: true });
+
+    const passRes = await stub.handleWebhook("gh", "hook-secret-123", { ref: "refs/heads/main", pusher: "keyur" }, "only-main-push");
+    expect(passRes).toEqual({ accepted: true, filtered: false });
+  });
+
   it("provides unified cross-thread FTS5 memory and open items via batched writes", async () => {
     const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("memory@test"));
     const write1 = await stub.writeMemory({
@@ -81,9 +177,7 @@ describe("tock backend", () => {
         { kind: "fact", content: "Hub Block newsletter ships on Tuesdays with 3 founder spotlights" },
         { kind: "preference", content: "Prefer Bun and tsgo over npm and tsc" }
       ],
-      upsertOpenItems: [
-        { title: "Review Hub Block Q4 calendar", context: "Waiting on draft links" }
-      ]
+      upsertOpenItems: [{ title: "Review Hub Block Q4 calendar", context: "Waiting on draft links" }]
     });
     expect(write1.addedIds).toHaveLength(2);
     expect(write1.openIds).toHaveLength(1);
