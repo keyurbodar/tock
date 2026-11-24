@@ -77,31 +77,35 @@ function Work({ item }: { item: Extract<Item, { kind: "work" }> }) {
   )
 }
 
+function UserRow({ item }: { item: Extract<Item, { kind: "user" }> }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <UserMessage
+      time={item.at === null ? undefined : messageTime(item.at)}
+      actions={item.text === "" ? undefined : <CopyMessageButton text={item.text} />}
+      clamp={{ text: item.text, expanded, onToggle: () => setExpanded((value) => !value) }}
+      attachments={
+        item.images.length > 0 ? (
+          <div className="flex max-w-full flex-wrap justify-end gap-1.5">
+            {item.images.map((image, index) => (
+              <img
+                key={index}
+                alt=""
+                src={`data:${image.mimeType};base64,${image.data}`}
+                className="max-h-40 rounded-(--radius-card) border-[0.5px] border-border-1 object-cover"
+              />
+            ))}
+          </div>
+        ) : undefined
+      }
+    >
+      <Markdown>{item.text}</Markdown>
+    </UserMessage>
+  )
+}
+
 function Row({ item }: { item: Item }) {
-  if (item.kind === "user") {
-    return (
-      <UserMessage
-        time={item.at === null ? undefined : messageTime(item.at)}
-        actions={item.text === "" ? undefined : <CopyMessageButton text={item.text} />}
-        attachments={
-          item.images.length > 0 ? (
-            <div className="flex max-w-full flex-wrap justify-end gap-1.5">
-              {item.images.map((image, index) => (
-                <img
-                  key={index}
-                  alt=""
-                  src={`data:${image.mimeType};base64,${image.data}`}
-                  className="max-h-40 rounded-(--radius-card) border-[0.5px] border-border-1 object-cover"
-                />
-              ))}
-            </div>
-          ) : undefined
-        }
-      >
-        <Markdown>{item.text}</Markdown>
-      </UserMessage>
-    )
-  }
+  if (item.kind === "user") return <UserRow item={item} />
   if (item.kind === "work") return <Work item={item} />
   if (item.kind === "text") {
     return (

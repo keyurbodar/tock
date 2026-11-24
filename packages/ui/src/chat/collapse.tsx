@@ -14,7 +14,7 @@ const viewport = (node: HTMLElement) => {
   return null
 }
 
-const visibleHeight = (node: HTMLElement) => {
+export const visibleHeight = (node: HTMLElement) => {
   const scroller = viewport(node)
   if (scroller === null) return undefined
   const own = node.getBoundingClientRect()

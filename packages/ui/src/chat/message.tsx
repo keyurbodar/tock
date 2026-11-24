@@ -3,6 +3,7 @@ import { Button } from "../button"
 import { cn } from "../cn"
 import { Check, glyphs } from "../glyph"
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip"
+import { Clamp } from "./clamp"
 
 const FOOTER =
   "pointer-events-auto sticky top-0 flex h-7 items-center gap-0.5 rounded-(--radius) border-[0.5px] border-border-2 bg-card px-0.5 opacity-0 shadow-sm transition-opacity group-hover/rail:opacity-100 has-focus-visible:opacity-100 has-[[data-popup-open]]:opacity-100 md:top-(--scroll-fade-ramp,32px)"
@@ -60,13 +61,47 @@ export function MessageFooter({ time, touch = false, children }: { time?: ReactN
   )
 }
 
-export function UserMessage({ children, attachments, time, actions }: { children: ReactNode; attachments?: ReactNode; time?: ReactNode; actions?: ReactNode }) {
+const BUBBLE = "max-w-full min-w-0 rounded-(--radius-card) bg-secondary px-3 py-2 wrap-anywhere"
+const CLAMP_HEIGHT = 288
+const CLAMP_CHARS = 420
+const CLAMP_LINES = 9
+
+export interface MessageClamp {
+  readonly text: string
+  readonly expanded: boolean
+  readonly onToggle: () => void
+}
+
+export function MessageBubble({ clamp, children }: { clamp?: MessageClamp; children: ReactNode }) {
+  if (clamp === undefined || (clamp.text.length <= CLAMP_CHARS && clamp.text.split("\n").length <= CLAMP_LINES)) {
+    return <div className={BUBBLE}>{children}</div>
+  }
+  return (
+    <Clamp maxHeight={CLAMP_HEIGHT} expanded={clamp.expanded} onToggle={clamp.onToggle} className={BUBBLE}>
+      {children}
+    </Clamp>
+  )
+}
+
+export function UserMessage({
+  children,
+  attachments,
+  time,
+  actions,
+  clamp,
+}: {
+  children: ReactNode
+  attachments?: ReactNode
+  time?: ReactNode
+  actions?: ReactNode
+  clamp?: MessageClamp
+}) {
   return (
     <div data-slot="user-message" className="group/message flex min-w-0 flex-col gap-1.5 py-2 items-end">
       <div className="relative flex max-w-[77%] min-w-0 flex-col gap-1.5 group/rail items-end">
         {attachments}
         <div className="relative flex max-w-full min-w-0 flex-col gap-1.5 items-end">
-          <div className="max-w-full min-w-0 rounded-(--radius-card) bg-secondary px-3 py-2 wrap-anywhere">{children}</div>
+          <MessageBubble clamp={clamp}>{children}</MessageBubble>
           {time === undefined && actions === undefined ? null : (
             <div className={RAIL}>
               <MessageFooter time={time} touch>
