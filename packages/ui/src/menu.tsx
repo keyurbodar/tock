@@ -136,7 +136,13 @@ export function MenuSearch({ label, value, onValueChange }: { label: string; val
         value={value}
         onChange={(event) => onValueChange(event.currentTarget.value)}
         onKeyDown={(event) => {
-          if (event.key !== "Escape" && event.key !== "ArrowDown" && event.key !== "ArrowUp" && (event.key !== "ArrowLeft" || value !== ""))
+          if (
+            event.key !== "Escape" &&
+            event.key !== "Tab" &&
+            event.key !== "ArrowDown" &&
+            event.key !== "ArrowUp" &&
+            (event.key !== "ArrowLeft" || value !== "")
+          )
             event.stopPropagation()
         }}
         className="h-(--h-menu-row) w-full min-w-0 bg-transparent px-2 text-sm font-normal text-foreground outline-none placeholder:text-muted-foreground-3"
