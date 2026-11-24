@@ -10,19 +10,23 @@ import {
   RefreshIcon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons"
+import { BrandIcon, modelMarkOf } from "@tock/ui/brand-icon"
 import { Button } from "@tock/ui/button"
 import { ListCard, ListRow, Page, RowActions, Section } from "@tock/ui/card"
+import { glyphs } from "@tock/ui/glyph"
 import { Icon } from "@tock/ui/icon"
 import { Field, Input, Textarea } from "@tock/ui/input"
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@tock/ui/menu"
+import { MenuSelect } from "@tock/ui/menu-select"
 import { Switch } from "@tock/ui/switch"
+import { Table, TableCell, TableHead, TableHeader, TableRow } from "@tock/ui/table"
 import { useMemo, useState, type ReactNode } from "react"
 import { http, post } from "../api/http"
 import { socket } from "../api/socket"
 import type { DevPluginRecord, McpAuthMode, McpServerRecord, SecretMeta, SkillRecord } from "../api/types"
 import { act, useRemote } from "../lib/remote"
 import { FormDialog, Segmented } from "../shell/form-dialog"
-import { refreshModels, useProviders } from "../state/data"
+import { modelSpec, refreshModels, useModels, useProviders } from "../state/data"
 
 const count = (total: number, noun: string) => `${total} ${noun}${total === 1 ? "" : "s"}`
 
@@ -58,36 +62,74 @@ function RemoveItem({ onSelect }: { onSelect: () => void }) {
   )
 }
 
+const MODEL_COLUMNS =
+  "minmax(160px,3fr) minmax(72px,auto) minmax(72px,auto) minmax(72px,auto) minmax(96px,auto) minmax(128px,auto)"
+
+const tokens = (count: number) => (count >= 1e6 ? `${Number((count / 1e6).toFixed(1))}M` : `${Number((count / 1e3).toFixed(1))}K`)
+const dollars = (value: number) => `$${Number(value.toFixed(4))}`
+const reasoningRange = (levels: readonly string[]) => (levels.length > 1 ? `${levels[0]}-${levels[levels.length - 1]}` : "—")
+
 export function Models() {
   const providers = useProviders()
-  const [query, setQuery] = useState("")
-  const [target, setTarget] = useState<{ id: string; name: string } | null>(null)
+  const models = useModels()
+  const [target, setTarget] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
   const [key, setKey] = useState("")
   const connected = providers.filter((provider) => provider.configured)
   const available = useMemo(
-    () => providers.filter((provider) => !provider.configured && provider.name.toLowerCase().includes(query.trim().toLowerCase())),
-    [providers, query],
+    () => providers.filter((provider) => !provider.configured).map((provider) => ({ value: provider.id, label: provider.name })),
+    [providers],
   )
+  const nameOf = (id: string) => providers.find((provider) => provider.id === id)?.name ?? id
+  const replacing = target !== null && connected.some((provider) => provider.id === target)
   return (
-    <Page title="Models" description="Connect the providers your agent can think with.">
-      <Section>
+    <Page title="Models">
+      <Section id="my-connections" title="Your connections" description="Your agent can use the models these serve">
         <ListCard
           title={count(connected.length, "connection")}
           actions={
-            <Button variant="ghost"
-              size="icon-sm"
-              aria-label="Refresh model list"
-              onClick={() => void act(() => post("/api/models/refresh", {}).then(refreshModels), "Model list refreshed")}
-            >
-              <Icon icon={RefreshIcon} />
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Refresh model list"
+                title="Refresh model list"
+                onClick={() => void act(() => post("/api/models/refresh", {}).then(refreshModels), "Model list refreshed")}
+              >
+                <Icon icon={RefreshIcon} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Add connection"
+                title="Add connection"
+                onClick={() => {
+                  setTarget(null)
+                  setAdding(true)
+                }}
+              >
+                {glyphs.add}
+              </Button>
+            </>
           }
         >
           {connected.length > 0
             ? connected.map((provider) => (
-                <ListRow key={provider.id} icon={<Icon icon={Key01Icon} />} title={provider.name} description="Connected">
-                  <RowMenu label={`${provider.name} options`}>
-                    <MenuItem onSelect={() => setTarget(provider)}>Replace key</MenuItem>
+                <ListRow
+                  key={provider.id}
+                  icon={<BrandIcon provider={provider.id} name={provider.name} className="size-4" />}
+                  title={provider.name}
+                  description={`Serves ${count(models.filter((model) => model.provider === provider.id).length, "model")}`}
+                >
+                  <RowMenu label={`Actions for ${provider.name}`}>
+                    <MenuItem
+                      onSelect={() => {
+                        setTarget(provider.id)
+                        setAdding(true)
+                      }}
+                    >
+                      Replace key
+                    </MenuItem>
                     <RemoveItem
                       onSelect={() =>
                         void act(() =>
@@ -101,42 +143,69 @@ export function Models() {
             : null}
         </ListCard>
       </Section>
-      <Section title="Providers" description="Add a key to make a provider's models available.">
-        <Input
-          aria-label="Search providers"
-          placeholder="Search providers"
-          value={query}
-          onChange={(event) => setQuery(event.currentTarget.value)}
-          className="mx-4 w-64"
-        />
-        <ListCard title={count(available.length, "provider")}>
-          {available.length > 0
-            ? available.map((provider) => (
-                <ListRow key={provider.id} icon={<Icon icon={Key01Icon} />} title={provider.name}>
-                  <Button variant="outline" onClick={() => setTarget(provider)}>
-                    Add key
-                  </Button>
-                </ListRow>
-              ))
-            : null}
-        </ListCard>
-      </Section>
+      {models.length > 0 ? (
+        <Section title="Models" description="Every model your connections serve">
+          <div className="flex flex-col">
+            <Table card density="pick" columns={MODEL_COLUMNS}>
+              <TableHeader>
+                <TableHead>Model</TableHead>
+                <TableHead numeric>Context</TableHead>
+                <TableHead numeric>Input $</TableHead>
+                <TableHead numeric>Output $</TableHead>
+                <TableHead>Reasoning</TableHead>
+                <TableHead>Served by</TableHead>
+              </TableHeader>
+              {models.map((model) => (
+                <TableRow key={modelSpec(model)}>
+                  <TableCell>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <BrandIcon provider={modelMarkOf(model.name) ?? model.provider} name={model.provider} className="size-4 shrink-0" />
+                      <span className="truncate">{model.name}</span>
+                    </span>
+                  </TableCell>
+                  <TableCell numeric>{tokens(model.contextWindow)}</TableCell>
+                  <TableCell numeric>{dollars(model.cost.input)}</TableCell>
+                  <TableCell numeric>{dollars(model.cost.output)}</TableCell>
+                  <TableCell className="text-muted-foreground">{reasoningRange(model.thinkingLevels)}</TableCell>
+                  <TableCell>
+                    <span className="flex max-w-full min-w-0 items-center gap-1.5">
+                      <span className="max-w-full shrink-0 truncate">{nameOf(model.provider)}</span>
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </Table>
+          </div>
+        </Section>
+      ) : null}
       <FormDialog
-        open={target !== null}
+        open={adding}
         onOpenChange={(open) => {
-          if (!open) setTarget(null)
+          setAdding(open)
           setKey("")
         }}
-        title={target ? `${target.name} key` : ""}
+        title={replacing && target ? `${nameOf(target)} key` : "Add connection"}
         description="Stored encrypted on your Worker and never shown again."
         onSubmit={() =>
-          act(() =>
-            post(`/api/providers/${encodeURIComponent(target?.id ?? "")}/credential`, { apiKey: key.trim() }).then(refreshModels),
-          )
+          target === null
+            ? Promise.resolve(false)
+            : act(() => post(`/api/providers/${encodeURIComponent(target)}/credential`, { apiKey: key.trim() }).then(refreshModels))
         }
       >
+        {replacing ? null : (
+          <Field label="Provider">
+            <MenuSelect
+              value={target}
+              options={available}
+              onChange={setTarget}
+              placeholder="Choose a provider"
+              searchLabel="Search providers"
+              className="w-56"
+            />
+          </Field>
+        )}
         <Field label="API key">
-          <Input autoFocus required type="password" autoComplete="off" value={key} onChange={(event) => setKey(event.currentTarget.value)} />
+          <Input autoFocus={replacing} required type="password" autoComplete="off" value={key} onChange={(event) => setKey(event.currentTarget.value)} />
         </Field>
       </FormDialog>
     </Page>

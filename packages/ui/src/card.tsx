@@ -93,18 +93,20 @@ export function Page({
 }
 
 export function Section({
+  id,
   title,
   description,
   action,
   children,
 }: {
+  id?: string
   title?: string
   description?: ReactNode
   action?: ReactNode
   children: ReactNode
 }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section id={id} className="flex flex-col gap-3">
       {title || description || action ? (
         <div className="flex flex-col gap-1">
           {title ? (
@@ -114,7 +116,7 @@ export function Section({
             </div>
           ) : null}
           {description ? (
-            <div className="flex min-h-7 items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-normal text-muted-foreground-2">{description}</p>
               {action}
             </div>
@@ -138,22 +140,25 @@ export function Empty({ title, description, children }: { title: string; descrip
   )
 }
 
+export function ListCardHeader({ title, actions, divided }: { title: ReactNode; actions?: ReactNode; divided?: boolean }) {
+  return (
+    <div
+      data-slot="card-list-header"
+      className={cn("flex min-h-[60px] items-center justify-between gap-3 py-3 pr-2 pl-4", divided ? "border-b-[0.5px] border-border-1" : "")}
+    >
+      <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</span>
+      <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
+    </div>
+  )
+}
+
 export function ListCard({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children?: ReactNode }) {
   return (
     <div
       data-slot="card"
       className="flex flex-col overflow-visible rounded-(--radius-card) border-[0.5px] border-(--card-hairline) bg-card shadow-card"
     >
-      <div
-        data-slot="card-list-header"
-        className={cn(
-          "flex min-h-[60px] items-center justify-between gap-3 py-3 pr-2 pl-4",
-          children ? "border-b-[0.5px] border-border-1" : "",
-        )}
-      >
-        <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{title}</span>
-        <div className="flex shrink-0 items-center gap-0.5">{actions}</div>
-      </div>
+      <ListCardHeader title={title} actions={actions} divided={Boolean(children)} />
       {children ? <div className="flex flex-col divide-y-[0.5px] divide-border-1">{children}</div> : null}
     </div>
   )
@@ -179,8 +184,8 @@ export function ListRow({
           </div>
         ) : null}
         <div className="flex min-w-0 flex-col gap-0.5">
-          <div className="truncate text-sm font-medium text-foreground">{title}</div>
-          {description ? <div className="truncate text-xs font-normal text-muted-foreground-2">{description}</div> : null}
+          <div className="text-sm font-medium text-foreground">{title}</div>
+          {description ? <div className="text-xs font-normal text-muted-foreground-2">{description}</div> : null}
         </div>
       </div>
       {children ? <div className="relative flex shrink-0 items-center gap-2">{children}</div> : null}

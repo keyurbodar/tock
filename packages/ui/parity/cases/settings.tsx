@@ -1,10 +1,13 @@
 import type { CSSProperties } from "react"
 import { cases } from "../case"
-import { Card, Section, SettingsRow } from "../../src/card"
+import { Button } from "../../src/button"
+import { Card, ListCardHeader, Section, SettingsRow } from "../../src/card"
+import { glyphs } from "../../src/glyph"
 import { MENU_LABEL, MenuCheck, MenuSearch, menuItemClass } from "../../src/menu"
 import { MenuSelectButton } from "../../src/menu-select"
 import { Slider } from "../../src/slider"
 import { Switch } from "../../src/switch"
+import { TableCell, TableHead } from "../../src/table"
 import { ModeButton, SplitPreview, SwatchChoice, ThemePreview } from "../../src/theme-swatch"
 
 const noop = () => {}
@@ -156,6 +159,40 @@ export default cases("settings", [
           Dither
         </MenuSelectButton>
       </SettingsRow>
+    ),
+  ],
+  [
+    "ODpLEfAwFP|[id=my-connections] [data-slot=card-list-header]|0",
+    "list card header with count and add button",
+    () => (
+      <ListCardHeader
+        divided
+        title="3 connections"
+        actions={
+          <Button variant="ghost" size="icon-sm" aria-label="Add connection" title="Add connection">
+            {glyphs.add}
+          </Button>
+        }
+      />
+    ),
+  ],
+  ["ODpLEfAwFP|div.max-w-3xl [role=columnheader]|1", "table header cell, numeric", () => <TableHead numeric>Context</TableHead>],
+  ["ODpLEfAwFP|div.max-w-3xl [role=columnheader]|5", "table header cell", () => <TableHead>Reasoning</TableHead>],
+  ["ODpLEfAwFP|div.max-w-3xl [role=cell]|1", "table cell, numeric", () => <TableCell numeric>1M</TableCell>],
+  [
+    "ODpLEfAwFP|div.max-w-3xl [role=cell]|5",
+    "table cell, reasoning range",
+    () => <TableCell className="text-muted-foreground">low-max</TableCell>,
+  ],
+  [
+    "ODpLEfAwFP|div.max-w-3xl [role=cell]|6",
+    "table cell, served by",
+    () => (
+      <TableCell>
+        <span className="flex max-w-full min-w-0 items-center gap-1.5">
+          <span className="max-w-full shrink-0 truncate">Capy credits</span>
+        </span>
+      </TableCell>
     ),
   ],
 ])
