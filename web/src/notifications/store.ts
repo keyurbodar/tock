@@ -119,8 +119,11 @@ export async function removeDevice(endpoint: string): Promise<void> {
 }
 
 export function startNotifications(open: (href: string) => void): void {
-  socket.onEvent(({ event, payload }) => {
-    if (event !== "notification.push" || !registry.get(desktopAtom) || !isRecord(payload)) return
+  let latest = 0
+  socket.onEvent(({ seq, event, payload }) => {
+    if (event !== "notification.push" || seq <= latest) return
+    latest = seq
+    if (!registry.get(desktopAtom) || !isRecord(payload)) return
     const { title, body, ts } = payload
     if (typeof title !== "string" || typeof body !== "string") return
     void showSystemNotification({ title, body, tag: `tock-${String(ts)}`, href: "/" }, open)
