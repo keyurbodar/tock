@@ -117,29 +117,6 @@ export function TimelineRow({
   )
 }
 
-export function UserBubble({ children, attachments }: { children: ReactNode; attachments?: ReactNode }) {
-  return (
-    <div data-slot="user-message" className="group/message flex min-w-0 flex-col items-end gap-1.5 py-2">
-      <div className="group/rail relative flex max-w-[77%] min-w-0 flex-col items-end gap-1.5">
-        {attachments ? <div className="flex max-w-full flex-wrap justify-end gap-1.5">{attachments}</div> : null}
-        <div className="relative flex max-w-full min-w-0 flex-col items-end gap-1.5">
-          <div className="max-w-full min-w-0 rounded-(--radius-card) bg-secondary px-3 py-2 wrap-anywhere">{children}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function AgentMessage({ children }: { children: ReactNode }) {
-  return (
-    <div data-slot="agent-message" className="flex min-w-0 flex-col gap-[1.5em] py-2 max-md:gap-[1.25em]">
-      <div data-slot="message-section" className="group/rail relative min-w-0">
-        {children}
-      </div>
-    </div>
-  )
-}
-
 export function ChatStamp({ children }: { children: ReactNode }) {
   return (
     <div

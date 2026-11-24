@@ -16,6 +16,20 @@ export function relativeTime(timestamp: number | null, now = Date.now()): string
   return dayFormat.format(timestamp)
 }
 
+const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" })
+const thisYearFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+const otherYearFormat = new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+
+export function messageTime(timestamp: number, now = Date.now()): string {
+  const date = new Date(timestamp)
+  const today = new Date(now)
+  if (date.toDateString() === today.toDateString()) return timeFormat.format(date)
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+  if (date.toDateString() === yesterday.toDateString()) return `Yesterday ${timeFormat.format(date)}`
+  if (now - timestamp < 6 * DAY) return stampFormat.format(date)
+  return (date.getFullYear() === today.getFullYear() ? thisYearFormat : otherYearFormat).format(date)
+}
+
 export const stamp = (timestamp: number) => stampFormat.format(timestamp)
 
 export const dateTime = (timestamp: number | null) => (timestamp === null ? "Never" : fullFormat.format(timestamp))

@@ -2,18 +2,11 @@ import { DotGrid } from "@tock/ui/dot-grid"
 import { Markdown } from "@tock/ui/markdown"
 import { ActivityLine, ActivityLiveStatus, ActivityStatus, WorkGroup } from "@tock/ui/chat/activity-line"
 import { Step as StepView, StepBody, StepCard, StepOutput, StepThought } from "@tock/ui/chat/step"
-import {
-  AgentMessage,
-  Alert,
-  ChatStamp,
-  ProgressEdge,
-  ROW,
-  ScrollToEnd,
-  UserBubble,
-} from "@tock/ui/timeline"
+import { AgentMessage, CopyMessageButton, MessageSection, UserMessage } from "@tock/ui/chat/message"
+import { Alert, ChatStamp, ProgressEdge, ROW, ScrollToEnd } from "@tock/ui/timeline"
 import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { ToolResultMessage } from "../api/types"
-import { stamp, titleCase } from "../lib/format"
+import { messageTime, stamp, titleCase } from "../lib/format"
 import type { ThreadState } from "../state/thread"
 import { isWorking } from "../state/thread"
 import { buildItems, type Item, type Step } from "./items"
@@ -86,29 +79,38 @@ function Work({ item }: { item: Extract<Item, { kind: "work" }> }) {
 function Row({ item }: { item: Item }) {
   if (item.kind === "user") {
     return (
-      <UserBubble
+      <UserMessage
+        time={item.at === null ? undefined : messageTime(item.at)}
+        actions={item.text === "" ? undefined : <CopyMessageButton text={item.text} />}
         attachments={
-          item.images.length > 0
-            ? item.images.map((image, index) => (
+          item.images.length > 0 ? (
+            <div className="flex max-w-full flex-wrap justify-end gap-1.5">
+              {item.images.map((image, index) => (
                 <img
                   key={index}
                   alt=""
                   src={`data:${image.mimeType};base64,${image.data}`}
                   className="max-h-40 rounded-(--radius-card) border-[0.5px] border-border-1 object-cover"
                 />
-              ))
-            : undefined
+              ))}
+            </div>
+          ) : undefined
         }
       >
         <Markdown>{item.text}</Markdown>
-      </UserBubble>
+      </UserMessage>
     )
   }
   if (item.kind === "work") return <Work item={item} />
   if (item.kind === "text") {
     return (
       <AgentMessage>
-        <Markdown streaming={item.streaming}>{item.text}</Markdown>
+        <MessageSection
+          time={item.streaming || item.at === null ? undefined : messageTime(item.at)}
+          actions={item.streaming ? undefined : <CopyMessageButton text={item.text} />}
+        >
+          <Markdown streaming={item.streaming}>{item.text}</Markdown>
+        </MessageSection>
       </AgentMessage>
     )
   }

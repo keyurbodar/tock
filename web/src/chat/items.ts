@@ -22,7 +22,7 @@ export type Step =
 export type Item =
   | { readonly kind: "user"; readonly key: string; readonly text: string; readonly images: readonly ImageBlock[]; readonly at: number | null }
   | { readonly kind: "work"; readonly key: string; readonly steps: readonly Step[]; readonly active: boolean }
-  | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean }
+  | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
   | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string }
 
 interface Work {
@@ -72,7 +72,7 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
     message.content.forEach((block, index) => {
       const blockKey = `${key}:${index}`
       if (block.type === "text") {
-        if (block.text.trim() !== "") items.push({ kind: "text", key: blockKey, text: block.text, streaming })
+        if (block.text.trim() !== "") items.push({ kind: "text", key: blockKey, text: block.text, streaming, at: message.timestamp ?? null })
         return
       }
       if (block.type === "thinking") {
