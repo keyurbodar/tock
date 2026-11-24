@@ -101,7 +101,6 @@ export class McpHub {
          url = excluded.url,
          headers_json = excluded.headers_json,
          auth_mode = excluded.auth_mode,
-         enabled = 1,
          updated_at = excluded.updated_at,
          tool_count = CASE WHEN ? THEN NULL ELSE tool_count END,
          checked_at = CASE WHEN ? THEN NULL ELSE checked_at END,

@@ -69,8 +69,8 @@ async function save(name: string, config: Config, stored: readonly string[]): Pr
       : rows.length > 0 || stored.length === 0
         ? Object.fromEntries(rows.map((header) => [header.name.trim(), header.value]))
         : undefined
-  await socket.request("mcp.upsert", { name, url, authMode: authModeOf(config), headers })
-  return socket.request<McpServerRecord>("mcp.test", { idOrName: name })
+  const saved = await socket.request<McpServerRecord>("mcp.upsert", { name, url, authMode: authModeOf(config), headers })
+  return saved.enabled ? socket.request<McpServerRecord>("mcp.test", { idOrName: name }) : saved
 }
 
 function Connected({ server, className }: { server: McpServerRecord; className?: string }) {

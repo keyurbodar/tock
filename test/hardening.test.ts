@@ -430,6 +430,8 @@ describe("tock production hardening", () => {
     ws.send(JSON.stringify({ id: "blocked", type: "mcp.test", idOrName: "local" }));
     await reply("blocked");
     expect(JSON.stringify(replies.get("blocked"))).toContain("mcp_server_disabled");
+    ws.send(JSON.stringify({ ...server, id: "edit", url: "http://localhost:9/edited" }));
+    expect(await reply("edit")).toMatchObject({ url: "http://localhost:9/edited", enabled: false });
     ws.send(JSON.stringify({ id: "list", type: "mcp.list" }));
     await reply("list");
     const listed = replies.get("list")?.data as Record<string, unknown>[];
