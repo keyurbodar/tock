@@ -345,6 +345,22 @@ export function ModelPickerPanel<Step extends string>({
     if (handled) event.preventDefault()
   }
 
+  const onCardKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.metaKey || event.ctrlKey || event.nativeEvent.isComposing) return
+    const focused = document.activeElement
+    if (!(focused instanceof HTMLElement)) return
+    const stops = [...event.currentTarget.querySelectorAll<HTMLElement>('button, [role="slider"]')]
+    const tab = event.key === "Tab"
+    const delta = event.key === "ArrowDown" || (tab && !event.shiftKey) ? 1 : event.key === "ArrowUp" || tab ? -1 : 0
+    if (delta !== 0) (stops[stops.indexOf(focused) + delta] ?? input.current)?.focus()
+    else if (event.key === "Escape") input.current?.focus()
+    else if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && focused.getAttribute("role") === "slider")
+      nudge(event.key === "ArrowRight" ? 1 : -1)
+    else return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
   const row = ({ nav, group, model }: Entry<Step>) => (
     <PickerRow
       key={nav}
@@ -477,6 +493,7 @@ export function ModelPickerPanel<Step extends string>({
         <div
           ref={card}
           data-slot="picker-lab-card"
+          onKeyDownCapture={onCardKey}
           className={cn(SURFACE, "p-1 absolute left-full ml-[11px] flex w-72 animate-crossfade-in flex-col motion-reduce:animate-none")}
         >
           <PickerCard
