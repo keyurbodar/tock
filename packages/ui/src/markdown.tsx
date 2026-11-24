@@ -8,7 +8,34 @@ import remarkRehype from "remark-rehype"
 import remend from "remend"
 import { unified } from "unified"
 
-const processor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype).use(rehypeSanitize)
+const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
+
+interface MdNode {
+  type: string
+  url?: string
+  alt?: string | null
+  value?: string
+  children?: MdNode[]
+}
+
+function linkRemoteImages(node: MdNode, linked: boolean): void {
+  if (!node.children) return
+  node.children = node.children.map((child) => {
+    if (child.type !== "image" || LOCAL_IMAGE.test(child.url ?? "")) return child
+    const label: MdNode = { type: "text", value: child.alt || "Image" }
+    return linked ? label : { type: "link", url: child.url, children: [label] }
+  })
+  for (const child of node.children) linkRemoteImages(child, linked || child.type === "link")
+}
+
+const remoteImagesAsLinks = () => (tree: MdNode) => linkRemoteImages(tree, false)
+
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remoteImagesAsLinks)
+  .use(remarkRehype)
+  .use(rehypeSanitize)
 
 const FENCE = /^\s*(```|~~~)/
 
@@ -29,8 +56,6 @@ export function splitBlocks(source: string): string[] {
   return blocks
 }
 
-const LOCAL_IMAGE = /^(\/(?!\/)|data:image\/)/
-
 function render(source: string): ReactNode {
   const tree = processor.runSync(processor.parse(source))
   return toJsxRuntime(tree, {
@@ -39,14 +64,6 @@ function render(source: string): ReactNode {
     jsxs,
     components: {
       a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
-      img: ({ src, alt }) =>
-        typeof src === "string" && LOCAL_IMAGE.test(src) ? (
-          <img src={src} alt={alt ?? ""} />
-        ) : (
-          <a href={typeof src === "string" ? src : undefined} target="_blank" rel="noreferrer">
-            {alt || "Image"}
-          </a>
-        ),
     },
   })
 }
