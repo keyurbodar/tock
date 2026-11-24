@@ -7,8 +7,16 @@ const VOLATILE = new Set(["animation-delay", "animation-name"])
 
 const rgb = (hex: string) => `rgb(${[1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)).join(", ")})`
 
+const linear = (_: string, base: string, inset: string, factor: string) => {
+  const percent = 100 * Number(factor)
+  const pixels = Number(base) - Number(inset) * Number(factor)
+  if (percent === 0) return `${pixels}px`
+  return pixels === 0 ? `${percent}%` : `calc(${percent}% ${pixels < 0 ? "-" : "+"} ${Math.abs(pixels)}px)`
+}
+
 const style = (value: string) =>
   value
+    .replace(/calc\(([\d.]+)px \+ \(100% - ([\d.]+)px\) \* ([\d.]+)\)/g, linear)
     .replace(/#[0-9a-f]{6}\b/gi, rgb)
     .replace(/(^|[\s:(,])0px\b/g, "$10")
     .split(";")

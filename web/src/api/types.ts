@@ -16,6 +16,8 @@ export interface ModelInfo {
   readonly name: string
   readonly reasoning: boolean
   readonly thinkingLevels: readonly ThinkingLevel[]
+  readonly contextWindow: number
+  readonly cost: { readonly input: number; readonly output: number }
 }
 
 export interface ProviderInfo {

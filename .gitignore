@@ -6,3 +6,4 @@ dist/
 coverage/
 web/parity/
 web/parity.html
+__pycache__/

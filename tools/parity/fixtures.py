@@ -17,6 +17,17 @@ def frame(fid):
         cache[fid] = BeautifulSoup(h[h.index('<body'):], 'html.parser')
     return cache[fid]
 
+def canvases(node):
+    for img in node.select('img[src^="https://doop.design/a/"]'):
+        if '[image-rendering:pixelated]' not in img.get('class', []): continue
+        img.name = 'canvas'
+        img.can_be_empty_element = False
+        for name in ('src', 'style', 'width', 'height'): img.attrs.pop(name, None)
+        img['aria-hidden'] = 'true'
+    for canvas in node.select('canvas'):
+        for name in ('width', 'height'): canvas.attrs.pop(name, None)
+    return node
+
 def specimen(ref):
     if '#' in ref:
         fid, idx = ref.split('#')
@@ -24,7 +35,7 @@ def specimen(ref):
         cap = sp.select_one('.sp-cap')
         return {'html': sp.select_one('.sp-box').decode_contents(), 'cap': ' | '.join(c.get_text(' ', strip=True) for c in cap.find_all('span')) if cap else '', 'box': sp.select_one('.sp-box').get('style', '')}
     fid, sel, idx = ref.split('|')
-    return {'html': str(frame(fid).select(sel)[int(idx)]), 'cap': f'{fid} {sel}', 'box': ''}
+    return {'html': str(canvases(frame(fid).select(sel)[int(idx)])), 'cap': f'{fid} {sel}', 'box': ''}
 
 refs = sorted({m for f in glob.glob(f'{ROOT}/cases/*.tsx') for m in re.findall(r'\[\s*"([\w-]+(?:#\d+|\|[^"]+\|\d+))"', open(f).read())})
 out = {ref: specimen(ref) for ref in refs}

@@ -426,6 +426,8 @@ export class TockDO extends DurableObject<Env> {
     name: string;
     reasoning: boolean;
     thinkingLevels: ModelThinkingLevel[];
+    contextWindow: number;
+    cost: { input: number; output: number };
   }> {
     const providers = provider ? [provider] : this.models.getProviders().map((p) => p.id);
     const out: Array<{
@@ -434,6 +436,8 @@ export class TockDO extends DurableObject<Env> {
       name: string;
       reasoning: boolean;
       thinkingLevels: ModelThinkingLevel[];
+      contextWindow: number;
+      cost: { input: number; output: number };
     }> = [];
     for (const pid of providers) {
       for (const m of this.models.getModels(pid)) {
@@ -443,6 +447,8 @@ export class TockDO extends DurableObject<Env> {
           name: m.name,
           reasoning: m.reasoning,
           thinkingLevels: getSupportedThinkingLevels(m),
+          contextWindow: m.contextWindow,
+          cost: { input: m.cost.input, output: m.cost.output },
         });
       }
     }
