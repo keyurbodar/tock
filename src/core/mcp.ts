@@ -303,8 +303,15 @@ export class McpHub {
     if (conn.state === "authenticating") {
       throw new Error(`mcp_${server.name}_auth_required: ${conn.authUrl}`);
     }
-    await this.manager.discoverIfConnected(serverId);
+    await this.discover(serverId, server.name);
     return serverId;
+  }
+
+  private async discover(serverId: string, name: string): Promise<void> {
+    const result = await this.manager.discoverIfConnected(serverId);
+    if (result && !result.success) {
+      throw new Error(`mcp_${name}_discovery_failed: ${result.error ?? result.state}`);
+    }
   }
 
   async discoverTools(serverName: string, force = false): Promise<McpToolDef[]> {
@@ -317,7 +324,7 @@ export class McpHub {
     }
     const serverId = await this.ensureConnected(server);
     if (force) {
-      await this.manager.discoverIfConnected(serverId);
+      await this.discover(serverId, serverName);
     }
     const list = this.manager.listTools().filter((t) => t.serverId === serverId);
     const tools: McpToolDef[] = list.map((t) => ({
