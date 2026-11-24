@@ -1,17 +1,16 @@
-import { Add01Icon, ArrowUp02Icon, Cancel01Icon, File01Icon, StopIcon } from "@hugeicons/core-free-icons"
+import { Add01Icon, ArrowUp02Icon, StopIcon } from "@hugeicons/core-free-icons"
 import { useAtomValue } from "@effect/atom-react"
 import { Button } from "@tock/ui/button"
+import { AttachmentStrip, AttachmentTile } from "@tock/ui/chat/attachments"
 import { ComposerEditor, ComposerSurface, ComposerToolbar } from "@tock/ui/composer"
-import { DotGrid } from "@tock/ui/dot-grid"
 import { Icon } from "@tock/ui/icon"
 import * as Atom from "effect/reactivity/Atom"
 import { useRef, useState } from "react"
-import { toast } from "sonner"
-import { upload } from "../api/http"
 import type { FileMeta, ThinkingLevel } from "../api/types"
 import { fileSize } from "../lib/format"
 import { useSettings } from "../state/data"
 import { registry } from "../state/registry"
+import { useAttachments } from "./attachments"
 import { ModelPicker, type ModelChoice } from "./model-picker"
 
 const choiceAtom = Atom.make<ModelChoice>({ model: null, thinkingLevel: null }).pipe(Atom.keepAlive)
@@ -41,11 +40,12 @@ export function Composer({
   const settings = useSettings()
   const choice = useAtomValue(choiceAtom)
   const [text, setText] = useState("")
-  const [files, setFiles] = useState<readonly FileMeta[]>([])
-  const [uploading, setUploading] = useState(0)
+  const attachments = useAttachments(sessionId)
   const picker = useRef<HTMLInputElement>(null)
   const effective: ModelChoice = { model: choice.model ?? settings?.model ?? null, thinkingLevel: choice.thinkingLevel }
-  const ready = text.trim() !== "" && uploading === 0
+  const files = attachments.entries.flatMap((entry) => (entry.meta === undefined ? [] : [entry.meta]))
+  const uploading = attachments.entries.some((entry) => entry.status.phase === "uploading")
+  const ready = (text.trim() !== "" || files.length > 0) && !uploading
 
   const submit = () => {
     if (!ready) return
@@ -55,29 +55,17 @@ export function Composer({
       thinkingLevel: choice.thinkingLevel ?? undefined,
     })
     setText("")
-    setFiles([])
+    attachments.clear()
   }
 
-  const attach = async (incoming: readonly File[]) => {
-    setUploading((count) => count + incoming.length)
-    for (const file of incoming) {
-      try {
-        const meta = await upload<FileMeta>(file, sessionId)
-        setFiles((current) => [...current, meta])
-      } catch {
-        toast.error(`Could not upload ${file.name}`)
-      } finally {
-        setUploading((count) => count - 1)
-      }
-    }
-  }
+  const attach = attachments.add
 
   return (
     <ComposerSurface
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault()
-        void attach(Array.from(event.dataTransfer.files))
+        attach(Array.from(event.dataTransfer.files))
       }}
     >
       <ComposerEditor
@@ -90,7 +78,7 @@ export function Composer({
           const pasted = Array.from(event.clipboardData.files)
           if (pasted.length === 0) return
           event.preventDefault()
-          void attach(pasted)
+          attach(pasted)
         }}
         onKeyDown={(event) => {
           if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return
@@ -98,58 +86,26 @@ export function Composer({
           submit()
         }}
       />
-      {files.length > 0 || uploading > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5 pt-2">
-          {files.map((file) => (
-            <div
-              key={file.id}
-              className="flex h-12 w-60 max-w-full items-center gap-2 rounded-(--radius-card) border-[0.5px] border-border-2 bg-button py-1.5 pr-1 pl-1.5 shadow-plate"
-            >
-              <a
-                href={`/api/files/${encodeURIComponent(file.id)}`}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Preview ${file.name}`}
-                className="flex min-w-0 flex-1 cursor-zoom-in items-center gap-2 rounded-(--radius) text-left outline-none focus-visible:outline-ring-inset"
-              >
-                <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-(--radius) bg-secondary text-icon-muted [&_svg]:size-(--icon-base)">
-                  {file.mime.startsWith("image/") ? (
-                    <img alt={file.name} src={`/api/files/${encodeURIComponent(file.id)}`} className="size-full object-cover" />
-                  ) : (
-                    <Icon icon={File01Icon} />
-                  )}
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="mask-fade-r overflow-hidden text-sm font-medium whitespace-nowrap [--mask-fade-ramp:8px]">
-                    {file.name}
-                  </span>
-                  <span className="truncate text-2xs text-muted-foreground-2 tabular-nums">{fileSize(file.size)}</span>
-                </span>
-              </a>
-              <Button
-                size="icon-sm"
-                aria-label={`Remove ${file.name}`}
-                onClick={() => setFiles((current) => current.filter((item) => item.id !== file.id))}
-              >
-                <Icon icon={Cancel01Icon} />
-              </Button>
-            </div>
+      {attachments.entries.length > 0 ? (
+        <AttachmentStrip>
+          {attachments.entries.map((entry) => (
+            <AttachmentTile
+              key={entry.localId}
+              name={entry.name}
+              mediaType={entry.mediaType}
+              size={fileSize(entry.sizeBytes)}
+              status={entry.status}
+              previewUrl={entry.previewUrl}
+              onRemove={() => attachments.remove(entry.localId)}
+            />
           ))}
-          {uploading > 0 ? (
-            <div className="flex h-12 w-60 max-w-full items-center gap-2 rounded-(--radius-card) border-[0.5px] border-border-2 bg-button py-1.5 pr-1 pl-1.5 shadow-plate">
-              <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-(--radius) bg-secondary">
-                <DotGrid state="working" label="Uploading" className="size-(--icon-sm)" />
-              </span>
-              <span className="text-shimmer text-sm font-medium">Uploading</span>
-            </div>
-          ) : null}
-        </div>
+        </AttachmentStrip>
       ) : null}
       <ComposerToolbar
         leading={
           <>
             <span className="flex items-center gap-0.5">
-              <Button size="icon-sm" aria-label="Add to message" onClick={() => picker.current?.click()}>
+              <Button variant="ghost" size="icon-sm" aria-label="Add to message" onClick={() => picker.current?.click()}>
                 <Icon icon={Add01Icon} />
               </Button>
               <input
@@ -158,7 +114,7 @@ export function Composer({
                 multiple
                 className="hidden"
                 onChange={(event) => {
-                  void attach(Array.from(event.currentTarget.files ?? []))
+                  attach(Array.from(event.currentTarget.files ?? []))
                   event.currentTarget.value = ""
                 }}
               />

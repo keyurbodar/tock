@@ -20,12 +20,14 @@ export const stamp = (timestamp: number) => stampFormat.format(timestamp)
 
 export const dateTime = (timestamp: number | null) => (timestamp === null ? "Never" : fullFormat.format(timestamp))
 
-const UNITS = ["B", "KB", "MB", "GB"] as const
+const UNITS = ["KB", "MB", "GB", "TB"] as const
 
 export function fileSize(size: number): string {
-  const exponent = Math.min(UNITS.length - 1, size === 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024)))
-  const value = size / 1024 ** exponent
-  return `${exponent === 0 ? value : value.toFixed(1)} ${UNITS[exponent]}`
+  if (!Number.isFinite(size) || size < 0) return "—"
+  if (size < 1024) return `${size} B`
+  const unit = Math.min(Math.floor(Math.log(size) / Math.log(1024)) - 1, UNITS.length - 1)
+  const value = size / 1024 ** (unit + 1)
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${UNITS[unit]}`
 }
 
 export const titleCase = (value: string) =>

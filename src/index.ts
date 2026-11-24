@@ -6,6 +6,15 @@ export { TockDO } from "./do.js";
 
 const MAX_WEBHOOK_BYTES = 256 * 1024;
 
+function decodeHeader(value: string | null): string {
+  if (!value) return "";
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 async function readCapped(request: Request, maxBytes: number): Promise<Uint8Array | null> {
   if (!request.body) return new Uint8Array();
   const reader = request.body.getReader();
@@ -154,11 +163,17 @@ export default {
 
     if (url.pathname === "/api/files" && request.method === "POST") {
       const name =
-        request.headers.get("x-file-name") || url.searchParams.get("name") || "upload.bin";
+        decodeHeader(request.headers.get("x-file-name")) || url.searchParams.get("name") || "upload.bin";
       const mime = request.headers.get("content-type") || "application/octet-stream";
       const sessionId = url.searchParams.get("sessionId") ?? undefined;
       const bytes = new Uint8Array(await request.arrayBuffer());
-      return Response.json(await stub.uploadFile(name, mime, bytes, sessionId), { status: 201 });
+      try {
+        return Response.json(await stub.uploadFile(name, mime, bytes, sessionId), { status: 201 });
+      } catch (error) {
+        const limit = /file_too_large_without_r2_max_(\d+)/.exec(error instanceof Error ? error.message : "");
+        if (!limit) throw error;
+        return Response.json({ ok: false, error: "file_too_large", limit: Number(limit[1]) }, { status: 413 });
+      }
     }
 
     if (url.pathname.startsWith("/api/files/") && request.method === "GET") {
