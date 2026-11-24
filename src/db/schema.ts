@@ -174,6 +174,12 @@ const MIGRATIONS: readonly Migration[] = [
         created_at INTEGER NOT NULL
       )`,
     );
+    sql.exec(
+      `INSERT INTO tock_memory_revisions (version, source, content, created_at)
+       SELECT version, 'migration', content, updated_at
+       FROM tock_memory_core
+       WHERE id = 1 AND length(trim(content)) > 0`,
+    );
     sql.exec(`DROP TABLE IF EXISTS tock_memory_fts`);
     sql.exec(
       `CREATE VIRTUAL TABLE tock_memory_fts USING fts5 (
