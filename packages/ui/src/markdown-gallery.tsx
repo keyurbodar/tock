@@ -41,6 +41,8 @@ const MIN_RATIO = 3 / 4
 const MAX_RATIO = 3
 
 const BOX = "flex aspect-video w-(--media-box-w) max-w-full items-center justify-center rounded-(--radius-card)"
+const NESTED = 'a, button, [data-variant="inline"]'
+
 const PLACED = "w-(--placed-w) max-w-full aspect-(--placed-ar)"
 const TILE = "relative overflow-hidden rounded-(--radius-card) border-[0.5px] border-border-2 bg-secondary"
 const FILL = "[&_[data-slot=image-unavailable]]:size-full [&_[role=status]]:size-full [&_img]:size-full [&_img]:object-cover [&_img]:object-top"
@@ -101,9 +103,10 @@ export function MarkdownImage({ src, alt = "" }: { src?: string; alt?: string })
   const gallery = useContext(GalleryImages)
   const size = useImageSize(src)
   const [failed, setFailed] = useState<string>()
+  const [standalone, setStandalone] = useState(true)
   if (src === undefined || failed === src) return <ImageUnavailable label={alt === "" ? undefined : alt} />
   const open =
-    view === undefined
+    view === undefined || !standalone
       ? undefined
       : () => {
           const images = gallery ?? [{ src, alt }]
@@ -111,7 +114,7 @@ export function MarkdownImage({ src, alt = "" }: { src?: string; alt?: string })
         }
   return (
     <>
-      <span hidden />
+      <span hidden ref={(marker) => setStandalone(marker?.closest(NESTED) === null)} />
       <span className="contents" data-slot="context-menu-trigger">
         <img
           key={src}
