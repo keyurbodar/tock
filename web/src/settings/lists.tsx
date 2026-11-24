@@ -28,7 +28,7 @@ const count = (total: number, noun: string) => `${total} ${noun}${total === 1 ? 
 
 function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <Button size="icon-sm" aria-label={label} onClick={onClick}>
+    <Button variant="ghost" size="icon-sm" aria-label={label} onClick={onClick}>
       <Icon icon={Add01Icon} />
     </Button>
   )
@@ -38,7 +38,7 @@ function RowMenu({ label, children }: { label: string; children: ReactNode }) {
   return (
     <RowActions>
       <Menu>
-        <MenuTrigger render={<Button size="icon-sm" aria-label={label} />}>
+        <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={label} />}>
           <Icon icon={MoreHorizontalIcon} />
         </MenuTrigger>
         <MenuContent align="end" className="w-40">
@@ -74,7 +74,7 @@ export function Models() {
         <ListCard
           title={count(connected.length, "connection")}
           actions={
-            <Button
+            <Button variant="ghost"
               size="icon-sm"
               aria-label="Refresh model list"
               onClick={() => void act(() => post("/api/models/refresh", {}).then(refreshModels), "Model list refreshed")}
@@ -280,7 +280,7 @@ export function Skills() {
           title={count(data.length, "skill")}
           actions={
             <>
-              <Button size="icon-sm" aria-label="Import skill" onClick={() => setMode("import")}>
+              <Button variant="ghost" size="icon-sm" aria-label="Import skill" onClick={() => setMode("import")}>
                 <Icon icon={Globe02Icon} />
               </Button>
               <AddButton label="New skill" onClick={() => setMode("new")} />

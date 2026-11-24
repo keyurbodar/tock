@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, type CSSProperties } from "react"
 import { cn } from "./cn"
 
 export type DotGridState = "working" | "waiting" | "needs-you" | "failed"
@@ -65,16 +65,26 @@ const TONE: Record<DotGridState, string> = {
   failed: "text-destructive",
 }
 
+const SIZE = { xs: "size-(--icon-xs)", sm: "size-(--icon-sm)", base: "size-(--icon-base)", inherit: "" } as const
+
 export function DotGrid({
   state = "working",
+  size = "sm",
   label,
+  role = "img",
   tone = true,
   className,
+  style,
+  "aria-hidden": hidden,
 }: {
   state?: DotGridState
+  size?: keyof typeof SIZE
   label?: string
+  role?: "img" | "status"
   tone?: boolean
   className?: string
+  style?: CSSProperties
+  "aria-hidden"?: boolean
 }) {
   const ref = useRef<SVGSVGElement>(null)
 
@@ -97,10 +107,12 @@ export function DotGrid({
     <svg
       ref={ref}
       viewBox="0 0 14 14"
-      role="img"
-      aria-label={label ?? LABEL[state]}
+      role={role}
+      aria-label={hidden ? undefined : (label ?? LABEL[state])}
+      aria-hidden={hidden}
       data-state={state}
-      className={cn("dot-grid size-(--icon-sm) shrink-0", tone && TONE[state], className)}
+      className={cn("dot-grid shrink-0", SIZE[size], tone && TONE[state], className)}
+      style={style}
     >
       {RING.map(([cx, cy], ring) => (
         <circle
@@ -113,9 +125,10 @@ export function DotGrid({
           cy={cy}
           r="1"
           fill="currentColor"
+          opacity={0}
         />
       ))}
-      <circle data-dot="" data-row="middle" data-tier="0" cx={CENTER[0]} cy={CENTER[1]} r="1" fill="currentColor" />
+      <circle data-dot="" data-row="middle" data-tier="0" cx={CENTER[0]} cy={CENTER[1]} r="1" fill="currentColor" opacity={0} />
     </svg>
   )
 }

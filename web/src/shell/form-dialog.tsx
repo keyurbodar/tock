@@ -39,7 +39,7 @@ export function FormDialog({
           {children ? <DialogBody>{children}</DialogBody> : null}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" size="base" />}>Cancel</DialogClose>
-            <Button type="submit" variant="solid" intent={destructive ? "destructive" : "accent"} size="base" disabled={busy}>
+            <Button type="submit" variant="solid" intent={destructive ? "danger" : "accent"} size="base" disabled={busy}>
               {submitLabel}
             </Button>
           </DialogFooter>
@@ -66,7 +66,7 @@ export function Segmented<T extends string>({
         <Button
           key={option.value}
           role="radio"
-          variant="segment"
+          variant="segmented"
           aria-checked={option.value === value}
           selected={option.value === value}
           onClick={() => onChange(option.value)}

@@ -24,7 +24,7 @@ function Files() {
       title="Files"
       actions={
         <>
-          <Button size="icon-sm" aria-label="Upload files" onClick={() => picker.current?.click()}>
+          <Button variant="ghost" size="icon-sm" aria-label="Upload files" onClick={() => picker.current?.click()}>
             <Icon icon={Upload01Icon} />
           </Button>
           <input
@@ -58,9 +58,9 @@ function Files() {
               time={relativeTime(file.createdAt)}
               href={`/api/files/${encodeURIComponent(file.id)}`}
               trailing={
-                <Button
+                <Button variant="ghost"
                   size="icon-sm"
-                  intent="destructive"
+                  intent="danger"
                   aria-label={`Delete ${file.name}`}
                   onClick={() => void act(() => socket.request("file.delete", { fileId: file.id }).then(reload))}
                 >

@@ -29,7 +29,7 @@ for (const file of [...new Glob("cases/*.tsx").scanSync(dir)].sort()) {
       console.log(`MISSING ${item.component} ${item.ref} ${item.name}`)
       continue
     }
-    const result = compare(fixture.html, renderToStaticMarkup(item.render()))
+    const result = compare(fixture.html, renderToStaticMarkup(item.render()).replace(/<link rel="preload"[^>]*>/g, ""))
     if (result.mismatches.length === 0) {
       console.log(`pass ${item.component} ${item.ref} ${item.name} (${result.nodes} nodes)`)
       continue

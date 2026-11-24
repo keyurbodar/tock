@@ -66,7 +66,7 @@ export function ModelPicker({
         setCursor(0)
       }}
     >
-      <PopoverTrigger render={<Button aria-label="Model" className="min-w-0" />}>
+      <PopoverTrigger render={<Button variant="ghost" aria-label="Model" className="min-w-0" />}>
         <span className="min-w-0 truncate">{selected?.name ?? emptyLabel}</span>
         {showLevel && level ? <span className="text-muted-foreground-2">{titleCase(level)}</span> : null}
         <span className="flex shrink-0 text-muted-foreground-3 [&_svg]:size-(--icon-sm)">
@@ -160,7 +160,7 @@ export function ModelPicker({
                 <span className="text-xs font-medium text-muted-foreground-2">Thinking</span>
                 <div role="radiogroup" aria-label="Thinking level" className="ml-auto flex min-w-0 flex-wrap justify-end gap-0.5">
                   {selected.thinkingLevels.map((option) => (
-                    <Button
+                    <Button variant="ghost"
                       key={option}
                       role="radio"
                       size="xs"

@@ -150,7 +150,7 @@ export function Sidebar({
                 <Icon icon={ArrowLeft01Icon} />
                 Settings
               </Link>
-              <Button size="icon-sm" aria-label="Close sidebar" onClick={onToggle}>
+              <Button variant="ghost" size="icon-sm" aria-label="Close sidebar" onClick={onToggle}>
                 <Icon icon={SidebarLeftIcon} />
               </Button>
             </header>
@@ -160,13 +160,13 @@ export function Sidebar({
                 <img src={AGENT.character} alt="" className="h-5 w-auto" />
               </Link>
               <div className="ml-auto flex items-center">
-                <Button size="icon-sm" aria-label="Search" onClick={onSearch}>
+                <Button variant="ghost" size="icon-sm" aria-label="Search" onClick={onSearch}>
                   <Icon icon={Search01Icon} />
                 </Button>
                 <Link to="/" aria-label="New chat" className={ICON_LINK}>
                   <Icon icon={PencilEdit02Icon} />
                 </Link>
-                <Button size="icon-sm" aria-label="Toggle sidebar" onClick={onToggle}>
+                <Button variant="ghost" size="icon-sm" aria-label="Toggle sidebar" onClick={onToggle}>
                   <Icon icon={SidebarLeftIcon} />
                 </Button>
               </div>

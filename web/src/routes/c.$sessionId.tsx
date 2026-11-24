@@ -31,7 +31,7 @@ function Thread() {
             inert={sidebar === "open"}
             className={`flex shrink-0 items-center overflow-hidden transition-[width,margin,opacity] duration-base ease-out-quint motion-reduce:transition-none ${sidebar === "open" ? "mr-0 w-0 opacity-0" : "mr-1 w-(--h-control-sm) opacity-100"}`}
           >
-            <Button size="icon-sm" aria-label="Open sidebar" onClick={toggleSidebar}>
+            <Button variant="ghost" size="icon-sm" aria-label="Open sidebar" onClick={toggleSidebar}>
               <Icon icon={SidebarLeftIcon} />
             </Button>
           </span>
@@ -49,7 +49,7 @@ function Thread() {
               <Icon icon={PencilEdit02Icon} />
             </Link>
             <Menu>
-              <MenuTrigger render={<Button size="icon-sm" aria-label="Thread options" />}>
+              <MenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Thread options" />}>
                 <Icon icon={MoreHorizontalIcon} />
               </MenuTrigger>
               <MenuContent align="end" className="w-48">

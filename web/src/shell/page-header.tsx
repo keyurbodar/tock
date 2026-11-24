@@ -6,7 +6,7 @@ import { useShell } from "./context"
 function OpenSidebar() {
   const { toggleSidebar } = useShell()
   return (
-    <Button size="icon-sm" aria-label="Open sidebar" aria-pressed="false" onClick={toggleSidebar}>
+    <Button variant="ghost" size="icon-sm" aria-label="Open sidebar" aria-pressed="false" onClick={toggleSidebar}>
       <Icon icon={SidebarLeftIcon} />
     </Button>
   )

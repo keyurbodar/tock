@@ -198,7 +198,7 @@ export function Palette() {
                 className={`${INPUT} flex-1`}
               />
               <div className="flex shrink-0 items-center pr-2">
-                <Button size="sm" tabIndex={-1} onClick={newChat} className="pointer-coarse:hidden">
+                <Button variant="ghost" size="sm" tabIndex={-1} onClick={newChat} className="pointer-coarse:hidden">
                   New chat
                   <Kbd>⇥</Kbd>
                 </Button>

@@ -57,7 +57,7 @@ function Routines() {
     <ListPage
       title="Routines"
       actions={
-        <Button size="icon-sm" aria-label="New routine" onClick={() => setDraft(BLANK)}>
+        <Button variant="ghost" size="icon-sm" aria-label="New routine" onClick={() => setDraft(BLANK)}>
           <Icon icon={Add01Icon} />
         </Button>
       }
@@ -86,9 +86,9 @@ function Routines() {
                     checked={routine.enabled}
                     onCheckedChange={(enabled) => void save({ ...toDraft(routine), enabled })}
                   />
-                  <Button
+                  <Button variant="ghost"
                     size="icon-sm"
-                    intent="destructive"
+                    intent="danger"
                     aria-label={`Delete ${routine.name}`}
                     onClick={() => void act(() => socket.request("routine.delete", { routineId: routine.id }).then(reload))}
                   >

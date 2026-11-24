@@ -5,8 +5,11 @@ export type Node = readonly [path: string, kind: string, value: string]
 const DROP = new Set(["data-track-owner", "data-kiki", "data-md-new", "data-md-base", "data-sharkid", "data-dsx-sec", "xmlns", "id", "aria-controls"])
 const VOLATILE = new Set(["animation-delay", "animation-name"])
 
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16)).join(", ")})`
+
 const style = (value: string) =>
   value
+    .replace(/#[0-9a-f]{6}\b/gi, rgb)
     .split(";")
     .map((d) => d.trim())
     .filter((d) => d && !VOLATILE.has(d.slice(0, d.indexOf(":")).trim()))
