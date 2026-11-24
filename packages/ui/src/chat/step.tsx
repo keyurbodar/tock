@@ -1,6 +1,7 @@
 import { Collapsible } from "@base-ui/react/collapsible"
-import { type CSSProperties, type ReactNode, useLayoutEffect, useRef, useState } from "react"
+import { type CSSProperties, type ReactNode, useContext, useLayoutEffect, useRef, useState } from "react"
 import { cn } from "../cn"
+import { InspectContext } from "./tail"
 
 const HEADER_BASE = "min-h-7 min-w-0 py-1 text-sm text-muted-foreground-1"
 export const HEADER_BUTTON = cn(
@@ -242,6 +243,7 @@ const AUTO = { "--collapsible-panel-height": "auto", "--collapsible-panel-width"
 
 export function Step(props: StepProps) {
   const { open, defaultOpen, onOpenChange, children } = props
+  const inspect = useContext(InspectContext)
   if (children === undefined) {
     return (
       <div data-slot="collapsible" data-closed="">
@@ -252,7 +254,15 @@ export function Step(props: StepProps) {
     )
   }
   return (
-    <Collapsible.Root data-slot="collapsible" open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
+    <Collapsible.Root
+      data-slot="collapsible"
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={(next) => {
+        if (next) inspect()
+        onOpenChange?.(next)
+      }}
+    >
       <Collapsible.Trigger
         nativeButton={false}
         render={(trigger, state) => <div {...trigger} data-panel-open={state.open ? "true" : undefined} />}
