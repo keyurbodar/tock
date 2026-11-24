@@ -100,7 +100,7 @@ export class JournalStorage extends MemoryStorage {
       this.#pending.push({ seq, writes });
       this.#lastSeq = Math.max(this.#lastSeq, seq);
       this.#pendingBytes += bytesOf(writes).length;
-      boundary ||= isBoundary(writes);
+      boundary ||= writes.some((write) => write.type === "submission");
       config ||= writes.some(
         (write) =>
           (write.type === "document.change" && this.#kinds.get(write.id) !== "pi.live") ||
@@ -298,14 +298,6 @@ export class JournalStorage extends MemoryStorage {
   #write(sql: string, params: SqlStorageValue[]): void {
     this.#store.sql.exec(sql, ...params).toArray();
   }
-}
-
-function isBoundary(writes: readonly StorageWrite[]): boolean {
-  return writes.some(
-    (write) =>
-      write.type === "submission" &&
-      (write.value.status === "done" || write.value.status === "unanswered"),
-  );
 }
 
 async function snapshot(reader: Storage, context: Context): Promise<StorageWrite[]> {
