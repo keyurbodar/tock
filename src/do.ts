@@ -390,7 +390,9 @@ export class TockDO extends DurableObject<Env> {
       case "file.delete":
         return { deleted: await this.files.delete(frame.fileId) };
       case "push.subscribe":
-        return this.push.subscribe(frame.endpoint, frame.p256dh, frame.auth);
+        return this.push.subscribe(frame.endpoint, frame.p256dh, frame.auth, frame.label);
+      case "push.list":
+        return { devices: this.push.listDevices(frame.endpoint) };
       case "push.unsubscribe":
         return { deleted: this.push.unsubscribe(frame.endpoint) };
       case "memory.get":

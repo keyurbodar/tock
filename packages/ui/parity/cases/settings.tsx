@@ -1,13 +1,13 @@
-import type { CSSProperties } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import { cases } from "../case"
 import { Button } from "../../src/button"
-import { Card, ListCardHeader, Section, SettingsRow } from "../../src/card"
-import { glyphs } from "../../src/glyph"
+import { Card, ListCardHeader, ListRow, Section, SettingsRow } from "../../src/card"
+import { ChromeMark, glyphs } from "../../src/glyph"
 import { MENU_LABEL, MenuCheck, MenuSearch, menuItemClass } from "../../src/menu"
 import { MenuSelectButton } from "../../src/menu-select"
 import { Slider } from "../../src/slider"
 import { Switch } from "../../src/switch"
-import { Input } from "../../src/input"
+import { Badge, Input } from "../../src/input"
 import { KeybindingButton } from "../../src/keybinding"
 import { TableCell, TableGroup, TableHead, TableHeader } from "../../src/table"
 import { ModeButton, SplitPreview, SwatchChoice, ThemePreview } from "../../src/theme-swatch"
@@ -36,6 +36,23 @@ const INPUT_ROWS = [
   ["submit-on-alt-enter", "⌥/Alt+Enter behavior", "What pressing ⌥/Alt+Enter does mid-run", "Queue", "w-32"],
   ["voice-microphone", "Microphone", "Used for voice input on this device", "System default", "w-56"],
 ] as const
+
+const thisDevice = (text: string) => (
+  <span className="flex items-center gap-2">
+    {text}
+    <Badge tone="accent">This device</Badge>
+  </span>
+)
+
+const devices = (title: ReactNode, description: ReactNode, action: string) => (
+  <Section title="Devices" description="Push reaches these browsers and installed apps even when Capy is closed">
+    <Card>
+      <ListRow icon={<ChromeMark />} title={title} description={description}>
+        <Button size="sm">{action}</Button>
+      </ListRow>
+    </Card>
+  </Section>
+)
 
 export default cases("settings", [
   [
@@ -242,5 +259,39 @@ export default cases("settings", [
     "5fVhyCBDQk|[role=table] > [role=row]:nth-child(3) > [role=cell]|2",
     "table cell, when",
     () => <TableCell className="text-xs text-muted-foreground-1">Always</TableCell>,
+  ],
+  [
+    "sHDURlDUwx|[id=system-notifications]|0",
+    "notifications, system notifications switch row",
+    () => (
+      <SettingsRow
+        id="system-notifications"
+        title="System notifications"
+        description="Show a system notification when a thread finishes or needs you"
+      >
+        <Switch aria-label="System notifications" checked={false} onCheckedChange={noop} />
+      </SettingsRow>
+    ),
+  ],
+  [
+    "sHDURlDUwx|[id=test-notification]|0",
+    "notifications, test notification row",
+    () => (
+      <SettingsRow id="test-notification" title="Test notification" description="Ring this device the way a finished thread would">
+        <Button variant="ghost" size="sm">
+          Send test notification
+        </Button>
+      </SettingsRow>
+    ),
+  ],
+  [
+    "sHDURlDUwx|section|3",
+    "notifications, devices section with badge beside the status",
+    () => devices("Chrome on Linux", thisDevice("Not receiving push"), "Enable"),
+  ],
+  [
+    "W-8s6LsNeN|section|3",
+    "notifications, devices section with badge beside the name",
+    () => devices(thisDevice("Chrome on Mac"), "Not receiving push", "Enable on this device"),
   ],
 ])

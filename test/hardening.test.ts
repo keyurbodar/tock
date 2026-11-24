@@ -353,6 +353,45 @@ describe("tock production hardening", () => {
     });
   });
 
+  it("lists push devices with their label and without their keys", async () => {
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "push-devices@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type: string; data?: unknown }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type: string; data?: unknown };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    const subscribe = { type: "push.subscribe", p256dh: "key", auth: "auth" };
+    ws.send(JSON.stringify({ ...subscribe, id: "a", endpoint: "https://push.test/a", label: "Chrome on Linux" }));
+    ws.send(JSON.stringify({ ...subscribe, id: "b", endpoint: "https://push.test/b" }));
+    ws.send(JSON.stringify({ id: "gone", type: "push.unsubscribe", endpoint: "https://push.test/b" }));
+    ws.send(JSON.stringify({ id: "list", type: "push.list" }));
+    await new Promise((r) => setTimeout(r, 150));
+    ws.send(JSON.stringify({ id: "seen", type: "push.list", endpoint: "https://push.test/a" }));
+    ws.send(JSON.stringify({ id: "stranger", type: "push.list", endpoint: "https://push.test/b" }));
+    await new Promise((r) => setTimeout(r, 150));
+
+    const listed = replies.get("list")?.data as { devices: Record<string, unknown>[] };
+    expect(listed.devices).toHaveLength(1);
+    expect(listed.devices[0]).toMatchObject({
+      endpoint: "https://push.test/a",
+      label: "Chrome on Linux",
+      lastDeliveredAt: null,
+      failedAt: null,
+    });
+    expect(listed.devices[0]?.lastSeenAt).toBeTypeOf("number");
+    expect(listed.devices[0]).not.toHaveProperty("p256dh");
+    expect(listed.devices[0]).not.toHaveProperty("auth");
+    const seen = replies.get("seen")?.data as { devices: { lastSeenAt: number }[] };
+    expect(seen.devices[0]?.lastSeenAt).toBeGreaterThan(Number(listed.devices[0]?.lastSeenAt));
+    const stranger = replies.get("stranger")?.data as { devices: unknown[] };
+    expect(stranger.devices).toHaveLength(1);
+    ws.close();
+  });
+
   it("fits long multibyte push notifications inside one aes128gcm record", async () => {
     const bytes = fitPushPayload("通知".repeat(300), "😀".repeat(1500));
     expect(bytes.length).toBeLessThanOrEqual(3993);

@@ -120,6 +120,14 @@ export interface PushSubscriptionRecord {
   createdAt: number;
 }
 
+export interface PushDevice {
+  endpoint: string;
+  label: string;
+  lastSeenAt: number;
+  lastDeliveredAt: number | null;
+  failedAt: number | null;
+}
+
 export interface WsAttachment {
   cursor: number;
   sessionId: string;
@@ -203,7 +211,15 @@ export type ClientFrame =
   | { id: string; type: "skill.delete"; name: string }
   | { id: string; type: "file.list"; sessionId?: string }
   | { id: string; type: "file.delete"; fileId: string }
-  | { id: string; type: "push.subscribe"; endpoint: string; p256dh: string; auth: string }
+  | {
+      id: string;
+      type: "push.subscribe";
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+      label?: string;
+    }
+  | { id: string; type: "push.list"; endpoint?: string }
   | { id: string; type: "push.unsubscribe"; endpoint: string }
   | { id: string; type: "memory.get" }
   | { id: string; type: "memory.search"; query: string; limit?: number }

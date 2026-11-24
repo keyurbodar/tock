@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import "./index.css"
+import { startNotifications } from "./notifications/store"
 import { routeTree } from "./routeTree.gen"
 import { startAppearance } from "./state/appearance"
 import { startData } from "./state/data"
@@ -18,6 +19,7 @@ declare module "@tanstack/react-router" {
 
 startAppearance()
 startData()
+startNotifications((href) => void router.navigate({ href }))
 
 const root = document.getElementById("root")
 if (!root) throw new Error("missing #root")

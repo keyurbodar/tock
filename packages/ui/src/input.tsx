@@ -64,16 +64,15 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   )
 }
 
-export function Badge({ children, tone }: { children: React.ReactNode; tone?: "accent" | "destructive" }) {
+const BADGE =
+  "inline-flex items-center justify-center w-fit min-w-8 rounded-full text-xs font-normal [text-box-trim:trim-both] [&_svg]:shrink-0 border-[0.5px] border-(--border-2) bg-(--button) text-[var(--intent-text,var(--fg))]"
+const BADGE_ACCENT =
+  "[--intent-text:var(--primary-ink)] [--intent-text-hover:color-mix(in_oklch,var(--primary-ink)_80%,transparent)] [--intent-bg:var(--primary)] [--intent-text-on-bg:var(--primary-text)] [--intent-border-solid:color-mix(in_oklch,var(--primary)_80%,black)] [--intent-highlight:oklch(1_0_0_/_0.12)]"
+const BADGE_BASE = "h-(--h-badge-base) px-2 gap-1 [&_svg:not([class*='size-'])]:size-(--icon-sm) [&_svg:first-of-type]:-ml-0.5 select-none"
+
+export function Badge({ children, tone }: { children: React.ReactNode; tone?: "accent" }) {
   return (
-    <div
-      data-slot="badge"
-      className={cn(
-        "inline-flex h-(--h-badge-base) w-fit min-w-8 items-center justify-center gap-1 rounded-full border-[0.5px] border-(--border-2) bg-(--button) px-2 text-xs font-normal text-[var(--intent-text,var(--fg))] select-none [text-box-trim:trim-both]",
-        tone === "accent" && "[--intent-text:var(--primary-ink)]",
-        tone === "destructive" && "[--intent-text:var(--destructive)]",
-      )}
-    >
+    <div data-slot="badge" className={cn(BADGE, tone === "accent" && BADGE_ACCENT, BADGE_BASE)}>
       {children}
     </div>
   )

@@ -38,6 +38,8 @@ const useMedia = (query: string) =>
     () => false,
   )
 
+export const usePhoneLayout = () => useMedia(PHONE)
+
 export function useTouchLayout() {
   const phone = useMedia(PHONE)
   const touch = useMedia(TOUCH)

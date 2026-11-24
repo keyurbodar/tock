@@ -193,6 +193,12 @@ const MIGRATIONS: readonly Migration[] = [
        SELECT id, content FROM tock_memory_items WHERE superseded_by IS NULL`,
     );
   },
+  (sql) => {
+    addColumnIfMissing(sql, "tock_push_subs", "label", "TEXT NOT NULL DEFAULT ''");
+    addColumnIfMissing(sql, "tock_push_subs", "last_seen_at", "INTEGER");
+    addColumnIfMissing(sql, "tock_push_subs", "last_delivered_at", "INTEGER");
+    addColumnIfMissing(sql, "tock_push_subs", "failed_at", "INTEGER");
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, defaultTimezone = "UTC"): void {

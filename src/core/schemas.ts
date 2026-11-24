@@ -202,7 +202,9 @@ const clientFrameSchema = union([
     endpoint: str({ minLength: 1 }),
     p256dh: str({ minLength: 1 }),
     auth: str({ minLength: 1 }),
+    label: opt(str({ maxLength: 80 })),
   }),
+  obj({ id: str({ minLength: 1 }), type: lit("push.list"), endpoint: opt(str({ minLength: 1 })) }),
   obj({
     id: str({ minLength: 1 }),
     type: lit("push.unsubscribe"),

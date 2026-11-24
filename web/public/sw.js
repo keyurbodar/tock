@@ -9,6 +9,8 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()
   event.waitUntil(
-    self.clients.matchAll({ type: "window" }).then((clients) => (clients[0] ? clients[0].focus() : self.clients.openWindow("/"))),
+    self.clients
+      .matchAll({ type: "window" })
+      .then((clients) => (clients[0] ? clients[0].focus() : self.clients.openWindow(event.notification.data?.href ?? "/"))),
   )
 })

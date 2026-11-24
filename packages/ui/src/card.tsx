@@ -176,19 +176,19 @@ export function ListRow({
   children?: ReactNode
 }) {
   return (
-    <div data-slot="settings-row" className="group/row flex min-h-[60px] items-center justify-between gap-6 p-4">
-      <div className="flex min-w-0 items-center gap-3">
+    <div data-slot="settings-row" className="group/row flex gap-6 p-4 items-center justify-between min-h-[60px]">
+      <div className="flex items-center gap-3 min-w-0">
         {icon ? (
           <div className="grid size-8 shrink-0 place-items-center rounded-md bg-secondary text-foreground [&_svg:not([class*='size-'])]:size-4">
             {icon}
           </div>
         ) : null}
-        <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 min-w-0">
           <div className="text-sm font-medium text-foreground">{title}</div>
-          {description ? <div className="text-xs font-normal text-muted-foreground-2">{description}</div> : null}
+          {description ? <div className="font-normal text-muted-foreground-2 text-xs">{description}</div> : null}
         </div>
       </div>
-      {children ? <div className="relative flex shrink-0 items-center gap-2">{children}</div> : null}
+      {children ? <div className="relative flex items-center gap-2 shrink-0">{children}</div> : null}
     </div>
   )
 }
