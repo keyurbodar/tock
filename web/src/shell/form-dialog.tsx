@@ -9,6 +9,7 @@ export function FormDialog({
   description,
   submitLabel = "Save",
   destructive,
+  disabled,
   onSubmit,
   children,
 }: {
@@ -18,6 +19,7 @@ export function FormDialog({
   description?: string
   submitLabel?: string
   destructive?: boolean
+  disabled?: boolean
   onSubmit: () => Promise<boolean>
   children?: ReactNode
 }) {
@@ -43,7 +45,7 @@ export function FormDialog({
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" intent={destructive ? "danger" : "accent"} disabled={busy}>
+            <Button type="submit" intent={destructive ? "danger" : "accent"} disabled={busy || disabled}>
               {submitLabel}
             </Button>
           </DialogFooter>

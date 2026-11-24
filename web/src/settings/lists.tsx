@@ -186,6 +186,7 @@ export function Models() {
         }}
         title={replacing && target ? `${nameOf(target)} key` : "Add connection"}
         description="Stored encrypted on your Worker and never shown again."
+        disabled={target === null}
         onSubmit={() =>
           target === null
             ? Promise.resolve(false)
