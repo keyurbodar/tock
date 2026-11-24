@@ -205,7 +205,8 @@ export class DjsRuntime {
           });
           const rawText = await res.text();
           const safeText = await this.bridge.vault.redact(rawText);
-          const location = res.headers.get("location") ?? undefined;
+          const rawLocation = res.headers.get("location");
+          const location = rawLocation ? await this.bridge.vault.redact(rawLocation) : undefined;
           return { status: res.status, ok: res.ok, location, body: safeText };
         },
         "tock.memorySearch": (query: unknown, limit?: unknown) => {

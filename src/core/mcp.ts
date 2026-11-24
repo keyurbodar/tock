@@ -63,17 +63,25 @@ export class McpHub {
     authMode: "headers" | "oauth" | "sse" = "headers",
   ): Promise<McpServerRecord> {
     const validatedUrl = validateMcpUrl(url);
+    const headersJson = JSON.stringify(headers);
     const previous = this.sql
-      .exec(`SELECT id, manager_server_id FROM tock_mcp_servers WHERE name = ?`, name)
+      .exec(
+        `SELECT id, manager_server_id, url, headers_json, auth_mode FROM tock_mcp_servers WHERE name = ?`,
+        name,
+      )
       .toArray()[0];
-    if (previous) {
+    const changed =
+      previous &&
+      (previous.url !== validatedUrl ||
+        previous.headers_json !== headersJson ||
+        previous.auth_mode !== authMode);
+    if (previous && changed) {
       await this.manager
         .removeServer(String(previous.manager_server_id ?? previous.id))
         .catch(() => {});
     }
     const id = crypto.randomUUID();
     const now = Date.now();
-    const headersJson = JSON.stringify(headers);
     this.sql.exec(
       `INSERT INTO tock_mcp_servers (id, name, url, headers_json, auth_mode, manager_server_id, enabled, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 1, ?)

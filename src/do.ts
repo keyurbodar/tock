@@ -167,6 +167,14 @@ export class TockDO extends DurableObject<Env> {
       if (cursor < latestSeq) {
         this.replayEvents(server, sessionId, cursor);
       }
+      if (rawCursor !== null && rawCursor !== "") {
+        this.sendWs(server, {
+          type: "event",
+          seq: latestSeq,
+          event: "session.snapshot",
+          payload: { sessionId, messages: await this.harness.session(sessionId).messages() },
+        });
+      }
       return new Response(null, { status: 101, webSocket: client });
     }
     return Response.json({ ok: true, service: "tock" });
@@ -272,7 +280,13 @@ export class TockDO extends DurableObject<Env> {
         await this.ensureSessionWatch(sessionId);
         const replayed =
           replayFrom !== undefined ? this.replayEvents(ws, sessionId, replayFrom) : 0;
-        return { sessionId, subscribed: true, replayed, cursor: this.latestEventSeq() };
+        return {
+          sessionId,
+          subscribed: true,
+          replayed,
+          cursor: this.latestEventSeq(),
+          messages: await this.harness.session(sessionId).messages(),
+        };
       }
       case "session.configure":
         return await this.configureSession(frame.sessionId ?? ROOT_SESSION, {

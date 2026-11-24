@@ -171,7 +171,8 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
         args.body !== undefined ? await deps.vault.injectForUrl(finalUrl, args.body) : undefined;
       const res = await fetch(finalUrl, { method: args.method, headers, body, redirect: "manual" });
       const text = await deps.vault.redact((await res.text()).slice(0, 16_000));
-      const location = res.headers.get("location") ?? undefined;
+      const rawLocation = res.headers.get("location");
+      const location = rawLocation ? await deps.vault.redact(rawLocation) : undefined;
       return {
         output: [
           {
