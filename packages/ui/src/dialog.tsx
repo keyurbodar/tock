@@ -27,10 +27,19 @@ function fromPasswordManager(target: EventTarget | null) {
   )
 }
 
+export function leaveEscapeToMenu(details: DialogPrimitive.Root.ChangeEventDetails) {
+  const target = details.event.target
+  if (details.reason !== "escape-key" || !(target instanceof Element) || target.closest("[data-slot=menu-content]") === null) return false
+  details.cancel()
+  details.allowPropagation()
+  return true
+}
+
 export function Dialog({ onOpenChange, ...props }: ComponentProps<typeof DialogPrimitive.Root>) {
   return (
     <DialogPrimitive.Root
       onOpenChange={(open, details) => {
+        if (!open && leaveEscapeToMenu(details)) return
         if (!open && details.reason === "outside-press" && fromPasswordManager(details.event.target)) details.cancel()
         else onOpenChange?.(open, details)
       }}

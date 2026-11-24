@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 import { buttonVariants } from "./button"
 import { PageEmbedded } from "./card"
 import { cn } from "./cn"
-import { DIALOG_MOTION, DIALOG_OVERLAY } from "./dialog"
+import { DIALOG_MOTION, DIALOG_OVERLAY, leaveEscapeToMenu } from "./dialog"
 import { useGlide } from "./glide"
 import { glyphs } from "./glyph"
 import { Icon, type IconData } from "./icon"
@@ -97,8 +97,8 @@ export function SettingsDialog({
   return (
     <DialogPrimitive.Root
       open={open}
-      onOpenChange={(next) => {
-        if (next) return
+      onOpenChange={(next, details) => {
+        if (next || leaveEscapeToMenu(details)) return
         const focused = document.activeElement
         if (focused instanceof HTMLElement && popup.current?.contains(focused)) focused.blur()
         onClose()
