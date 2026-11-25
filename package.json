@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "bun run build:web && wrangler deploy",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsgo --noEmit && bun run --cwd apps/web-solid typecheck",
     "lint": "oxlint src test",
     "fmt": "oxfmt src test",
     "test": "vitest run",
     "check": "bun run typecheck && bun run lint && bun run test",
     "dev:web": "bun --filter @tock/web dev",
-    "build:web": "bun --filter @tock/web build"
+    "build:web": "bun --filter @tock/web build",
+    "dev:web-solid": "bun run --cwd apps/web-solid dev",
+    "build:web-solid": "bun run --cwd apps/web-solid build"
   },
   "dependencies": {
     "@earendil-works/chord": "1.6.0",
@@ -37,6 +39,7 @@
   },
   "workspaces": [
     "packages/*",
-    "web"
+    "web",
+    "apps/*"
   ]
 }
