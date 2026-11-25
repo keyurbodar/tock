@@ -1,0 +1,26 @@
+:root {
+  --dur-instant: 50ms;
+  --dur-fast: 100ms;
+  --dur-normal: 150ms;
+  --dur-slow: 200ms;
+  --dur-slower: 300ms;
+  --dur-spring-150: 150ms;
+  --dur-spring-250: 250ms;
+  --dur-spring-325: 325ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0ms;
+    --dur-fast: 0ms;
+    --dur-normal: 0ms;
+    --dur-slow: 0ms;
+    --dur-slower: 0ms;
+    --dur-spring-150: 0ms;
+    --dur-spring-250: 0ms;
+    --dur-spring-325: 0ms;
+  }
+}

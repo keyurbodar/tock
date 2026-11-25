@@ -1,0 +1,12 @@
+:root {
+  --z-sticky: 10;
+  --z-edge-rail: 19;
+  --z-floating-bar: 20;
+  --z-sidebar: 20;
+  --z-dock: 100;
+  --z-popover: 150;
+  --z-drawer: 180;
+  --z-dialog: 200;
+  --z-tooltip: 400;
+  --z-toast: 1000;
+}

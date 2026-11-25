@@ -1,0 +1,17 @@
+{
+  "name": "@tock/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./index.css": "./src/index.css",
+    "./themes": "./src/themes.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "check": "node scripts/check-tokens.mjs"
+  }
+}

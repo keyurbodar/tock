@@ -1,0 +1,29 @@
+:root {
+  --size-rail-w: 60px;
+  --size-panel-w: 280px;
+  --size-sidebar-w: 340px;
+  --size-header-h: 48px;
+  --size-content-max-w: 768px;
+  --size-composer-h: 66px;
+  --size-btn-rail: 44px;
+  --size-btn-header: 36px;
+  --size-btn-header-compact: 32px;
+  --size-btn-composer: 34px;
+  --size-btn-inline: 26px;
+  --size-composer-input-min-h: 32px;
+  --size-drawer-w: 320px;
+  --size-drawer-panel-w: 260px;
+  --size-mobile-viewport-w: 390px;
+  --size-border-hairline: 1px;
+  --size-focus-ring: 2px;
+  --size-icon-xs: 12px;
+  --size-icon-sm: 16px;
+  --size-icon-md: 20px;
+  --size-icon-lg: 24px;
+  --size-avatar-sm: 24px;
+  --size-avatar-md: 32px;
+  --size-sidebar-row-h: 48px;
+  --size-pin-tile-w: 64px;
+  --size-pin-tile-h: 97px;
+  --size-copy-visual-scale: 0.85;
+}

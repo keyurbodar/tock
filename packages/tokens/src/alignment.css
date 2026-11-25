@@ -1,0 +1,8 @@
+:root {
+  --align-user-row: flex-end;
+  --align-assistant-row: flex-start;
+  --bubble-max-w-desktop: 80%;
+  --bubble-max-w-mobile: 80%;
+  --bubble-rich-max-w: 100%;
+  --content-align: center;
+}

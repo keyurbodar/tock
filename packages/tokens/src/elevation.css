@@ -1,0 +1,9 @@
+:root {
+  --shadow-color-primary: #00000033;
+  --shadow-color-secondary: #0000001f;
+  --shadow-card: 0 2px 8px 0 var(--shadow-color-secondary);
+  --shadow-menu: 0 0 0 1px var(--stroke-quaternary), 0 8px 24px -2px var(--shadow-color-secondary);
+  --shadow-dialog: 0 10px 15px -3px #00000066, 0 4px 6px -2px #0000004d;
+  --shadow-popover: var(--shadow-menu);
+  --shadow-tooltip: 0 2px 8px 0 var(--shadow-color-primary);
+}

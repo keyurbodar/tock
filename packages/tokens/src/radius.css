@@ -1,0 +1,14 @@
+:root {
+  --radius-xs: 2px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-bubble: 18px;
+  --radius-bubble-tight: 8px;
+  --radius-capsule: 20px;
+  --radius-code: 12px;
+  --radius-code-inline: 10px;
+  --radius-pill: 9999px;
+  --radius-round: 50%;
+}

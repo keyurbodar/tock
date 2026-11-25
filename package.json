@@ -10,11 +10,12 @@
     "lint": "oxlint src test",
     "fmt": "oxfmt src test",
     "test": "vitest run",
-    "check": "bun run typecheck && bun run lint && bun run test",
+    "check": "bun run typecheck && bun run check:tokens && bun run lint && bun run test",
     "dev:web": "bun --filter @tock/web dev",
     "build:web": "bun --filter @tock/web build",
     "dev:web-solid": "bun run --cwd apps/web-solid dev",
-    "build:web-solid": "bun run --cwd apps/web-solid build"
+    "build:web-solid": "bun run --cwd apps/web-solid build",
+    "check:tokens": "bun run --cwd packages/tokens check"
   },
   "dependencies": {
     "@earendil-works/chord": "1.6.0",

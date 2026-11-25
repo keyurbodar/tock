@@ -1,0 +1,21 @@
+:root {
+  --font-sans: "InterVariable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fantasque Sans Mono", ui-monospace, monospace;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-table: 12.88px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --leading-2xs: 14px;
+  --leading-xs: 16px;
+  --leading-sm: 18px;
+  --leading-base: 20.3px;
+  --leading-lg: 24px;
+  --weight-normal: 450;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+}

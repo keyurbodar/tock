@@ -1,0 +1,43 @@
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+  --space-13: 52px;
+  --space-14: 56px;
+  --space-15: 60px;
+  --space-16: 64px;
+
+  --gap-rail: var(--space-1);
+  --gap-composer: var(--space-2);
+  --gap-bubble-group: var(--space-1);
+  --gap-turn: var(--space-2);
+  --gap-sidebar-row: var(--space-1);
+  --pad-bubble-x: var(--space-3);
+  --pad-bubble-y: var(--space-2);
+  --pad-code-x: var(--space-2);
+  --pad-code-y: 6px;
+  --pad-row-x-desktop: var(--space-4);
+  --pad-row-x-mobile: 10px;
+  --pad-row-y: var(--space-1);
+  --pad-row-turn-top: var(--space-2);
+  --pad-panel-x: var(--space-3);
+  --pad-panel-y: var(--space-3);
+  --pad-header-x: 10px;
+  --pad-header-x-mobile: var(--space-3);
+  --pad-header-y: var(--space-2);
+  --pad-input-x: 14px;
+  --pad-input-y: 6px;
+  --pad-rich-bubble-x: var(--space-1);
+  --pad-rich-bubble-y: 1px;
+  --pad-copy-inset: var(--space-1);
+}
