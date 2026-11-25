@@ -1,7 +1,6 @@
 import { Outlet, useLocation, useParams } from "@tanstack/solid-router"
 import { createSignal, lazy, Show } from "solid-js"
 import { useQuery } from "@tanstack/solid-query"
-import { Button } from "@tock/ui-solid/button"
 import { conversationsOptions } from "../data/conversations"
 import { MenuIcon } from "./icons"
 import { RailLinks, SidebarContent } from "./sidebar"
@@ -44,9 +43,9 @@ export function AppShell() {
         <div class="shell-main">
           <header class="shell-header">
             <div class="header-title">
-              <Button aria-label="Open navigation" class="tui-button--icon mobile-only" onClick={openDrawer} type="button">
+              <button aria-label="Open navigation" class="shell-icon-button mobile-only" onClick={openDrawer} type="button">
                 <MenuIcon />
-              </Button>
+              </button>
               <span>{title()}</span>
             </div>
             <div class="header-actions desktop-only" />

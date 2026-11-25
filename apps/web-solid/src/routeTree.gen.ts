@@ -14,6 +14,7 @@ import { Route as FilesRouteImport } from './routes/files'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RecipesRouteImport } from './routes/recipes'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatConversationIdRoute = ChatConversationIdRouteImport.update({
   id: '/chat/$conversationId',
   path: '/chat/$conversationId',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/recipes': typeof RecipesRoute
   '/settings': typeof SettingsRoute
+  '/sign-in': typeof SignInRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/recipes': typeof RecipesRoute
   '/settings': typeof SettingsRoute
+  '/sign-in': typeof SignInRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/recipes': typeof RecipesRoute
   '/settings': typeof SettingsRoute
+  '/sign-in': typeof SignInRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
 }
 export interface FileRouteTypes {
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/recipes'
     | '/settings'
+    | '/sign-in'
     | '/chat/$conversationId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/recipes'
     | '/settings'
+    | '/sign-in'
     | '/chat/$conversationId'
   id:
     | '__root__'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/recipes'
     | '/settings'
+    | '/sign-in'
     | '/chat/$conversationId'
   fileRoutesById: FileRoutesById
 }
@@ -105,6 +117,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   RecipesRoute: typeof RecipesRoute
   SettingsRoute: typeof SettingsRoute
+  SignInRoute: typeof SignInRoute
   ChatConversationIdRoute: typeof ChatConversationIdRoute
 }
 
@@ -145,6 +158,13 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat/$conversationId': {
       id: '/chat/$conversationId'
       path: '/chat/$conversationId'
@@ -161,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   RecipesRoute: RecipesRoute,
   SettingsRoute: SettingsRoute,
+  SignInRoute: SignInRoute,
   ChatConversationIdRoute: ChatConversationIdRoute,
 }
 export const routeTree = rootRouteImport

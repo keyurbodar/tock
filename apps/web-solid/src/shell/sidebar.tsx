@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/solid-router"
 import { For, Show } from "solid-js"
 import type { FixtureConversationSummary } from "../fixtures/types"
-import { Button } from "@tock/ui-solid/button"
 import { ChatIcon, FilesIcon, PlusIcon, RecipesIcon, SearchIcon, SettingsIcon } from "./icons"
 
 type SidebarContentProps = {
@@ -43,12 +42,12 @@ export function SidebarContent(props: SidebarContentProps) {
       <div class="shell-panel-header">
         <h2 class="panel-title">Chats</h2>
         <div class="header-actions">
-          <Button aria-label="Search chats" class="tui-button--icon" type="button">
+          <button aria-label="Search chats" class="shell-icon-button" type="button">
             <SearchIcon />
-          </Button>
-          <Button aria-label="New chat" class="tui-button--icon" type="button">
+          </button>
+          <button aria-label="New chat" class="shell-icon-button" type="button">
             <PlusIcon />
-          </Button>
+          </button>
         </div>
       </div>
       <div class="panel-list">
