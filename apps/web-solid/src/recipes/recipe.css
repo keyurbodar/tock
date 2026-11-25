@@ -181,8 +181,11 @@
   width: calc(var(--spacing) * 7);
   height: calc(var(--spacing) * 4);
   flex-shrink: 0;
+  padding: 0;
+  border: 0;
   border-radius: var(--radius-full);
-  background: var(--bg-secondary);
+  background: var(--bg-active);
+  cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-sharp);
 }
 
@@ -205,7 +208,7 @@
 }
 
 .tpl-switch[aria-checked="true"]::after {
-  background: var(--text-on-accent);
+  background: var(--text-invert);
   transform: translateX(0.75rem);
 }
 

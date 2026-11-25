@@ -79,6 +79,12 @@ body {
   z-index: var(--z-sticky);
 }
 
+@media (min-width: 48.0626rem) {
+  .shell-main[data-screen] .shell-header {
+    display: none;
+  }
+}
+
 .shell-outlet {
   display: flex;
   flex: 1;

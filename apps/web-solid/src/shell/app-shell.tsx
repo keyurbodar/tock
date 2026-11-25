@@ -40,7 +40,7 @@ export function AppShell() {
             <SidebarContent activeId={conversationId()} conversations={conversations.data} />
           </section>
         </aside>
-        <div class="shell-main">
+        <div class="shell-main" data-screen={conversationId() || location().pathname === "/" ? undefined : ""}>
           <header class="shell-header">
             <div class="header-title">
               <button aria-label="Open navigation" class="shell-icon-button mobile-only" onClick={openDrawer} type="button">
