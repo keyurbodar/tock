@@ -50,6 +50,7 @@
         "@tiptap/extensions": "3.31.3",
         "@tiptap/pm": "3.31.3",
         "@tock/tokens": "workspace:*",
+        "@tock/ui-solid": "workspace:*",
         "@ui-sdk/core": "0.1.0-beta.17",
         "@ui-sdk/solid": "0.1.0-beta.17",
         "clsx": "^2.1.1",
@@ -109,6 +110,20 @@
       "peerDependencies": {
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
+      },
+    },
+    "packages/ui-solid": {
+      "name": "@tock/ui-solid",
+      "version": "0.1.0",
+      "dependencies": {
+        "clsx": "^2.1.1",
+        "tailwind-merge": "^3.7.0",
+      },
+      "peerDependencies": {
+        "@solidjs/web": "^2.0.0",
+        "@ui-sdk/core": "0.1.0-beta.17",
+        "@ui-sdk/solid": "0.1.0-beta.17",
+        "solid-js": "^2.0.0",
       },
     },
     "web": {
@@ -866,6 +881,8 @@
 
     "@tock/ui": ["@tock/ui@workspace:packages/ui"],
 
+    "@tock/ui-solid": ["@tock/ui-solid@workspace:packages/ui-solid"],
+
     "@tock/web": ["@tock/web@workspace:web"],
 
     "@tock/web-solid": ["@tock/web-solid@workspace:apps/web-solid"],
@@ -931,6 +948,8 @@
     "@ui-sdk/core": ["@ui-sdk/core@0.1.0-beta.16", "", {}, "sha512-I2GMqOviLS/lYfIj2lTqKLbae0V9uSnysK+bSdbhuw2De8zNvrLZiDTc0qzsPNiZvB/bMmUZJS5UDA5Q2Pq4Ng=="],
 
     "@ui-sdk/react": ["@ui-sdk/react@0.1.0-beta.16", "", { "peerDependencies": { "@types/react": ">=19.2.10", "@ui-sdk/core": "^0.1.0-beta.16", "react": ">=19", "react-dom": ">=19" }, "optionalPeers": ["@types/react"] }, "sha512-pCM1Vb5Dycj05E63kY1CeX/jab9OlfDCGwhs29QtVenX0YrYzSRgkLYaHWscbew2gxVCBwcr8KBkh5BgH9eV+Q=="],
+
+    "@ui-sdk/solid": ["@ui-sdk/solid@0.1.0-beta.17", "", { "peerDependencies": { "@solidjs/web": "^2.0.0", "@ui-sdk/core": "^0.1.0-beta.17", "solid-js": "^2.0.0" } }, "sha512-jdvIex6YOCbCCmMLXp5TzeiBUtyGZOHCE/PdF+DdL3KTJrNJTym+2jIvlJkmpvdkrY4CB6o1zz2DuGJDsdonaA=="],
 
     "@ungap/structured-clone": ["@ungap/structured-clone@1.4.0", "", {}, "sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ=="],
 
@@ -1730,9 +1749,13 @@
 
     "@tanstack/router-utils/diff": ["diff@9.0.0", "", {}, "sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw=="],
 
+    "@tock/ui-solid/@ui-sdk/core": ["@ui-sdk/core@0.1.0-beta.17", "", {}, "sha512-wBWNqT0Qf1sE6fqD1XuBnSGBFcY6+cek1z7rKl/r4j2bsv2or9i7z44PLy0J9hmflm3IJ5MLW0P4ur2H9BCIvg=="],
+
     "@tock/web-solid/@ui-sdk/core": ["@ui-sdk/core@0.1.0-beta.17", "", {}, "sha512-wBWNqT0Qf1sE6fqD1XuBnSGBFcY6+cek1z7rKl/r4j2bsv2or9i7z44PLy0J9hmflm3IJ5MLW0P4ur2H9BCIvg=="],
 
     "@tock/web-solid/@ui-sdk/solid": ["@ui-sdk/solid@0.1.0-beta.17", "", { "peerDependencies": { "@solidjs/web": "^2.0.0", "@ui-sdk/core": "^0.1.0-beta.17", "solid-js": "^2.0.0" } }, "sha512-jdvIex6YOCbCCmMLXp5TzeiBUtyGZOHCE/PdF+DdL3KTJrNJTym+2jIvlJkmpvdkrY4CB6o1zz2DuGJDsdonaA=="],
+
+    "@ui-sdk/solid/@ui-sdk/core": ["@ui-sdk/core@0.1.0-beta.17", "", {}, "sha512-wBWNqT0Qf1sE6fqD1XuBnSGBFcY6+cek1z7rKl/r4j2bsv2or9i7z44PLy0J9hmflm3IJ5MLW0P4ur2H9BCIvg=="],
 
     "@wallet-standard/errors/chalk": ["chalk@5.6.2", "", {}, "sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=="],
 

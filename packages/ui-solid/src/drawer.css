@@ -1,0 +1,9 @@
+.tui-drawer-backdrop {
+  background: var(--bg-scrim);
+}
+
+.tui-drawer-content {
+  background: var(--bg-sidebar);
+  color: var(--text-primary);
+  outline: 0;
+}

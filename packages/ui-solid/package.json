@@ -1,0 +1,24 @@
+{
+  "name": "@tock/ui-solid",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./*": "./src/*.tsx",
+    "./cn": "./src/cn.ts",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.7.0"
+  },
+  "peerDependencies": {
+    "@solidjs/web": "^2.0.0",
+    "@ui-sdk/core": "0.1.0-beta.17",
+    "@ui-sdk/solid": "0.1.0-beta.17",
+    "solid-js": "^2.0.0"
+  }
+}

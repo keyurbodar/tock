@@ -1,0 +1,18 @@
+.tui-scroll-area {
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.tui-scroll-area [data-slot="scroll-area-viewport"] {
+  outline: 0;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.tui-scroll-area [data-slot="scroll-area-scrollbar"] {
+  color: var(--scrollbar-thumb);
+}
+
+.tui-scroll-area [data-slot="scroll-area-thumb"] {
+  background: currentColor;
+  border-radius: var(--radius-pill);
+}

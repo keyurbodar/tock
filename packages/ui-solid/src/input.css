@@ -1,0 +1,26 @@
+.tui-input {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-primary);
+  font: inherit;
+  inline-size: 100%;
+  min-inline-size: 0;
+  outline: 0;
+  padding: var(--pad-input-y) var(--pad-input-x);
+}
+
+.tui-input::placeholder {
+  color: var(--text-quaternary);
+}
+
+.tui-input::selection {
+  background: var(--selection-bg);
+}
+
+.tui-textarea {
+  display: block;
+  line-height: var(--leading-base);
+  resize: none;
+}

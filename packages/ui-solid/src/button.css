@@ -1,0 +1,106 @@
+.tui-button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  font: inherit;
+  font-weight: var(--weight-medium);
+  justify-content: center;
+  min-width: 0;
+  outline: 0;
+  padding: 0 var(--space-3);
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+  user-select: none;
+}
+
+.tui-button:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tui-button:active:not(:disabled, [aria-disabled="true"]) {
+  transform: scale(0.98);
+}
+
+.tui-button:focus-visible {
+  box-shadow: 0 0 0 var(--size-focus-ring) var(--focus-ring);
+}
+
+.tui-button:disabled,
+.tui-button[aria-disabled="true"] {
+  color: var(--text-quaternary);
+  cursor: default;
+}
+
+.tui-button--sm {
+  block-size: var(--size-btn-header-compact);
+  font-size: var(--text-xs);
+}
+
+.tui-button--md {
+  block-size: var(--size-btn-header);
+  font-size: var(--text-sm);
+}
+
+.tui-button--icon {
+  block-size: var(--size-btn-header);
+  inline-size: var(--size-btn-header);
+  padding: 0;
+}
+
+.tui-button--rail {
+  block-size: var(--size-btn-rail);
+  border-radius: var(--radius-lg);
+  inline-size: var(--size-btn-rail);
+  padding: 0;
+}
+
+.tui-button--composer {
+  block-size: var(--size-btn-composer);
+  border-radius: var(--radius-round);
+  inline-size: var(--size-btn-composer);
+  padding: 0;
+}
+
+.tui-button--inline {
+  block-size: var(--size-btn-inline);
+  border-radius: var(--radius-round);
+  inline-size: var(--size-btn-inline);
+  padding: 0;
+}
+
+.tui-button--solid {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.tui-button--solid:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--bg-active);
+}
+
+.tui-button--accent {
+  background: var(--bg-accent);
+  color: var(--text-on-accent);
+}
+
+.tui-button--accent:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--bg-accent-hover);
+  color: var(--text-on-accent);
+}
+
+.tui-button--danger {
+  color: var(--text-danger);
+}
+
+.tui-button--danger:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--bg-danger-secondary);
+  color: var(--text-danger);
+}

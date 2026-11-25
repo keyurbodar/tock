@@ -1,0 +1,20 @@
+.tui-tree {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  outline: 0;
+}
+
+.tui-tree [data-slot="tree-item"] {
+  border-radius: var(--radius-md);
+}
+
+.tui-tree [data-slot="tree-item"][data-highlighted] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tui-tree [data-slot="tree-item"][data-selected] {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
