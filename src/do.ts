@@ -20,8 +20,8 @@ import { UnifiedMemory } from "./core/memory.js";
 import { ExecutionGuards } from "./core/guards.js";
 import { McpHub, mcpServerView } from "./core/mcp.js";
 import { SubagentPool } from "./core/subagents.js";
-import { RoutineStore, sha256Hex, type RoutineInput } from "./core/routines.js";
-import { PushNotifier } from "./core/push.js";
+import { MORNING_BRIEF_ROUTINE_ID, RoutineStore, sha256Hex, type RoutineInput } from "./core/routines.js";
+import { isWithinQuietHours, PushNotifier } from "./core/push.js";
 import { FileStore } from "./core/files.js";
 import { SkillStore } from "./core/skills.js";
 import { constantTimeEqual } from "./core/auth.js";
@@ -30,6 +30,7 @@ import { buildModels, parseModelSpec, resolveModel } from "./core/models.js";
 import { createTockExtension } from "./core/tools.js";
 import { DjsRuntime, type DjsRunResult } from "./dev/djs.js";
 import type {
+  NotificationUrgency, NotifyResult, QueuedNotificationRecord,
   ClientFrame,
   Env,
   FileMeta,
@@ -93,7 +94,7 @@ export class TockDO extends DurableObject<Env> {
         djs: this.djs,
         getLastUserQuery: (convId) => this.lastUserQuery.get(convId) ?? "",
         isBackgroundSession: (convId) => this.backgroundSessions.has(convId),
-        notifyOwner: (title, body) => this.notifyOwner(title, body),
+        notifyOwner: (title, body, urgency) => this.notifyOwner(title, body, urgency),
         scheduleFollowup: (delay, note, sid) => this.scheduleFollowup(delay, note, sid),
       });
       registry.install(ext);
@@ -132,7 +133,7 @@ export class TockDO extends DurableObject<Env> {
       memory: this.memory,
       guards: this.guards,
       files: this.files,
-      notifyOwner: (title, body) => this.notifyOwner(title, body),
+      notifyOwner: (title, body, urgency) => this.notifyOwner(title, body, urgency),
       scheduleFollowup: (delay, note) => this.scheduleFollowup(delay, note),
       callMcpTool: (server, tool, args) => this.mcp.callTool(server, tool, args),
       isMcpToolReadOnly: (server, tool) => this.mcp.isToolReadOnly(server, tool),
@@ -140,6 +141,7 @@ export class TockDO extends DurableObject<Env> {
   }
 
   async onStart(): Promise<void> {
+    await this.routines.syncBuiltins(this.settingsStore.get());
     await this.reattachSocketWatches();
   }
 
@@ -383,6 +385,12 @@ export class TockDO extends DurableObject<Env> {
         return await this.routines.upsert(frame.routine);
       case "routine.delete":
         return { deleted: await this.routines.delete(frame.routineId) };
+      case "proactive.sync":
+        return await this.syncProactiveRoutines();
+      case "notifications.list":
+        return this.push.listQueued();
+      case "notifications.flush":
+        return await this.flushQueuedNotifications();
       case "plugin.list":
         return this.djs.listPlugins();
       case "plugin.upsert":
@@ -565,7 +573,44 @@ export class TockDO extends DurableObject<Env> {
         await this.harness.session(ROOT_SESSION).setModel(parsed);
       }
     }
+    if (
+      patch.proactiveHeartbeat !== undefined ||
+      patch.morningBriefTime !== undefined ||
+      patch.timezone !== undefined
+    ) {
+      await this.routines.syncBuiltins(updated);
+    }
     return updated;
+  }
+
+  async syncProactiveRoutines() {
+    await this.lifecycle.start();
+    return this.routines.syncBuiltins(this.settingsStore.get());
+  }
+
+  async notifyOwnerNow(
+    title: string,
+    body: string,
+    urgency: NotificationUrgency = "normal"
+  ): Promise<NotifyResult> {
+    await this.lifecycle.start();
+    return this.notifyOwner(title, body, urgency);
+  }
+
+  async listQueuedNotifications(): Promise<QueuedNotificationRecord[]> {
+    await this.lifecycle.start();
+    return this.push.listQueued();
+  }
+
+  async flushQueuedNotifications(): Promise<{ flushed: number; items: QueuedNotificationRecord[] }> {
+    await this.lifecycle.start();
+    const items = this.push.drainQueued();
+    if (items.length > 0) {
+      const summary = items.map((n) => `- [${n.urgency}] ${n.title}: ${n.body}`).join("\n");
+      this.broadcast("notification.digest", { count: items.length, items, ts: Date.now() });
+      await this.push.deliverOffline(`Tock Digest (${items.length})`, summary, "normal");
+    }
+    return { flushed: items.length, items };
   }
 
   async setSecret(
@@ -823,9 +868,19 @@ export class TockDO extends DurableObject<Env> {
     if (bgModel) {
       await this.harness.session(ROOT_SESSION).setModel(bgModel);
     }
+    let digestBlock = "";
+    if (routine.id === MORNING_BRIEF_ROUTINE_ID) {
+      const queued = this.push.drainQueued();
+      if (queued.length > 0) {
+        this.broadcast("notification.digest", { count: queued.length, items: queued, ts: Date.now() });
+        digestBlock = `\nOvernight queued notifications (${queued.length}):\n${queued
+          .map((n) => `- [${n.urgency}] ${n.title}: ${n.body}`)
+          .join("\n")}`;
+      }
+    }
     const promptBody = checkPayload
-      ? `[routine:${routine.name}] Change detected.\nCheck output: ${checkPayload.slice(0, 3000)}\nInstruction: ${routine.prompt}`
-      : `[routine:${routine.name}] ${routine.prompt}`;
+      ? `[routine:${routine.name}] Change detected.\nCheck output: ${checkPayload.slice(0, 3000)}\nInstruction: ${routine.prompt}${digestBlock}`
+      : `[routine:${routine.name}] ${routine.prompt}${digestBlock}`;
     this.backgroundSessions.add(ROOT_SESSION);
     this.lastUserQuery.set(ROOT_SESSION, routine.prompt);
     await this.harness.submit(promptBody, {
@@ -869,11 +924,23 @@ export class TockDO extends DurableObject<Env> {
     });
   }
 
-  private async notifyOwner(title: string, body: string): Promise<void> {
-    this.broadcast("notification.push", { title, body, ts: Date.now() });
-    if (this.ctx.getWebSockets().length === 0) {
-      await this.push.deliverOffline(title, body);
+  private async notifyOwner(
+    title: string,
+    body: string,
+    urgency: NotificationUrgency = "normal"
+  ): Promise<NotifyResult> {
+    const cfg = this.settingsStore.get();
+    const inQuiet = isWithinQuietHours(new Date(), cfg.timezone, cfg.quietHoursStart, cfg.quietHoursEnd);
+    if (inQuiet && urgency !== "urgent") {
+      const queued = this.push.enqueue(title, body, urgency);
+      this.broadcast("notification.queued", queued);
+      return { delivered: false, queued: true, urgency };
     }
+    this.broadcast("notification.push", { title, body, urgency, ts: Date.now() });
+    if (this.ctx.getWebSockets().length === 0) {
+      await this.push.deliverOffline(title, body, urgency);
+    }
+    return { delivered: true, queued: false, urgency };
   }
 
   private latestEventSeq(): number {

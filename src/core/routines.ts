@@ -1,4 +1,7 @@
-import type { RoutineRecord } from "../types.js";
+import type { OwnerSettings, RoutineRecord } from "../types.js";
+
+export const HEARTBEAT_ROUTINE_ID = "builtin:heartbeat";
+export const MORNING_BRIEF_ROUTINE_ID = "builtin:morning_brief";
 
 export type RoutineInput = Omit<
   RoutineRecord,
@@ -17,6 +20,41 @@ export interface RoutineSchedulerLike {
     payload: { routineId: string },
   ): Promise<{ id: string }>;
   cancel(id: string): Promise<boolean>;
+}
+
+export function hhmmToUtcCron(hhmm: string, timezone: string, refDate = new Date()): string {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm.trim());
+  if (!m) return "0 8 * * *";
+  const targetH = Number(m[1]);
+  const targetM = Number(m[2]);
+  let offsetMinutes = 0;
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).formatToParts(refDate);
+    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
+    const localAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute"));
+    const refUtc = Date.UTC(
+      refDate.getUTCFullYear(),
+      refDate.getUTCMonth(),
+      refDate.getUTCDate(),
+      refDate.getUTCHours(),
+      refDate.getUTCMinutes()
+    );
+    offsetMinutes = Math.round((localAsUtc - refUtc) / 60_000);
+  } catch {
+    offsetMinutes = 0;
+  }
+  const totalUtcMinutes = ((targetH * 60 + targetM - offsetMinutes) % 1440 + 1440) % 1440;
+  const utcH = Math.floor(totalUtcMinutes / 60);
+  const utcM = totalUtcMinutes % 60;
+  return `${utcM} ${utcH} * * *`;
 }
 
 export class RoutineStore {
@@ -102,6 +140,43 @@ export class RoutineStore {
     );
 
     return this.get(id)!;
+  }
+
+  async syncBuiltins(settings: OwnerSettings): Promise<{ heartbeat: RoutineRecord; morningBrief: RoutineRecord }> {
+    const sync = async (input: RoutineInput): Promise<RoutineRecord> => {
+      const current = input.id ? this.get(input.id) : undefined;
+      if (current && current.name === input.name && current.schedule === input.schedule &&
+          current.scheduleType === input.scheduleType && current.prompt === input.prompt &&
+          current.checkScript === input.checkScript && current.quietIfUnchanged === input.quietIfUnchanged &&
+          current.enabled === input.enabled && (!input.enabled || current.schedulerJobId)) return current;
+      return this.upsert(input);
+    };
+    const heartbeat = await sync({
+      id: HEARTBEAT_ROUTINE_ID,
+      name: "Ambient Heartbeat",
+      schedule: "0 * * * *",
+      scheduleType: "cron",
+      prompt:
+        "Run an ambient proactive check: inspect open items, long-term memory commitments, and any connected MCP/API tools for urgent deadlines, blockers, or high-priority updates. If nothing requires the owner's attention right now, stay silent and do not call notify_owner. Only call notify_owner with an appropriate urgency (low, normal, or urgent) when something genuinely matters.",
+      checkScript: null,
+      quietIfUnchanged: false,
+      enabled: settings.proactiveHeartbeat
+    });
+
+    const briefCron = hhmmToUtcCron(settings.morningBriefTime ?? "08:00", settings.timezone);
+    const morningBrief = await sync({
+      id: MORNING_BRIEF_ROUTINE_ID,
+      name: "Morning Brief",
+      schedule: briefCron,
+      scheduleType: "cron",
+      prompt:
+        "Compile a concise morning brief for the owner: include any overnight queued notifications provided in the trigger, review open items and upcoming deadlines, check connected MCP/API workspace tools if available, and send one clean summary via notify_owner with urgency 'normal'.",
+      checkScript: null,
+      quietIfUnchanged: false,
+      enabled: settings.proactiveHeartbeat && Boolean(settings.morningBriefTime)
+    });
+
+    return { heartbeat, morningBrief };
   }
 
   async delete(id: string): Promise<boolean> {

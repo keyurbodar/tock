@@ -144,6 +144,18 @@ export default {
       return Response.json(await stub.updateSettings(parsed.value));
     }
 
+    if (url.pathname === "/api/proactive/sync" && request.method === "POST") {
+      return Response.json(await stub.syncProactiveRoutines());
+    }
+
+    if (url.pathname === "/api/notifications" && request.method === "GET") {
+      return Response.json({ queued: await stub.listQueuedNotifications() });
+    }
+
+    if (url.pathname === "/api/notifications/flush" && request.method === "POST") {
+      return Response.json(await stub.flushQueuedNotifications());
+    }
+
     if (url.pathname === "/api/secrets" && request.method === "GET") {
       return Response.json({ secrets: await stub.listSecrets() });
     }

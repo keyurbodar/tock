@@ -1,6 +1,8 @@
 import { env, runInDurableObject, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { ExecutionGuards } from "../src/core/guards.js";
+import { isWithinQuietHours } from "../src/core/push.js";
+import { HEARTBEAT_ROUTINE_ID, hhmmToUtcCron, MORNING_BRIEF_ROUTINE_ID } from "../src/core/routines.js";
 import { SubagentPool } from "../src/core/subagents.js";
 import type { SettingsStore } from "../src/core/settings.js";
 import type { Env } from "../src/types.js";
@@ -336,5 +338,81 @@ describe("tock backend", () => {
 
     expect(guards.recordSubrequest(2).allowed).toBe(true);
     expect(guards.recordSubrequest(2).allowed).toBe(false);
+  });
+
+  it("evaluates quiet hours across timezones and converts morning brief time to UTC cron", () => {
+    // 2026-11-25 18:00 UTC = 23:30 Asia/Kolkata
+    const lateIst = new Date("2026-11-25T18:00:00Z");
+    expect(isWithinQuietHours(lateIst, "Asia/Kolkata", "23:00", "07:30")).toBe(true);
+    expect(isWithinQuietHours(lateIst, "UTC", "23:00", "07:30")).toBe(false);
+    expect(isWithinQuietHours(lateIst, "UTC", "17:00", "19:00")).toBe(true);
+    expect(isWithinQuietHours(lateIst, "UTC", null, null)).toBe(false);
+
+    expect(hhmmToUtcCron("08:00", "Asia/Kolkata", lateIst)).toBe("30 2 * * *");
+    expect(hhmmToUtcCron("08:00", "UTC", lateIst)).toBe("0 8 * * *");
+  });
+
+  it("gates notifications during quiet hours, lets urgent break through, and flushes digest", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("proactive-quiet@test"));
+    // Set an always-active 23h59m quiet window around current UTC minute
+    const now = new Date();
+    const curMin = now.getUTCHours() * 60 + now.getUTCMinutes();
+    const startMin = (curMin + 1430) % 1440; // 10 mins ago
+    const endMin = (curMin + 60) % 1440; // 60 mins ahead
+    const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+    await stub.updateSettings({
+      timezone: "UTC",
+      quietHoursStart: fmt(startMin),
+      quietHoursEnd: fmt(endMin)
+    });
+
+    const lowRes = await stub.notifyOwnerNow("FYI", "Non-urgent update", "low");
+    expect(lowRes).toEqual({ delivered: false, queued: true, urgency: "low" });
+
+    const normalRes = await stub.notifyOwnerNow("Summary", "Normal update", "normal");
+    expect(normalRes).toEqual({ delivered: false, queued: true, urgency: "normal" });
+
+    const urgentRes = await stub.notifyOwnerNow("Prod Down", "Immediate alert", "urgent");
+    expect(urgentRes).toEqual({ delivered: true, queued: false, urgency: "urgent" });
+
+    const queued = await stub.listQueuedNotifications();
+    expect(queued.length).toBe(2);
+    expect(queued[0]!.title).toBe("FYI");
+    expect(queued[1]!.title).toBe("Summary");
+
+    const flushed = await stub.flushQueuedNotifications();
+    expect(flushed.flushed).toBe(2);
+    expect((await stub.listQueuedNotifications()).length).toBe(0);
+  });
+
+  it("syncs built-in Ambient Heartbeat and Morning Brief routines with settings", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("proactive-builtins@test"));
+    await stub.updateSettings({
+      timezone: "Asia/Kolkata",
+      proactiveHeartbeat: true,
+      morningBriefTime: "08:00"
+    });
+    const synced = await stub.syncProactiveRoutines();
+    expect(synced.heartbeat.id).toBe(HEARTBEAT_ROUTINE_ID);
+    expect(synced.heartbeat.enabled).toBe(true);
+    expect(synced.heartbeat.schedule).toBe("0 * * * *");
+    expect(synced.heartbeat.schedulerJobId).toBeTruthy();
+
+    expect(synced.morningBrief.id).toBe(MORNING_BRIEF_ROUTINE_ID);
+    expect(synced.morningBrief.enabled).toBe(true);
+    expect(synced.morningBrief.schedule).toBe("30 2 * * *");
+    expect(synced.morningBrief.schedulerJobId).toBeTruthy();
+
+    const syncedAgain = await stub.syncProactiveRoutines();
+    expect(syncedAgain.heartbeat.schedulerJobId).toBe(synced.heartbeat.schedulerJobId);
+    expect(syncedAgain.morningBrief.schedulerJobId).toBe(synced.morningBrief.schedulerJobId);
+
+    await stub.updateSettings({ proactiveHeartbeat: false });
+    const paused = await stub.syncProactiveRoutines();
+    expect(paused.heartbeat.enabled).toBe(false);
+    expect(paused.heartbeat.schedulerJobId).toBeNull();
+    expect(paused.morningBrief.enabled).toBe(false);
+    expect(paused.morningBrief.schedulerJobId).toBeNull();
   });
 });
