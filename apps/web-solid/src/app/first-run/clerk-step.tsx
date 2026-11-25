@@ -5,10 +5,14 @@ import { openClerkSignIn } from "./clerk"
 
 export function ClerkStep() {
   const [opening, setOpening] = createSignal(false)
+  const [error, setError] = createSignal("")
   const signIn = async () => {
     setOpening(true)
     try {
+      setError("")
       await openClerkSignIn()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not open sign-in")
     } finally {
       setOpening(false)
     }
@@ -17,6 +21,7 @@ export function ClerkStep() {
     <>
       <h1>Sign in to Tock</h1>
       <p>Use the owner account for this deployment. Authentication runs through Clerk, with Cloudflare protecting the Worker routes.</p>
+      {error() ? <p role="alert">{error()}</p> : null}
       <OTPInput aria-label="One-time sign-in code" maxLength={6} name="code">
         <OTPInputGroup>
           <OTPInputSlot index={0} />
