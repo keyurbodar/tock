@@ -1,0 +1,7 @@
+.entry-icon {
+  display: block;
+  width: 1.17em;
+  height: 1.17em;
+  flex-shrink: 0;
+  align-self: center;
+}

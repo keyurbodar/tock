@@ -17,6 +17,7 @@ function ConversationPage() {
       emptyBody="This fixture conversation is empty."
       emptyTitle={conversation.data?.title ?? "Conversation"}
       messages={conversation.data?.messages ?? []}
+      conversationId={params().conversationId}
     />
   )
 }

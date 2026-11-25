@@ -334,3 +334,41 @@
   margin: 0;
 }
 
+
+.composer-rich-host {
+  position: relative;
+  min-width: 0;
+  outline: none;
+}
+
+.composer-rich-host .composer-input {
+  min-width: 0;
+  min-height: 1.5rem;
+  max-height: min(11.5rem, 45dvh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--text-primary);
+  font-family: var(--font-family-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  outline: none;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.composer-rich-host[data-empty] + .composer-placeholder {
+  display: block;
+}
+
+.composer-inline-chip {
+  display: inline-block;
+  max-width: 16rem;
+  padding: 0 0.35rem;
+  overflow: hidden;
+  background: var(--composer-fill-field);
+  border-radius: 0.45rem;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  vertical-align: baseline;
+  white-space: nowrap;
+}

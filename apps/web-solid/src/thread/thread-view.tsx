@@ -1,11 +1,13 @@
-import { For, Show } from "solid-js"
-import { ComposerPlaceholder } from "../composer/composer"
+import { createMemo, createSignal, For, Show } from "solid-js"
+import { Composer } from "../composer/composer"
+import { Markdown } from "../chat/rich/Markdown"
 import type { FixtureMessage } from "../fixtures/types"
 
 type ThreadViewProps = {
   messages?: FixtureMessage[]
   emptyTitle?: string
   emptyBody?: string
+  conversationId?: string
 }
 
 function timeLabel(value: string) {
@@ -13,7 +15,24 @@ function timeLabel(value: string) {
 }
 
 export function ThreadView(props: ThreadViewProps) {
-  const empty = () => !props.messages?.length
+  const [sent, setSent] = createSignal<FixtureMessage[]>([])
+  const messages = createMemo(() => [...(props.messages ?? []), ...sent()])
+  const empty = () => messages().length === 0
+  const send = (markdown: string) => {
+    const now = new Date().toISOString()
+    setSent((items) => [
+      ...items,
+      {
+        id: `local-${crypto.randomUUID()}`,
+        author: "user",
+        body: markdown,
+        createdAt: now,
+        turn: messages().length + 1,
+        state: "complete",
+      },
+    ])
+  }
+
   return (
     <div class="thread-page">
       <Show
@@ -26,25 +45,27 @@ export function ThreadView(props: ThreadViewProps) {
         }
       >
         <div class="thread-scroll">
-          <div class="thread-column">
-            <For each={props.messages}>
-              {(message, index) => (
-                <div
-                  class="message-row"
-                  data-author={message.author}
-                  data-turn={index() === 0 || props.messages?.[index() - 1]?.author !== message.author ? "start" : "continue"}
-                >
-                  <div class="message-bubble-wrap">
-                    <div class="message-bubble">{message.body}</div>
-                    <div class="message-meta">{timeLabel(message.createdAt)}</div>
+          <For each={messages()}>
+            {(message, index) => (
+            <div class="thread-column" data-component="chat-vrow">
+              <div
+                class="message-row"
+                data-author={message.author}
+                data-turn={index() === 0 || messages()[index() - 1]?.author !== message.author ? "start" : "continue"}
+              >
+                <div class="message-bubble-wrap">
+                  <div class="message-bubble">
+                    <Markdown text={message.body} />
                   </div>
+                  <div class="message-meta">{timeLabel(message.createdAt)}</div>
                 </div>
-              )}
-            </For>
-          </div>
+              </div>
+            </div>
+            )}
+          </For>
         </div>
       </Show>
-      <ComposerPlaceholder />
+      <Composer draftKey={props.conversationId} onSend={send} />
     </div>
   )
 }

@@ -27,3 +27,17 @@
   --size-pin-tile-h: 97px;
   --size-copy-visual-scale: 0.85;
 }
+
+:root {
+  --chat-content-max-width: var(--size-content-max-w);
+  --radius-sm: 4px;
+  --radius-base: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+  --duration-instant: 60ms;
+  --duration-fast: 120ms;
+  --ease-sharp: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --press-scale: 0.94;
+  --hairline-strong: 0 0 0 1px var(--stroke-secondary);
+}

@@ -41,3 +41,10 @@
   --pad-rich-bubble-y: 1px;
   --pad-copy-inset: var(--space-1);
 }
+
+:root {
+  --spacing-control-md: 26px;
+  --spacing-control-lg: 30px;
+  --spacing-control-xl: 34px;
+  --spacing-conversation-block-gap: 10px;
+}

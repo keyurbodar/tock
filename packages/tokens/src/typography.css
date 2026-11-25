@@ -19,3 +19,23 @@
   --tracking-tight: -0.01em;
   --tracking-normal: 0;
 }
+
+:root {
+  --font-family-sans: var(--font-sans);
+  --font-family-mono: var(--font-mono);
+  --font-size-sm: var(--text-xs);
+  --font-size-base: var(--text-sm);
+  --font-size-lg: var(--text-base);
+  --font-size-xl: var(--text-lg);
+  --font-size-code: var(--text-xs);
+  --line-height-sm: var(--leading-xs);
+  --line-height-base: var(--leading-sm);
+  --line-height-lg: var(--leading-base);
+  --line-height-xl: var(--leading-lg);
+  --line-height-code: 18px;
+  --letter-spacing-sm: var(--tracking-normal);
+  --letter-spacing-base: var(--tracking-normal);
+  --letter-spacing-lg: var(--tracking-normal);
+  --letter-spacing-xl: var(--tracking-tight);
+  --letter-spacing-code: var(--tracking-normal);
+}

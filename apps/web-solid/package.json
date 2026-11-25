@@ -37,6 +37,7 @@
     "@ui-sdk/core": "0.1.0-beta.17",
     "@ui-sdk/solid": "0.1.0-beta.17",
     "clsx": "^2.1.1",
+    "marked": "18.0.14",
     "solid-js": "^2.0.0",
     "sugar-high": "^2.5.1",
     "virtua": "^0.55.0"

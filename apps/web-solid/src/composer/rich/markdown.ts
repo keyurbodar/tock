@@ -1,0 +1,451 @@
+import { attachmentToken } from "../../lib/protocol"
+import { fileRefToken } from "./file-ref"
+export type Json = {
+  type: string
+  attrs?: Record<string, unknown>
+  content?: Json[]
+  marks?: { type: string; attrs?: Record<string, unknown> }[]
+  text?: string
+}
+
+const MARKS = ["link", "bold", "italic", "strike", "code"] as const
+const WRAP: Record<string, string> = { bold: "**", italic: "*", strike: "~~" }
+const TOKEN = /(^|[^\w@/.:-])([@/])([a-z0-9][a-z0-9-]{0,63})(?![\w/-])/g
+
+export function docToMarkdown(doc: Json): string {
+  return blocks(doc.content ?? [], "\n\n").trim()
+}
+
+function blocks(nodes: Json[], gap: string): string {
+  const parts: string[] = []
+  let previous: Json | undefined
+  nodes.forEach((node, index) => {
+    const followed = nodes.slice(index + 1).some((later) => later.type === "codeBlock" || block(later) !== "")
+    const text = block(node, followed)
+    if (text === "") return
+    if (previous) parts.push(previous.type.endsWith("List") && node.type.endsWith("List") ? "\n\n" : gap)
+    parts.push(text)
+    previous = node
+  })
+  return parts.join("")
+}
+
+function isClosingFence(line: string, fence: string): boolean {
+  const match = /^(`{3,}|~{3,})[ \t]*$/.exec(line)
+  if (!match) return false
+  const run = match[1]!
+  return run[0] === fence[0] && run.length >= fence.length
+}
+
+function fenceSource(node: Json, followed: boolean): string {
+  const body = (node.content ?? []).map((child) => child.text ?? "").join("")
+  let fence = typeof node.attrs?.fence === "string" && node.attrs.fence ? node.attrs.fence : "```"
+  const language = typeof node.attrs?.language === "string" ? node.attrs.language : ""
+  let close = typeof node.attrs?.close === "string" ? node.attrs.close : `\n${fence}`
+  const longest = Math.max(
+    0,
+    ...body
+      .split("\n")
+      .filter((line) => isClosingFence(line, fence))
+      .map((line) => /^[`~]+/.exec(line)![0].length),
+  )
+  if (longest > 0) {
+    fence = fence[0]!.repeat(longest + 1)
+    if (close) close = `\n${fence}`
+  }
+  if (!close && followed) close = `\n${fence}`
+  return `${fence}${language}${body ? "\n" : ""}${body}${close}`
+}
+
+function block(node: Json, followed = false): string {
+  const children = node.content ?? []
+  switch (node.type) {
+    case "paragraph":
+      return inline(children).replace(/\n+$/, "")
+    case "heading": {
+      const level = typeof node.attrs?.level === "number" ? Math.min(6, Math.max(1, node.attrs.level)) : 1
+      return `${"#".repeat(level)} ${inline(children).replace(/\n+$/, "")}`.trimEnd()
+    }
+    case "horizontalRule":
+      return "---"
+    case "taskList":
+      return children
+        .map((item) => prefixLines(itemText(item), item.attrs?.checked ? "- [x] " : "- [ ] ", "  "))
+        .join("\n")
+    case "blockquote":
+      return prefixLines(blocks(children, "\n\n"), "> ", "> ").replace(/^> $/gm, ">")
+    case "bulletList":
+      return children.map((item) => listLine(item, "-")).join("\n")
+    case "orderedList": {
+      const start = typeof node.attrs?.start === "number" ? node.attrs.start : 1
+      return children.map((item, index) => listLine(item, `${start + index}.`)).join("\n")
+    }
+    case "codeBlock":
+      return fenceSource(node, followed)
+    default:
+      return ""
+  }
+}
+
+function listLine(item: Json, fallback: string): string {
+  const marker = typeof item.attrs?.marker === "string" && item.attrs.marker ? item.attrs.marker : fallback
+  const lead = `${marker} `
+  return prefixLines(itemText(item), lead, " ".repeat(lead.length))
+}
+
+export function nextOrderedMarker(marker: string): string {
+  const digits = marker.slice(0, -1)
+  const number = Number.parseInt(digits, 10)
+  const next = Number.isSafeInteger(number) ? String(number + 1).padStart(digits.length, "0") : digits
+  return `${next}${marker.slice(-1)}`
+}
+
+function itemText(item: Json): string {
+  const children = item.content ?? []
+  const lines: string[] = []
+  children.forEach((child, index) => {
+    const text = block(child)
+    if (text === "" && index > 0) return
+    if (index > 0) lines.push(child.type.endsWith("List") ? "\n" : "\n\n")
+    lines.push(text)
+  })
+  return lines.join("")
+}
+
+function prefixLines(text: string, first: string, rest: string): string {
+  return text
+    .split("\n")
+    .map((line, index) => (index === 0 ? first : rest) + line)
+    .join("\n")
+}
+
+function inline(nodes: Json[]): string {
+  let out = ""
+  let at = 0
+  while (at < nodes.length) {
+    const head = nodes[at]!
+    const mark = MARKS.find((name) => head.marks?.some((m) => m.type === name))
+    if (!mark) {
+      out += leaf(head)
+      at++
+      continue
+    }
+    const same = (node: Json) => sameMark(head, node, mark)
+    let end = at
+    while (end < nodes.length && same(nodes[end]!)) end++
+    const run = nodes
+      .slice(at, end)
+      .map((node) => ({ ...node, marks: node.marks?.filter((m) => m.type !== mark || !same(node)) }))
+    out += wrap(mark, head, run)
+    at = end
+  }
+  return out
+}
+
+function sameMark(head: Json, node: Json, mark: string): boolean {
+  const a = head.marks?.find((m) => m.type === mark)
+  const b = node.marks?.find((m) => m.type === mark)
+  return !!b && JSON.stringify(a?.attrs ?? null) === JSON.stringify(b.attrs ?? null)
+}
+
+function leaf(node: Json): string {
+  if (node.type === "hardBreak") return "\n"
+  if (node.type === "mention") return `@${String(node.attrs?.slug ?? "")}`
+  if (node.type === "slash") return `/${String(node.attrs?.name ?? "")}`
+  if (node.type === "fileRef") return fileRefToken(String(node.attrs?.path ?? ""), Boolean(node.attrs?.folder))
+  if (node.type === "attachment") return attachmentToken(String(node.attrs?.id ?? ""), String(node.attrs?.name ?? ""))
+  if (node.type === "text") return node.text ?? ""
+  return ""
+}
+
+function wrap(mark: string, head: Json, run: Json[]): string {
+  if (mark === "code") {
+    const body = run.map(leaf).join("")
+    if (!body.trim()) return body
+    const longest = Math.max(0, ...(body.match(/`+/g) ?? []).map((ticks) => ticks.length))
+    const fence = "`".repeat(longest + 1)
+    const pad = body.startsWith("`") || body.endsWith("`") ? " " : ""
+    return `${fence}${pad}${body}${pad}${fence}`
+  }
+  const inner = inline(run)
+  const lead = /^\s*/.exec(inner)![0]
+  const trail = /\s*$/.exec(inner.slice(lead.length))![0]
+  const core = inner.slice(lead.length, inner.length - trail.length)
+  if (!core) return inner
+  if (mark === "link") {
+    const href = String(head.marks?.find((m) => m.type === "link")?.attrs?.href ?? "")
+    return `${lead}[${core}](${href.replace(/ /g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29")})${trail}`
+  }
+  const marker = WRAP[mark]!
+  return `${lead}${marker}${core}${marker}${trail}`
+}
+
+export type ParseOptions = { isMention?: (slug: string) => boolean; isSlash?: (name: string) => boolean }
+
+export function markdownToDoc(markdown: string, options: ParseOptions = {}): Json {
+  const lines = markdown.replace(/\r\n?/g, "\n").split("\n")
+  const content = parseBlocks(lines, options)
+  return { type: "doc", content: content.length ? content : [{ type: "paragraph" }] }
+}
+
+const BULLET = /^( {0,3})([-*+]) (.*)$/
+const ORDERED = /^( {0,3})(\d{1,9}[.)]) (.*)$/
+const FENCE = /^( {0,3})(`{3,}|~{3,})\s*([\w+#.-]*)\s*$/
+const RULE = /^ {0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/
+const HEADING = /^ {0,3}(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/
+const TASK = /^\[([ xX])\] (.*)$/
+const startsBlock = (line: string) => RULE.test(line) || HEADING.test(line) || FENCE.test(line)
+
+function parseBlocks(lines: string[], options: ParseOptions): Json[] {
+  const out: Json[] = []
+  let at = 0
+  while (at < lines.length) {
+    const line = lines[at]!
+    if (line.trim() === "") {
+      at++
+      continue
+    }
+    const fence = FENCE.exec(line)
+    if (fence) {
+      parseFence(fence)
+      continue
+    }
+    if (RULE.test(line)) {
+      out.push({ type: "horizontalRule" })
+      at++
+      continue
+    }
+    const heading = HEADING.exec(line)
+    if (heading) {
+      const content = inlines(heading[2]!, options, [])
+      out.push({ type: "heading", attrs: { level: heading[1]!.length }, ...(content.length ? { content } : {}) })
+      at++
+      continue
+    }
+    if (/^ {0,3}>/.test(line)) {
+      const quoted: string[] = []
+      while (at < lines.length && /^ {0,3}>/.test(lines[at]!)) quoted.push(lines[at++]!.replace(/^ {0,3}> ?/, ""))
+      out.push({ type: "blockquote", content: parseBlocks(quoted, options) })
+      continue
+    }
+    const marker = BULLET.exec(line) ?? ORDERED.exec(line)
+    if (marker) {
+      parseList(line)
+      continue
+    }
+    parseParagraph()
+  }
+  function parseParagraph(): void {
+    const text: string[] = []
+    while (
+      at < lines.length &&
+      lines[at]!.trim() !== "" &&
+      !FENCE.test(lines[at]!) &&
+      !(text.length > 0 && (/^ {0,3}>/.test(lines[at]!) || startsBlock(lines[at]!)))
+    ) {
+      if (text.length > 0 && (BULLET.test(lines[at]!) || ORDERED.test(lines[at]!))) break
+      text.push(lines[at++]!)
+    }
+    out.push(paragraph(text, options))
+  }
+  function parseFence(fence: RegExpExecArray): void {
+    const marker = fence[2]!
+    const body: string[] = []
+    at++
+    while (at < lines.length && !closes(lines[at]!, marker)) body.push(lines[at++]!)
+    const closed = at < lines.length
+    if (closed) at++
+    out.push({
+      type: "codeBlock",
+      attrs: { language: fence[3] ?? "", fence: marker, close: closed ? `\n${lines[at - 1]!.trim()}` : "" },
+      ...(body.length ? { content: [{ type: "text", text: body.join("\n") }] } : {}),
+    })
+  }
+
+  function parseList(line: string): void {
+    const ordered = ORDERED.test(line)
+    const kind = ordered ? ORDERED : BULLET
+    const items: Json[] = []
+    let start = 1
+    while (at < lines.length) {
+      const head = kind.exec(lines[at]!)
+      if (!head) break
+      if (items.length === 0 && ordered) start = Number.parseInt(head[2]!, 10)
+      const body = listBody(head)
+      const task = ordered ? null : TASK.exec(body[0]!)
+      if (task) body[0] = task[2]!
+      const content = itemBlocks(body, options)
+      items.push(
+        task
+          ? { type: "taskItem", attrs: { checked: task[1] !== " " }, content }
+          : { type: "listItem", attrs: { marker: head[2]! }, content },
+      )
+    }
+    const tasks = items.every((item) => item.type === "taskItem")
+    out.push(
+      ordered
+        ? { type: "orderedList", attrs: { start }, content: items }
+        : { type: tasks ? "taskList" : "bulletList", content: tasks ? items : items.map(untask) },
+    )
+  }
+
+  function listBody(head: RegExpExecArray): string[] {
+    const width = head[1]!.length + head[2]!.length + 1
+    const body = [head[3]!]
+    at++
+    while (at < lines.length) {
+      const next = lines[at]!
+      if (next.trim() === "") {
+        const after = lines[at + 1]
+        if (after !== undefined && new RegExp(`^ {${width}}\\S`).test(after)) {
+          body.push("")
+          at++
+          continue
+        }
+        break
+      }
+      if (!new RegExp(`^ {${width}}`).test(next)) break
+      body.push(next.slice(width))
+      at++
+    }
+    return body
+  }
+  return out
+}
+
+function untask(item: Json): Json {
+  if (item.type !== "taskItem") return item
+  const [first, ...rest] = item.content ?? []
+  const box = item.attrs?.checked ? "[x] " : "[ ] "
+  const lead =
+    first?.type === "paragraph" ? { ...first, content: [{ type: "text", text: box }, ...(first.content ?? [])] } : first
+  return { type: "listItem", attrs: { marker: "-" }, content: [lead ?? { type: "paragraph" }, ...rest] }
+}
+
+function itemBlocks(body: string[], options: ParseOptions): Json[] {
+  const parsed = parseBlocks(body, options)
+  return parsed.length ? parsed : [{ type: "paragraph" }]
+}
+
+function closes(line: string, marker: string): boolean {
+  const trimmed = line.trim()
+  return trimmed.length >= marker.length && trimmed === marker[0]!.repeat(trimmed.length)
+}
+
+function paragraph(lines: string[], options: ParseOptions): Json {
+  const content: Json[] = []
+  lines.forEach((line, index) => {
+    if (index > 0) content.push({ type: "hardBreak" })
+    content.push(...inlines(line.replace(/\s+$/, ""), options, []))
+  })
+  return content.length ? { type: "paragraph", content } : { type: "paragraph" }
+}
+
+type Mark = { type: string; attrs?: Record<string, unknown> }
+
+function inlines(text: string, options: ParseOptions, marks: Mark[]): Json[] {
+  const out: Json[] = []
+  let plain = ""
+  const flush = () => {
+    if (plain) out.push(...textNodes(plain, options, marks))
+    plain = ""
+  }
+  let at = 0
+  while (at < text.length) {
+    const rest = text.slice(at)
+    const code = /^(`+)([^`][\s\S]*?[^`]|[^`])\1(?!`)/.exec(rest)
+    if (code) {
+      flush()
+      const body =
+        code[2]!.length > 2 && code[2]!.startsWith(" ") && code[2]!.endsWith(" ") ? code[2]!.slice(1, -1) : code[2]!
+      out.push({ type: "text", text: body, marks: [...marks, { type: "code" }] })
+      at += code[0].length
+      continue
+    }
+    const attachment = /^\[([^\]\n]*)\]\(attachment:([\w-]+)\)/.exec(rest)
+    if (attachment) {
+      flush()
+      out.push({ type: "attachment", attrs: { id: attachment[2], name: attachment[1] } })
+      at += attachment[0].length
+      continue
+    }
+    const ref = /^\[([^\]\n]*)\]\((?:<(\/[^>\n]+)>|(\/[^)\s<>]+))\)/.exec(rest)
+    if (ref && !(ref[2] ?? ref[3])!.startsWith("//")) {
+      flush()
+      const raw = (ref[2] ?? ref[3])!.replace(/^\/+/, "")
+      const folder = raw.endsWith("/")
+      out.push({ type: "fileRef", attrs: { path: raw.replace(/\/+$/, ""), ...(folder ? { folder: true } : {}) } })
+      at += ref[0].length
+      continue
+    }
+    const link = /^\[([^\]]+)\]\(([^)\s]+)\)/.exec(rest)
+    if (link) {
+      flush()
+      out.push(...inlines(link[1]!, options, [...marks, { type: "link", attrs: { href: link[2] } }]))
+      at += link[0].length
+      continue
+    }
+    const wrapped =
+      emphasis(rest, "***", ["bold", "italic"], options, marks) ??
+      emphasis(rest, "**", ["bold"], options, marks) ??
+      emphasis(rest, "~~", ["strike"], options, marks) ??
+      emphasis(rest, "*", ["italic"], options, marks)
+    if (wrapped) {
+      flush()
+      out.push(...wrapped.nodes)
+      at += wrapped.length
+      continue
+    }
+    plain += text[at]
+    at++
+  }
+  flush()
+  return out
+}
+
+function emphasis(rest: string, marker: string, kinds: string[], options: ParseOptions, marks: Mark[]) {
+  if (!rest.startsWith(marker)) return null
+  const after = rest[marker.length]
+  if (after === undefined || /\s/.test(after) || after === marker[0]) return null
+  let close = marker.length
+  for (;;) {
+    close = rest.indexOf(marker, close + 1)
+    if (close < 0) return null
+    const before = rest[close - 1]!
+    const next = rest[close + marker.length]
+    if (/\s/.test(before) || next === marker[0]) continue
+    if (
+      rest.slice(marker.length, close).includes("`") &&
+      (rest.slice(marker.length, close).match(/`/g)?.length ?? 0) % 2 === 1
+    )
+      continue
+    return {
+      length: close + marker.length,
+      nodes: inlines(rest.slice(marker.length, close), options, [...marks, ...kinds.map((type) => ({ type }))]),
+    }
+  }
+}
+
+function tokenNode(sign: string, name: string, options: ParseOptions): Json | null {
+  if (sign === "@")
+    return name.length <= 32 && options.isMention?.(name) ? { type: "mention", attrs: { slug: name } } : null
+  return options.isSlash?.(name) ? { type: "slash", attrs: { name } } : null
+}
+
+function textNodes(text: string, options: ParseOptions, marks: Mark[]): Json[] {
+  const withMarks = (node: Json): Json => (marks.length ? { ...node, marks: marks } : node)
+  if (!options.isMention && !options.isSlash) return [withMarks({ type: "text", text })]
+  const out: Json[] = []
+  let last = 0
+  for (const match of text.matchAll(TOKEN)) {
+    const lead = match[1]!
+    const node = tokenNode(match[2]!, match[3]!, options)
+    if (!node) continue
+    const start = match.index + lead.length
+    if (start > last) out.push(withMarks({ type: "text", text: text.slice(last, start) }))
+    out.push(node)
+    last = start + 1 + match[3]!.length
+  }
+  if (last < text.length) out.push(withMarks({ type: "text", text: text.slice(last) }))
+  return out
+}

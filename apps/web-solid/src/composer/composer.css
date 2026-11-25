@@ -1,0 +1,528 @@
+.composer-dock {
+  position: relative;
+  z-index: var(--z-sticky);
+  width: 100%;
+  max-width: var(--chat-content-max-width);
+  margin-right: auto;
+  margin-left: auto;
+  padding: 0 1rem calc(0.875rem + env(safe-area-inset-bottom, 0) + var(--composer-keyboard-inset, 0));
+  background: var(--bg-chrome);
+}
+
+.composer-dock .composer-box {
+  position: relative;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: var(--composer-raise);
+  border-radius: 0.75rem;
+  box-shadow: inset 0 0 0 0.0625rem var(--composer-line);
+  transition: box-shadow 160ms var(--composer-ease);
+}
+
+.composer-dock .composer-box[data-dragging] {
+  box-shadow: inset 0 0 0 0.0625rem var(--stroke-primary);
+}
+
+.composer-dock .composer-main {
+  display: flex;
+  min-width: 0;
+  min-height: 3rem;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem 0.75rem 1rem;
+  cursor: text;
+}
+
+.composer-dock .composer-field {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.composer-dock .composer-rich {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.composer-dock .composer-input {
+  min-width: 0;
+  min-height: 1.5rem;
+  max-height: min(11.5rem, calc(var(--composer-viewport-height, 100dvh) * 0.45));
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  caret-color: auto;
+}
+
+[data-session-empty="true"] .composer-dock .composer-input {
+  min-height: 1.5rem;
+}
+
+.composer-dock .composer-placeholder {
+  position: absolute;
+  inset: 0 0 auto;
+  color: var(--text-quaternary);
+  pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-dock .composer-input,
+.composer-dock .composer-placeholder {
+  font-family: var(--font-family-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+}
+
+@media (pointer: coarse) {
+  .composer-dock .composer-input,
+  .composer-dock .composer-placeholder {
+    font-size: 0.9375rem;
+  }
+}
+
+.composer-dock .composer-footer {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.125rem 0;
+  container-type: inline-size;
+}
+
+.composer-dock .composer-actions {
+  display: flex;
+  min-width: 0;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.composer-dock .composer-disclaimer {
+  overflow: hidden;
+  color: var(--text-quaternary);
+  font-size: 0.78125rem;
+  line-height: 1.0625rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container (max-width: 35rem) {
+  .composer-dock .composer-disclaimer {
+    display: none;
+  }
+
+  .composer-dock .composer-footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.composer-dock .composer-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  padding: 0;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    background 120ms,
+    color 120ms,
+    transform 120ms var(--composer-ease);
+}
+
+.composer-dock .composer-icon:active:not(:disabled) {
+  transform: scale(0.94);
+  transition-duration: 120ms, 120ms, 120ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .composer-dock .composer-icon:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--composer-active);
+  }
+}
+
+.composer-dock .composer-send {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -2px 0;
+  flex-shrink: 0;
+  place-items: center;
+  padding: 0;
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    color 120ms,
+    opacity 120ms,
+    transform 120ms var(--composer-ease);
+}
+
+.composer-dock .composer-send:active:not(:disabled) {
+  transform: scale(0.94);
+  transition-duration: 120ms, 120ms, 120ms, 120ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .composer-dock .composer-send:hover:not(:disabled) {
+    background: var(--composer-fill-hover);
+  }
+}
+
+.composer-dock .composer-send:disabled {
+  color: var(--text-quaternary);
+  cursor: default;
+}
+
+.composer-dock :is([data-component="model-picker-button"], [data-component="reasoning-trigger"]) {
+  height: 2rem;
+  min-width: 0;
+  gap: 0.375rem;
+  padding: 0 0.25rem;
+  color: var(--composer-text-strong);
+  background: none;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.composer-dock :is([data-component="model-picker-button"], [data-component="reasoning-trigger"]) svg {
+  display: none;
+}
+
+.composer-dock [data-component="reasoning-trigger"] {
+  flex-shrink: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.composer-dock [data-component="reasoning-trigger"] .reasoning-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.composer-dock [data-component="composer-model"] {
+  min-width: 6ch;
+}
+
+@container (max-width: 23.75rem) {
+  .composer-dock [data-component="reasoning-trigger"] {
+    display: none;
+  }
+}
+
+.composer-dock :is([data-component="model-picker-button"], [data-component="reasoning-trigger"])[aria-expanded="true"] {
+  color: var(--text-primary);
+  background: none;
+}
+
+.composer-dock [data-component="reasoning-trigger"][aria-expanded="true"] .reasoning-label {
+  color: var(--composer-text-strong);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .composer-dock :is([data-component="model-picker-button"], [data-component="reasoning-trigger"]):hover {
+    color: var(--text-primary);
+    background: none;
+  }
+
+  .composer-dock [data-component="reasoning-trigger"]:hover .reasoning-label {
+    color: var(--composer-text-strong);
+  }
+}
+
+.composer-dock .composer-tray {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.composer-dock .composer-agent {
+  display: inline-flex;
+  height: 1.875rem;
+  min-width: 0;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 0.5rem 0 0.3125rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-size: 0.78125rem;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    color 120ms;
+}
+
+.composer-dock .composer-agent[aria-expanded="true"] {
+  color: var(--text-primary);
+  background: var(--composer-active);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .composer-dock .composer-agent:hover {
+    color: var(--text-primary);
+    background: var(--composer-active);
+  }
+}
+
+.composer-dock .composer-agent-wrap {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.composer-dock .composer-agent-anchor {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.composer-dock .composer-agent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-dock .composer-agent-chevron {
+  flex-shrink: 0;
+  color: var(--text-quaternary);
+}
+
+.composer-dock .composer-box > .reply-bar {
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  gap: 0.25rem;
+  order: -2;
+  min-width: 0;
+  margin: 0.5rem 0.5rem 0;
+  padding: 0 0.125rem 0 0;
+  overflow: hidden;
+  font-size: 0.78125rem;
+  line-height: 1.125rem;
+  cursor: default;
+  background: var(--composer-active);
+  border-radius: 0.75rem;
+}
+
+.composer-dock .reply-bar-jump {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0 0.375rem 1rem;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 0.5rem;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.composer-dock .reply-bar-jump::before {
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  width: 0.125rem;
+  background: var(--text-quaternary);
+  border-radius: var(--radius-full);
+  content: "";
+}
+
+.composer-dock .reply-bar-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.composer-dock .reply-bar-role {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-dock .reply-bar-preview {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-dock .reply-bar-thumb {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.25rem;
+  object-fit: cover;
+}
+
+.composer-dock .reply-bar-dismiss {
+  display: flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .composer-dock .reply-bar-dismiss:hover {
+    background: color-mix(in oklab, var(--text-primary) 8%, transparent);
+    color: var(--text-primary);
+  }
+}
+
+.composer-dock .composer-box > .no-key-hint {
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  order: -2;
+  min-width: 0;
+  padding: 0.75rem 0.5rem 0 1rem;
+  font-size: 0.78125rem;
+  line-height: 1.25rem;
+  color: var(--text-tertiary);
+}
+
+.composer-dock .no-key-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.125rem;
+}
+
+.composer-dock .no-key-hint button {
+  flex-shrink: 0;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  color: var(--text-primary);
+  background: none;
+  border: 0;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .composer-dock .no-key-hint button:hover {
+    background: var(--composer-active);
+  }
+}
+
+.composer-drop {
+  position: fixed;
+  z-index: var(--z-dialog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--bg-chrome) 72%, transparent);
+  border-radius: 1.375rem;
+  box-shadow: inset 0 0 0 0.09375rem var(--composer-line-strong);
+  pointer-events: none;
+  backdrop-filter: blur(0.125rem);
+}
+
+.composer-drop-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  color: var(--text-primary);
+  background: var(--composer-raise);
+  border-radius: var(--radius-full);
+  box-shadow: var(--composer-float-shadow);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-component="composer-drop-overlay"] {
+    animation: composer-drop-in var(--dur-pop, 200ms) var(--composer-ease) both;
+  }
+  [data-component="composer-drop-overlay"] .composer-drop-label {
+    animation: composer-drop-label var(--dur-pop, 200ms) var(--composer-ease) both;
+  }
+  @keyframes composer-drop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes composer-drop-label {
+    from {
+      transform: translateY(0.375rem) scale(0.96);
+    }
+    to {
+      transform: none;
+    }
+  }
+  .composer-dock .composer-box > .reply-bar,
+  .composer-dock .composer-box > .no-key-hint {
+    animation: composer-row-in var(--dur-pop, 200ms) var(--composer-ease) both;
+  }
+  @keyframes composer-row-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.25rem);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (max-width: 30rem) {
+  .composer-dock .composer-agent-wrap {
+    flex-shrink: 0;
+  }
+
+  .composer-dock .composer-actions [data-component="model-picker-button"] {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+}
