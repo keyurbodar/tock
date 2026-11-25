@@ -34,7 +34,7 @@ body {
   flex-direction: column;
   gap: var(--gap-rail);
   inline-size: var(--size-rail-w);
-  padding: var(--space-3) 0;
+  padding: var(--space-3) 0 var(--size-rail-pad-bottom);
 }
 
 .shell-rail-spacer {

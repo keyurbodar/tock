@@ -70,3 +70,24 @@ export interface FixtureSettingSection {
   description: string
   fields: Array<{ id: string; label: string; value: string; kind: "text" | "select" | "toggle" }>
 }
+
+export interface RecipeAppRef {
+  name: string
+  slug: string
+  connected: boolean | null
+}
+
+export interface RecipeCard {
+  slug: string
+  title: string
+  description: string
+  when: string
+  apps: readonly RecipeAppRef[]
+  setup: readonly string[]
+  agent: { name: string; handle: string }
+  custom: boolean
+  tags: readonly string[]
+  icon: string
+  glyph: string
+  tone?: string
+}

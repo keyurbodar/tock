@@ -1,5 +1,6 @@
 :root {
   --size-rail-w: 60px;
+  --size-rail-pad-bottom: 20px;
   --size-panel-w: 280px;
   --size-sidebar-w: 340px;
   --size-header-h: 48px;
