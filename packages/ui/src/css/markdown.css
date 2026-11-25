@@ -1,0 +1,270 @@
+@layer components {
+  [data-component="markdown"] {
+    overflow-wrap: break-word;
+    min-width: 0px;
+    max-width: 100%;
+    color: var(--fg);
+    font-size: var(--text-markdown);
+    font-weight: var(--font-weight-normal);
+    letter-spacing: var(--text-markdown--letter-spacing);
+    line-height: var(--text-markdown--line-height);
+  }
+  [data-component="markdown"][data-tone="muted"] {
+    color: var(--muted-foreground-1);
+  }
+  [data-component="markdown"][data-size="sm"] {
+    font-size: var(--text-sm);
+    letter-spacing: var(--text-sm--letter-spacing);
+    line-height: var(--text-sm--line-height);
+  }
+  [data-component="markdown"][data-size="inherit"] {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+  }
+  [data-component="markdown"][data-size="xs"] {
+    font-size: var(--text-xs);
+    letter-spacing: var(--text-xs--letter-spacing);
+    line-height: var(--text-xs--line-height);
+  }
+  [data-component="markdown"][data-weight="medium"] {
+    font-weight: var(--font-weight-medium);
+  }
+  [data-component="markdown"][data-variant="inline"] [data-markdown-block] {
+    display: inline;
+  }
+  [data-component="markdown"][data-variant="inline"] [data-markdown-block] :is(p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  ul,
+  ol,
+  li,
+  blockquote) {
+    font-size: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    border: 0px;
+    margin: 0px;
+    padding: 0px;
+    display: inline;
+  }
+  [data-component="markdown"][data-variant="inline"] [data-markdown-block] ul,
+  [data-component="markdown"][data-variant="inline"] [data-markdown-block] ol {
+    list-style: none;
+  }
+  [data-component="markdown"][data-variant="inline"] [data-markdown-block] li + li::before {
+    content: " · ";
+  }
+  [data-component="markdown"][data-variant="inline"] [data-slot="markdown-table"],
+  [data-component="markdown"][data-variant="inline"] table,
+  [data-component="markdown"][data-variant="inline"] thead,
+  [data-component="markdown"][data-variant="inline"] tbody,
+  [data-component="markdown"][data-variant="inline"] tr,
+  [data-component="markdown"][data-variant="inline"] th,
+  [data-component="markdown"][data-variant="inline"] td {
+    width: auto;
+    font-size: inherit;
+    background: 0px 0px;
+    border: 0px;
+    margin: 0px;
+    padding: 0px;
+    display: inline;
+    overflow: visible;
+  }
+  [data-component="markdown"][data-variant="inline"] th + th::before,
+  [data-component="markdown"][data-variant="inline"] td + td::before {
+    content: " · ";
+  }
+  [data-component="markdown"][data-variant="inline"] tr + tr::before,
+  [data-component="markdown"][data-variant="inline"] thead + tbody::before {
+    content: " / ";
+  }
+  [data-component="markdown"][data-variant="inline"] hr {
+    border: 0px;
+    margin: 0px;
+    display: inline;
+  }
+  [data-component="markdown"][data-variant="inline"] hr::after {
+    content: " · ";
+  }
+  [data-component="markdown"][data-variant="inline"] img {
+    border-radius: var(--radius-sm);
+    width: auto;
+    height: 1em;
+    display: inline;
+  }
+  [data-component="markdown"][data-variant="inline"] .katex-display {
+    margin: 0px;
+    display: inline;
+    overflow: visible;
+  }
+  [data-component="markdown"][data-variant="inline"] > * + ::before {
+    content: " ";
+  }
+  [data-component="markdown"] [data-markdown-block] {
+    display: contents;
+  }
+  [data-component="markdown"] > [data-markdown-block]:first-child > :first-child {
+    margin-top: 0px;
+  }
+  [data-component="markdown"] > [data-markdown-block]:last-child > :last-child {
+    margin-bottom: 0px;
+  }
+  [data-component="markdown"] p {
+    margin: 0px 0px 0.75em;
+  }
+  [data-component="markdown"] h1,
+  [data-component="markdown"] h2,
+  [data-component="markdown"] h3,
+  [data-component="markdown"] h4,
+  [data-component="markdown"] h5,
+  [data-component="markdown"] h6 {
+    color: var(--fg);
+    font-weight: var(--font-weight-medium);
+    margin: 1.5em 0px 0.5em;
+    line-height: 1.3;
+  }
+  [data-component="markdown"] h1 {
+    font-size: var(--text-lg);
+    letter-spacing: var(--text-lg--letter-spacing);
+  }
+  [data-component="markdown"] h2 {
+    font-size: var(--text-base);
+    letter-spacing: var(--text-base--letter-spacing);
+  }
+  [data-component="markdown"] h3 {
+    font-size: var(--text-sm);
+    letter-spacing: var(--text-sm--letter-spacing);
+  }
+  [data-component="markdown"] h4,
+  [data-component="markdown"] h5,
+  [data-component="markdown"] h6 {
+    font-size: var(--text-sm);
+    color: var(--muted-foreground-1);
+  }
+  [data-component="markdown"] strong {
+    font-weight: var(--font-weight-semibold);
+  }
+  [data-component="markdown"] a {
+    color: var(--text-link);
+    text-decoration: none;
+  }
+  [data-component="markdown"] a:hover {
+    text-underline-offset: 2px;
+    text-decoration: underline;
+  }
+  [data-component="markdown"] ul,
+  [data-component="markdown"] ol {
+    margin: 0px 0px 0.75em;
+    padding-left: 1.5em;
+  }
+  [data-component="markdown"] ul {
+    list-style-type: disc;
+  }
+  [data-component="markdown"] ol {
+    list-style-type: decimal;
+  }
+  [data-component="markdown"] li {
+    margin-bottom: 0.25em;
+  }
+  [data-component="markdown"] li > ul,
+  [data-component="markdown"] li > ol {
+    margin: 0.25em 0px 0px;
+  }
+  [data-component="markdown"] blockquote {
+    border-left: 2px solid var(--border-2);
+    color: var(--muted-foreground-1);
+    margin: 0px 0px 0.75em;
+    padding-left: 0.75em;
+  }
+  [data-component="markdown"] blockquote > :first-child {
+    margin-top: 0px;
+  }
+  [data-component="markdown"] blockquote > :last-child {
+    margin-bottom: 0px;
+  }
+  [data-component="markdown"] hr {
+    border: 0;
+    border-top: 0.5px solid var(--border-1);
+    margin: 1em 0;
+  }
+  [data-component="markdown"] img {
+    border-radius: var(--radius-card);
+    cursor: zoom-in;
+    max-width: 100%;
+  }
+  [data-component="markdown"] :is(h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  th,
+  td,
+  sup,
+  sub,
+  a) img {
+    display: inline;
+  }
+  [data-component="markdown"] a img,
+  [data-component="markdown"][data-variant="inline"] img {
+    cursor: inherit;
+  }
+  [data-component="markdown"] [data-slot="markdown-gallery"] {
+    margin: 0px 0px 0.75em;
+  }
+  [data-component="markdown"] [data-slot="markdown-gallery"] img {
+    border-radius: 0px;
+  }
+  [data-component="markdown"][data-gallery] p img {
+    max-width: min(100%, var(--media-box-w));
+    max-height: var(--media-box-h);
+    vertical-align: top;
+  }
+  [data-component="markdown"] :not(pre) > code {
+    border-radius: var(--radius-sm);
+    background: var(--secondary);
+    font-family: var(--font-mono);
+    letter-spacing: var(--text-code-block--letter-spacing);
+    padding: 0.5px 4px;
+    font-size: 0.9em;
+  }
+  [data-component="markdown"] table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--text-sm);
+  }
+  [data-component="markdown"] th {
+    background: var(--panel);
+    font-weight: var(--font-weight-medium);
+    text-align: left;
+  }
+  [data-component="markdown"] th,
+  [data-component="markdown"] td {
+    border-bottom: .5px solid var(--border-1);
+    padding: 6px 10px;
+  }
+  [data-component="markdown"] tr:last-child td {
+    border-bottom: 0;
+  }
+  [data-component="markdown"] .katex-display {
+    margin: 0px 0px 0.75em;
+    overflow: auto hidden;
+  }
+  [data-component="markdown"] pre {
+    margin: 0 0 0.75em;
+    overflow-x: auto;
+    border-radius: var(--radius-card);
+    border: 0.5px solid var(--border-1);
+    background: var(--panel);
+    padding: 0.625rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-code-block);
+    letter-spacing: var(--text-code-block--letter-spacing);
+    line-height: 1.5;
+  }
+}

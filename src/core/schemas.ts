@@ -108,6 +108,8 @@ const pluginUpsertInnerSchema = obj({
   enabled: bool(),
 });
 
+
+const secretName = str({ minLength: 1, maxLength: 128, pattern: "^[a-zA-Z0-9_.-]+$" });
 const clientFrameSchema = union([
   obj({
     id: str({ minLength: 1 }),
@@ -156,10 +158,19 @@ const clientFrameSchema = union([
   obj({
     id: str({ minLength: 1 }),
     type: lit("vault.set"),
-    name: str({ minLength: 1, maxLength: 128 }),
+    name: secretName,
     value: str({ minLength: 1 }),
     description: opt(str()),
     scopes: opt(str()),
+    origin: opt(str()),
+  }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("vault.update"),
+    name: str({ minLength: 1 }),
+    rename: opt(secretName),
+    value: opt(str({ minLength: 1 })),
+    description: opt(str()),
     origin: opt(str()),
   }),
   obj({ id: str({ minLength: 1 }), type: lit("vault.delete"), name: str({ minLength: 1 }) }),
@@ -173,6 +184,13 @@ const clientFrameSchema = union([
     authMode: opt(authModeSchema),
   }),
   obj({ id: str({ minLength: 1 }), type: lit("mcp.delete"), idOrName: str({ minLength: 1 }) }),
+  obj({ id: str({ minLength: 1 }), type: lit("mcp.test"), idOrName: str({ minLength: 1 }) }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("mcp.enable"),
+    idOrName: str({ minLength: 1 }),
+    enabled: bool(),
+  }),
   obj({ id: str({ minLength: 1 }), type: lit("routine.list") }),
   obj({
     id: str({ minLength: 1 }),
@@ -192,6 +210,13 @@ const clientFrameSchema = union([
     bodyMd: str({ minLength: 1 }),
     files: opt(map(str())),
   }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("skill.update"),
+    name: str({ minLength: 1 }),
+    description: str({ maxLength: 1024 }),
+    bodyMd: str({ minLength: 1 }),
+  }),
   obj({ id: str({ minLength: 1 }), type: lit("skill.import"), source: str({ minLength: 1 }) }),
   obj({ id: str({ minLength: 1 }), type: lit("skill.delete"), name: str({ minLength: 1 }) }),
   obj({ id: str({ minLength: 1 }), type: lit("file.list"), sessionId: opt(str()) }),
@@ -202,7 +227,9 @@ const clientFrameSchema = union([
     endpoint: str({ minLength: 1 }),
     p256dh: str({ minLength: 1 }),
     auth: str({ minLength: 1 }),
+    label: opt(str({ maxLength: 80 })),
   }),
+  obj({ id: str({ minLength: 1 }), type: lit("push.list"), endpoint: opt(str({ minLength: 1 })) }),
   obj({
     id: str({ minLength: 1 }),
     type: lit("push.unsubscribe"),

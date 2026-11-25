@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { Lifecycle } from "agents/lifecycle";
 import { Scheduler } from "agents/schedules";
 import { PiHarness, ROOT_SESSION } from "agents/harness/pi";
+import { summarizeEntries } from "./core/summary.js";
 import { MCPClientManager } from "agents/mcp/client";
 import { createRegistry, Harness, type ConversationWatch } from "@earendil-works/pi-durable";
 import {
@@ -17,7 +18,7 @@ import { SettingsStore } from "./core/settings.js";
 import { Vault } from "./core/vault.js";
 import { UnifiedMemory } from "./core/memory.js";
 import { ExecutionGuards } from "./core/guards.js";
-import { McpHub } from "./core/mcp.js";
+import { McpHub, mcpServerView } from "./core/mcp.js";
 import { SubagentPool } from "./core/subagents.js";
 import { RoutineStore, sha256Hex, type RoutineInput } from "./core/routines.js";
 import { PushNotifier } from "./core/push.js";
@@ -324,7 +325,7 @@ export class TockDO extends DurableObject<Env> {
           }),
         };
       case "session.list":
-        return await this.harness.sessions.list();
+        return await this.listSessionSummaries();
       case "session.create": {
         const session = await this.harness.sessions.create();
         await this.syncSessionModel(session.id);
@@ -341,8 +342,11 @@ export class TockDO extends DurableObject<Env> {
       case "models.refresh":
         return await this.refreshModels(frame.providers);
       case "vault.list":
-        return this.vault.listMeta();
+        return this.vault.listMeta().filter((meta) => meta.scopes !== "llm");
       case "vault.set":
+        if (this.vault.listMeta().some((meta) => meta.name === frame.name && meta.scopes === "llm")) {
+          throw new Error(`secret_exists:${frame.name}`);
+        }
         await this.vault.set(
           frame.name,
           frame.value,
@@ -351,12 +355,26 @@ export class TockDO extends DurableObject<Env> {
           frame.origin,
         );
         return { name: frame.name, saved: true };
+      case "vault.update":
+        await this.vault.update(frame.name, {
+          rename: frame.rename,
+          value: frame.value,
+          description: frame.description,
+          origin: frame.origin,
+        });
+        return { name: frame.rename ?? frame.name, saved: true };
       case "vault.delete":
         return { deleted: this.vault.delete(frame.name) };
       case "mcp.list":
-        return this.mcp.listServers();
+        return this.mcp.listServers().map(mcpServerView);
       case "mcp.upsert":
-        return await this.mcp.upsertServer(frame.name, frame.url, frame.headers, frame.authMode);
+        return mcpServerView(
+          await this.mcp.upsertServer(frame.name, frame.url, frame.headers, frame.authMode),
+        );
+      case "mcp.test":
+        return mcpServerView(await this.mcp.checkServer(frame.idOrName));
+      case "mcp.enable":
+        return mcpServerView(await this.mcp.setEnabled(frame.idOrName, frame.enabled));
       case "mcp.delete":
         return { deleted: await this.mcp.deleteServer(frame.idOrName) };
       case "routine.list":
@@ -380,6 +398,8 @@ export class TockDO extends DurableObject<Env> {
           bodyMd: frame.bodyMd,
           files: frame.files,
         });
+      case "skill.update":
+        return this.skills.update(frame.name, { description: frame.description, bodyMd: frame.bodyMd });
       case "skill.import":
         return await this.skills.importSource(frame.source);
       case "skill.delete":
@@ -389,7 +409,9 @@ export class TockDO extends DurableObject<Env> {
       case "file.delete":
         return { deleted: await this.files.delete(frame.fileId) };
       case "push.subscribe":
-        return this.push.subscribe(frame.endpoint, frame.p256dh, frame.auth);
+        return this.push.subscribe(frame.endpoint, frame.p256dh, frame.auth, frame.label);
+      case "push.list":
+        return { devices: this.push.listDevices(frame.endpoint) };
       case "push.unsubscribe":
         return { deleted: this.push.unsubscribe(frame.endpoint) };
       case "memory.get":
@@ -401,6 +423,16 @@ export class TockDO extends DurableObject<Env> {
       case "memory.search":
         return this.memory.search(frame.query, frame.limit ?? 8);
     }
+  }
+
+  private async listSessionSummaries() {
+    const sessions = await this.harness.sessions.list();
+    return await Promise.all(
+      sessions.map(async (session) => ({
+        ...session,
+        ...summarizeEntries(await this.harness.session(session.id).messages()),
+      })),
+    );
   }
 
   private async syncSessionModel(sessionId: string): Promise<void> {
@@ -415,6 +447,8 @@ export class TockDO extends DurableObject<Env> {
     name: string;
     reasoning: boolean;
     thinkingLevels: ModelThinkingLevel[];
+    contextWindow: number;
+    cost: { input: number; output: number };
   }> {
     const providers = provider ? [provider] : this.models.getProviders().map((p) => p.id);
     const out: Array<{
@@ -423,6 +457,8 @@ export class TockDO extends DurableObject<Env> {
       name: string;
       reasoning: boolean;
       thinkingLevels: ModelThinkingLevel[];
+      contextWindow: number;
+      cost: { input: number; output: number };
     }> = [];
     for (const pid of providers) {
       for (const m of this.models.getModels(pid)) {
@@ -432,6 +468,8 @@ export class TockDO extends DurableObject<Env> {
           name: m.name,
           reasoning: m.reasoning,
           thinkingLevels: getSupportedThinkingLevels(m),
+          contextWindow: m.contextWindow,
+          cost: { input: m.cost.input, output: m.cost.output },
         });
       }
     }
@@ -504,6 +542,7 @@ export class TockDO extends DurableObject<Env> {
     mcpServers: number;
     skills: number;
     files: number;
+    pushPublicKey: string | null;
   }> {
     await this.lifecycle.start();
     return {
@@ -513,6 +552,7 @@ export class TockDO extends DurableObject<Env> {
       mcpServers: this.mcp.listServers().length,
       skills: this.skills.list().length,
       files: this.files.list().length,
+      pushPublicKey: this.env.VAPID_PUBLIC_KEY ?? null,
     };
   }
 

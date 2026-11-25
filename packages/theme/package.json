@@ -1,0 +1,24 @@
+{
+  "name": "@tock/theme",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./tokens": "./src/tokens.ts",
+    "./effects": "./src/effects.ts",
+    "./themes": "./src/themes.ts",
+    "./apply": "./src/apply.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./css": "./src/css.ts",
+    "./motion": "./src/motion.ts",
+    "./file-hues": "./src/file-hues.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "gen": "bun scripts/gen-css.ts",
+    "check": "bun scripts/check-tokens.ts"
+  }
+}

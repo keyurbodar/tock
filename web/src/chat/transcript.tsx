@@ -1,0 +1,273 @@
+import { ErrorAlert } from "@tock/ui/alert"
+import { DotGrid } from "@tock/ui/dot-grid"
+import { Markdown } from "@tock/ui/markdown"
+import { ImageGallery, MarkdownImageView, type ViewedImage } from "@tock/ui/markdown-gallery"
+import { ActivityLine, ActivityLiveStatus, ActivityStatus, WorkGroup } from "@tock/ui/chat/activity-line"
+import { Step as StepView, StepBody, StepCard, StepOutput, StepThought } from "@tock/ui/chat/step"
+import { SentAttachment, SentAttachments } from "@tock/ui/chat/attachments"
+import { AgentMessage, AutomationMessage, CopyMessageButton, MessageSection, UserMessage } from "@tock/ui/chat/message"
+import { ChatStamp, ProgressEdge, ROW, ScrollToEnd } from "@tock/ui/timeline"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import type { ToolResultMessage } from "../api/types"
+import { fileSize, messageTime, stamp, titleCase } from "../lib/format"
+import { ensureFiles, useFiles } from "../state/files"
+import type { ThreadState } from "../state/thread"
+import { isWorking } from "../state/thread"
+import { splitAttachments, withAttachments } from "./attached"
+import { AttachmentLightbox, type MediaEntry } from "./attachment-lightbox"
+import { RENDERABLE } from "./attachments"
+import { buildItems, type Item, type Step } from "./items"
+
+const STICK_THRESHOLD = 48
+
+const fileUrl = (id: string) => `/api/files/${encodeURIComponent(id)}`
+const ARGUMENT_PREVIEW = 80
+
+const resultText = (result: ToolResultMessage | undefined) =>
+  result?.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n") ?? ""
+
+function argumentPreview(args: Readonly<Record<string, unknown>>): string {
+  const first = Object.values(args).find((value) => typeof value === "string" && value !== "")
+  if (typeof first !== "string") return ""
+  const flat = first.replace(/\s+/g, " ")
+  return flat.length > ARGUMENT_PREVIEW ? `${flat.slice(0, ARGUMENT_PREVIEW - 1)}…` : flat
+}
+
+function StepRow({ step }: { step: Step }) {
+  if (step.kind === "thinking") {
+    return (
+      <StepView kind="thought" state={step.active ? "live" : "rest"} label={step.active ? "Thinking" : "Thought"}>
+        <StepBody>
+          <StepThought>
+            <Markdown size="sm" tone="muted" streaming={step.active}>
+              {step.text}
+            </Markdown>
+          </StepThought>
+        </StepBody>
+      </StepView>
+    )
+  }
+  const output = resultText(step.result)
+  const preview = argumentPreview(step.call.arguments)
+  const label = preview ? `${titleCase(step.call.name)} ${preview}` : titleCase(step.call.name)
+  if (step.status === "cancelled") return <StepView label={`Cancelled operation ${label}`} outcome="cancelled" />
+  return (
+    <StepView state={step.status === "running" ? "live" : "rest"} label={label} failed={step.status === "failed"}>
+      <StepBody>
+        <StepCard>
+          <StepOutput>{JSON.stringify(step.call.arguments, null, 2)}</StepOutput>
+        </StepCard>
+        {output ? (
+          <StepCard>
+            <StepOutput>{output}</StepOutput>
+          </StepCard>
+        ) : null}
+      </StepBody>
+    </StepView>
+  )
+}
+
+function Work({ item }: { item: Extract<Item, { kind: "work" }> }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <ActivityLine
+      open={open}
+      onOpenChange={setOpen}
+      peek={item.active}
+      status={item.active ? <ActivityLiveStatus label="Working" /> : <ActivityStatus label="Worked" />}
+    >
+      <WorkGroup>
+        {item.steps.map((step) => (
+          <StepRow key={step.key} step={step} />
+        ))}
+      </WorkGroup>
+    </ActivityLine>
+  )
+}
+
+function UserRow({ item }: { item: Extract<Item, { kind: "user" }> }) {
+  const [expanded, setExpanded] = useState(false)
+  const [previewing, setPreviewing] = useState<string>()
+  const files = useFiles()
+  const sent = useMemo(() => splitAttachments(item.text), [item.text])
+  useEffect(() => ensureFiles(sent.refs.map((ref) => ref.id)), [sent.refs])
+  const attached = sent.refs.flatMap((ref) => files.byId.get(ref.id) ?? [])
+  const text = withAttachments(
+    sent.text,
+    sent.refs.filter((ref) => !files.byId.has(ref.id) && files.settled.has(ref.id)),
+  )
+  const media = attached.flatMap((file): MediaEntry[] =>
+    RENDERABLE.has(file.mime.toLowerCase()) ? [{ key: file.id, kind: "image", label: file.name, url: fileUrl(file.id) }] : [],
+  )
+  const previewAt = media.findIndex((entry) => entry.key === previewing)
+  const inline = useMemo(() => item.images.map((image) => ({ src: `data:${image.mimeType};base64,${image.data}`, alt: "" })), [item.images])
+  return (
+    <>
+      <UserMessage
+        time={item.at === null ? undefined : messageTime(item.at)}
+        actions={text === "" ? undefined : <CopyMessageButton text={text} />}
+        clamp={{ text, expanded, onToggle: () => setExpanded((value) => !value) }}
+        attachments={
+          attached.length > 0 || inline.length > 0 ? (
+            <>
+              {attached.length > 0 ? (
+                <SentAttachments align="end">
+                  {attached.map((file) => {
+                    const preview = media.find((entry) => entry.key === file.id)
+                    return (
+                      <SentAttachment
+                        key={file.id}
+                        name={file.name}
+                        mediaType={file.mime}
+                        size={fileSize(file.size)}
+                        previewUrl={preview?.url}
+                        onOpen={() => (preview === undefined ? window.open(fileUrl(file.id), "_blank", "noopener") : setPreviewing(file.id))}
+                      />
+                    )
+                  })}
+                </SentAttachments>
+              ) : null}
+              {inline.length > 0 ? <ImageGallery images={inline} className="flex w-full flex-col items-end [&>div]:w-full" /> : null}
+            </>
+          ) : undefined
+        }
+      >
+        {text === "" ? undefined : <Markdown>{text}</Markdown>}
+      </UserMessage>
+      {previewAt >= 0 ? (
+        <AttachmentLightbox
+          entries={media}
+          index={previewAt}
+          onIndexChange={(index) => setPreviewing(media[index]?.key)}
+          onClose={() => setPreviewing(undefined)}
+        />
+      ) : null}
+    </>
+  )
+}
+
+function RoutineRow({ item }: { item: Extract<Item, { kind: "routine" }> }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <AutomationMessage
+      title={item.name}
+      detail="ran"
+      time={item.at === null ? undefined : messageTime(item.at)}
+      clamp={{ text: item.text, expanded, onToggle: () => setExpanded((value) => !value) }}
+    >
+      <Markdown>{item.text}</Markdown>
+    </AutomationMessage>
+  )
+}
+
+function Row({ item }: { item: Item }) {
+  if (item.kind === "user") return <UserRow item={item} />
+  if (item.kind === "routine") return <RoutineRow item={item} />
+  if (item.kind === "work") return <Work item={item} />
+  if (item.kind === "text") {
+    return (
+      <AgentMessage>
+        <MessageSection
+          time={item.streaming || item.at === null ? undefined : messageTime(item.at)}
+          actions={item.streaming ? undefined : <CopyMessageButton text={item.text} />}
+        >
+          <Markdown streaming={item.streaming}>{item.text}</Markdown>
+        </MessageSection>
+      </AgentMessage>
+    )
+  }
+  return (
+    <div className="py-2">
+      <ErrorAlert title={item.title}>{item.detail}</ErrorAlert>
+    </div>
+  )
+}
+
+export function Transcript({ state }: { state: ThreadState }) {
+  const scroller = useRef<HTMLDivElement>(null)
+  const stuck = useRef(true)
+  const [away, setAway] = useState(false)
+  const items = useMemo(() => buildItems(state.entries, state.live, state.pending), [state.entries, state.live, state.pending])
+  const working = isWorking(state)
+  const last = items.at(-1)
+  const idle = working && (last === undefined || last.kind === "user" || last.kind === "routine" || (last.kind === "work" && !last.active))
+  const first = items.find((item) => item.kind === "user")
+  const [viewing, setViewing] = useState<{ readonly images: readonly ViewedImage[]; readonly index: number }>()
+  const view = useCallback((images: readonly ViewedImage[], index: number) => setViewing({ images, index }), [])
+  const viewed = useMemo(
+    () => viewing?.images.map((image, index): MediaEntry => ({ key: `${index}`, kind: "image", label: image.alt === "" ? "Image" : image.alt, url: image.src })),
+    [viewing?.images],
+  )
+
+  useLayoutEffect(() => {
+    const element = scroller.current
+    if (element && stuck.current) element.scrollTop = element.scrollHeight
+  })
+
+  const toEnd = () => {
+    const element = scroller.current
+    if (!element) return
+    stuck.current = true
+    setAway(false)
+    element.scrollTo({ top: element.scrollHeight, behavior: "smooth" })
+  }
+
+  return (
+    <div className="relative min-h-0 flex-1">
+      <div className="absolute inset-0">
+        <div className="relative flex h-full min-h-0 flex-col">
+          <div
+            ref={scroller}
+            onScroll={(event) => {
+              const element = event.currentTarget
+              const atEnd = element.scrollHeight - element.scrollTop - element.clientHeight < STICK_THRESHOLD
+              stuck.current = atEnd
+              setAway(!atEnd)
+            }}
+            className="chat-scroller isolate h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-y-contain [overflow-anchor:none] md:scroll-fade-y"
+          >
+            <div className="h-3" />
+            {first?.kind === "user" && first.at !== null ? (
+              <div className={ROW}>
+                <ChatStamp>{stamp(first.at)}</ChatStamp>
+              </div>
+            ) : null}
+            <MarkdownImageView value={view}>
+              {items.map((item) => (
+                <div key={item.key} className={ROW} data-chat-row-id={item.key}>
+                  <Row item={item} />
+                </div>
+              ))}
+            </MarkdownImageView>
+            {idle ? (
+              <div className={ROW}>
+                <div className="flex min-h-7 items-center gap-1.5 py-1 text-sm font-medium text-muted-foreground-1">
+                  <DotGrid state="working" className="size-(--icon-sm)" />
+                  <span className="text-shimmer">Working</span>
+                </div>
+              </div>
+            ) : null}
+            {state.error && !working ? (
+              <div className={ROW}>
+                <div className="py-2">
+                  <ErrorAlert title="Something went wrong">{state.error}</ErrorAlert>
+                </div>
+              </div>
+            ) : null}
+            <div className="pb-8 max-md:pb-7" />
+          </div>
+          <ProgressEdge active={working} />
+          <ScrollToEnd visible={away} onClick={toEnd} />
+          {viewing === undefined || viewed === undefined ? null : (
+            <AttachmentLightbox
+              entries={viewed}
+              index={viewing.index}
+              onIndexChange={(index) => setViewing({ images: viewing.images, index })}
+              onClose={() => setViewing(undefined)}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

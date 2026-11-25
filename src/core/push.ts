@@ -1,4 +1,4 @@
-import type { PushSubscriptionRecord } from "../types.js";
+import type { PushDevice, PushSubscriptionRecord } from "../types.js";
 import type { Vault } from "./vault.js";
 import type { ExecutionGuards } from "./guards.js";
 
@@ -134,18 +134,47 @@ export class PushNotifier {
     this.vapid = vapid;
   }
 
-  subscribe(endpoint: string, p256dh: string, auth: string): PushSubscriptionRecord {
+  subscribe(endpoint: string, p256dh: string, auth: string, label = ""): PushSubscriptionRecord {
     const now = Date.now();
     this.sql.exec(
-      `INSERT INTO tock_push_subs (endpoint, p256dh, auth, created_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`,
+      `INSERT INTO tock_push_subs (endpoint, p256dh, auth, created_at, label, last_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(endpoint) DO UPDATE SET
+         p256dh = excluded.p256dh,
+         auth = excluded.auth,
+         label = excluded.label,
+         last_seen_at = excluded.last_seen_at`,
       endpoint,
       p256dh,
       auth,
       now,
+      label,
+      now,
     );
     return { endpoint, p256dh, auth, createdAt: now };
+  }
+
+  listDevices(seen?: string): PushDevice[] {
+    if (seen !== undefined) {
+      this.sql.exec(`UPDATE tock_push_subs SET last_seen_at = ? WHERE endpoint = ?`, Date.now(), seen);
+    }
+    return this.sql
+      .exec(
+        `SELECT endpoint, label, created_at, last_seen_at, last_delivered_at, failed_at
+         FROM tock_push_subs ORDER BY created_at DESC`,
+      )
+      .toArray()
+      .map((r) => ({
+        endpoint: String(r.endpoint),
+        label: String(r.label),
+        lastSeenAt: Number(r.last_seen_at ?? r.created_at),
+        lastDeliveredAt: r.last_delivered_at === null ? null : Number(r.last_delivered_at),
+        failedAt: r.failed_at === null ? null : Number(r.failed_at),
+      }));
+  }
+
+  private recordDelivery(endpoint: string, column: "last_delivered_at" | "failed_at"): void {
+    this.sql.exec(`UPDATE tock_push_subs SET ${column} = ? WHERE endpoint = ?`, Date.now(), endpoint);
   }
 
   unsubscribe(endpoint: string): boolean {
@@ -274,11 +303,14 @@ export class PushNotifier {
             this.unsubscribe(sub.endpoint);
             failed += 1;
           } else if (res.ok) {
+            this.recordDelivery(sub.endpoint, "last_delivered_at");
             sent += 1;
           } else {
+            this.recordDelivery(sub.endpoint, "failed_at");
             failed += 1;
           }
         } catch {
+          this.recordDelivery(sub.endpoint, "failed_at");
           failed += 1;
         }
       }

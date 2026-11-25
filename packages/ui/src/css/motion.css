@@ -1,0 +1,155 @@
+@keyframes text-shimmer-sweep {
+  0% {
+    background-position: 100% 0px;
+  }
+  100% {
+    background-position: -100% 0px;
+  }
+}
+@keyframes shimmer-sweep {
+  0% {
+    transform: translate(0px);
+  }
+  100% {
+    transform: translate(50%);
+  }
+}
+@keyframes shimmer-surface-sweep {
+  0% {
+    background-position: 100% 0px;
+  }
+  100% {
+    background-position: -100% 0px;
+  }
+}
+@keyframes _scroll-fade-y {
+  0% {
+    --_scroll-fade-top: 0px;
+    --_scroll-fade-bottom: var(--scroll-fade-ramp,32px);
+  }
+  1% {
+    --_scroll-fade-top: var(--scroll-fade-ramp,32px);
+  }
+  99% {
+    --_scroll-fade-bottom: var(--scroll-fade-ramp,32px);
+  }
+  100% {
+    --_scroll-fade-top: var(--scroll-fade-ramp,32px);
+    --_scroll-fade-bottom: 0px;
+  }
+}
+@keyframes _scroll-fade-t {
+  0% {
+    --_scroll-fade-top: 0px;
+  }
+  1% {
+    --_scroll-fade-top: var(--scroll-fade-ramp,32px);
+  }
+  100% {
+    --_scroll-fade-top: var(--scroll-fade-ramp,32px);
+  }
+}
+@keyframes _scroll-fade-b {
+  0% {
+    --_scroll-fade-bottom: var(--scroll-fade-ramp,32px);
+  }
+  99% {
+    --_scroll-fade-bottom: var(--scroll-fade-ramp,32px);
+  }
+  100% {
+    --_scroll-fade-bottom: 0px;
+  }
+}
+@keyframes _scroll-fade-x {
+  0% {
+    --_scroll-fade-left: 0px;
+    --_scroll-fade-right: var(--scroll-fade-ramp,32px);
+  }
+  1% {
+    --_scroll-fade-left: var(--scroll-fade-ramp,32px);
+  }
+  99% {
+    --_scroll-fade-right: var(--scroll-fade-ramp,32px);
+  }
+  100% {
+    --_scroll-fade-left: var(--scroll-fade-ramp,32px);
+    --_scroll-fade-right: 0px;
+  }
+}
+@keyframes _scroll-fade-l {
+  0% {
+    --_scroll-fade-left: 0px;
+  }
+  1% {
+    --_scroll-fade-left: var(--scroll-fade-ramp,32px);
+  }
+  100% {
+    --_scroll-fade-left: var(--scroll-fade-ramp,32px);
+  }
+}
+@keyframes _scroll-fade-r {
+  0% {
+    --_scroll-fade-right: var(--scroll-fade-ramp,32px);
+  }
+  99% {
+    --_scroll-fade-right: var(--scroll-fade-ramp,32px);
+  }
+  100% {
+    --_scroll-fade-right: 0px;
+  }
+}
+@keyframes _mask-fade-r {
+  0% {
+    --_mask-fade-right: var(--mask-fade-ramp,16px);
+  }
+  99% {
+    --_mask-fade-right: var(--mask-fade-ramp,16px);
+  }
+  100% {
+    --_mask-fade-right: 0px;
+  }
+}
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="dialog-content"], [data-slot="menu-content"], [data-slot="context-menu-content"], [data-slot="menu-select-content"], [data-slot="menu-combobox-content"], [data-slot="command-menu-content"], [data-slot="popover-content"], [data-slot="preview-card-content"] {
+    scale: 1 !important;
+  }
+  [data-slot="sheet-content"], [data-slot="side-sheet-content"], [data-slot="drawer-content"], [data-slot="responsive-menu-level"], [data-slot="chat-scroll-pill"] {
+    translate: 0px !important;
+  }
+  [data-slot="collapsible-panel"], [data-slot="work-group-preview"], [data-slot="work-group-panel"], [data-slot="clamped-body"] {
+    transition-property: opacity !important;
+    transition-duration: 0.11s !important;
+    transition-delay: 0s !important;
+  }
+}
+
+@keyframes settings-push {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}

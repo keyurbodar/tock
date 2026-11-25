@@ -79,7 +79,14 @@ export interface McpServerRecord {
   managerServerId: string | null;
   enabled: boolean;
   updatedAt: number;
+  toolCount: number | null;
+  checkedAt: number | null;
+  lastError: string | null;
 }
+
+export type McpServerView = Omit<McpServerRecord, "headersJson" | "managerServerId"> & {
+  headerNames: string[];
+};
 
 export interface DevPluginRecord {
   id: string;
@@ -118,6 +125,14 @@ export interface PushSubscriptionRecord {
   p256dh: string;
   auth: string;
   createdAt: number;
+}
+
+export interface PushDevice {
+  endpoint: string;
+  label: string;
+  lastSeenAt: number;
+  lastDeliveredAt: number | null;
+  failedAt: number | null;
 }
 
 export interface WsAttachment {
@@ -162,6 +177,15 @@ export type ClientFrame =
       scopes?: string;
       origin?: string;
     }
+  | {
+      id: string;
+      type: "vault.update";
+      name: string;
+      rename?: string;
+      value?: string;
+      description?: string;
+      origin?: string;
+    }
   | { id: string; type: "vault.delete"; name: string }
   | { id: string; type: "mcp.list" }
   | {
@@ -173,6 +197,8 @@ export type ClientFrame =
       authMode?: "headers" | "oauth" | "sse";
     }
   | { id: string; type: "mcp.delete"; idOrName: string }
+  | { id: string; type: "mcp.test"; idOrName: string }
+  | { id: string; type: "mcp.enable"; idOrName: string; enabled: boolean }
   | { id: string; type: "routine.list" }
   | {
       id: string;
@@ -199,11 +225,20 @@ export type ClientFrame =
       bodyMd: string;
       files?: Record<string, string>;
     }
+  | { id: string; type: "skill.update"; name: string; description: string; bodyMd: string }
   | { id: string; type: "skill.import"; source: string }
   | { id: string; type: "skill.delete"; name: string }
   | { id: string; type: "file.list"; sessionId?: string }
   | { id: string; type: "file.delete"; fileId: string }
-  | { id: string; type: "push.subscribe"; endpoint: string; p256dh: string; auth: string }
+  | {
+      id: string;
+      type: "push.subscribe";
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+      label?: string;
+    }
+  | { id: string; type: "push.list"; endpoint?: string }
   | { id: string; type: "push.unsubscribe"; endpoint: string }
   | { id: string; type: "memory.get" }
   | { id: string; type: "memory.search"; query: string; limit?: number }

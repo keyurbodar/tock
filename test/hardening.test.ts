@@ -1,5 +1,5 @@
 import { env, evictDurableObject, runInDurableObject, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createModels,
   fauxAssistantMessage,
@@ -9,6 +9,8 @@ import {
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createRegistry, Harness } from "@earendil-works/pi-durable";
 import { openPiSessionStore } from "agents/harness/pi";
+import type { McpHub } from "../src/core/mcp.js";
+import type { SkillStore } from "../src/core/skills.js";
 import { Vault } from "../src/core/vault.js";
 import { encryptWebPushPayload, fitPushPayload } from "../src/core/push.js";
 import { ensureSchema } from "../src/db/schema.js";
@@ -350,6 +352,252 @@ describe("tock production hardening", () => {
         .toArray()
         .map((r) => r.name);
       expect(names).toContain("llm:opencode-go");
+    });
+  });
+
+  it("edits a secret's name and description without its value and guards its origin", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("vault-update@test"));
+    await runInDurableObject(stub, async (_instance, state) => {
+      const vault = new Vault(state.storage.sql, "test-master-key-32-bytes-minimum-1234");
+      await vault.set("gh", "ghp_first", "GitHub", "", "https://api.github.com");
+      await vault.set("other", "value", "", "", "https://example.com");
+
+      await vault.update("gh", { rename: "github", description: "GitHub token" });
+      expect(vault.listMeta().map((meta) => meta.name)).toEqual(["github", "other"]);
+      expect(vault.listMeta()[0]).toMatchObject({
+        description: "GitHub token",
+        origin: "https://api.github.com",
+      });
+      const header = "Bearer {{secret:github}}";
+      expect(await vault.injectForUrl("https://api.github.com/user", header)).toBe(
+        "Bearer ghp_first",
+      );
+
+      await expect(vault.update("github", { origin: "https://evil.example" })).rejects.toThrow(
+        "secret_value_required_for_origin_change",
+      );
+      await expect(vault.update("github", { rename: "other" })).rejects.toThrow(
+        "secret_exists:other",
+      );
+      await expect(vault.update("missing", { description: "x" })).rejects.toThrow(
+        "secret_not_found:missing",
+      );
+
+      await vault.update("github", { value: "ghp_second", origin: "https://uploads.github.com" });
+      expect(await vault.injectForUrl("https://uploads.github.com/x", header)).toBe(
+        "Bearer ghp_second",
+      );
+      await expect(vault.injectForUrl("https://api.github.com/user", header)).rejects.toThrow(
+        "locked to https://uploads.github.com",
+      );
+    });
+  });
+
+  it("lists push devices with their label and without their keys", async () => {
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "push-devices@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type: string; data?: unknown }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type: string; data?: unknown };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    const subscribe = { type: "push.subscribe", p256dh: "key", auth: "auth" };
+    ws.send(JSON.stringify({ ...subscribe, id: "a", endpoint: "https://push.test/a", label: "Chrome on Linux" }));
+    ws.send(JSON.stringify({ ...subscribe, id: "b", endpoint: "https://push.test/b" }));
+    ws.send(JSON.stringify({ id: "gone", type: "push.unsubscribe", endpoint: "https://push.test/b" }));
+    ws.send(JSON.stringify({ id: "list", type: "push.list" }));
+    await new Promise((r) => setTimeout(r, 150));
+    ws.send(JSON.stringify({ id: "seen", type: "push.list", endpoint: "https://push.test/a" }));
+    ws.send(JSON.stringify({ id: "stranger", type: "push.list", endpoint: "https://push.test/b" }));
+    await new Promise((r) => setTimeout(r, 150));
+
+    const listed = replies.get("list")?.data as { devices: Record<string, unknown>[] };
+    expect(listed.devices).toHaveLength(1);
+    expect(listed.devices[0]).toMatchObject({
+      endpoint: "https://push.test/a",
+      label: "Chrome on Linux",
+      lastDeliveredAt: null,
+      failedAt: null,
+    });
+    expect(listed.devices[0]?.lastSeenAt).toBeTypeOf("number");
+    expect(listed.devices[0]).not.toHaveProperty("p256dh");
+    expect(listed.devices[0]).not.toHaveProperty("auth");
+    const seen = replies.get("seen")?.data as { devices: { lastSeenAt: number }[] };
+    expect(seen.devices[0]?.lastSeenAt).toBeGreaterThan(Number(listed.devices[0]?.lastSeenAt));
+    const stranger = replies.get("stranger")?.data as { devices: unknown[] };
+    expect(stranger.devices).toHaveLength(1);
+    ws.close();
+  });
+
+  it("lists MCP servers without header values and records a failed check", async () => {
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "mcp-view@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type: string; data?: unknown; error?: string }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type: string; data?: unknown };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    const reply = async (id: string) => {
+      await vi.waitFor(() => expect(replies.has(id)).toBe(true), { timeout: 15_000 });
+      return replies.get(id)?.data as Record<string, unknown>;
+    };
+    const server = { type: "mcp.upsert", name: "local", url: "http://localhost:9/mcp" };
+    ws.send(JSON.stringify({ ...server, id: "add", headers: { Authorization: "Bearer hidden" } }));
+    const added = await reply("add");
+    expect(added).toMatchObject({ name: "local", enabled: true, headerNames: ["Authorization"] });
+    expect(added).toMatchObject({ toolCount: null, checkedAt: null, lastError: null });
+    expect(JSON.stringify(added)).not.toContain("hidden");
+
+    ws.send(JSON.stringify({ ...server, id: "keep", url: "http://localhost:9/other" }));
+    expect((await reply("keep")).headerNames).toEqual(["Authorization"]);
+    ws.send(JSON.stringify({ ...server, id: "clear", headers: {} }));
+    expect((await reply("clear")).headerNames).toEqual([]);
+
+    ws.send(JSON.stringify({ id: "test", type: "mcp.test", idOrName: "local" }));
+    const tested = await reply("test");
+    expect(tested.toolCount).toBeNull();
+    expect(tested.checkedAt).toBeTypeOf("number");
+    expect(tested.lastError).toBeTypeOf("string");
+
+    ws.send(JSON.stringify({ id: "off", type: "mcp.enable", idOrName: "local", enabled: false }));
+    expect((await reply("off")).enabled).toBe(false);
+    ws.send(JSON.stringify({ id: "blocked", type: "mcp.test", idOrName: "local" }));
+    await reply("blocked");
+    expect(JSON.stringify(replies.get("blocked"))).toContain("mcp_server_disabled");
+    ws.send(JSON.stringify({ ...server, id: "edit", url: "http://localhost:9/edited" }));
+    expect(await reply("edit")).toMatchObject({ url: "http://localhost:9/edited", enabled: false });
+    ws.send(JSON.stringify({ id: "list", type: "mcp.list" }));
+    await reply("list");
+    const listed = replies.get("list")?.data as Record<string, unknown>[];
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).not.toHaveProperty("headersJson");
+    ws.close();
+  });
+
+  it("leaves provider keys out of the secrets list", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("vault-list@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { vault } = instance as unknown as { vault: Vault };
+      await vault.set("llm:provider", "sk-provider", "provider API key", "llm");
+      await vault.set("gh", "ghp_value", "GitHub", "", "https://api.github.com");
+    });
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "vault-list@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { data?: unknown }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; data?: unknown };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    ws.send(JSON.stringify({ id: "list", type: "vault.list" }));
+    await vi.waitFor(() => expect(replies.has("list")).toBe(true), { timeout: 15_000 });
+    const listed = replies.get("list")?.data as Record<string, unknown>[];
+    expect(listed.map((meta) => meta.name)).toEqual(["gh"]);
+    expect(listed[0]).not.toHaveProperty("value");
+    ws.close();
+  });
+
+  it("edits a skill's description and instructions without losing where it came from", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("skill-update@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { skills } = instance as unknown as { skills: SkillStore };
+      skills.upsert({
+        name: "release-check",
+        description: "old",
+        source: "github:acme/skills/release-check",
+        commitSha: "abc1234",
+        bodyMd: "old body",
+        files: { "notes.md": "kept" },
+      });
+    });
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "skill-update@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type?: string; data?: unknown }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type?: string };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    ws.send(
+      JSON.stringify({ id: "edit", type: "skill.update", name: "release-check", description: "new", bodyMd: "new body" }),
+    );
+    ws.send(JSON.stringify({ id: "missing", type: "skill.update", name: "nope", description: "x", bodyMd: "y" }));
+    await vi.waitFor(() => expect(replies.size).toBe(2), { timeout: 15_000 });
+    expect(replies.get("edit")?.data).toMatchObject({
+      name: "release-check",
+      description: "new",
+      bodyMd: "new body",
+      source: "github:acme/skills/release-check",
+      commitSha: "abc1234",
+      filesJson: JSON.stringify({ "notes.md": "kept" }),
+    });
+    expect(replies.get("missing")?.type).toBe("error");
+    ws.close();
+  });
+
+  it("refuses secret names that requests cannot reference or that belong to a provider", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("vault-names@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { vault } = instance as unknown as { vault: Vault };
+      await vault.set("provider_key", "sk-provider", "provider API key", "llm");
+      await vault.set("gh", "ghp_value", "GitHub", "", "https://api.github.com");
+    });
+    const res = await SELF.fetch("https://tock.local/ws", {
+      headers: { upgrade: "websocket", "x-tock-owner": "vault-names@test" },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const replies = new Map<string, { type?: string }>();
+    ws.addEventListener("message", (ev) => {
+      const frame = JSON.parse(String(ev.data)) as { id?: string; type?: string };
+      if (frame.id !== undefined) replies.set(frame.id, frame);
+    });
+    ws.send(JSON.stringify({ id: "provider", type: "vault.set", name: "provider_key", value: "mine" }));
+    ws.send(JSON.stringify({ id: "spaced", type: "vault.set", name: "my key", value: "v" }));
+    ws.send(JSON.stringify({ id: "rename", type: "vault.update", name: "gh", rename: "git hub" }));
+    await vi.waitFor(() => expect(replies.size).toBe(3), { timeout: 15_000 });
+    expect([...replies.values()].map((reply) => reply.type)).toEqual(["error", "error", "error"]);
+    ws.close();
+    await runInDurableObject(stub, async (instance) => {
+      const { vault } = instance as unknown as { vault: Vault };
+      expect(await vault.resolve("provider_key")).toBe("sk-provider");
+      expect(vault.listMeta().map((meta) => meta.name).sort()).toEqual(["gh", "provider_key"]);
+    });
+  });
+
+  it("keeps a sign-in MCP server's pending approval when it is tested", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("mcp-signin@test"));
+    await runInDurableObject(stub, async (instance) => {
+      const { mcp } = instance as unknown as { mcp: McpHub };
+      const server = await instance.upsertMcpServer(
+        "signin",
+        "https://mcp.example.com/mcp",
+        {},
+        "oauth",
+      );
+      const id = server.managerServerId ?? server.id;
+      await mcp.manager.registerServer(id, {
+        url: server.url,
+        name: server.name,
+        callbackUrl: "https://tock.local/mcp/oauth/callback",
+        transport: { type: "auto" },
+      });
+      const approval = new Request(`https://tock.local/mcp/oauth/callback?code=c&state=n.${id}`);
+      expect(mcp.manager.isCallbackRequest(approval)).toBe(true);
+
+      const checked = await mcp.checkServer("signin");
+      expect(checked.lastError).toBe("mcp_signin_sign_in_required");
+      expect(mcp.manager.isCallbackRequest(approval)).toBe(true);
     });
   });
 
