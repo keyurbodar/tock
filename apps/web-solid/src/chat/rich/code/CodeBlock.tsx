@@ -1,15 +1,13 @@
-import { createSignal, For, onCleanup, onSettled, Show } from "solid-js"
+import { createSignal, For, onCleanup, onSettled } from "solid-js"
 import { highlight, plainLines, type CodeLine } from "./highlight"
 import "./code-block.css"
 
 type CodeFile = { lang?: string; name?: string; text: string }
 
-function CopyIcon(props: { copied: boolean }) {
+function CopyIcon(props: { copied: () => boolean }) {
   return (
     <svg aria-hidden="true" fill="none" height="14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" width="14">
-      <Show when={props.copied} fallback={<><rect height="14" rx="2" width="14" x="8" y="8" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></>}>
-        <path d="m5 13 4 4L19 7" />
-      </Show>
+      {props.copied() ? <path d="m5 13 4 4L19 7" /> : <><rect height="14" rx="2" width="14" x="8" y="8" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></>}
     </svg>
   )
 }
@@ -51,14 +49,7 @@ export function CodeBlock(props: { files: CodeFile[]; streaming?: boolean }) {
   return (
     <figure class="chat-code" data-bar={props.files.length > 1 || file().name ? "" : undefined} data-wrap={wrapped() ? "" : undefined}>
       <figcaption class="chat-code-head">
-        <Show
-          when={props.files.length > 1}
-          fallback={
-            <span class="chat-code-title">
-              <span class="chat-code-name">{file().name ?? file().lang ?? "code"}</span>
-            </span>
-          }
-        >
+        {props.files.length > 1 ? (
           <div class="chat-code-tabs" role="tablist">
             <For each={props.files}>
               {(item, index) => (
@@ -79,13 +70,17 @@ export function CodeBlock(props: { files: CodeFile[]; streaming?: boolean }) {
               )}
             </For>
           </div>
-        </Show>
+        ) : (
+          <span class="chat-code-title">
+            <span class="chat-code-name">{file().name ?? file().lang ?? "code"}</span>
+          </span>
+        )}
         <div class="chat-code-actions">
           <button aria-label="Wrap code" class="chat-code-action" data-active={wrapped() ? "" : undefined} onClick={() => setWrapped((value) => !value)} type="button">
             <svg aria-hidden="true" fill="none" height="14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" width="14"><path d="M3 6h18M3 12h15a3 3 0 1 1 0 6h-3" /><path d="m12 15 3 3-3 3" /></svg>
           </button>
           <button aria-label={copied() ? "Copied" : "Copy code"} class="chat-code-action" onClick={copy} type="button">
-            <CopyIcon copied={copied()} />
+            <CopyIcon copied={copied} />
           </button>
         </div>
       </figcaption>
