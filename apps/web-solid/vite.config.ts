@@ -1,8 +1,9 @@
+import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import { defineConfig } from "vite"
 import solid from "vite-plugin-solid"
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [tanstackRouter({ target: "solid", autoCodeSplitting: true }), solid()],
   optimizeDeps: {
     exclude: ["@ui-sdk/core"],
   },
