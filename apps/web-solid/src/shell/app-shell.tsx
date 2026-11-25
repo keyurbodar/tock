@@ -2,7 +2,7 @@ import { Outlet, useLocation, useParams } from "@tanstack/solid-router"
 import { createSignal, lazy, Show } from "solid-js"
 import { useQuery } from "@tanstack/solid-query"
 import { Button } from "@tock/ui-solid/button"
-import { conversationsOptions } from "../data/queries"
+import { conversationsOptions } from "../data/conversations"
 import { MenuIcon } from "./icons"
 import { RailLinks, SidebarContent } from "./sidebar"
 

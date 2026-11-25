@@ -29,13 +29,20 @@ export interface FixtureMessage {
   toolCalls?: FixtureToolCall[]
 }
 
-export interface FixtureConversation {
+export interface FixtureConversationSummary {
   id: string
   title: string
   preview: string
   updatedAt: string
   unread?: number
   pinned?: boolean
+}
+
+export interface FixtureConversation extends FixtureConversationSummary {
+  id: string
+  title: string
+  preview: string
+  updatedAt: string
   messages: FixtureMessage[]
 }
 

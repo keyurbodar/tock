@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/solid-router"
 import { useQuery } from "@tanstack/solid-query"
 import { queryClient } from "../data/query-client"
-import { conversationOptions } from "../data/queries"
+import { conversationOptions } from "../data/conversation"
 import { ThreadView } from "../thread/thread-view"
 
 export const Route = createFileRoute("/chat/$conversationId")({

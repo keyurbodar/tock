@@ -1,10 +1,10 @@
 import { Drawer, DrawerBackdrop, DrawerContent } from "@tock/ui-solid/drawer"
-import type { FixtureConversation } from "../fixtures/types"
+import type { FixtureConversationSummary } from "../fixtures/types"
 import { RailLinks, SidebarContent } from "./sidebar"
 
 type MobileDrawerProps = {
   activeId?: string
-  conversations: FixtureConversation[]
+  conversations: FixtureConversationSummary[]
   onNavigate: () => void
   onOpenChange: (open: boolean) => void
   open: boolean

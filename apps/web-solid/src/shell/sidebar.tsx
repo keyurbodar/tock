@@ -1,11 +1,11 @@
 import { Link } from "@tanstack/solid-router"
 import { For, Show } from "solid-js"
-import type { FixtureConversation } from "../fixtures/types"
+import type { FixtureConversationSummary } from "../fixtures/types"
 import { Button } from "@tock/ui-solid/button"
 import { ChatIcon, FilesIcon, PlusIcon, RecipesIcon, SearchIcon, SettingsIcon } from "./icons"
 
 type SidebarContentProps = {
-  conversations: FixtureConversation[]
+  conversations: FixtureConversationSummary[]
   activeId?: string
   onNavigate?: () => void
 }

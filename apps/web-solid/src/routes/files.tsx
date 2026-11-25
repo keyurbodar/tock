@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/solid-router"
 import { useQuery } from "@tanstack/solid-query"
 import { Tree, treeFromPaths } from "@tock/ui-solid/tree"
 import { queryClient } from "../data/query-client"
-import { filesOptions } from "../data/queries"
+import { filesOptions } from "../data/files"
 
 export const Route = createFileRoute("/files")({
   beforeLoad: () => void queryClient.prefetchQuery(filesOptions()),

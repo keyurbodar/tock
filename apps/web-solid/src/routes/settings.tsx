@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/solid-router"
 import { For } from "solid-js"
 import { useQuery } from "@tanstack/solid-query"
 import { queryClient } from "../data/query-client"
-import { settingsOptions } from "../data/queries"
+import { settingsOptions } from "../data/settings"
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: () => void queryClient.prefetchQuery(settingsOptions()),
