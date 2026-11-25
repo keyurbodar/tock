@@ -47,7 +47,7 @@ export function CodeBlock(props: { files: CodeFile[]; streaming?: boolean }) {
   }
 
   return (
-    <figure class="chat-code" data-bar={props.files.length > 1 || file().name ? "" : undefined} data-wrap={wrapped() ? "" : undefined}>
+    <figure class="chat-code" data-bar="" data-wrap={wrapped() ? "" : undefined}>
       <figcaption class="chat-code-head">
         {props.files.length > 1 ? (
           <div class="chat-code-tabs" role="tablist">

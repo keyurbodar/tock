@@ -8,6 +8,7 @@ import "./composer.css"
 type ComposerProps = {
   draftKey?: string
   onSend?: (markdown: string) => void
+  ref?: (element: HTMLElement | undefined) => void
 }
 
 function chip(label: string) {
@@ -94,7 +95,7 @@ export function Composer(props: ComposerProps) {
   onCleanup(() => editor?.destroy())
 
   return (
-    <footer class="composer-footer">
+    <footer class="composer-footer" ref={props.ref}>
       <div class="composer-dock" data-component="composer-dock">
         <div class="composer-box">
           <div

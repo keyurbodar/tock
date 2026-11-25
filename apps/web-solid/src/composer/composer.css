@@ -5,7 +5,7 @@
   max-width: var(--chat-content-max-width);
   margin-right: auto;
   margin-left: auto;
-  padding: 0 1rem calc(0.875rem + env(safe-area-inset-bottom, 0) + var(--composer-keyboard-inset, 0));
+  padding: 0 1rem;
   background: var(--bg-chrome);
 }
 
@@ -160,7 +160,7 @@
   display: grid;
   width: 1.75rem;
   height: 1.75rem;
-  margin: -2px 0;
+  margin: -0.125rem 0;
   flex-shrink: 0;
   place-items: center;
   padding: 0;

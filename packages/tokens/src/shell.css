@@ -90,6 +90,8 @@ body {
 .thread-page {
   display: flex;
   flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
   min-inline-size: 0;
   position: relative;
 }
@@ -97,8 +99,9 @@ body {
 .thread-scroll {
   flex: 1;
   min-inline-size: 0;
+  min-block-size: 0;
   overflow-y: auto;
-  padding-block-end: var(--size-composer-h);
+  padding-block-end: var(--size-thread-bottom-pad);
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
@@ -109,15 +112,17 @@ body {
 }
 
 .composer-footer {
-  align-items: center;
+  align-items: end;
   background: var(--bg);
-  block-size: var(--size-composer-h);
-  bottom: 0;
   display: flex;
+  flex: 0 0 auto;
   inline-size: 100%;
   justify-content: center;
-  pointer-events: none;
-  position: absolute;
+  min-block-size: var(--size-composer-h);
+  padding-block-end: calc(var(--space-2) + env(safe-area-inset-bottom, 0px) + var(--composer-keyboard-inset, 0px));
+  pointer-events: auto;
+  position: relative;
+  z-index: var(--z-dock);
 }
 
 .composer-frame {

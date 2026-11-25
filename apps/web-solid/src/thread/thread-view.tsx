@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js"
 import { Composer } from "../composer/composer"
 import { Markdown } from "../chat/rich/Markdown"
 import type { FixtureMessage } from "../fixtures/types"
@@ -15,9 +15,26 @@ function timeLabel(value: string) {
 }
 
 export function ThreadView(props: ThreadViewProps) {
+  let scrollElement: HTMLDivElement | undefined
+  let composerElement: HTMLElement | undefined
   const [sent, setSent] = createSignal<FixtureMessage[]>([])
   const messages = createMemo(() => [...(props.messages ?? []), ...sent()])
   const empty = () => messages().length === 0
+  const scrollToLatest = () => {
+    if (!scrollElement) return
+    scrollElement.scrollTop = scrollElement.scrollHeight
+  }
+  createEffect(
+    () => messages().length,
+    () => queueMicrotask(scrollToLatest),
+  )
+  onSettled(() => {
+    if (!composerElement || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => queueMicrotask(scrollToLatest))
+    observer.observe(composerElement)
+    return () => observer.disconnect()
+  })
+
   const send = (markdown: string) => {
     const now = new Date().toISOString()
     setSent((items) => [
@@ -44,7 +61,7 @@ export function ThreadView(props: ThreadViewProps) {
           </div>
         }
       >
-        <div class="thread-scroll">
+        <div class="thread-scroll" ref={scrollElement}>
           <For each={messages()}>
             {(message, index) => (
             <div class="thread-column" data-component="chat-vrow">
@@ -65,7 +82,7 @@ export function ThreadView(props: ThreadViewProps) {
           </For>
         </div>
       </Show>
-      <Composer draftKey={props.conversationId} onSend={send} />
+      <Composer draftKey={props.conversationId} onSend={send} ref={(element) => (composerElement = element)} />
     </div>
   )
 }
