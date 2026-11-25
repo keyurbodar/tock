@@ -20,6 +20,7 @@
 }
 
 .tui-textarea {
+  block-size: 100%;
   display: block;
   line-height: var(--leading-base);
   resize: none;

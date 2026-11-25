@@ -98,7 +98,7 @@ body {
   flex: 1;
   min-inline-size: 0;
   overflow-y: auto;
-  padding-block-end: calc(var(--size-composer-h) + var(--space-6));
+  padding-block-end: var(--size-composer-h);
   scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
@@ -110,6 +110,7 @@ body {
 
 .composer-footer {
   align-items: center;
+  background: var(--bg);
   block-size: var(--size-composer-h);
   bottom: 0;
   display: flex;

@@ -223,12 +223,12 @@
 
 .composer-capsule {
   align-items: end;
-  background: var(--bg-input-field);
+  background: var(--bg-input);
   border: var(--size-border-hairline) solid var(--stroke-quaternary);
   border-radius: var(--radius-capsule);
   display: flex;
   flex: 1;
-  min-block-size: var(--size-composer-input-min-h);
+  block-size: var(--size-composer-input-min-h);
   min-inline-size: 0;
 }
 
@@ -237,7 +237,7 @@
 }
 
 .composer-frame .tui-button--composer {
-  background: var(--bg-card);
+  background: var(--bg-input);
   color: var(--icon-secondary);
 }
 
