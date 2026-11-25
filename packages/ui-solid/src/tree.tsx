@@ -6,6 +6,7 @@ import {
   TreeItemIndicator,
   TreeItemLabel,
   TreeItems,
+  treeFromPaths,
 } from "@ui-sdk/solid/tree"
 import { omit, type ComponentProps } from "solid-js"
 import { cn } from "./cn"
@@ -18,4 +19,4 @@ export function Tree(props: TreeProps) {
   return <BaseTree {...rest} class={cn("tui-tree", typeof props.class === "string" ? props.class : undefined)} />
 }
 
-export { TreeGroup, TreeItem, TreeItemCheckbox, TreeItemIndicator, TreeItemLabel, TreeItems }
+export { TreeGroup, TreeItem, TreeItemCheckbox, TreeItemIndicator, TreeItemLabel, TreeItems, treeFromPaths }

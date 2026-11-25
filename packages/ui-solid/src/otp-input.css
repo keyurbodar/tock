@@ -1,0 +1,27 @@
+.tui-otp-input {
+  display: inline-flex;
+}
+
+.tui-otp-group {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.tui-otp-slot {
+  align-items: center;
+  background: var(--bg-input);
+  border: var(--size-border-hairline) solid var(--stroke-tertiary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  display: inline-flex;
+  font-size: var(--text-base);
+  block-size: var(--size-btn-md);
+  inline-size: var(--size-btn-md);
+  justify-content: center;
+  line-height: var(--leading-base);
+}
+
+.tui-otp-input[data-focused] .tui-otp-slot[data-active] {
+  border-color: var(--stroke-accent);
+  box-shadow: var(--ring-focus);
+}
