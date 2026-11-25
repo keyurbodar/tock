@@ -7,6 +7,9 @@ export function ComposerPlaceholder() {
   return (
     <footer class="composer-footer">
       <div class="composer-frame">
+        <Button aria-label="Attach file" class="tui-button--icon tui-button--composer" type="button">
+          <AttachIcon />
+        </Button>
         <div class="composer-capsule">
           <Textarea
             aria-label="Message"
@@ -19,9 +22,6 @@ export function ComposerPlaceholder() {
             rows={1}
           />
         </div>
-        <Button aria-label="Attach file" class="tui-button--icon tui-button--composer" type="button">
-          <AttachIcon />
-        </Button>
         <Button aria-label="Dictate message" class="tui-button--icon tui-button--composer" type="button">
           <MicIcon />
         </Button>

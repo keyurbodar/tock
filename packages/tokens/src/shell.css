@@ -129,8 +129,12 @@ body {
   pointer-events: auto;
 }
 
-.mobile-only {
+.shell .mobile-only {
   display: none;
+}
+
+.shell-rail .rail-link {
+  font-size: var(--size-icon-md);
 }
 
 @media (max-width: 767px) {
@@ -146,7 +150,7 @@ body {
     display: none;
   }
 
-  .mobile-only {
+  .shell .mobile-only {
     display: inline-flex;
   }
 
