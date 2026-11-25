@@ -1,4 +1,4 @@
-import type { PushDevice, PushSubscriptionRecord } from "../types.js";
+import type { NotificationUrgency, QueuedNotificationRecord, PushDevice, PushSubscriptionRecord } from "../types.js";
 import type { Vault } from "./vault.js";
 import type { ExecutionGuards } from "./guards.js";
 
@@ -115,6 +115,45 @@ export async function encryptWebPushPayload(
   return concatBytes(header, ciphertext);
 }
 
+function parseMinutes(hhmm: string): number | null {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm.trim());
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function getLocalMinutes(now: Date, timezone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).formatToParts(now);
+    const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0") % 24;
+    const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+    return hour * 60 + minute;
+  } catch {
+    return now.getUTCHours() * 60 + now.getUTCMinutes();
+  }
+}
+
+export function isWithinQuietHours(
+  now: Date,
+  timezone: string,
+  startHHMM: string | null,
+  endHHMM: string | null
+): boolean {
+  if (!startHHMM || !endHHMM) return false;
+  const start = parseMinutes(startHHMM);
+  const end = parseMinutes(endHHMM);
+  if (start === null || end === null || start === end) return false;
+  const cur = getLocalMinutes(now, timezone);
+  if (start < end) {
+    return cur >= start && cur < end;
+  }
+  return cur >= start || cur < end;
+}
+
 export interface VapidConfig {
   publicKey?: string;
   privateKey?: string;
@@ -200,6 +239,41 @@ export class PushNotifier {
       }));
   }
 
+  enqueue(title: string, body: string, urgency: NotificationUrgency = "normal"): QueuedNotificationRecord {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    this.sql.exec(
+      `INSERT INTO tock_notification_queue (id, title, body, urgency, created_at) VALUES (?, ?, ?, ?, ?)`,
+      id,
+      title,
+      body,
+      urgency,
+      now
+    );
+    return { id, title, body, urgency, createdAt: now };
+  }
+
+  listQueued(): QueuedNotificationRecord[] {
+    return this.sql
+      .exec(`SELECT id, title, body, urgency, created_at FROM tock_notification_queue ORDER BY created_at ASC`)
+      .toArray()
+      .map((r) => ({
+        id: String(r.id),
+        title: String(r.title),
+        body: String(r.body),
+        urgency: (String(r.urgency) as NotificationUrgency) || "normal",
+        createdAt: Number(r.created_at)
+      }));
+  }
+
+  drainQueued(): QueuedNotificationRecord[] {
+    const items = this.listQueued();
+    if (items.length > 0) {
+      this.sql.exec(`DELETE FROM tock_notification_queue`);
+    }
+    return items;
+  }
+
   private async signVapidJwt(audience: string): Promise<string | null> {
     if (!this.vapid.publicKey || !this.vapid.privateKey) return null;
     try {
@@ -235,7 +309,11 @@ export class PushNotifier {
     }
   }
 
-  async deliverOffline(title: string, body: string): Promise<{ sent: number; failed: number }> {
+  async deliverOffline(
+    title: string,
+    body: string,
+    urgency: NotificationUrgency = "normal"
+  ): Promise<{ sent: number; failed: number }> {
     let sent = 0;
     let failed = 0;
 
@@ -244,10 +322,18 @@ export class PushNotifier {
       const check = this.guards.recordSubrequest(1);
       if (check.allowed) {
         try {
-          const res = await fetch(webhookUrl, {
+          // Use the same origin-locked secret injection and manual redirect
+          // policy as http_request and the codemode bridge.
+          const target = new URL(webhookUrl);
+          if (target.protocol !== "https:" || target.username || target.password) {
+            throw new Error("notification_webhook_requires_https");
+          }
+          const resolvedUrl = await this.vault.injectForUrl(webhookUrl, webhookUrl);
+          const res = await fetch(resolvedUrl, {
+            redirect: "manual",
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ title, body, text: `${title}\n${body}`, ts: Date.now() }),
+            body: JSON.stringify({ title, body, urgency, text: `${title}\n${body}`, ts: Date.now() }),
           });
           if (res.ok) sent += 1;
           else failed += 1;
@@ -264,6 +350,7 @@ export class PushNotifier {
       if (check.allowed) {
         try {
           const res = await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+            redirect: "manual",
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ chat_id: telegramChatId, text: `${title}\n\n${body}` }),
@@ -290,9 +377,11 @@ export class PushNotifier {
             payloadBytes,
           );
           const res = await fetch(sub.endpoint, {
+            redirect: "manual",
             method: "POST",
             headers: {
               TTL: "86400",
+              Urgency: urgency === "urgent" ? "high" : urgency === "low" ? "low" : "normal",
               Authorization: `vapid t=${jwt}, k=${this.vapid.publicKey}`,
               "Content-Encoding": "aes128gcm",
               "Content-Type": "application/octet-stream",

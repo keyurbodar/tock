@@ -1,6 +1,6 @@
 import { Sandbox } from "@earendil-works/djs";
 import djsWasm from "@earendil-works/djs/wasm/djs.wasm";
-import type { DevPluginRecord } from "../types.js";
+import type { DevPluginRecord, NotificationUrgency, NotifyResult } from "../types.js";
 import type { Vault } from "../core/vault.js";
 import type { UnifiedMemory } from "../core/memory.js";
 import type { ExecutionGuards } from "../core/guards.js";
@@ -15,7 +15,7 @@ export const TOCK_CODEMODE_DTS = `declare namespace tock {
   function writeFile(name: string, content: string, mime?: string): Promise<{ id: string; name: string; size: number }>;
   function listFiles(): Promise<Array<{ id: string; name: string; mime: string; size: number }>>;
   function scheduleFollowup(delaySeconds: number, note: string): Promise<{ scheduleId: string }>;
-  function notify(title: string, body: string): Promise<{ notified: boolean }>;
+  function notify(title: string, body: string, urgency?: "low" | "normal" | "urgent"): Promise<{ delivered: boolean; queued: boolean; urgency: string }>;
 }`;
 
 export interface DjsHostBridge {
@@ -23,7 +23,7 @@ export interface DjsHostBridge {
   memory: UnifiedMemory;
   guards: ExecutionGuards;
   files: FileStore;
-  notifyOwner: (title: string, body: string) => Promise<void>;
+  notifyOwner: (title: string, body: string, urgency?: NotificationUrgency) => Promise<NotifyResult>;
   scheduleFollowup: (delaySeconds: number, note: string) => Promise<string>;
   callMcpTool?: (server: string, tool: string, args: Record<string, unknown>) => Promise<unknown>;
   isMcpToolReadOnly?: (server: string, tool: string) => Promise<boolean>;
@@ -237,9 +237,9 @@ export class DjsRuntime {
             .list()
             .map((f) => ({ id: f.id, name: f.name, mime: f.mime, size: f.size }));
         },
-        "tock.notify": async (title: unknown, body: unknown) => {
-          await this.bridge.notifyOwner(String(title), String(body));
-          return { notified: true };
+        "tock.notify": async (title: unknown, body: unknown, urgency?: unknown) => {
+          const u = urgency === "low" || urgency === "urgent" ? urgency : "normal";
+          return this.bridge.notifyOwner(String(title), String(body), u);
         },
         "tock.scheduleFollowup": async (delaySeconds: unknown, note: unknown) => {
           const id = await this.bridge.scheduleFollowup(Number(delaySeconds), String(note));

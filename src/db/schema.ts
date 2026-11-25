@@ -204,6 +204,18 @@ const MIGRATIONS: readonly Migration[] = [
     addColumnIfMissing(sql, "tock_mcp_servers", "checked_at", "INTEGER");
     addColumnIfMissing(sql, "tock_mcp_servers", "last_error", "TEXT");
   },
+  (sql) => {
+    addColumnIfMissing(sql, "tock_settings", "proactive_heartbeat", "INTEGER NOT NULL DEFAULT 1");
+    addColumnIfMissing(sql, "tock_settings", "quiet_hours_start", "TEXT");
+    addColumnIfMissing(sql, "tock_settings", "quiet_hours_end", "TEXT");
+    addColumnIfMissing(sql, "tock_settings", "morning_brief_time", "TEXT DEFAULT '08:00'");
+    sql.exec(`CREATE TABLE IF NOT EXISTS tock_notification_queue (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,
+      urgency TEXT NOT NULL DEFAULT 'normal', created_at INTEGER NOT NULL
+    )`);
+    sql.exec(`CREATE INDEX IF NOT EXISTS idx_notif_queue_created ON tock_notification_queue(created_at ASC)`);
+  },
+
 ];
 
 export function ensureSchema(sql: SqlStorage, defaultTimezone = "UTC"): void {

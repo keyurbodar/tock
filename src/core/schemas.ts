@@ -36,6 +36,10 @@ export const settingsPatchSchema = obj({
   backgroundModel: opt(nullable(str())),
   fallbackModel: opt(nullable(str())),
   timezone: opt(str({ minLength: 1 })),
+  proactiveHeartbeat: opt(bool()),
+  quietHoursStart: opt(nullable(str({ pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$" }))),
+  quietHoursEnd: opt(nullable(str({ pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$" }))),
+  morningBriefTime: opt(nullable(str({ pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$" }))),
 });
 
 export const httpModelsRefreshSchema = obj({
@@ -192,6 +196,9 @@ const clientFrameSchema = union([
     enabled: bool(),
   }),
   obj({ id: str({ minLength: 1 }), type: lit("routine.list") }),
+  obj({ id: str({ minLength: 1 }), type: lit("proactive.sync") }),
+  obj({ id: str({ minLength: 1 }), type: lit("notifications.list") }),
+  obj({ id: str({ minLength: 1 }), type: lit("notifications.flush") }),
   obj({
     id: str({ minLength: 1 }),
     type: lit("routine.upsert"),

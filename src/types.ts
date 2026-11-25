@@ -17,6 +17,7 @@ export interface Env {
 }
 
 export type ThinkingLevelOption = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type NotificationUrgency = "low" | "normal" | "urgent";
 
 export interface OwnerSettings {
   devMode: boolean;
@@ -25,7 +26,25 @@ export interface OwnerSettings {
   backgroundModel: string | null;
   fallbackModel: string | null;
   timezone: string;
+  proactiveHeartbeat: boolean;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+  morningBriefTime: string | null;
   updatedAt: number;
+}
+
+export interface QueuedNotificationRecord {
+  id: string;
+  title: string;
+  body: string;
+  urgency: NotificationUrgency;
+  createdAt: number;
+}
+
+export interface NotifyResult {
+  delivered: boolean;
+  queued: boolean;
+  urgency: NotificationUrgency;
 }
 
 export interface MemoryItem {
@@ -209,6 +228,9 @@ export type ClientFrame =
       > & { id?: string };
     }
   | { id: string; type: "routine.delete"; routineId: string }
+  | { id: string; type: "proactive.sync" }
+  | { id: string; type: "notifications.list" }
+  | { id: string; type: "notifications.flush" }
   | { id: string; type: "plugin.list" }
   | {
       id: string;

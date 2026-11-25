@@ -11,6 +11,7 @@ import { createRegistry, Harness } from "@earendil-works/pi-durable";
 import { openPiSessionStore } from "agents/harness/pi";
 import type { McpHub } from "../src/core/mcp.js";
 import type { SkillStore } from "../src/core/skills.js";
+import { parseClientFrame, validators } from "../src/core/schemas.js";
 import { Vault } from "../src/core/vault.js";
 import { encryptWebPushPayload, fitPushPayload } from "../src/core/push.js";
 import { ensureSchema } from "../src/db/schema.js";
@@ -26,6 +27,36 @@ function base64UrlEncode(bytes: Uint8Array): string {
 }
 
 describe("tock production hardening", () => {
+  it("validates proactive frames and rejects malformed quiet-hour settings", () => {
+    for (const type of ["proactive.sync", "notifications.list", "notifications.flush"]) {
+      expect(parseClientFrame({ id: "p1", type }).ok).toBe(true);
+    }
+    expect(validators.settingsPatch.validate({
+      proactiveHeartbeat: false, quietHoursStart: "23:00", quietHoursEnd: "07:30",
+      morningBriefTime: null,
+    }).ok).toBe(true);
+    expect(validators.settingsPatch.validate({ quietHoursStart: "25:00" }).ok).toBe(false);
+    expect(validators.settingsPatch.validate({ proactiveHeartbeat: "true" }).ok).toBe(false);
+  });
+
+  it("upgrades the main schema to proactive settings and queue idempotently", async () => {
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName("proactive-migration@test"));
+    await runInDurableObject(stub, async (_instance, state) => {
+      const sql = state.storage.sql;
+      sql.exec("DROP TABLE tock_notification_queue");
+      for (const name of ["proactive_heartbeat", "quiet_hours_start", "quiet_hours_end", "morning_brief_time"]) {
+        sql.exec(`ALTER TABLE tock_settings DROP COLUMN ${name}`);
+      }
+      sql.exec("UPDATE tock_meta SET value = '5' WHERE key = 'schema_version'");
+      ensureSchema(sql);
+      ensureSchema(sql);
+      const settings = sql.exec("SELECT proactive_heartbeat, morning_brief_time FROM tock_settings").one();
+      expect(settings.proactive_heartbeat).toBe(1);
+      expect(settings.morning_brief_time).toBe("08:00");
+      expect(sql.exec("SELECT * FROM tock_notification_queue").toArray()).toEqual([]);
+    });
+  });
+
   it("validates HTTP bodies with pi-schema and enforces 256KB webhook body cap", async () => {
     const badSettings = await SELF.fetch("https://tock.local/api/settings", {
       method: "PATCH",

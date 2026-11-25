@@ -19,6 +19,7 @@ import type { RoutineStore } from "./routines.js";
 import type { FileStore } from "./files.js";
 import type { SkillStore } from "./skills.js";
 import { isBackgroundReadOnlyViolation, transientRetries } from "./resilience.js";
+import type { NotificationUrgency, NotifyResult } from "../types.js";
 import { TOCK_CODEMODE_DTS, type DjsRuntime } from "../dev/djs.js";
 
 export interface TockToolsDeps {
@@ -34,7 +35,7 @@ export interface TockToolsDeps {
   djs: DjsRuntime;
   getLastUserQuery: (conversationId: string) => string;
   isBackgroundSession: (conversationId: string) => boolean;
-  notifyOwner: (title: string, body: string) => Promise<void>;
+  notifyOwner: (title: string, body: string, urgency?: NotificationUrgency) => Promise<NotifyResult>;
   scheduleFollowup: (delaySeconds: number, note: string, sessionId?: string) => Promise<string>;
 }
 
@@ -63,7 +64,11 @@ const RoutineUpsertParams = obj({
 });
 const RoutineDeleteParams = obj({ id: str() });
 const EmptyParams = obj({});
-const NotifyOwnerParams = obj({ title: str(), body: str() });
+const NotifyOwnerParams = obj({
+  title: str(),
+  body: str(),
+  urgency: opt(union([lit("low"), lit("normal"), lit("urgent")]))
+});
 const McpListParams = obj({ server: opt(str()) });
 const McpCallParams = obj({ server: str(), tool: str(), args: opt(map(unknown())) });
 const SubagentParams = obj({ task: str() });
@@ -294,12 +299,12 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
 
   const notifyOwnerTool = defineTool({
     name: "notify_owner",
-    description: "Send a proactive alert to the owner (WS + offline webhook/Telegram/VAPID push).",
+    description: "Send a proactive alert to the owner (live WebSocket + Web Push / webhook). Respects quiet hours: low/normal alerts queue for morning digest while urgent breaks through immediately.",
     parameters: NotifyOwnerParams,
     async execute(args) {
-      await deps.notifyOwner(args.title, args.body);
-      return { output: [{ type: "text", text: JSON.stringify({ delivered: true }) }] };
-    },
+      const res = await deps.notifyOwner(args.title, args.body, args.urgency ?? "normal");
+      return { output: [{ type: "text", text: JSON.stringify(res) }] };
+    }
   });
 
   const mcpListTool = defineTool({
@@ -478,8 +483,9 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
       }
     }
     sections.push(`## Codemode Runtime API\n\`\`\`ts\n${TOCK_CODEMODE_DTS}\n\`\`\``);
+    const quietStr = cfg.quietHoursStart && cfg.quietHoursEnd ? `${cfg.quietHoursStart}-${cfg.quietHoursEnd}` : "off";
     sections.push(
-      `## Runtime\n- max_subagents: ${cfg.maxSubagents}\n- dev_mode: ${cfg.devMode}\n- timezone: ${cfg.timezone}`,
+      `## Runtime\n- max_subagents: ${cfg.maxSubagents}\n- dev_mode: ${cfg.devMode}\n- timezone: ${cfg.timezone}\n- proactive_heartbeat: ${cfg.proactiveHeartbeat}\n- quiet_hours: ${quietStr}\n- morning_brief: ${cfg.morningBriefTime ?? "off"}`
     );
     return sections.join("\n\n");
   });
