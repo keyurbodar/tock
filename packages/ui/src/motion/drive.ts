@@ -63,3 +63,18 @@ export function drive(el: HTMLElement, opts: { preset?: Preset; property?: strin
     stop: () => cancelAnimationFrame(frame),
   }
 }
+
+/**
+ * Backdrop on a progress: one element gives way to whatever expands over it, scaling back, blurring and dimming in step
+ * with `progress` (the same --tds-backdrop-* material as `backdrop()`, which is the on/off version for whole layers).
+ */
+export function recede(el: Element | null | undefined, progress: number) {
+  if (!(el instanceof HTMLElement)) return
+  if (progress <= 0) {
+    el.removeAttribute("data-recede")
+    el.style.removeProperty("--p")
+    return
+  }
+  el.setAttribute("data-recede", "")
+  el.style.setProperty("--p", progress.toFixed(4))
+}

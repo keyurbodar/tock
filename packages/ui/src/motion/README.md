@@ -50,6 +50,16 @@ scrub(el, { axis: "y", distance: 320, direction: -1, onProgress: (p) => el.style
 ```
 Pointer drag and trackpad wheel both drive progress. It locks the gesture to one axis, applies a rubber band past 0 and 1 (`gesture.rubber`), and on release decides on the projected position (`gesture.project`, `gesture.commit`). For sidebar-row swipes, the lower-level helpers are `rubber`, `swipeState` and `isSideways`.
 
+## Recede: the backdrop on a progress
+Use it with Drive when one element, not the whole backdrop layer, should give way in step with a surface that grows over it. The composer sheet lives inside the main column, so it recedes only the transcript; use `backdropTo` when the whole app should recede.
+```ts
+const d = drive(field, { preset: "glide", onFrame: (p) => recede(transcript, p) })
+scrub(grip, { axis: "y", direction: -1, area: field, distance: () => travel(), from: () => d.value, onProgress: (p) => d.set(p), onRelease: (open, v) => d.to(open ? 1 : 0, "glide", (v * 1000) / travel()) })
+```
+- `recede(el, p)` sets `data-recede` and `--p`, which drive scale, blur and dim from the same `--tds-backdrop-*` material as `backdrop()`. `recede(el, 0)` clears it. Under reduced motion only the dim stays.
+- `scrub` reports release velocity in px/ms and `drive.to` takes progress per second, so divide by the travel as above.
+- `scrub` follows the pointer outside the handle once pressed, swallows the click that ends a drag, and with `area` keeps a wheel gesture going after the handle moves out from under it. `distance` may be a function, read at the start of each gesture.
+
 ## Backdrop
 `backdrop(true | false)` (reference counted) makes every `[data-backdrop-layer]` element (the main column and the sidebar) scale to `--tds-backdrop-scale`, blur by `--tds-backdrop-blur` and dim to `--tds-backdrop-dim`. Morph sources with `backdrop: true` call it for you.
 

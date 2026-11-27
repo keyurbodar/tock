@@ -285,6 +285,75 @@ const journeys: Record<string, () => void> = {
     until(() => exists(`.tds-row-wrap[data-id="${id}"]`), Boolean, "the row to come back")
     check(!exists(`.tds-pin[data-id="${id}"]`), "the pin should be gone")
   },
+  writesheet() {
+    seeded()
+    const h = () => rect(".tds-field")!.h
+    const base = h()
+    const expanded = () => js<string | null>("return document.querySelector('.tds-sheet-grip')?.getAttribute('aria-expanded') ?? null")
+    const receded = () => js<{ on: boolean; scale: number; filter: string }>("const t = document.querySelector('main .tds-transcript'); const s = getComputedStyle(t); return { on: t.hasAttribute('data-recede'), scale: parseFloat(s.scale) || 1, filter: s.filter }")
+    const closed = (what: string) => {
+      until(h, (v) => Math.abs(v - base) < 1, what)
+      until(receded, (r) => !r.on, "the transcript to come back")
+      check(expanded() === "false", "the grip says collapsed")
+    }
+    ab("hover", ".tds-field")
+    ab("click", ".tds-sheet-grip")
+    until(h, (v) => v > 500, "a tap on the grip to open the sheet")
+    wait(500)
+    const open = h()
+    const back = receded()
+    check(expanded() === "true", "the grip says expanded")
+    check(back.on && back.scale < 0.995 && back.filter.includes("blur"), `the transcript scales back, dims and blurs (${JSON.stringify(back)})`)
+    check(js<boolean>("return !!document.activeElement?.closest('.tds-editor')"), "the editor keeps focus in the sheet")
+    ab("keyboard", "type", "A longer thought")
+    shot("sheet-open")
+    ab("press", "Escape")
+    closed("Escape to collapse the sheet")
+    check(js<string>("return document.querySelector('.ProseMirror').textContent") === "A longer thought", "the draft survives the round trip")
+
+    ab("eval", "(() => { window.__peak = 0; const f = document.querySelector('.tds-field'); const tick = () => { window.__peak = Math.max(window.__peak, f.getBoundingClientRect().height); if (!window.__stopPeak) requestAnimationFrame(tick) }; window.__stopPeak = false; requestAnimationFrame(tick) })()")
+    ab("eval", "document.querySelector('.tds-sheet-grip').click()")
+    wait(90)
+    ab("eval", "document.querySelector('.tds-sheet-grip').click()")
+    closed("a second tap mid-flight to send the sheet back")
+    const peak = js<number>("window.__stopPeak = true; return window.__peak")
+    check(peak > base + 20 && peak < open - 40, `a mid-flight tap retargets the spring instead of finishing the open (peak ${peak.toFixed(0)} of ${open.toFixed(0)})`)
+
+    const g = rect(".tds-sheet-grip")!
+    const x = String(g.x + g.w / 2)
+    ab("mouse", "move", x, String(g.y + g.h / 2))
+    ab("mouse", "down")
+    for (let i = 1; i <= 8; i++) ab("mouse", "move", x, String(g.y + g.h / 2 - i * 25))
+    wait(100)
+    const held = h()
+    check(Math.abs(held - (base + 200)) < 30, `the sheet follows the pointer while dragging (${held.toFixed(0)}, expected about ${base + 200})`)
+    check(receded().on, "the transcript recedes with the drag")
+    for (let i = 9; i <= 22; i++) ab("mouse", "move", x, String(g.y + g.h / 2 - i * 25))
+    ab("mouse", "up")
+    until(h, (v) => Math.abs(v - open) < 1, "a long drag to settle open")
+    check(expanded() === "true", "a drag past halfway opens the sheet")
+    const top = rect(".tds-sheet-grip")!
+    ab("mouse", "move", x, String(top.y + top.h / 2))
+    ab("mouse", "down")
+    for (let i = 1; i <= 4; i++) ab("mouse", "move", x, String(top.y + top.h / 2 + i * 25))
+    wait(150)
+    ab("mouse", "up")
+    until(h, (v) => Math.abs(v - open) < 1, "a short drag down to spring back open")
+
+    const main = rect("main")!
+    ab("mouse", "move", String(main.x + main.w * 0.1), String(main.y + main.h / 2))
+    ab("mouse", "down")
+    ab("mouse", "up")
+    closed("a tap on the conversation to collapse the sheet")
+
+    ab("mouse", "move", x, String(g.y + g.h / 2))
+    for (let i = 0; i < 12; i++) ab("mouse", "wheel", "60")
+    until(h, (v) => Math.abs(v - open) < 1, "a two-finger swipe up over the grip to open the sheet")
+    ab("click", ".ProseMirror")
+    ab("press", "End")
+    ab("press", "Enter")
+    closed("sending to collapse the sheet")
+  },
   smooth() {
     ensureRows(3)
     ab("open", BASE)
@@ -338,6 +407,11 @@ const journeys: Record<string, () => void> = {
     }, 900)
     ab("press", "Control+a")
     ab("press", "Backspace")
+    wait(500)
+    ab("hover", ".tds-field")
+    probe("sheet open", ".tds-field", () => (ab("click", ".tds-sheet-grip"), wait(900), ab("press", "Escape")), 1000)
+    probe("sheet recede", "main .tds-transcript", () => (ab("click", ".tds-sheet-grip"), wait(900), ab("press", "Escape")), 1000)
+    probe("sheet retarget", ".tds-field", () => (ab("eval", "document.querySelector('.tds-sheet-grip').click()"), wait(140), ab("eval", "document.querySelector('.tds-sheet-grip').click()")), 1000)
     probe("bell centre", ".tds-centre", () => (ab("click", ".tds-rail-button[data-bell]"), wait(600), ab("click", ".tds-rail-button[data-bell]")))
     const at = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
     ab("mouse", "move", "5", "5")
@@ -1845,7 +1919,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

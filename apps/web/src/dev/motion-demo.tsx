@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import { tokens } from "@tock/tokens"
-import { backdrop, drive, growFrom, MorphIcon, morphFrom, morphInto, raise, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
+import { backdrop, drive, growFrom, MorphIcon, morphFrom, morphInto, raise, recede, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
 
 /** Dev-only catalogue of the motion primitives (route /__motion). Each card is the smallest working use of one primitive. */
 export default function MotionDemo() {
@@ -14,6 +14,9 @@ export default function MotionDemo() {
   let pane: HTMLDivElement | undefined
   let trigger: HTMLButtonElement | undefined
   let sheet: HTMLDivElement | undefined
+  let behind: HTMLDivElement | undefined
+  let pull: ReturnType<typeof drive> | undefined
+  const reach = tokens.size.pin * 2
   const close = () => {
     if (sheet && trigger) shrinkInto(sheet.cloneNode(true) as HTMLElement, sheet.getBoundingClientRect(), trigger.getBoundingClientRect())
     setOpen(false)
@@ -63,6 +66,21 @@ export default function MotionDemo() {
         >
           <i class="tds-motion-knob tds-raise-3" />
         </div>
+      </section>
+      <section class="tds-raise-1">
+        <h2>Drive + recede</h2>
+        <div ref={behind} class="tds-motion-tile tds-raise-2">Behind</div>
+        <button
+          type="button"
+          class="tds-motion-drive tds-raise-2"
+          ref={(el) => {
+            const d = (pull = drive(el, { preset: "glide", onFrame: (p) => recede(behind, p) }))
+            scrub(el, { axis: "y", direction: -1, distance: reach, from: () => d.value, onProgress: (p) => d.set(p), onRelease: (on, v) => d.to(on ? 1 : 0, "glide", (v * 1000) / reach) })
+          }}
+          onClick={() => pull?.to(pull.value > 0.5 ? 0 : 1, "glide")}
+        >
+          Drag up, or tap twice fast
+        </button>
       </section>
       <section class="tds-raise-1">
         <h2>Text and icon morphs</h2>

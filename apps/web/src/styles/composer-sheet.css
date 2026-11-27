@@ -1,0 +1,23 @@
+@layer components {
+  .tds-field { position: relative }
+  .tds-field[data-sheet] {
+    height: calc(var(--sheet-from) + (var(--sheet-to) - var(--sheet-from)) * var(--p)) !important; border-radius: var(--tds-radius-composer-tall);
+    transition: background-color var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out);
+    & .tds-field-body { min-height: 0; align-items: stretch; padding-top: var(--tds-size-sheet-grip-hit) }
+    & .tds-editor { max-height: none }
+    & .tds-mic { align-self: flex-end }
+  }
+  .tds-sheet-grip {
+    position: absolute; z-index: 1; top: 0; left: 50%; translate: -50% 0; display: grid; place-items: center;
+    width: calc(var(--tds-size-sheet-grip) + var(--tds-space-24)); height: var(--tds-size-sheet-grip-hit);
+    cursor: ns-resize; touch-action: none; opacity: 0; transition: opacity var(--tds-dur-hover) var(--tds-ease-out);
+    &::before {
+      content: ""; width: var(--tds-size-sheet-grip); height: var(--tds-size-sheet-grip-h); border-radius: var(--tds-radius-pill);
+      background: var(--tds-overlay-fill-16); transition: background-color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
+    }
+    &:active::before { scale: var(--tds-press-tight) }
+  }
+  .tds-field[data-tall] .tds-sheet-grip, .tds-field[data-sheet] .tds-sheet-grip, .tds-sheet-grip:focus-visible { opacity: 1 }
+  @media (hover: hover) and (pointer: fine) { .tds-field:hover .tds-sheet-grip { opacity: 1 } }
+  @media (hover: hover) and (pointer: fine) { .tds-sheet-grip:hover::before { background: var(--tds-overlay-fill-20) } }
+}

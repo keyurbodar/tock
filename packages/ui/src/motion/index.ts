@@ -7,7 +7,7 @@
  * Glide      installFluidHover + lanes                       one highlight that glides between items
  * Gesture    scrub, rubber, swipeState, isSideways           drag / wheel scrubbing with rubber band + velocity commit
  * Spring     spring, springEasing                            presets from tokens.motion.spring
- * Drive      drive                                           one velocity-keeping 0..1 progress (--p), retargetable
+ * Drive      drive, recede                                   one velocity-keeping 0..1 progress (--p), retargetable; recede one element by it
  * Backdrop   backdrop, backdropTo                            dim / scale / blur behind an expanded surface (on/off or by progress)
  * Text/Icon  TextMorph, MorphIcon                            text, number and glyph morphs
  * Material   raise                                           shade classes (tds-raise-1/2/3) beside tds-over / tds-glass
@@ -18,7 +18,7 @@ export { morphFrom, morphInto } from "./morph"
 export { installFluidHover, lanes } from "./fluid"
 export { watchLayout } from "./flip"
 export { scrub, type ScrubOptions } from "./gesture"
-export { drive } from "./drive"
+export { drive, recede } from "./drive"
 export { TextMorph } from "../text-morph"
 export { MorphIcon, type GlyphName, type MorphIconName } from "../morph-icon"
 

@@ -22,3 +22,9 @@ Files ride in the message as `[name](tock-file:id)` links so the model can `file
 - A typed URL followed by a space becomes a link token.
 
 Journeys: `mention`, `command`.
+
+## Writing sheet
+
+The grip at the top of the field (`.tds-sheet-grip`, shown on hover or when the field is tall) expands the field into a full-height writing sheet while the transcript recedes (`data-recede`: scales back, dims, blurs). Tap or Enter/Space on the grip toggles it; dragging the grip scrubs it and the release flings to the nearer end; a two-finger swipe over the grip scrubs too and keeps going once the grip moves away. Esc, a tap on the conversation, or sending collapses it. The motion is one spring from `@tock/ui/motion` (`drive` for the velocity-keeping spring on `--p`, `scrub` for drag and wheel, `recede` for the transcript) that keeps its velocity when retargeted.
+
+Journey: `writesheet` (tap, focus, recede, Esc, mid-flight retarget, drag follows the pointer, fling open, short drag springs back, tap outside, wheel, send collapses). `smooth` samples every frame of the sheet opening, the transcript receding and a mid-flight reversal.

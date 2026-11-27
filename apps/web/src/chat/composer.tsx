@@ -10,7 +10,7 @@ import { EditorState } from "@tiptap/pm/state"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
-import { prefersReducedMotion, animate } from "@tock/ui/motion"
+import { prefersReducedMotion, animate, drive, recede, scrub } from "@tock/ui/motion"
 import { idb } from "../lib/idb"
 import { app, newThreadId, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
@@ -204,7 +204,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const [glide, setGlide] = createSignal({ top: 0, height: 0 })
   let picker!: HTMLInputElement
   let wrap!: HTMLDivElement
-  const reserve = new ResizeObserver(([entry]) => wrap.parentElement?.style.setProperty("--composer-reserve", `${Math.ceil(entry!.borderBoxSize[0]!.blockSize)}px`))
+  const reserve = new ResizeObserver(([entry]) => !(field && "sheet" in field.dataset) && wrap.parentElement?.style.setProperty("--composer-reserve", `${Math.ceil(entry!.borderBoxSize[0]!.blockSize)}px`))
   onSettled(() => reserve.observe(wrap))
   onCleanup(() => reserve.disconnect())
   let list: HTMLDivElement | undefined
@@ -216,6 +216,52 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const tooLong = () => length() > tokens.limit["prompt-chars"]
   const [height, setHeight] = createSignal<number>(tokens.size.composer)
   let editor: Editor | undefined
+  let field!: HTMLDivElement
+  const [sheet, setSheet] = createSignal(false)
+  const resting = () => untrack(height) + (untrack(props.attachments.items).length > 0 ? tokens.size["attach-tray"] : 0)
+  const reach = () => field.getBoundingClientRect().bottom - (wrap.parentElement?.getBoundingClientRect().top ?? 0) - tokens.size.header - tokens.size["sheet-top"]
+  let full = 0
+  let sheetDrive: ReturnType<typeof drive> | undefined
+  const mountField = (el: HTMLDivElement) => {
+    field = el
+    sheetDrive = drive(el, {
+      preset: "glide",
+      onFrame: (progress) => {
+        if (progress <= 0 && !("sheet" in el.dataset)) return
+        if (!("sheet" in el.dataset)) {
+          full = reach()
+          el.dataset.sheet = ""
+        }
+        el.style.setProperty("--sheet-from", `${resting()}px`)
+        el.style.setProperty("--sheet-to", `${full}px`)
+        recede(wrap.parentElement?.querySelector(".tds-transcript"), progress)
+      },
+      onRest: (progress) => {
+        if (progress > 0) return
+        delete el.dataset.sheet
+        for (const name of ["--sheet-from", "--sheet-to"]) el.style.removeProperty(name)
+      },
+    })
+  }
+  const expand = (open: boolean, velocity?: number) => {
+    setSheet(open)
+    sheetDrive?.to(open ? 1 : 0, "glide", velocity)
+    if (open) editor?.commands.focus()
+  }
+  const unbind: (() => void)[] = []
+  const range = () => ("sheet" in field.dataset ? full : reach()) - resting()
+  const grip = (el: HTMLButtonElement) =>
+    unbind.push(
+      scrub(el, {
+        axis: "y",
+        direction: -1,
+        area: field,
+        distance: range,
+        from: () => sheetDrive?.value ?? 0,
+        onProgress: (progress) => sheetDrive?.set(progress),
+        onRelease: (open, velocity) => expand(open, (velocity * 1000) / Math.max(1, range())),
+      }),
+    )
   let saveTimer: ReturnType<typeof setTimeout> | undefined
   let hoverTimer: ReturnType<typeof setTimeout> | undefined
   let key = ""
@@ -273,6 +319,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     props.attachments.clear()
     load(undefined)
     save(key)
+    if (untrack(sheet)) expand(false)
     editor.view.focus()
     animate(editorEl, prefersReducedMotion() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, translate: `0 ${tokens.space[6]}px` }, { opacity: 1, translate: "0 0" }], { duration: tokens.motion.duration.tooltip, easing: tokens.motion.curve.out })
   }
@@ -459,6 +506,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           if (event.key === "Escape") {
             if (untrack(trigger)) return setTrigger(null), true
             if (untrack(held)) return setHeld(false), true
+            if (untrack(sheet)) return expand(false), true
             return false
           }
           if (event.key === "Backspace" && selectTokenBefore(view)) return true
@@ -482,20 +530,25 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       },
       onBlur: () => setTrigger(null),
     })
-    const observer = new ResizeObserver(() => setHeight(Math.min(element.scrollHeight, tokens.size["composer-max"])))
+    const observer = new ResizeObserver(() => setHeight(Math.min((element.firstElementChild as HTMLElement | null)?.offsetHeight ?? element.scrollHeight, tokens.size["composer-max"])))
     observer.observe(element.firstElementChild ?? element)
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") return event.preventDefault(), picker.click()
       if (!editor || event.defaultPrevented || !typing(event) || editable(document.activeElement)) return
       editor.commands.focus("end")
     }
+    const outside = (event: PointerEvent) => {
+      if (untrack(sheet) && event.target instanceof Element && event.target.closest(".tds-transcript")) expand(false)
+    }
     document.addEventListener("keydown", onKey)
+    document.addEventListener("pointerdown", outside)
     window.addEventListener("pointermove", dragMove)
     window.addEventListener("pointerup", drop)
     window.addEventListener("pointercancel", drop)
     teardown = () => {
       observer.disconnect()
       document.removeEventListener("keydown", onKey)
+      document.removeEventListener("pointerdown", outside)
       window.removeEventListener("pointermove", dragMove)
       window.removeEventListener("pointerup", drop)
       window.removeEventListener("pointercancel", drop)
@@ -534,6 +587,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   onCleanup(() => {
     save(key)
     teardown()
+    for (const off of unbind) off()
+    sheetDrive?.set(0)
     clearTimeout(hoverTimer)
     editor?.destroy()
     editor = undefined
@@ -667,7 +722,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </MenuSub>
           </MenuContent>
         </Menu>
-        <div class="tds-field tds-raise-2" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
+        <div ref={mountField} class="tds-field tds-raise-2" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
+          <button ref={grip} type="button" class="tds-sheet-grip" aria-label={sheet() ? "Collapse composer" : "Expand composer"} aria-expanded={sheet() ? "true" : "false"} onClick={() => expand(!untrack(sheet))} />
           <Show when={props.attachments.items().length > 0}>
             <div ref={tray} class="tds-attach-tray tds-scroll">
               <For each={props.attachments.items()} keyed={(item) => item.key}>
