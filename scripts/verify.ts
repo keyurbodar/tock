@@ -1110,6 +1110,22 @@ const journeys: Record<string, () => void> = {
     ab("press", "Control+a")
     ab("press", "Backspace")
   },
+  clamp() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    const long = Array.from({ length: 40 }, (_, i) => `line ${i + 1} of a very long note that keeps going so the bubble has to clamp.`).join(" ")
+    ab("keyboard", "inserttext", long)
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me'][data-clamped]"), Boolean, "the long bubble to clamp")
+    check(Math.round(rect(".tds-bubble[data-side='me'][data-clamped]")?.h ?? 0) === 320, `clamped bubble is 320 tall, got ${rect(".tds-bubble[data-side='me'][data-clamped]")?.h}`)
+    check(style(".tds-bubble[data-side='me'][data-clamped]", "maskImage")?.includes("gradient"), "the clamp fades out")
+    shot("clamp-closed")
+    ab("click", ".tds-bubble[data-side='me'][data-clamped]")
+    until(() => rect(".tds-bubble[data-side='me'][data-expanded]")?.h ?? 0, (h) => h > 400, "the bubble to expand in place")
+    wait(400)
+    shot("clamp-open")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1119,7 +1135,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "flip", "rich", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "flip", "rich", "clamp", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

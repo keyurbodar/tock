@@ -12,8 +12,9 @@ const keyOf = (text: string) => text.slice(0, tokens.limit["stream-key"])
 
 /**
  * Streamed text, revealed a word at a time (TDS motion.stream): words arrive at a steady pace and catch up when the model
- * runs ahead, so a fast burst never dumps a paragraph and a slow model never stalls mid-word. Text that was already
- * finished when it mounted shows at once.
+ * runs ahead. When the backlog passes stream-burst words (a long reply arriving in bulk), everything but the last few
+ * words lands at once and only that tail fades in, so big outputs never crawl. Text that was already finished when it
+ * mounted shows at once.
  */
 export function createReveal(text: () => string, live: () => boolean) {
   const initial = untrack(text)
@@ -33,9 +34,10 @@ export function createReveal(text: () => string, live: () => boolean) {
       if (live()) timer = setTimeout(step, tokens.motion.duration["word-step"])
       return
     }
-    const take = Math.max(1, Math.ceil(backlog / tokens.limit["word-catchup"]))
+    const burst = backlog > tokens.limit["stream-burst"]
+    const take = burst ? backlog - tokens.limit["stream-tail"] : Math.max(1, Math.ceil(backlog / tokens.limit["word-catchup"]))
     const at = performance.now()
-    for (let i = shown; i < shown + take; i++) progress.times[i] = at
+    for (let i = burst ? shown + take - tokens.limit["stream-tail"] : shown; i < shown + take; i++) progress.times[i] = at
     progress.count = shown + take
     remembered.set(keyOf(text()), progress)
     setCount(progress.count)

@@ -1,3 +1,4 @@
+import { clamp } from "./clamp"
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
@@ -75,7 +76,7 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
         {(file) => <FileCard id={file().id} name={file().name} side={mine() ? "me" : "agent"} />}
       </For>
       <Show when={parts().text}>
-        <div class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
+        <div ref={(el) => clamp(el)} class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
           <Show when={RICH.test(parts().text)} fallback={<Prose text={parts().text} />}>
             <div class="tds-bubble-rich">
               <Markdown text={parts().text} />

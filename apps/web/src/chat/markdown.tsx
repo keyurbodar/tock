@@ -1,3 +1,4 @@
+import { clamp } from "./clamp"
 import { createMemo, createSignal, For, Match, Show, Switch, onCleanup } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { Lexer, type Token, type Tokens } from "marked"
@@ -148,17 +149,17 @@ function CodeCard(props: { token: Tokens.Code }) {
 
 function Block(props: { token: Token; clock?: () => Words | undefined }) {
   return (
-    <Switch fallback={<div class="tds-bubble" data-side="agent">{props.token.raw.trim()}</div>}>
+    <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent">{props.token.raw.trim()}</div>}>
       <Match when={props.token.type === "code"}>
         <CodeCard token={props.token as Tokens.Code} />
       </Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
-        <div class="tds-bubble" data-side="agent" data-heading={props.token.type === "heading" ? "" : undefined}>
+        <div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent" data-heading={props.token.type === "heading" ? "" : undefined}>
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
         </div>
       </Match>
       <Match when={props.token.type === "list"}>
-        <div class="tds-bubble" data-side="agent">
+        <div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent">
           <ul class="tds-list" data-ordered={(props.token as Tokens.List).ordered ? "" : undefined}>
             <For each={(props.token as Tokens.List).items} keyed={false}>{(item) => <li>{inline(item().tokens.flatMap((t) => ("tokens" in t && t.tokens ? t.tokens : [t])), props.clock?.())}</li>}</For>
           </ul>
@@ -168,10 +169,42 @@ function Block(props: { token: Token; clock?: () => Words | undefined }) {
   )
 }
 
+/**
+ * Lexes a reply block by block, as T3Code's markdownStreamBlocks: blank lines outside a fence end a block, finished
+ * blocks are lexed once and keep their token objects, so a streaming reply re-lexes only its open last block and the
+ * blocks above it never re-render.
+ */
+const lexed = new Map<string, Token[]>()
+function lexBlocks(text: string): Token[] {
+  const parts: string[] = []
+  let fence: string | undefined
+  let start = 0
+  let at = 0
+  for (const line of text.split("\n")) {
+    const end = at + line.length + 1
+    const mark = /^\s{0,3}(`{3,}|~{3,})/.exec(line)?.[1]
+    if (mark && (!fence || mark.startsWith(fence))) fence = fence ? undefined : mark
+    else if (!fence && line.trim() === "" && at > start) {
+      parts.push(text.slice(start, end))
+      start = end
+    }
+    at = end
+  }
+  if (start < text.length) parts.push(text.slice(start))
+  if (lexed.size > tokens.limit["lex-cache"]) lexed.clear()
+  return parts.flatMap((part, index) => {
+    const cached = lexed.get(part)
+    if (cached) return cached
+    const out = Lexer.lex(part, { gfm: true, breaks: true }).filter((token) => token.type !== "space")
+    if (index < parts.length - 1) lexed.set(part, out)
+    return out
+  })
+}
+
 /** A reply. While it streams, words arrive one at a time and each fades in from a slight blur (TDS streaming words). */
 export function Markdown(props: { text: string; streaming?: boolean }) {
   const reveal = createReveal(() => props.text, () => props.streaming ?? false)
-  const blocks = createMemo(() => Lexer.lex(reveal.text(), { gfm: true, breaks: true }).filter((token) => token.type !== "space"))
+  const blocks = createMemo(() => lexBlocks(reveal.text()))
   /** Word numbers restart for every render pass; blocks render in order, so block i counts after the blocks before it. */
   const offsets = createMemo(() => {
     let total = 0

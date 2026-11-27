@@ -1,5 +1,7 @@
 @layer components {
   .tds-header-pill { font-size: var(--tds-type-header-title-size); font-weight: var(--tds-type-header-title-weight); letter-spacing: var(--tds-type-header-title-tracking) }
+  .tds-header-pill { max-width: var(--tds-size-header-title) }
+  .tds-header-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
   .tds-header-status {
     display: flex; align-items: center; gap: var(--tds-space-6); margin-left: calc(var(--tds-space-8) * -1);
     font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-regular); letter-spacing: var(--tds-type-secondary-tracking); color: var(--tds-text-muted);
@@ -34,6 +36,19 @@
   }
   ::highlight(tds-find) { background-color: var(--tds-overlay-find); color: inherit }
   ::highlight(tds-find-on) { background-color: var(--tds-overlay-find-on); color: var(--tds-text-tx) }
+
+  .tds-column .tds-bubble { margin-top: var(--tds-space-4) }
+  .tds-column .tds-bubble[data-side="me"] + .tds-bubble[data-side="agent"],
+  .tds-column .tds-bubble[data-side="agent"] + .tds-bubble[data-side="me"] { margin-top: var(--tds-space-14) }
+  .tds-bubble[data-side="me"]:not(:has(+ .tds-bubble[data-side="me"])) {
+    border-bottom-right-radius: var(--tds-radius-bubble);
+    &::before, &::after { content: none }
+  }
+  .tds-bubble[data-clamped]:not([data-expanded]) {
+    max-height: var(--tds-size-bubble-clamp); overflow: hidden; cursor: pointer;
+    mask-image: linear-gradient(to bottom, black calc(100% - var(--tds-size-bubble-clamp-fade)), transparent);
+  }
+  .tds-bubble[data-expanded] { overflow: hidden }
 
   .tds-banner {
     position: absolute; top: var(--tds-size-banner-top); left: 50%; z-index: var(--tds-z-banner); translate: -50% calc(var(--tds-space-8) * -1);
