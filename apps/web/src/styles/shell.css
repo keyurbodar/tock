@@ -459,3 +459,30 @@
   .tds-file-card[data-side="me"] { align-self: flex-end } .tds-file-card[data-side="agent"] { align-self: flex-start }
   @media (hover: hover) and (pointer: fine) { .tds-file-card:hover { box-shadow: var(--tds-ring-attach-hover) } }
 }
+
+@layer components {
+  .tds-hover-card {
+    position: absolute; z-index: var(--tds-z-lay); display: flex; flex-direction: column; gap: var(--tds-space-8); width: var(--tds-size-hover-card);
+    padding: var(--tds-space-12); border-radius: var(--tds-radius-card-sm);
+    background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow); backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
+    font-size: var(--tds-type-caption-size); color: var(--tds-text-muted); transform-origin: var(--tds-space-20) 100%;
+    @starting-style { opacity: 0; scale: var(--tds-press); translate: 0 var(--tds-space-4) }
+    transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-tooltip) var(--tds-ease-out), translate var(--tds-dur-tooltip) var(--tds-ease-out);
+  }
+  .tds-hover-head {
+    display: flex; align-items: center; gap: var(--tds-space-10);
+    & b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
+    & span span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  }
+  .tds-fav {
+    display: grid; place-items: center; flex: none; width: var(--tds-size-header-face); height: var(--tds-size-header-face); border-radius: var(--tds-radius-glyph);
+    background: var(--tds-overlay-fill-12); font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx);
+  }
+  .tds-hover-actions { display: flex; gap: var(--tds-space-6) }
+  .tds-hover-button {
+    display: flex; align-items: center; gap: var(--tds-space-5); height: var(--tds-size-action); padding: 0 var(--tds-space-10);
+    border-radius: var(--tds-radius-item); background: var(--tds-overlay-fill-8); font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-medium);
+    color: var(--tds-text-tx2); text-decoration: none; transition: background-color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
+  }
+  .tds-hover-button:hover { background: var(--tds-overlay-fill-12); color: var(--tds-text-tx) }
+}

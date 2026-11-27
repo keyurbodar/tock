@@ -202,6 +202,22 @@ const journeys: Record<string, () => void> = {
     until(() => rect(".tds-field")?.h, (h) => h === 38, "the composer to shrink back after sending")
     shot("attach-sent")
   },
+  hovercard() {
+    until(() => exists(".tds-bubble[data-side='agent']") && !exists(".tds-send[data-stop]"), Boolean, "a finished agent reply", 15000)
+    wait(1000)
+    ab("eval", "const b = [...document.querySelectorAll('.tds-bubble[data-side=agent]')].at(-1); const a = document.createElement('a'); a.className = 'tds-link'; a.id = 'verify-link'; a.href = 'https://github.com/keyurbodar/tock'; a.textContent = ' github.com/keyurbodar/tock'; b.append(a)")
+    ab("hover", "#verify-link")
+    check(!exists(".tds-hover-card"), "the card must wait for hover intent")
+    until(() => exists(".tds-hover-card"), Boolean, "the link card after hover intent", 2000)
+    check(js<string>("return document.querySelector('.tds-hover-card b').textContent") === "/keyurbodar/tock", "card shows the path")
+    wait(250)
+    shot("hover-card")
+    ab("hover", ".tds-hover-card .tds-hover-button")
+    wait(300)
+    check(exists(".tds-hover-card"), "the card stays while the pointer is on it")
+    ab("mouse", "move", "5", "5")
+    until(() => exists(".tds-hover-card"), (open) => !open, "the card to leave", 2000)
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -211,7 +227,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "search", "plus", "attach", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "search", "plus", "attach", "hovercard", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

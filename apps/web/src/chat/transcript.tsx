@@ -5,6 +5,7 @@ import { buildItems, type Item } from "./items"
 import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
 import { extension, fileUrl, isImage, splitFiles } from "./attachments"
+import { LinkCards } from "./link-card"
 import type { ThreadState } from "../state/app"
 
 function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
@@ -96,6 +97,7 @@ export function Transcript(props: { state: ThreadState | undefined }) {
         </Show>
       </div>
     </div>
+    <LinkCards root={() => scroller?.parentElement ?? undefined} />
     <Show when={open()}>
       {(current) => <WorkLog work={items().find((item): item is Work => item.kind === "work" && item.key === current().key)} anchor={current().anchor} onClose={() => setOpen(undefined)} />}
     </Show>
