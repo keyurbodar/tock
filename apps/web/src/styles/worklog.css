@@ -7,6 +7,8 @@
   .tds-worklog .tds-ws-label { color: var(--tds-text-tx2) }
   .tds-worklog .tds-ws[data-kind="thinking"] .tds-ws-label, .tds-worklog .tds-step-verb { color: var(--tds-text-muted) }
   .tds-worklog .tds-step-object { color: var(--tds-text-tx); font-weight: var(--tds-weight-regular) }
+  .tds-worklog .tds-ws .tds-ws-caret { rotate: -90deg }
+  .tds-worklog .tds-ws[data-open] > .tds-ws-line .tds-ws-caret { rotate: 0deg }
   .tds-ws-dur { flex: none; color: var(--tds-text-faint); font-size: var(--tds-type-caption-size) }
   .tds-worklog .tds-ws[data-nested] .tds-ws-line { padding-left: var(--tds-space-18) }
   .tds-worklog .tds-ws-body { margin-left: var(--tds-space-8) }
