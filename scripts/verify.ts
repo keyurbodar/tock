@@ -804,7 +804,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => js<boolean>(`return !!document.querySelector('.tds-pin[data-id="${id}"]')`), Boolean, "the chat to land in the pins")
     until(() => exists(`.tds-row-wrap[data-id="${id}"]`), (still) => !still, "the pinned chat to leave the list")
     check(pins() === Math.min(12, before + 1), `pins should grow by one, got ${pins()}`)
-    check(rect(`.tds-pin[data-id="${id}"] .tds-pin-circle`)?.w === 48, "pin circles are 48")
+    check(js<number>(`return document.querySelector('.tds-pin[data-id="${id}"] .tds-pin-circle')?.offsetWidth ?? 0`) === 48, "pin tiles are 48 (offsetWidth: the landing bounce scales the box)")
     check(js<number>("return Math.max(...[...document.querySelectorAll('.tds-pin')].map((e) => e.offsetWidth))") <= 76, "pin slots are at most 76")
     check(style(".tds-pin-label", "fontSize") === "12px", "pin labels are 12px")
     wait(500)
