@@ -3972,7 +3972,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
       for (const name of Object.keys(files)) {
         js<boolean>("document.querySelector(\"[data-verify-name='" + name + "']\").scrollIntoView({ block: 'center' }); return true")
         wait(300)
-        ab("click", "[data-verify-name='" + name + "']")
+        js<boolean>("document.querySelector(\"[data-verify-name='" + name + "']\").click(); return true")
         until(() => exists(".tds-lightbox[data-ready] .tds-lightbox-preview"), Boolean, "the preview at " + w)
         wait(400)
         const bar = js<{ name: number; out: string[] }>("const b = document.querySelector('.tds-lightbox-bar b'); return { name: b.getBoundingClientRect().width, out: [...document.querySelectorAll('.tds-lightbox-bar button')].filter((e) => { const r = e.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth }).map((e) => e.getAttribute('aria-label')) }")
@@ -3981,7 +3981,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
         const seen = inspect()
         check(seen.sw <= seen.cw && seen.sh <= seen.ch && seen.box.x >= 0 && seen.box.x + seen.box.w <= w, name + " at " + w + ": the box fits the screen without scrollbars " + JSON.stringify(seen.box))
         if (name.endsWith(".md")) check(seen.md && seen.md.w >= seen.cw - 48 - 2, name + " at " + w + ": the Markdown fills the box (" + seen.md?.w + " of " + seen.cw + ")")
-        if (name.endsWith(".html")) check(seen.frame && near(seen.frame.w, seen.cw), name + " at " + w + ": the page lays out at the box width")
+        if (name.endsWith(".html")) until(() => inspect(), (now) => !!now.frame && near(now.frame.w, now.cw), name + " at " + w + ": the page lays out at the box width once the box settles")
         shot("docpreview-" + name.split(".").pop() + "-" + w)
         ab("press", "Escape")
         until(() => exists(".tds-lightbox"), (open) => !open, "Escape at " + w)

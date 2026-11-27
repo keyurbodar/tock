@@ -3,7 +3,7 @@ import type { JSX } from "@solidjs/web"
 import type { IconName } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { app, titleOf } from "../state/app"
-import { extension, fileUrl, isImage } from "./attachments"
+import { fileUrl, isImage } from "./attachments"
 
 export type ChipKind = keyof typeof tokens.color.chip
 
