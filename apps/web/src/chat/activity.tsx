@@ -203,7 +203,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
 
 export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | undefined; sessionId: string; onClose: () => void }) {
   const [closing, setClosing] = createSignal(false)
-  const [place, setPlace] = createSignal({ left: 0, edge: 0, up: true, max: 0 })
+  const [place, setPlace] = createSignal({ width: 0, left: 0, edge: 0, up: true, max: 0 })
   const [scrolled, setScrolled] = createSignal(false)
   let panel!: HTMLDivElement
   let head!: HTMLDivElement
@@ -224,7 +224,12 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     const pick = want > 0 && want <= below ? "down" : above > below ? "up" : "down"
     if (want > 0) side ??= pick
     const up = (side ?? pick) === "up"
+    const mine = [...document.querySelectorAll(".tds-bubble[data-side='me'], .tds-sent-images, .tds-file-card[data-side='me']")]
+      .map((el) => el.getBoundingClientRect())
+      .filter((r) => r.bottom > box.top && r.top < box.bottom && r.left > at.left)
+    const room = Math.min(...mine.map((r) => r.left - at.left - tokens.size["worklog-anchor"]), tokens.size["worklog-pane"])
     setPlace({
+      width: Math.max(room, tokens.size["worklog-pane-min"]),
       left: at.left - box.left,
       edge: up ? box.bottom - at.top + tokens.size["worklog-anchor"] : at.bottom - box.top + tokens.size["worklog-anchor"],
       up,
@@ -236,7 +241,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   const close = () => {
     if (closing()) return
     setClosing(true)
-    setTimeout(props.onClose, tokens.motion.duration.exit)
+    props.onClose()
   }
 
   const onKey = (e: KeyboardEvent) => e.key === "Escape" && close()
@@ -308,7 +313,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
       data-closing={closing() ? "" : undefined}
       data-up={scrolled() ? "" : undefined}
       data-down={place().up ? undefined : ""}
-      style={{ left: `${place().left}px`, [place().up ? "bottom" : "top"]: `${place().edge}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
+      style={{ width: place().width ? `${place().width}px` : undefined, left: `${place().left}px`, [place().up ? "bottom" : "top"]: `${place().edge}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
     >
       <Show when={props.work}>
         {(work) => (
@@ -325,7 +330,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
                   <Orb status="failed" surface="main" size="orb-row" />
                 </Match>
               </Switch>
-              <span class="tds-worklog-title">{work().active ? "Working for" : failed(work()) ? "Failed after" : "Worked for"}</span>
+              <span class="tds-worklog-title"><TextMorph value={work().active ? "Working for" : failed(work()) ? "Failed after" : "Worked for"} /></span>
               <span class="tds-timer">
                 <TextMorph value={took(work(), now())} />
               </span>

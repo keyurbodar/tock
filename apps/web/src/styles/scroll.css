@@ -1,16 +1,17 @@
 @layer components {
   .tds-transcript { overflow-anchor: auto }
-  .tds-worklog { transition-property: height, opacity, scale, translate, filter; transition-duration: var(--tds-dur-layout); transition-timing-function: var(--tds-ease-sheet) }
-  .tds-ws-fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--tds-dur-layout) var(--tds-ease-sheet) }
+  .tds-worklog { transition: height var(--tds-dur-spring) var(--tds-ease-spring) }
+  .tds-ws-fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--tds-dur-spring) var(--tds-ease-spring) }
   .tds-ws-fold[data-open] { grid-template-rows: 1fr }
   .tds-ws-fold > * { min-height: 0; overflow: hidden }
   .tds-ws-fold:not([data-open]) > .tds-ws-body { margin-block: 0 }
   .tds-ws-fold .tds-ws-body { opacity: 0; filter: blur(var(--tds-blur-enter)); transition: opacity var(--tds-dur-exit-small) var(--tds-ease-out), filter var(--tds-dur-exit-small) var(--tds-ease-out) }
   .tds-ws-fold[data-open] .tds-ws-body { opacity: 1; filter: none; transition-duration: var(--tds-dur-layout) }
-  .tds-ws-caret { transition: rotate var(--tds-dur-layout) var(--tds-ease-sheet) }
+  .tds-ws-caret { transition: rotate var(--tds-dur-spring) var(--tds-ease-spring) }
+  .tds-worklog .tds-ws { @starting-style { opacity: 0; filter: blur(var(--tds-blur-enter)); translate: 0 var(--tds-space-6) } transition: opacity var(--tds-dur-layout) var(--tds-ease-out), filter var(--tds-dur-layout) var(--tds-ease-out), translate var(--tds-dur-spring) var(--tds-ease-spring) }
   .tds-worklog-body { flex: 1 1 auto; overflow-anchor: none }
   .tds-worklog-content { display: flow-root }
-  .tds-worklog { width: min(var(--tds-size-worklog-pane), calc(100% - var(--tds-space-32) * 2)); --tds-raise-ring: var(--tds-ring-card) }
+  .tds-worklog { --tds-raise-ring: var(--tds-ring-card) }
   .tds-worklog[data-down] { transform-origin: var(--tds-space-20) 0 }
   .tds-worklog .tds-worklog-head { height: var(--tds-size-worklog-head); padding: 0 var(--tds-space-8) 0 var(--tds-space-12); gap: var(--tds-space-8) }
   .tds-worklog .tds-worklog-body { padding: var(--tds-space-6) var(--tds-space-6) var(--tds-space-8) }

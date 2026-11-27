@@ -19,7 +19,7 @@ export const sources: readonly Source[] = [
   { surface: ".tds-menu", trigger: opener },
   { surface: ".tds-palette", trigger: () => document.querySelector(".tds-search"), ghost: true },
   { surface: ".tds-peek", trigger: () => document.querySelector(".tds-row-wrap:hover"), ghost: true },
-  { surface: ".tds-worklog", trigger: () => document.querySelector('.tds-act-button[aria-expanded="true"]') },
+  { surface: ".tds-worklog", trigger: () => document.querySelector('.tds-act-button[aria-expanded="true"]'), ghost: true },
   { surface: ".tds-centre", trigger: () => document.querySelector(".tds-rail-button[data-bell]"), ghost: true },
   { surface: ".tds-keys", trigger: () => document.querySelector('.tds-rail-button[aria-label="Keyboard shortcuts"]'), ghost: true },
 ]
