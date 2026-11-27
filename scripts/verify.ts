@@ -3365,7 +3365,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(near < far - 8 && g1.first![2]! < card.w, `the card grows out of the plus button (first frame ${JSON.stringify(g1.first)}, rest ${JSON.stringify(card)})`)
     const heights = [...new Set(g1.heights)]
     check(heights.length >= 4, "the composer height moves through intermediate sizes, saw " + heights.join(","))
-    check(Math.max(...g1.heights) > heights.at(-1)!, "the composer height springs past its rest and settles: " + heights.join(","))
+    check(heights.every((h, i) => i === 0 || h >= heights[i - 1]! - 0.5), "the composer height grows to its rest on ease-out with no overshoot (TDS: no bounce, A2-05): " + heights.join(","))
     ab("upload", ".tds-composer-wrap input[type=file]", big)
     until(() => js<string[]>("return document.querySelectorAll('.tds-attach').length === 2 ? [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status) : []"), (s) => s.length === 2 && s.every((x) => x === "done"), "the big doc to finish", 30000)
     const metas = js<string[]>("return window.__grow.metas")
