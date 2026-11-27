@@ -80,6 +80,7 @@ const openRow = () => {
   ab("hover", ".tds-row-wrap .tds-row")
   ab("click", ".tds-row-wrap .tds-row-more")
   until(() => exists(".tds-menu"), Boolean, "the thread menu")
+  until(() => js<number>("return document.querySelector('.tds-menu')?.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length ?? 0"), (n) => n === 0, "the thread menu to finish growing in")
 }
 
 const WEATHER = "Check the weather in Tokyo and summarise it"
@@ -128,6 +129,12 @@ const journeys: Record<string, () => void> = {
     ab("set", "viewport", "1440", "900")
     ab("errors", "--clear")
     ab("console", "--clear")
+    ab("open", BASE)
+    try {
+      until(() => exists(".tds-row, .tds-sidebar .tds-empty"), Boolean, "the app to render", 12000)
+    } catch {
+      throw new Error(`the app did not render; restart Vite with --force if this is a stale module after a rebase:\n${ab("errors").slice(0, 400)}`)
+    }
   },
   shell() {
     ab("eval", "localStorage.removeItem('tock.sidebar.width')")
@@ -1067,7 +1074,7 @@ const journeys: Record<string, () => void> = {
     ab("click", ".ProseMirror")
     js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', Array.from({ length: 20 }, (_, i) => 'line ' + (i + 1)).join('\\n')); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
     until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Long text became a file"), "the long paste toast")
-    until(() => js<string>("return document.querySelector('.tds-attach .tds-attach-meta')?.textContent ?? ''"), (t) => t.startsWith("Pasted text.txt") && t.endsWith("20 lines"), "the Pasted text card with its line count", 10000)
+    until(() => js<string>("const m = document.querySelector('.tds-attach .tds-attach-meta')?.cloneNode(true); m?.querySelectorAll('[aria-hidden=true]').forEach((e) => e.remove()); return m?.textContent ?? ''"), (t) => t.startsWith("Pasted text.txt") && t.endsWith("20 lines"), "the Pasted text card with its line count", 10000)
     check(js<string>("return document.querySelector('.tds-input').textContent") === "", "the long text stays out of the field")
     wait(300)
     shot("longpaste-card")
