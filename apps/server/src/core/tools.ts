@@ -40,6 +40,7 @@ export interface TockToolsDeps {
   notifyOwner: (title: string, body: string, urgency?: NotificationUrgency) => Promise<NotifyResult>;
   scheduleFollowup: (delaySeconds: number, note: string, sessionId?: string) => Promise<string>;
   onAsk: (sessionId: string, taskId: TaskId, ask: OwnerAsk | null) => void;
+  react: (sessionId: string, emoji: string, ref?: string) => Promise<{ ref: string | null; changed: boolean }>;
 }
 
 export interface OwnerAsk {
@@ -97,6 +98,7 @@ const HttpRequestParams = obj({
 const FileReadParams = obj({ id: str() });
 const FileWriteParams = obj({ name: str(), content: str(), mime: opt(str()) });
 const SkillReadParams = obj({ name: str(), file: opt(str()) });
+const ReactParams = obj({ emoji: str({ minLength: 1, maxLength: 32 }), ref: opt(str()) });
 const UpdatePlanParams = obj({ steps: arr(str()), current: num() });
 const AskOwnerParams = obj({
   question: str(),
@@ -330,6 +332,22 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     },
   });
 
+  const reactTool = defineTool({
+    name: "react",
+    description:
+      "React to a message with one emoji, the way a person taps a reaction (for thanks, a win or a laugh). Defaults to the owner's latest message; pass ref only to target another one. Cheap and silent: no reply is needed after it.",
+    parameters: ReactParams,
+    replay: "safe",
+    async execute(args, api) {
+      try {
+        const res = await deps.react(String(api.conversationId), args.emoji.trim(), args.ref);
+        return { output: [{ type: "text", text: JSON.stringify(res.ref ? { reacted: args.emoji, ref: res.ref } : { reacted: false, reason: "no message to react to" }) }] };
+      } catch (err) {
+        return { output: [{ type: "text", text: JSON.stringify({ reacted: false, reason: err instanceof Error ? err.message : String(err) }) }] };
+      }
+    },
+  });
+
   const askOwnerTool = defineTool({
     name: "ask_owner",
     description:
@@ -499,6 +517,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     routineDeleteTool as unknown as ToolRegistration,
     updatePlanTool as unknown as ToolRegistration,
     askOwnerTool as unknown as ToolRegistration,
+    reactTool as unknown as ToolRegistration,
     notifyOwnerTool as unknown as ToolRegistration,
     mcpListTool as unknown as ToolRegistration,
     mcpCallTool as unknown as ToolRegistration,

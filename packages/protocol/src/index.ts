@@ -37,6 +37,8 @@ export interface SessionSummary {
   readonly mine?: boolean
   /** The question toast is waiting on you for, while an ask is pending. */
   readonly needs?: string | null
+  /** The chat's newest reaction; the row prefers it when it is newer than updatedAt. */
+  readonly reaction?: ReactionPreview | null
 }
 
 export interface TextBlock {
@@ -163,3 +165,36 @@ export type ServerFrame =
   | { readonly id?: string; readonly type: "error"; readonly code: string; readonly message: string }
   | { readonly type: "event"; readonly seq: number; readonly event: string; readonly payload: unknown }
   | { readonly id?: string; readonly type: "pong"; readonly ts: number }
+
+export type ReactionActor = "me" | "toast"
+
+/** One emoji on one message, by one actor. ref is the message's durable address (see chat/items.ts). */
+export interface Reaction {
+  readonly ref: string
+  readonly emoji: string
+  readonly by: ReactionActor
+  readonly at: number
+}
+
+/** A chat's reactions grouped by message ref, oldest first within a ref. Sent with chat.subscribe. */
+export type ReactionsByRef = Readonly<Record<string, readonly Reaction[]>>
+
+/** The newest reaction in a chat, with a short excerpt of the message it landed on, for the sidebar row. */
+export interface ReactionPreview {
+  readonly by: ReactionActor
+  readonly emoji: string
+  readonly excerpt: string
+  readonly at: number
+}
+
+/** Broadcast (never persisted) whenever a reaction is added or removed. */
+export interface ReactionEvent {
+  readonly sessionId: string
+  readonly ref: string
+  readonly emoji: string
+  readonly by: ReactionActor
+  readonly on: boolean
+  readonly at: number
+  readonly latest: ReactionPreview | null
+}
+

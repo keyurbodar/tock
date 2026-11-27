@@ -149,6 +149,14 @@ const clientFrameSchema = union([
     sessionId: opt(str({ minLength: 1 })),
     answer: str({ minLength: 1, maxLength: 500 }),
   }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("reaction.set"),
+    sessionId: opt(str({ minLength: 1 })),
+    ref: str({ minLength: 1, maxLength: 200, pattern: "^[^:]+:\\d+(:\\d+)?$" }),
+    emoji: str({ minLength: 1, maxLength: 32 }),
+    on: bool(),
+  }),
   obj({ id: str({ minLength: 1 }), type: lit("session.list") }),
   obj({ id: str({ minLength: 1 }), type: lit("session.create"), title: opt(str()) }),
   obj({

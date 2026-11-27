@@ -84,6 +84,12 @@ const scripted: FauxResponseFactory = (context) => {
       ], { stopReason: "toolUse" })
     return fauxAssistantMessage([0, 1, 2].map((n) => fauxToolCall("memory_search", { query: `long job batch ${ran + n}` })), { stopReason: "toolUse" })
   }
+  const reacted = context.messages.slice(lastUser + 1).some((m) => m.role === "toolResult" && m.toolName === "react")
+  const cue = /^react with (\S+)/i.exec(asked)
+  if (cue) {
+    if (!reacted) return fauxAssistantMessage([fauxToolCall("react", { emoji: cue[1]! })], { stopReason: "toolUse" })
+    return fauxAssistantMessage(fauxText("Done, reacted to your message."))
+  }
   const approval = /approve/i.test(asked)
   const question = /question|choose/i.test(asked)
   if (!done.size && /two questions/i.test(asked))

@@ -29,6 +29,8 @@ import { constantTimeEqual } from "./core/auth.js";
 import { parseClientFrame } from "./core/schemas.js";
 import { buildModels, parseModelSpec, resolveModel } from "./core/models.js";
 import { ThinkingSpans } from "./core/thinking.js";
+import { latestUserRef, Reactions } from "./core/reactions.js";
+import type { ReactionActor } from "@tock/protocol";
 import { createTockExtension, OwnerAnswer, type OwnerAsk } from "./core/tools.js";
 import { DEMO_MODEL } from "./core/demo.js";
 import { DjsRuntime, type DjsRunResult } from "./dev/djs.js";
@@ -76,6 +78,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly pendingAsks = new Map<string, { taskId: TaskId; ask: OwnerAsk }>();
   private readonly threads: ThreadIds;
   private readonly thinking: ThinkingSpans;
+  private readonly reactions: Reactions;
 
   readonly mcpManager = new MCPClientManager("tock", "0.1.0");
 
@@ -113,6 +116,7 @@ export class TockDO extends DurableObject<Env> {
         notifyOwner: (title, body, urgency) => this.notifyOwner(title, body, urgency),
         scheduleFollowup: (delay, note, sid) => this.scheduleFollowup(delay, note, sid),
         onAsk: (sessionId, taskId, ask) => this.trackAsk(sessionId, taskId, ask),
+        react: (sessionId, emoji, ref) => this.react(sessionId, emoji, "toast", true, ref),
       });
       registry.install(ext);
       return Harness.open(storage, { models: this.models, registry, onWake }, context);
@@ -129,6 +133,7 @@ export class TockDO extends DurableObject<Env> {
     ensureSchema(ctx.storage.sql, env.DEFAULT_TIMEZONE ?? "UTC");
     this.threads = new ThreadIds(ctx.storage.sql);
     this.thinking = new ThinkingSpans(ctx.storage.sql);
+    this.reactions = new Reactions(ctx.storage.sql);
     this.threads.thread(ROOT_SESSION);
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     this.settingsStore = new SettingsStore(ctx.storage.sql);
@@ -409,8 +414,11 @@ export class TockDO extends DurableObject<Env> {
           ask: this.pendingAsks.get(sessionId)?.ask,
           queued: await this.queuedSends(sessionId),
           thinking: this.thinking.list(sessionId),
+          reactions: this.reactions.list(sessionId),
         };
       }
+      case "reaction.set":
+        return await this.react(frame.sessionId ?? ROOT_SESSION, frame.emoji, "me", frame.on, frame.ref);
       case "ask.answer":
         return await this.answerAsk(frame.sessionId ?? ROOT_SESSION, frame.answer);
       case "session.configure":
@@ -570,12 +578,14 @@ export class TockDO extends DurableObject<Env> {
         const id = this.threads.thread(String(session.id));
         const meta = this.threads.meta(id);
         if (!meta) return undefined;
+        const entries = await this.harness.session(session.id).messages();
         return {
           ...session,
           id,
           parent: session.parent === undefined ? undefined : this.threads.thread(String(session.parent)),
           meta,
-          ...summarizeEntries(await this.harness.session(session.id).messages()),
+          ...summarizeEntries(entries),
+          reaction: this.reactions.preview(String(session.id), entries),
           needs: this.pendingAsks.get(String(session.id))?.ask.question ?? null,
         };
       }),
@@ -1125,6 +1135,19 @@ export class TockDO extends DurableObject<Env> {
       });
     }
     return rows.length;
+  }
+
+  /**
+   * Toggles one reaction and tells every socket, unpersisted: the chat's own subscribers update its pills, the rest
+   * update the sidebar row and the notification centre. ref defaults to the newest user message (the agent's react tool).
+   */
+  async react(sessionId: string, emoji: string, by: ReactionActor, on: boolean, target?: string): Promise<{ ref: string | null; changed: boolean }> {
+    const entries = await this.harness.session(sessionId).messages();
+    const ref = target ?? latestUserRef(entries);
+    if (!ref) return { ref: null, changed: false };
+    const { changed, reaction } = this.reactions.set(sessionId, ref, emoji, by, on);
+    if (changed) this.broadcast("reaction", { sessionId, ...reaction, on, latest: this.reactions.preview(sessionId, entries) }, false);
+    return { ref, changed };
   }
 
   private trackAsk(sessionId: string, taskId: TaskId, ask: OwnerAsk | null): void {
