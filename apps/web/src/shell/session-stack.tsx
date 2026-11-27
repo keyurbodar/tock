@@ -170,7 +170,7 @@ export function ToastRow(props: { show: boolean }) {
                       <Icon name={glyphFor(session().id).icon} size="pin" />
                     </span>
                     <span class="tds-stack-text">
-                      <b>{titleOf(session())}</b>
+                      <b title={titleOf(session())}>{titleOf(session())}</b>
                       <span>
                         {statusName[statusOf(session())]}, in the cloud, {shortTime(session().updatedAt, minute()) || "now"}
                       </span>

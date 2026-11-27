@@ -91,7 +91,7 @@ export function ThreadChip(props: { id: string; label?: string }) {
   const title = () => (session() ? titleOf(session()) : (props.label ?? "Chat"))
   return (
     <HoverCard delay={tokens.motion["hover-intent"].open} closeDelay={tokens.motion["hover-intent"].leave}>
-      <HoverCardTrigger href={threadHref(props.id)} class="tds-chip" data-kind="thread" data-state={session() ? undefined : "invalid"} style={{ "--tds-chip-accent": "var(--tds-chip-thread)" }}>
+      <HoverCardTrigger href={threadHref(props.id)} aria-label={title()} class="tds-chip" data-kind="thread" data-state={session() ? undefined : "invalid"} style={{ "--tds-chip-accent": "var(--tds-chip-thread)" }}>
         <svg class="tds-icon tds-chip-icon" aria-hidden="true">
           <use href="#i-chat-circle:duotone" />
         </svg>

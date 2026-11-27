@@ -180,7 +180,7 @@ function Block(props: { token: Token; clock?: () => Words | undefined }) {
  * blocks above it never re-render.
  */
 const lexed = new Map<string, Token[]>()
-function lexBlocks(text: string): Token[] {
+function lexBlocks(text: string, open: boolean): Token[] {
   const parts: string[] = []
   let fence: string | undefined
   let start = 0
@@ -201,7 +201,7 @@ function lexBlocks(text: string): Token[] {
     const cached = lexed.get(part)
     if (cached) return cached
     const out = Lexer.lex(part, { gfm: true, breaks: true }).filter((token) => token.type !== "space")
-    if (index < parts.length - 1) lexed.set(part, out)
+    if (!open || index < parts.length - 1) lexed.set(part, out)
     return out
   })
 }
@@ -209,7 +209,7 @@ function lexBlocks(text: string): Token[] {
 /** A reply. While it streams, words arrive one at a time and each fades in from a slight blur (TDS streaming words). */
 export function Markdown(props: { text: string; streaming?: boolean }) {
   const reveal = createReveal(() => props.text, () => props.streaming ?? false)
-  const blocks = createMemo(() => lexBlocks(props.text))
+  const blocks = createMemo(() => lexBlocks(props.text, props.streaming ?? false))
   /** Word numbers restart for every render pass; blocks render in order, so block i counts after the blocks before it. */
   const offsets = createMemo(() => {
     let total = 0

@@ -1105,7 +1105,7 @@ const journeys: Record<string, () => void> = {
   sheet() {
     const bell = ".tds-rail-button[data-bell]"
     const x = () => js<number>("return document.querySelector('.tds-centre').getBoundingClientRect().x")
-    const receding = () => js<string>("const m = document.querySelector('main[data-backdrop-layer]'); return m && document.documentElement.hasAttribute('data-backdrop-p') ? getComputedStyle(m).filter : ''")
+    const receding = () => js<string>("const s = document.querySelector('.tds-backdrop-scrim'); return s && document.documentElement.hasAttribute('data-backdrop-p') ? getComputedStyle(s).opacity : ''")
     const drag = (from: number, to: number, y = 420) => {
       ab("mouse", "move", String(from), String(y))
       ab("mouse", "down")
@@ -1116,7 +1116,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-centre[data-open]"), Boolean, "the centre to open")
     wait(600)
     const rest = x()
-    check(receding().includes("blur"), `the chat recedes behind the open centre (${receding()})`)
+    check(Number(receding()) > 0.5, `the chat recedes behind the open centre: scrim opacity ${receding() || "none"}`)
     shot("sheet-open")
     ab("mouse", "move", "300", "420")
     ab("mouse", "down")
@@ -1221,6 +1221,8 @@ const journeys: Record<string, () => void> = {
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me'] .tds-chip[data-kind='thread']"), Boolean, "the sent thread chip")
     check(js<string>("return document.querySelector('.tds-bubble[data-side=me] .tds-chip[data-kind=thread]').textContent") === first, "the chip shows the chat title")
+    settled()
+    steady(".tds-bubble[data-side='me'] .tds-chip[data-kind='thread']")
     ab("hover", ".tds-bubble[data-side='me'] .tds-chip[data-kind='thread']")
     check(!exists(".tds-thread-card"), "the thread card waits for hover intent")
     until(() => exists(".tds-thread-card"), Boolean, "the thread card", 2500)
