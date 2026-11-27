@@ -97,7 +97,9 @@ export function LinkCardBody(props: { href: string; host: string }) {
           {preview()?.title ?? site()}
         </b>
       </span>
-      <span class="tds-chip-card-site">{site()}</span>
+      <Show when={preview()?.title}>
+        <span class="tds-chip-card-site">{site()}</span>
+      </Show>
       <span class="tds-chip-card-url">{props.href}</span>
     </>
   )
