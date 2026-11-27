@@ -222,6 +222,12 @@ const MIGRATIONS: readonly Migration[] = [
       created_at INTEGER NOT NULL
     ) STRICT`);
   },
+  (sql) => {
+    addColumnIfMissing(sql, "tock_threads", "title", "TEXT");
+    for (const flag of ["pinned", "archived", "unread", "deleted"]) {
+      addColumnIfMissing(sql, "tock_threads", flag, "INTEGER NOT NULL DEFAULT 0");
+    }
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, defaultTimezone = "UTC"): void {

@@ -183,6 +183,8 @@ export type ClientFrame =
   | { id: string; type: "chat.abort"; sessionId?: string; operationId?: string }
   | { id: string; type: "session.list" }
   | { id: string; type: "session.create"; title?: string }
+  | { id: string; type: "thread.update"; threadId: string; title?: string | null; pinned?: boolean; archived?: boolean; unread?: boolean }
+  | { id: string; type: "thread.delete"; threadId: string }
   | { id: string; type: "session.messages"; sessionId?: string }
   | { id: string; type: "settings.get" }
   | { id: string; type: "settings.update"; patch: Partial<Omit<OwnerSettings, "updatedAt">> }

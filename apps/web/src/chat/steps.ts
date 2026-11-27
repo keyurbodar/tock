@@ -1,4 +1,5 @@
 import type { IconName } from "@tock/ui/icon"
+import type { ToolCallBlock } from "@tock/protocol"
 
 const icons: Record<string, IconName> = {
   memory_search: "brain",
@@ -17,24 +18,40 @@ const icons: Record<string, IconName> = {
 
 export const stepIcon = (name: string): IconName => icons[name] ?? "lightning"
 
-const labels: Record<string, [running: string, done: string]> = {
-  memory_search: ["Searching memory", "Searched memory"],
+export interface StepLabel {
+  readonly verb: string
+  readonly object?: string
+}
+
+const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : undefined)
+const host = (value: unknown) => {
+  const url = text(value)
+  if (!url) return undefined
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+const verbs: Record<string, readonly [running: string, done: string, object?: (args: Readonly<Record<string, unknown>>) => string | undefined]> = {
+  memory_search: ["Searching memory for", "Searched memory for", (args) => text(args.query)],
   memory_save: ["Saving to memory", "Saved to memory"],
   codemode: ["Running code", "Ran code"],
-  http_request: ["Fetching", "Fetched"],
+  http_request: ["Fetching", "Fetched", (args) => host(args.url)],
   file_read: ["Reading a file", "Read a file"],
-  file_write: ["Writing a file", "Wrote a file"],
+  file_write: ["Writing", "Wrote", (args) => text(args.name) ?? text(args.path)],
   file_list: ["Looking at files", "Looked at files"],
   spawn_subagent: ["Starting a helper", "Helper finished"],
   schedule_followup: ["Scheduling a follow-up", "Scheduled a follow-up"],
   notify_owner: ["Sending you a note", "Sent you a note"],
-  mcp_call: ["Using an app", "Used an app"],
+  mcp_call: ["Using", "Used", (args) => text(args.server) ?? text(args.tool)],
   mcp_discover: ["Looking at apps", "Looked at apps"],
 }
 
-export function stepLabel(name: string, running: boolean): string {
-  const pair = labels[name]
-  if (pair) return running ? pair[0] : pair[1]
-  const words = name.replace(/[_-]+/g, " ")
-  return running ? `Using ${words}` : `Used ${words}`
+export function stepLabel(call: ToolCallBlock, running: boolean): StepLabel {
+  const entry = verbs[call.name]
+  if (!entry) return { verb: running ? "Using" : "Used", object: call.name.replace(/[_-]+/g, " ") }
+  const object = entry[2]?.(call.arguments)
+  return { verb: running ? entry[0] : entry[1], object: object && `${object}` }
 }

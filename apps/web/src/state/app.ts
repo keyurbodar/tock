@@ -1,5 +1,5 @@
 import { createStore, reconcile, snapshot } from "solid-js"
-import type { ConversationView, EntryRecord, LiveState, SessionSummary } from "@tock/protocol"
+import type { ConversationView, EntryRecord, LiveState, SessionSummary, ThreadMeta } from "@tock/protocol"
 import { idb } from "../lib/idb"
 import { socket, type ConnectionState } from "../lib/socket"
 
@@ -21,7 +21,13 @@ export interface ThreadState {
 
 export interface Session extends SessionSummary {
   readonly busy: boolean
+  readonly meta: ThreadMeta
 }
+
+const noMeta: ThreadMeta = { title: null, pinned: false, archived: false, unread: false }
+
+const ordered = (sessions: Session[]) =>
+  sessions.sort((a, b) => Number(b.meta.pinned) - Number(a.meta.pinned) || (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
 
 interface AppState {
   connection: ConnectionState
@@ -62,7 +68,7 @@ function upsertSession(next: Session) {
   setApp((s) => {
     reconcile([next, ...snapshot(s.sessions).filter((session) => session.id !== next.id)], "id")(s.sessions)
   })
-  void idb.put("sessions", "list", app.sessions.map((session) => ({ ...session })))
+  void idb.put("sessions", "list", snapshot(app.sessions))
 }
 
 socket.onState((connection) => {
@@ -106,16 +112,14 @@ socket.onEvent(({ event, payload }) => {
 
 export async function boot() {
   const cached = await idb.get<Session[]>("sessions", "list")
-  if (cached?.length && !app.sessionsLoaded) setApp((s) => void (s.sessions = cached))
+  if (cached?.length && !app.sessionsLoaded) setApp((s) => void (s.sessions = cached.map((session) => ({ ...session, meta: session.meta ?? noMeta }))))
   socket.start()
 }
 
 export async function refreshSessions() {
   try {
-    const list = await socket.request<(SessionSummary & { busy?: boolean })[]>("session.list")
-    const sessions = list
-      .map((session) => ({ ...session, busy: Boolean(session.busy) }))
-      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+    const list = await socket.request<(SessionSummary & { busy?: boolean; meta?: ThreadMeta })[]>("session.list")
+    const sessions = ordered(list.map((session) => ({ ...session, busy: Boolean(session.busy), meta: session.meta ?? noMeta })))
     setApp((s) => {
       reconcile(sessions, "id")(s.sessions)
       s.sessionsLoaded = true
@@ -136,6 +140,7 @@ async function reload(sessionId: string) {
 }
 
 export async function subscribe(sessionId: string) {
+  if (app.sessions.find((session) => session.id === sessionId)?.meta.unread) void updateThread(sessionId, { unread: false })
   if (!app.threads[sessionId]) {
     const cached = await idb.get<readonly EntryRecord[]>("threads", sessionId)
     thread(sessionId, (state) => {
@@ -169,6 +174,7 @@ export async function send(sessionId: string, text: string) {
   upsertSession({
     id: sessionId,
     busy: true,
+    meta: known?.meta ?? noMeta,
     title: known?.title || text,
     preview: text,
     messageCount: (known?.messageCount ?? 0) + 1,
@@ -194,10 +200,42 @@ export async function abort(sessionId: string) {
   }
 }
 
+export async function updateThread(threadId: string, patch: Partial<ThreadMeta>) {
+  const before = app.sessions.find((session) => session.id === threadId)
+  if (!before) return
+  const apply = (meta: ThreadMeta) =>
+    setApp((s) => {
+      const target = s.sessions.find((session) => session.id === threadId)
+      if (target) (target as { meta: ThreadMeta }).meta = meta
+      ordered(s.sessions)
+    })
+  apply({ ...before.meta, ...patch })
+  try {
+    const result = await socket.request<{ meta: ThreadMeta }>("thread.update", { threadId, ...patch })
+    apply(result.meta)
+  } catch {
+    apply(before.meta)
+  }
+  void idb.put("sessions", "list", snapshot(app.sessions))
+}
+
+export async function deleteThread(threadId: string) {
+  const index = app.sessions.findIndex((session) => session.id === threadId)
+  if (index < 0) return
+  const removed = app.sessions[index]!
+  setApp((s) => void s.sessions.splice(index, 1))
+  try {
+    await socket.request("thread.delete", { threadId })
+    void idb.put("sessions", "list", snapshot(app.sessions))
+  } catch {
+    setApp((s) => void s.sessions.splice(index, 0, removed))
+  }
+}
+
 export const newThreadId = (): string => crypto.randomUUID()
 
 export const isThreadId = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)
 
-export const titleOf = (session: Session | undefined) => session?.title.replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
+export const titleOf = (session: Session | undefined) => session?.meta?.title || session?.title.replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
 
 export const isWorking = (state: ThreadState | undefined) => state !== undefined && (state.live?.run !== undefined || state.pending.length > 0)

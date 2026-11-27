@@ -20,7 +20,8 @@
     "fmt:check": "oxfmt --check apps packages scripts",
     "test": "bun run --cwd apps/server test",
     "budget": "bun scripts/budget.ts",
-    "check": "bun run typecheck && bun run lint && bun run test && bun run build && bun run budget"
+    "check": "bun run typecheck && bun run lint && bun run test && bun run build && bun run budget",
+    "verify": "bun scripts/verify.ts"
   },
   "devDependencies": {
     "oxlint": "^1.95.0",

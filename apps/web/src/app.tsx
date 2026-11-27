@@ -5,6 +5,7 @@ import { app, boot } from "./state/app"
 import { Rail } from "./shell/rail"
 import { Sidebar } from "./shell/sidebar"
 import { Gate } from "./shell/gate"
+import { Shortcuts } from "./shell/shortcuts"
 import { Router } from "./router"
 
 function Shell(props: { children?: JSX.Element }) {
@@ -13,6 +14,7 @@ function Shell(props: { children?: JSX.Element }) {
       <Rail unread={0} />
       <Sidebar />
       {props.children}
+      <Shortcuts />
       <Show when={app.connection === "unauthorized"}>
         <Gate />
       </Show>

@@ -73,7 +73,7 @@ function Block(props: { token: Token }) {
       <Match when={props.token.type === "list"}>
         <div class="tds-bubble" data-side="agent">
           <ul class="tds-list" data-ordered={(props.token as Tokens.List).ordered ? "" : undefined}>
-            <For each={(props.token as Tokens.List).items}>{(item) => <li>{inline(item.tokens.flatMap((t) => ("tokens" in t && t.tokens ? t.tokens : [t])))}</li>}</For>
+            <For each={(props.token as Tokens.List).items} keyed={false}>{(item) => <li>{inline(item().tokens.flatMap((t) => ("tokens" in t && t.tokens ? t.tokens : [t])))}</li>}</For>
           </ul>
         </div>
       </Match>
@@ -82,11 +82,6 @@ function Block(props: { token: Token }) {
 }
 
 export function Markdown(props: { text: string }) {
-  let previous: Token[] = []
-  const blocks = createMemo(() => {
-    const next = Lexer.lex(props.text, { gfm: true, breaks: true }).filter((token) => token.type !== "space")
-    previous = next.map((token, index) => (previous[index]?.raw === token.raw ? previous[index]! : token))
-    return previous
-  })
-  return <For each={blocks()}>{(token) => <Block token={token} />}</For>
+  const blocks = createMemo(() => Lexer.lex(props.text, { gfm: true, breaks: true }).filter((token) => token.type !== "space"))
+  return <For each={blocks()} keyed={false}>{(token) => <Block token={token()} />}</For>
 }

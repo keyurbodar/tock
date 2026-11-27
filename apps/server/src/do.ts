@@ -384,6 +384,12 @@ export class TockDO extends DurableObject<Env> {
         await this.syncSessionModel(session.id);
         return { id: this.threads.thread(String(session.id)) };
       }
+      case "thread.update": {
+        const { id: _id, type: _type, threadId, ...patch } = frame;
+        return { threadId, meta: this.threads.update(threadId, patch) };
+      }
+      case "thread.delete":
+        return { deleted: this.threads.remove(frame.threadId) };
       case "session.messages":
         return await this.harness.messages({ session: frame.sessionId ?? ROOT_SESSION });
       case "settings.get":
@@ -486,14 +492,21 @@ export class TockDO extends DurableObject<Env> {
 
   private async listSessionSummaries() {
     const sessions = await this.harness.sessions.list();
-    return await Promise.all(
-      sessions.map(async (session) => ({
-        ...session,
-        id: this.threads.thread(String(session.id)),
-        parent: session.parent === undefined ? undefined : this.threads.thread(String(session.parent)),
-        ...summarizeEntries(await this.harness.session(session.id).messages()),
-      })),
+    const listed = await Promise.all(
+      sessions.map(async (session) => {
+        const id = this.threads.thread(String(session.id));
+        const meta = this.threads.meta(id);
+        if (!meta) return undefined;
+        return {
+          ...session,
+          id,
+          parent: session.parent === undefined ? undefined : this.threads.thread(String(session.parent)),
+          meta,
+          ...summarizeEntries(await this.harness.session(session.id).messages()),
+        };
+      }),
     );
+    return listed.filter((session) => session !== undefined);
   }
 
   private async syncSessionModel(sessionId: string): Promise<void> {

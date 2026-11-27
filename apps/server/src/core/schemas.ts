@@ -147,6 +147,16 @@ const clientFrameSchema = union([
   obj({ id: str({ minLength: 1 }), type: lit("session.create"), title: opt(str()) }),
   obj({
     id: str({ minLength: 1 }),
+    type: lit("thread.update"),
+    threadId: str({ minLength: 1 }),
+    title: opt(nullable(str({ maxLength: 200 }))),
+    pinned: opt(bool()),
+    archived: opt(bool()),
+    unread: opt(bool()),
+  }),
+  obj({ id: str({ minLength: 1 }), type: lit("thread.delete"), threadId: str({ minLength: 1 }) }),
+  obj({
+    id: str({ minLength: 1 }),
     type: lit("session.messages"),
     sessionId: opt(str({ minLength: 1 })),
   }),
