@@ -795,6 +795,7 @@ const journeys: Record<string, () => void> = {
     shot("ask-question")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-wbtn[data-primary]"), Boolean, "the work log option pills")
+    wait(400)
     ab("click", ".tds-worklog .tds-wbtn:nth-child(2)")
     until(() => exists(".tds-ask-done"), Boolean, "the answered summary")
     check(js<string>("return document.querySelector('.tds-ask-done')?.textContent ?? ''").includes("You chose release/2.4"), "the summary should name the chosen option")
@@ -1127,7 +1128,40 @@ const journeys: Record<string, () => void> = {
     wait(400)
     shot("clamp-open")
   },
-  diagnostics() {
+  anchor() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
+    ab("click", ".tds-act-button")
+    until(() => exists(".tds-worklog .tds-ws-line:not(:disabled)"), Boolean, "an expandable work log row")
+    wait(500)
+    const bottom = () => js<number>("return Math.round(document.querySelector('.tds-worklog').getBoundingClientRect().bottom)")
+    const tall = () => js<number>("return Math.round(document.querySelector('.tds-worklog').getBoundingClientRect().height)")
+    const b0 = bottom()
+    const h0 = tall()
+    check(exists(".tds-worklog-content [data-index], .tds-worklog-content > div > div"), "the work log rows should render through the virtualizer")
+    ab("click", ".tds-worklog .tds-ws-line:not(:disabled)")
+    wait(120)
+    const mid = tall()
+    const capped = js<boolean>("const p = document.querySelector('.tds-worklog'); return Math.abs(p.getBoundingClientRect().height - parseFloat(p.style.maxHeight)) <= 1")
+    if (!capped) until(tall, (h) => h > h0, "the work log to grow after expanding a row")
+    wait(400)
+    check(Math.abs(bottom() - b0) <= 1, "the work log should stay anchored to its line (" + b0 + " -> " + bottom() + ")")
+    if (!capped) check(mid < tall(), "the height should animate, not jump (" + h0 + ", " + mid + ", " + tall() + ")")
+    else check(js<boolean>("const b = document.querySelector('.tds-worklog-body'); return b.scrollHeight > b.clientHeight"), "a capped work log should scroll its rows")
+    check(js<boolean>("const b = document.querySelector('.tds-worklog-body'); return getComputedStyle(b).overflowY === 'auto'"), "the work log body should scroll")
+    shot("worklog-anchor")
+    ab("press", "Escape")
+  },  diagnostics() {
+    const logs = ab("console")
+    const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
+    check(bad.length === 0, `console diagnostics:\n${bad.slice(0, 5).join("\n")}`)
+    const errors = ab("errors")
+    check(!/Error/.test(errors), `page errors:\n${errors.slice(0, 600)}`)
+  },  diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
     check(bad.length === 0, `console diagnostics:\n${bad.slice(0, 5).join("\n")}`)
@@ -1136,7 +1170,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "flip", "rich", "clamp", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "flip", "rich", "clamp", "anchor", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

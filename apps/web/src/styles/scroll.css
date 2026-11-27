@@ -1,5 +1,7 @@
 @layer components {
   .tds-transcript { overflow-anchor: auto }
+  .tds-worklog { transition-property: height, opacity, scale, translate, filter; transition-duration: var(--tds-dur-layout); transition-timing-function: var(--tds-ease-std) }
+  .tds-worklog-body { flex: 1 1 auto; overflow-anchor: none }
   .tds-jump {
     position: absolute; left: 50%; bottom: var(--tds-size-column-bottom); z-index: 1;
     display: inline-flex; align-items: center; gap: var(--tds-space-6);

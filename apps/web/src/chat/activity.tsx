@@ -4,6 +4,7 @@ import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
 import { tokens } from "@tock/tokens"
+import { Virtualizer } from "virtua/solid"
 import type { Item, Step } from "./items"
 import { kinds, stepLabel, type Plan, type StepLabel } from "./steps"
 import { Markdown } from "./markdown"
@@ -13,6 +14,8 @@ import { elapsed } from "../lib/time"
 import { now } from "../lib/clock"
 
 export type Work = Extract<Item, { kind: "work" }>
+
+type Row = { kind: "plan"; key: string } | { kind: "step"; key: string; step: Step }
 
 type Status = "running" | "done" | "failed" | "cancelled"
 
@@ -196,7 +199,10 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   const [place, setPlace] = createSignal({ left: 0, bottom: 0, max: 0 })
   const [scrolled, setScrolled] = createSignal(false)
   let panel!: HTMLDivElement
-  let body!: HTMLDivElement
+  let head!: HTMLDivElement
+  let content!: HTMLDivElement
+  const [body, setBody] = createSignal<HTMLDivElement>()
+  const [height, setHeight] = createSignal<number>()
   let stick = true
 
   const measure = () => {
@@ -222,26 +228,39 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     const target = e.target as Node
     if (!panel.contains(target) && !props.anchor?.contains(target)) close()
   }
-  const follow = new MutationObserver(() => stick && body && (body.scrollTop = body.scrollHeight))
+  const fit = () => {
+    const scroller = body()
+    if (!scroller || !content || !head) return
+    const style = getComputedStyle(scroller)
+    setHeight(head.offsetHeight + content.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom))
+    if (stick) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight))
+  }
+  const grow = new ResizeObserver(fit)
   const frame = requestAnimationFrame(() => {
     measure()
-    if (body) {
-      body.scrollTop = body.scrollHeight
-      follow.observe(body, { childList: true, subtree: true, characterData: true })
-    }
+    if (content) grow.observe(content)
+    if (props.anchor?.offsetParent) grow.observe(props.anchor.offsetParent)
+    fit()
   })
+  const onScroll = (e: Event) => {
+    if (!panel.contains(e.target as Node)) measure()
+  }
   addEventListener("keydown", onKey)
   addEventListener("pointerdown", onPointer, true)
   addEventListener("resize", measure)
+  addEventListener("scroll", onScroll, true)
   onCleanup(() => {
     cancelAnimationFrame(frame)
-    follow.disconnect()
+    grow.disconnect()
     removeEventListener("keydown", onKey)
     removeEventListener("pointerdown", onPointer, true)
     removeEventListener("resize", measure)
+    removeEventListener("scroll", onScroll, true)
   })
 
   const steps = createMemo(() => props.work?.steps ?? [])
+  const rows = createMemo((): Row[] => [...(props.work?.plan ? [{ kind: "plan" as const, key: "plan" }] : []), ...steps().map((step) => ({ kind: "step" as const, key: step.key, step }))])
+  const limit = () => Math.max(place().max, tokens.size["worklog-head"])
   return (
     <div
       ref={panel}
@@ -251,12 +270,12 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
       aria-label="Work log"
       data-closing={closing() ? "" : undefined}
       data-up={scrolled() ? "" : undefined}
-      style={{ left: `${place().left}px`, bottom: `${place().bottom}px`, "max-height": `${Math.max(place().max, tokens.size["worklog-head"])}px` }}
+      style={{ left: `${place().left}px`, bottom: `${place().bottom}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
     >
       <Show when={props.work}>
         {(work) => (
           <>
-            <div class="tds-worklog-head">
+            <div ref={head} class="tds-worklog-head">
               <Switch fallback={<Icon name="check" size="menu" class="tds-worklog-ok" />}>
                 <Match when={needs(work())}>
                   <Orb status="needs" surface="main" size="orb-row" />
@@ -284,17 +303,29 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
               </button>
             </div>
             <div
-              ref={body}
+              ref={setBody}
               class="tds-worklog-body tds-scroll"
-              onScroll={() => {
-                setScrolled(body.scrollTop > tokens.size["worklog-up"])
-                stick = body.scrollHeight - body.scrollTop - body.clientHeight < tokens.size["worklog-stick"]
+              onScroll={(e) => {
+                const scroller = e.currentTarget
+                setScrolled(scroller.scrollTop > tokens.size["worklog-up"])
+                stick = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < tokens.size["worklog-stick"]
               }}
             >
-              <Show when={work().plan}>{(plan) => <PlanList plan={plan()} at={planAt(work())} />}</Show>
-              <For each={steps()} keyed={(step) => step.key}>
-                {(step, index) => <StepRow step={step()} sessionId={props.sessionId} live={work().active && index() === steps().length - 1 && statusOf(step()) === "running"} />}
-              </For>
+              <div ref={content} class="tds-worklog-content">
+                <Show when={body()}>
+                  {(scroller) => (
+                    <Virtualizer data={rows()} scrollRef={scroller()} itemSize={tokens.size["worklog-row"]}>
+                      {(row) =>
+                        row.kind === "plan" ? (
+                          <Show when={work().plan}>{(plan) => <PlanList plan={plan()} at={planAt(work())} />}</Show>
+                        ) : (
+                          <StepRow step={row.step} sessionId={props.sessionId} live={work().active && row.key === steps().at(-1)?.key && statusOf(row.step) === "running"} />
+                        )
+                      }
+                    </Virtualizer>
+                  )}
+                </Show>
+              </div>
             </div>
           </>
         )}
