@@ -7,6 +7,8 @@ import { tokens } from "@tock/tokens"
 interface Source {
   readonly surface: string
   readonly trigger: (surface: HTMLElement) => Element | null
+  /** The surface unmounts at once when it closes, so a ghost of it shrinks back into the trigger. Leave unset when the surface animates its own exit. */
+  readonly ghost?: boolean
 }
 
 const opener = (surface: HTMLElement) =>
@@ -15,28 +17,32 @@ const opener = (surface: HTMLElement) =>
 export const sources: readonly Source[] = [
   { surface: ".tds-plus-menu", trigger: () => document.querySelector(".tds-composer-plus") },
   { surface: ".tds-menu", trigger: opener },
-  { surface: ".tds-palette", trigger: () => document.querySelector(".tds-search") },
-  { surface: ".tds-peek", trigger: () => document.querySelector(".tds-row-wrap:hover") },
+  { surface: ".tds-palette", trigger: () => document.querySelector(".tds-search"), ghost: true },
+  { surface: ".tds-peek", trigger: () => document.querySelector(".tds-row-wrap:hover"), ghost: true },
   { surface: ".tds-worklog", trigger: () => document.querySelector('.tds-act-button[aria-expanded="true"]') },
-  { surface: ".tds-centre", trigger: () => document.querySelector(".tds-rail-button[data-bell]") },
-  { surface: ".tds-keys", trigger: () => document.querySelector('.tds-rail-button[aria-label="Keyboard shortcuts"]') },
+  { surface: ".tds-centre", trigger: () => document.querySelector(".tds-rail-button[data-bell]"), ghost: true },
+  { surface: ".tds-keys", trigger: () => document.querySelector('.tds-rail-button[aria-label="Keyboard shortcuts"]'), ghost: true },
 ]
 
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches
 
-/** Grow a surface out of a trigger: it starts at the trigger's centre and size, blurred, and settles into place. */
-export function growFrom(surface: HTMLElement, trigger: Element) {
-  if (reduce()) return
-  const a = trigger.getBoundingClientRect()
-  const b = surface.getBoundingClientRect()
-  if (!a.width || !b.width) return
+const toward = (a: DOMRect, b: DOMRect) => {
   const scale = Math.min(1, Math.max(a.width / b.width, a.height / b.height))
   const dx = a.left + a.width / 2 - (b.left + b.width / 2)
   const dy = a.top + a.height / 2 - (b.top + b.height / 2)
+  return `translate(${dx}px, ${dy}px) scale(${scale})`
+}
+
+/** Grow a surface out of a trigger: it starts at the trigger's centre and size, blurred, and settles into place. */
+export function growFrom(surface: HTMLElement, trigger: Element | DOMRect) {
+  if (reduce()) return
+  const a = trigger instanceof DOMRect ? trigger : trigger.getBoundingClientRect()
+  const b = surface.getBoundingClientRect()
+  if (!a.width || !b.width) return
   const m = tokens.motion
-  surface.animate(
+  return surface.animate(
     [
-      { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0, filter: `blur(${m.blur.enter})`, offset: 0 },
+      { transform: toward(a, b), opacity: 0, filter: `blur(${m.blur.enter})`, offset: 0 },
       { opacity: 1, offset: 0.35 },
       { transform: "none", opacity: 1, filter: "blur(0)" },
     ],
@@ -44,18 +50,53 @@ export function growFrom(surface: HTMLElement, trigger: Element) {
   )
 }
 
+/** The reverse of growFrom for a surface that already left the DOM: a frozen copy at its last box shrinks back into the trigger. */
+export function shrinkInto(copy: HTMLElement, box: DOMRect, trigger: DOMRect, display = "block") {
+  if (reduce() || !box.width) return
+  copy.removeAttribute("hidden")
+  copy.setAttribute("data-ghost", "")
+  Object.assign(copy.style, { inset: "auto", display, animation: "none", transition: "none", position: "fixed", left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, margin: "0", translate: "none", pointerEvents: "none", zIndex: `${tokens.z.flight}` })
+  copy.setAttribute("aria-hidden", "true")
+  copy.inert = true
+  document.body.append(copy)
+  const m = tokens.motion
+  copy.animate(
+    [
+      { transform: "none", opacity: 1, filter: "blur(0)" },
+      { opacity: 1, offset: 0.4 },
+      { transform: trigger.width ? toward(trigger, box) : "scale(.96)", opacity: 0, filter: `blur(${m.blur.enter})` },
+    ],
+    { duration: m.duration.exit, easing: m.curve.in, fill: "forwards" },
+  ).onfinish = () => copy.remove()
+}
+
 export function installGrow(root: Document = document) {
   const pending = new Set<HTMLElement>()
+  const open = new Map<HTMLElement, { trigger: DOMRect; box: DOMRect; display: string }>()
   const take = (el: HTMLElement) => {
     const source = sources.find((s) => el.matches(s.surface))
-    if (!source || pending.has(el)) return
+    if (!source || pending.has(el) || el.hasAttribute("data-ghost")) return
     const trigger = source.trigger(el)
     if (!trigger) return
     pending.add(el)
+    const hold = el.animate([{ opacity: 0 }], { duration: tokens.motion.duration.panel, fill: "forwards" })
     requestAnimationFrame(() => {
       pending.delete(el)
-      if (el.isConnected) growFrom(el, trigger)
+      hold.cancel()
+      if (!el.isConnected) return
+      const from = trigger.getBoundingClientRect()
+      const grow = growFrom(el, from)
+      if (!source.ghost) return
+      const remember = () => el.isConnected && open.set(el, { trigger: from, box: el.getBoundingClientRect(), display: getComputedStyle(el).display })
+      remember()
+      if (grow) grow.onfinish = remember
     })
+  }
+  const leave = (el: HTMLElement) => {
+    const last = open.get(el)
+    if (!last) return
+    open.delete(el)
+    shrinkInto(el.cloneNode(true) as HTMLElement, last.box, last.trigger, last.display)
   }
   const selector = sources.map((s) => s.surface).join(", ")
   const watch = new MutationObserver((records) => {
@@ -64,6 +105,10 @@ export function installGrow(root: Document = document) {
         const el = record.target as HTMLElement
         if (el.hasAttribute("data-open") && record.oldValue === null && el.matches(selector)) take(el)
         continue
+      }
+      for (const node of record.removedNodes) {
+        if (!(node instanceof HTMLElement)) continue
+        for (const el of open.keys()) if (el === node || node.contains(el)) leave(el)
       }
       for (const node of record.addedNodes) {
         if (!(node instanceof HTMLElement)) continue

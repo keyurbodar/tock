@@ -285,6 +285,67 @@ const journeys: Record<string, () => void> = {
     until(() => exists(`.tds-row-wrap[data-id="${id}"]`), Boolean, "the row to come back")
     check(!exists(`.tds-pin[data-id="${id}"]`), "the pin should be gone")
   },
+  smooth() {
+    ensureRows(3)
+    ab("open", BASE)
+    until(liveRows, (n) => n >= 3, "rows")
+    type Frame = [number, number, number, number, number, number] | [number]
+    const start = (sel: string) =>
+      ab("eval", `(() => { const frames = []; let on = true; window.__frames = frames; window.__stop = () => (on = false); const tick = (t) => { const el = document.querySelector(${JSON.stringify(sel)}); if (el) { const r = el.getBoundingClientRect(); frames.push([t, r.x, r.y, r.width, r.height, +getComputedStyle(el).opacity]) } else frames.push([t]); if (on) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()`)
+    const stop = () => js<Frame[]>("window.__stop(); return window.__frames")
+    const problems: string[] = []
+    const audit = (name: string, all: Frame[]) => {
+      const frames = all.filter((f, i) => all[i + 1]?.[0] !== f[0])
+      const live = frames.filter((f): f is [number, number, number, number, number, number] => f.length === 6)
+      if (live.length < 2) return problems.push(`${name}: never rendered`)
+      for (const [i, label] of [[1, "x"], [2, "y"], [3, "width"], [4, "height"], [5, "opacity"]] as const) {
+        const values = live.map((f) => f[i])
+        const range = Math.max(...values) - Math.min(...values)
+        if (range < (i === 5 ? 0.3 : 6)) continue
+        for (let k = 1; k < live.length; k++) {
+          if (live[k]![0] - live[k - 1]![0] > 34 || live[k]![5] < 0.02 || live[k - 1]![5] < 0.02) continue
+          const step = Math.abs(live[k]![i] - live[k - 1]![i]) / Math.max(1, Math.round((live[k]![0] - live[k - 1]![0]) / 16.7))
+          if (step > range * 0.6) problems.push(`${name}: ${label} jumps ${step.toFixed(1)} of ${range.toFixed(1)} in one frame (${live[k - 1]![i].toFixed(2)} → ${live[k]![i].toFixed(2)} at frame ${k} of ${live.length}, dt ${(live[k]![0] - live[k - 1]![0]).toFixed(0)})`)
+        }
+      }
+      const first = frames.findIndex((f) => f.length === 6)
+      const settled = live[live.length - 1]!
+      const enter = live[0]!
+      if (first > 0 && enter[5] >= settled[5] - 0.05 && Math.abs(enter[3] - settled[3]) < 1 && Math.abs(enter[4] - settled[4]) < 1 && Math.abs(enter[2] - settled[2]) < 1)
+        problems.push(`${name}: pops in with no enter motion`)
+      const gone = frames.findLastIndex((f) => f.length === 6)
+      if (gone < frames.length - 1) {
+        const exit = frames[gone] as [number, number, number, number, number, number]
+        const rest = live.find((f) => f[5] > 0.95) ?? settled
+        if (exit[5] > 0.9 && Math.abs(exit[3] - rest[3]) < 1 && Math.abs(exit[2] - rest[2]) < 1) problems.push(`${name}: vanishes with no exit motion`)
+      }
+    }
+    const probe = (name: string, sel: string, act: () => void, ms = 700) => {
+      start(sel)
+      act()
+      wait(ms)
+      audit(name, stop())
+    }
+    probe("row menu", ".tds-menu", () => (ab("hover", ".tds-row-wrap .tds-row"), ab("click", ".tds-row-wrap .tds-row-more"), wait(600), ab("press", "Escape")))
+    probe("palette", ".tds-palette", () => (ab("press", "Control+k"), wait(600), ab("press", "Escape")))
+    ab("click", "button[aria-label='New chat']")
+    wait(500)
+    probe("plus menu", ".tds-plus-menu, .tds-menu", () => (ab("click", ".tds-composer-plus"), wait(600), ab("press", "Escape")))
+    probe("plus to x", ".tds-composer-plus svg", () => (ab("click", ".tds-composer-plus"), wait(500), ab("press", "Escape")))
+    ab("click", ".ProseMirror")
+    probe("composer grows", ".tds-field", () => {
+      for (let i = 0; i < 4; i++) (ab("keyboard", "type", "line " + i), ab("press", "Shift+Enter"))
+    }, 900)
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+    probe("bell centre", ".tds-centre", () => (ab("click", ".tds-rail-button[data-bell]"), wait(600), ab("click", ".tds-rail-button[data-bell]")))
+    const at = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
+    ab("mouse", "move", "5", "5")
+    probe("peek", ".tds-peek", () => (ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2)), wait(1200), ab("mouse", "move", "900", "450")), 900)
+    probe("toast", ".tds-toast[data-front]", () => (ab("hover", ".tds-row-wrap .tds-row"), ab("click", ".tds-row-wrap .tds-row-more"), wait(300), choose("Copy Link")), 900)
+    for (const line of problems) console.log("  jank  " + line)
+    check(problems.length === 0, `${problems.length} motion jumps`)
+  },
   pingrid() {
     const pins = () => js<number>("return document.querySelectorAll('.tds-pin').length")
     const added: string[] = []
@@ -1605,7 +1666,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "a11y", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
