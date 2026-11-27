@@ -1,6 +1,6 @@
 import { clamp } from "./clamp"
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
-import { Skeleton } from "@tock/ui/motion"
+import { enter, exit, Skeleton } from "@tock/ui/motion"
 import { Icon } from "@tock/ui/icon"
 import { MorphIcon, TextMorph } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
@@ -86,6 +86,14 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   const groupOf = (item: Item) => (item.kind === "text" ? item.key.replace(/:\d+$/, "") : item.kind === "user" ? item.key : undefined)
   /** TDS CxDividersTime "New": a rose "N new" divider where the messages that arrived while you were scrolled up start; it stays until you send. */
   const [seen, setSeen] = createSignal<ReadonlySet<string>>()
+  let jump: HTMLButtonElement | undefined
+  let jumpShown = false
+  createEffect(away, (on) => {
+    if (on === jumpShown || !jump) return
+    jumpShown = on
+    if (on) enter.menu(jump)
+    else exit.menu(jump)
+  })
   createEffect(away, (on) => {
     if (on && !untrack(seen)) setSeen(new Set(untrack(built).flatMap((item) => groupOf(item) ?? [])))
     if (!on && !untrack(items).some((item) => item.key === "divider:new")) setSeen(undefined)
@@ -205,7 +213,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   )
   return (
     <>
-    <div ref={scroller} class="tds-transcript tds-scroll" onContextMenu={openLinkMenu} onScroll={onScroll}>
+    <div ref={scroller} class="tds-transcript tds-scroll" data-away={away() ? "" : undefined} onContextMenu={openLinkMenu} onScroll={onScroll}>
       <Skeleton
         fill
         id={`transcript:${props.sessionId}`}
@@ -220,9 +228,9 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
         </div>
       </Skeleton>
     </div>
-    <button type="button" class="tds-jump tds-glass" data-on={away() ? "" : undefined} data-count={unseen() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} aria-label={unseen() ? `Scroll to end, ${unseen()} new` : "Scroll to end"} onClick={() => toEnd(true)}>
-      <MorphIcon name="arrow-down" size="chip" class="tds-optical-down" weight={tokens.icon["stroke-send"]} />
-      <span class="tds-jump-count"><TextMorph value={unseen() ? `${unseen()} new` : ""} mode="roll" /></span>
+    <button ref={jump} type="button" class="tds-press tds-jump tds-glass tds-raise-glass" data-on={away() ? "" : undefined} data-count={unseen() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} aria-label={unseen() ? `Scroll to end, ${unseen()} new` : "Scroll to end"} onClick={() => toEnd(true)}>
+      <MorphIcon name="chevron-down" size="send" weight={tokens.icon["stroke-crisp"]} />
+      <span class="tds-jump-count num"><TextMorph value={unseen() ? String(unseen()) : ""} mode="roll" /></span>
     </button>
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
     <Show when={open()}>

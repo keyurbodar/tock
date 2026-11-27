@@ -142,7 +142,7 @@ Use it for anything that shows a placeholder while data loads: sidebar rows, the
 - Bones use `--skullet-base` / `--skullet-highlight` from TDS overlays (motion.css). The `skeleton` journey proves key elements move less than 1px between first paint and loaded data.
 
 ## Material: Raise
-`tds-raise-1` (fields, chips, cards), `tds-raise-2` (buttons, selected states, pin circles) and `tds-raise-3` (panes and floating cards) add a top highlight, a gradient sheen and a small plus a large shadow. When a state adds a ring, set `--tds-raise-ring` rather than `box-shadow`. Glass overlays keep `tds-over` and `tds-glass`. `raise` exports the class names.
+`tds-raise-1` (fields, chips, cards), `tds-raise-2` (buttons, selected states, pin circles) and `tds-raise-3` (panes and floating cards) add a top highlight, a gradient sheen and a small plus a large shadow. When a state adds a ring, set `--tds-raise-ring` rather than `box-shadow`. Glass overlays keep `tds-over` and `tds-glass`. `tds-raise-glass` is the round composer buttons' material (send and stop, plus, scroll to end): a soft top highlight, an inner rim and a darker foot over the button's own fill, so a solid fill reads as a glass bead. `raise` exports the class names.
 
 ## Layout reads: afterLayout
 A FLIP or grow reads geometry right after a DOM change. Read it in `afterLayout(el, fn)` (the first ResizeObserver delivery: after layout, before paint) instead of a `requestAnimationFrame`, which runs before layout and forces it. Read every box first, then write; never interleave. The `jank` journey counts forced layouts per interaction.

@@ -256,6 +256,7 @@ async function cdpPage() {
   const on = (method: string) => new Promise<any>((ok) => listeners.push((m) => m.method === method && m.sessionId === sessionId && ok(m.params)))
   return {
     send: (method: string, params: object = {}) => send(method, params, sessionId),
+    listen: (method: string, fn: (params: any) => void) => void listeners.push((m) => m.method === method && m.sessionId === sessionId && fn(m.params)),
     async trace(act: () => void): Promise<TraceEvent[]> {
       await send("Tracing.start", { transferMode: "ReturnAsStream", traceConfig: { includedCategories: ["devtools.timeline", "disabled-by-default-devtools.timeline", "disabled-by-default-devtools.timeline.stack", "v8.execute", "blink.user_timing"] } }, sessionId)
       act()
@@ -2396,24 +2397,28 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("set", "viewport", "1440", "900")
   },
   jumppill() {
-    ab("click", "button[aria-label='New chat']")
-    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    fresh()
     field()
-    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("keyboard", "type", "Run the long job")
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
     ab("eval", "document.querySelector('.tds-column').insertAdjacentHTML('afterbegin', '<div class=verify-older style=height:2400px></div>')")
-    until(() => (ab("eval", "(() => { const t = document.querySelector('.tds-transcript'); t.scrollTo({ top: 0, behavior: 'instant' }); t.dispatchEvent(new Event('scroll')) })()"), wait(150), exists(".tds-jump[data-on]")), Boolean, "the pill once scrolled up")
-    const count = until(() => js<string>("return document.querySelector('.tds-jump-count [torph-sr]')?.textContent ?? ''"), (t) => /^\d+ new$/.test(t), "the new-message count", 20000)
-    check(js<string>("return document.querySelector('.tds-jump')?.getAttribute('aria-label') ?? ''").includes(count), "the label carries the count")
+    until(() => (ab("eval", "(() => { const t = document.querySelector('.tds-transcript'); t.scrollTo({ top: 0, behavior: 'instant' }); t.dispatchEvent(new Event('scroll')) })()"), wait(150), exists(".tds-jump[data-on]")), Boolean, "the scroll button once scrolled up")
+    check(js<string>("return document.querySelector('.tds-jump')?.getAttribute('aria-label') ?? ''") === "Scroll to end", "the button is labelled Scroll to end while nothing new has arrived")
+    const count = until(() => js<string>("return document.querySelector('.tds-jump-count [torph-sr]')?.textContent ?? ''"), (t) => /^\d+$/.test(t), "the new-message badge when the long job's answer lands", 90000)
+    check(js<string>("return document.querySelector('.tds-jump')?.getAttribute('aria-label') ?? ''") === `Scroll to end, ${count} new`, "the label carries the count")
     wait(450)
-    const geo = js<{ top: number; bottom: number; h: number; composer: number; band: number }>(`const p = document.querySelector('.tds-jump').getBoundingClientRect(); const c = document.querySelector('.tds-field').getBoundingClientRect(); const t = document.querySelector('.tds-transcript').getBoundingClientRect(); return { top: p.top, bottom: p.bottom, h: p.height, composer: c.top, band: t.bottom - ${tokens.size["column-bottom"]} }`)
-    check(geo.h <= 32, `the pill is compact, got ${geo.h}px`)
-    check(geo.bottom <= geo.composer - 4, `the pill sits above the composer (pill bottom ${geo.bottom}, composer ${geo.composer})`)
-    check(geo.top >= geo.band - 1, `the pill floats in the composer gap, below every fully visible bubble (pill top ${geo.top}, gap starts ${geo.band})`)
-    shot("jump-pill")
+    const geo = js<{ jump: number[]; send: number[]; cut: number }>("const r = (s) => { const e = document.querySelector(s); const b = e.getBoundingClientRect(); const x = (b.left + b.right) / 2; const y = (b.top + b.bottom) / 2; return [x - e.offsetWidth / 2, y - e.offsetHeight / 2, x + e.offsetWidth / 2, y + e.offsetHeight / 2, e.offsetWidth, e.offsetHeight] }; const t = document.querySelector('.tds-transcript'); const reserve = parseFloat(getComputedStyle(t.parentElement).getPropertyValue('--composer-reserve')) || 0; const clear = parseFloat(getComputedStyle(t).getPropertyValue('--jump-clear')) || 0; return { jump: r('.tds-jump'), send: r('.tds-send'), cut: t.getBoundingClientRect().bottom - reserve - clear }")
+    const [jl, jt, jr, jb, jw, jh] = geo.jump as [number, number, number, number, number, number]
+    const [, st, sr, , sw, sh] = geo.send as [number, number, number, number, number, number]
+    check(Math.abs(jw - sw) < 0.5 && Math.abs(jh - sh) < 0.5, `the scroll button is the size of Send (${jw}x${jh} vs ${sw}x${sh})`)
+    check(Math.abs(jr - sr) < 0.5 && jl > sr - sw - 1, `the scroll button is right-aligned over Send (right ${jr} vs ${sr})`)
+    check(jb <= st - 4, `the scroll button sits above Send (bottom ${jb}, Send top ${st})`)
+    check(jt >= geo.cut - 0.5, `the transcript is fully faded below the button's top, so it never covers a readable bubble (button top ${jt}, fade ends ${geo.cut})`)
+    check(js<boolean>("const b = document.querySelector('.tds-jump-count').getBoundingClientRect(); const j = document.querySelector('.tds-jump').getBoundingClientRect(); return b.top < j.top + j.height / 2 && b.right > j.right - j.width / 2"), "the count is a badge on the button's top-right")
+    shot("jump-button")
     ab("click", ".tds-jump")
-    until(() => exists(".tds-jump[data-on]"), (on) => !on, "the pill to leave after jumping to the end")
+    until(() => exists(".tds-jump[data-on]"), (on) => !on, "the button to leave after jumping to the end")
     ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
   },
   newdivider() {
@@ -2999,12 +3004,17 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(bg[0] === bg[1], "the work log takes the composer's surface: " + bg.join(" vs "))
     ab("press", "Escape")
   },
-  editorboot() {
-    ab("eval", "localStorage.setItem('tock:hold-editor', '1')")
+  async editorboot() {
+    const cdp = await cdpPage()
+    const held: string[] = []
+    cdp.listen("Fetch.requestPaused", (request: { requestId: string }) => void held.push(request.requestId))
+    await cdp.send("Network.enable")
+    await cdp.send("Network.setBypassServiceWorker", { bypass: true })
+    await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*editor-kit*", requestStage: "Request" }] })
     try {
       fresh()
       until(() => exists(".tds-input[data-shell]"), Boolean, "the static composer shell")
-      check(!exists(".ProseMirror"), "the editor chunk is held back")
+      check(!exists(".ProseMirror"), "the editor chunk is held on the network")
       const box = () => js<number[]>("const f = document.querySelector('.tds-field').getBoundingClientRect(); const i = document.querySelector('.tds-input').getBoundingClientRect(); return [f.x, f.y, f.width, f.height, i.x, i.y, i.width, i.height]")
       const placeholder = () => js<string>("const p = document.querySelector('.tds-input p'); const s = getComputedStyle(p, '::before'); return s.content.replaceAll(String.fromCharCode(34), '') + ' ' + s.color + ' ' + s.fontSize")
       const shellBox = box()
@@ -3015,7 +3025,9 @@ const journeys: Record<string, () => void | Promise<void>> = {
       ab("press", "ArrowLeft")
       ab("press", "ArrowLeft")
       check(!exists(".ProseMirror") && !exists(".tds-send[data-empty]"), "typing in the shell arms Send before the editor loads")
-      ab("eval", "window.__tockReleaseEditor?.()")
+      await Bun.sleep(50)
+      check(held.length > 0, "the editor chunk request was held")
+      await Promise.all(held.splice(0).map((requestId) => cdp.send("Fetch.continueRequest", { requestId })))
       until(() => exists(".ProseMirror") && !exists(".tds-input[data-shell]"), Boolean, "the editor to take over from the shell")
       check(js<string>("return document.querySelector('.ProseMirror').textContent") === "hello world", "typed text carries over")
       check(js<boolean>("return document.activeElement === document.querySelector('.ProseMirror')"), "focus carries over")
@@ -3026,16 +3038,20 @@ const journeys: Record<string, () => void | Promise<void>> = {
       wait(300)
       const editorBox = box()
       check(JSON.stringify(editorBox) === JSON.stringify(shellBox) && placeholder() === shellPlaceholder, "the shell and the editor are pixel-identical: " + JSON.stringify({ shellBox, editorBox, shellPlaceholder, editor: placeholder() }))
-      fresh()
+      ab("eval", "location.reload()")
       until(() => exists(".tds-input[data-shell]"), Boolean, "the shell again")
       ab("click", ".tds-input[data-shell]")
       ab("keyboard", "type", "sent before load")
       ab("press", "Enter")
-      ab("eval", "window.__tockReleaseEditor?.()")
+      await Bun.sleep(50)
+      await Promise.all(held.splice(0).map((requestId) => cdp.send("Fetch.continueRequest", { requestId })))
       until(() => js<string>("return [...document.querySelectorAll('.tds-bubble[data-side=me]')].map((b) => b.textContent).join('|')"), (t) => t.includes("sent before load"), "Enter pressed in the shell to send once the editor loads")
       check(js<string>("return document.querySelector('.ProseMirror').textContent") === "", "the composer clears after the replayed send")
     } finally {
-      ab("eval", "localStorage.removeItem('tock:hold-editor')")
+      await Promise.all(held.splice(0).map((requestId) => cdp.send("Fetch.continueRequest", { requestId }).catch(() => undefined)))
+      await cdp.send("Fetch.disable").catch(() => undefined)
+      await cdp.send("Network.setBypassServiceWorker", { bypass: false }).catch(() => undefined)
+      cdp.close()
     }
   },
   roundtrip() {

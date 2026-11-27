@@ -26,12 +26,6 @@ import { STATUS_LABEL, statusOf } from "../lib/status"
 
 type Kit = typeof import("./editor-kit")
 
-declare global {
-  interface Window {
-    __tockReleaseEditor?: () => void
-  }
-}
-
 const plural = new Intl.PluralRules("en")
 const messageCount = (n: number) => `${n} ${plural.select(n) === "one" ? "message" : "messages"}`
 
@@ -585,7 +579,6 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const boot = () => {
     if (loading) return
     loading = (async () => {
-      if (import.meta.env.DEV && localStorage.getItem("tock:hold-editor")) await new Promise<void>((go) => (window.__tockReleaseEditor = go))
       const loaded = await import("./editor-kit")
       if (!editorEl || editor) return
       kit = loaded
@@ -845,7 +838,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       <form class="tds-composer-row" onSubmit={(e) => (e.preventDefault(), submit())}>
         <input ref={picker} type="file" multiple hidden onChange={(e) => (add([...(e.currentTarget.files ?? [])]), (e.currentTarget.value = ""))} />
         <Menu open={plusOpen()} onOpenChange={(next) => setPlusOpen(next)} onAction={(value) => void plus(String(value))}>
-          <MenuTrigger class="tds-press tds-composer-plus tds-raise-1" aria-label="Add">
+          <MenuTrigger class="tds-press tds-composer-plus tds-raise-glass" aria-label="Add">
             <Icon name="plus" size="composer" class="tds-plus-glyph" />
           </MenuTrigger>
           <MenuContent class="tds-menu tds-plus-menu tds-over" data-edge-fade="y" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
@@ -952,8 +945,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </div>
           </div>
         </div>
-        <button type="submit" class="tds-press tds-send tds-raise-2" onClick={(event) => stop() && (event.preventDefault(), event.detail <= 1 && props.onStop())} data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
-          <MorphIcon name={stop() ? "stop" : "arrow-up"} class={stop() ? "" : "tds-optical-up"} weight={tokens.icon["stroke-send"]} />
+        <button type="submit" class="tds-press tds-send tds-raise-glass" onClick={(event) => stop() && (event.preventDefault(), event.detail <= 1 && props.onStop())} data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
+          <MorphIcon name={stop() ? "stop" : "arrow-up"} size="send" class={stop() ? "" : "tds-optical-up"} weight={tokens.icon["stroke-crisp"]} />
         </button>
       </form>
     </div>

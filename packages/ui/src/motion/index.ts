@@ -27,4 +27,4 @@ export { Skeleton } from "./skeleton"
 export { TextMorph, type TextMode } from "../text-morph"
 export { MorphIcon, type GlyphName, type MorphIconName } from "../morph-icon"
 
-export const raise = { 1: "tds-raise-1", 2: "tds-raise-2", 3: "tds-raise-3", hover: "tds-shade" } as const
+export const raise = { 1: "tds-raise-1", 2: "tds-raise-2", 3: "tds-raise-3", glass: "tds-raise-glass", hover: "tds-shade" } as const
