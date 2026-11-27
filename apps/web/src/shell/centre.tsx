@@ -82,7 +82,7 @@ export function Centre() {
         </button>
       </div>
       <div class="tds-centre-body tds-scroll">
-        <Show when={notes.list.length > 0} fallback={<p class="tds-centre-empty">Nothing yet. When toast finishes something while you're elsewhere, it lands here.</p>}>
+        <Show when={notes.list.length > 0} fallback={<p class="tds-centre-empty">Nothing yet. When toast finishes something while you’re elsewhere, it lands here.</p>}>
           <Show when={sections().needs.length > 0}>
             <div class="tds-centre-sec">Needs you</div>
             <For each={sections().needs} keyed={(group) => group.key}>

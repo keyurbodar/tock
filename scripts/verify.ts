@@ -448,6 +448,32 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>("return location.pathname"), (p) => p === `/t/${target}`, "release to open the hot chat")
     until(() => exists(".tds-stack[data-open]"), (open) => !open, "the stack to close")
   },
+  type() {
+    seeded()
+    const root = js<{ smooth: string; synth: string; lh: string; size: string }>("const s = getComputedStyle(document.documentElement); return { smooth: s.webkitFontSmoothing, synth: s.fontSynthesisStyle, lh: s.getPropertyValue('--tds-type-bubble-lh').trim(), size: s.getPropertyValue('--tds-type-bubble-size').trim() }")
+    check(root.smooth === "antialiased", `font smoothing is set on the root (${root.smooth})`)
+    check(root.synth === "auto", `italic synthesis stays on so <em> slants (${root.synth})`)
+    check(/^calc\(/.test(root.lh) && /rem$/.test(root.size), `type tokens are unitless leading and rem sizes (${root.lh}, ${root.size})`)
+    const scaled = js<{ size: string; lh: string }>("document.documentElement.style.fontSize = '20px'; const s = getComputedStyle(document.querySelector('.tds-bubble')); const out = { size: s.fontSize, lh: s.lineHeight }; document.documentElement.style.fontSize = ''; return out")
+    check(scaled.size === "17.5px" && Math.abs(parseFloat(scaled.lh) - 25) < 0.05, `bubble text follows the reader's font size (${scaled.size}/${scaled.lh} at 20px root)`)
+    check(style(".tds-bubble", "fontSize") === "14px" && style(".tds-bubble", "lineHeight") === "20px", "bubble stays 14/20 at the default size")
+    check(style(".tds-row-time", "fontVariantNumeric") === "tabular-nums", "row times use tabular numbers")
+    const pairs = js<{ sel: string; fg: string; bg: string; wcag: number; apca: number; size: string }[]>(`
+      const parse = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1] }
+      const over = (top, under) => [0, 1, 2].map((i) => top[i] * top[3] + under[i] * (1 - top[3])).concat(1)
+      const bgOf = (el) => { const stack = []; for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c[3] > 0) { stack.push(c); if (c[3] >= 1) break } } let out = [8, 8, 8, 1]; for (const c of stack.reverse()) out = over(c, out); return out }
+      const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
+      const L = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2])
+      const wcag = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
+      const Y = (c) => { const t = (v) => (v / 255) ** 2.4; const y = 0.2126729 * t(c[0]) + 0.7151522 * t(c[1]) + 0.072175 * t(c[2]); return y > 0.022 ? y : y + (0.022 - y) ** 1.414 }
+      const apca = (fg, bg) => { const t = Y(fg), b = Y(bg); if (Math.abs(b - t) < 0.0005) return 0; if (b > t) { const s = (b ** 0.56 - t ** 0.57) * 1.14; return s < 0.1 ? 0 : (s - 0.027) * 100 } const s = (b ** 0.65 - t ** 0.62) * 1.14; return s > -0.1 ? 0 : (s + 0.027) * 100 }
+      const sels = ['.tds-row-title', '.tds-row-preview', '.tds-row-time', '.tds-bubble[data-side=agent]', '.tds-bubble[data-side=me]', '.tds-act', '.tds-input', '.tds-search input', '.tds-header-pill']
+      return sels.flatMap((sel) => { const el = document.querySelector(sel); if (!el) return []; const s = getComputedStyle(el); const fg0 = parse(s.color); const bg = bgOf(el); const fg = over(fg0, bg); return [{ sel, fg: s.color, bg: 'rgb(' + bg.slice(0, 3).map(Math.round).join(', ') + ')', wcag: Math.round(wcag(fg, bg) * 100) / 100, apca: Math.round(apca(fg, bg) * 10) / 10, size: s.fontSize }] })`)
+    writeFileSync(join(OUT, "type-contrast.json"), JSON.stringify(pairs, null, 2))
+    console.log(pairs.map((p) => `    ${p.sel}: ${p.wcag}:1, Lc ${p.apca} (${p.fg} on ${p.bg}, ${p.size})`).join("\n"))
+    for (const p of pairs.filter((p) => p.sel.startsWith(".tds-bubble") || p.sel === ".tds-row-title")) check(p.wcag >= 4.5 && Math.abs(p.apca) >= 75, `${p.sel} body text passes 4.5:1 and Lc 75 (${p.wcag}, ${p.apca})`)
+    shot("type")
+  },
   typography() {
     ensureRows(1)
     const row = ".tds-row-wrap:not([data-archived]) .tds-row"
@@ -1503,7 +1529,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

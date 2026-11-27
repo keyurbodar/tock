@@ -23,7 +23,7 @@ export function Gate() {
           <input type="password" autocomplete="current-password" placeholder="Access key" value={key()} onInput={(e) => (setKey(e.currentTarget.value), setState("idle"))} autofocus />
         </label>
         <Show when={state() === "wrong"}>
-          <span class="text-caption text-failed">That key didn't work. Check it and try again.</span>
+          <span class="text-caption text-failed">That key didn’t work. Check it and try again.</span>
         </Show>
         <button type="submit" class="tds-key tds-key-cream mt-8 w-full" disabled={!key() || state() === "checking"}>
           {state() === "checking" ? "Checking…" : "Unlock"}

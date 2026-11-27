@@ -208,7 +208,7 @@ export async function send(sessionId: string, text: string) {
   try {
     await socket.request("chat.send", { sessionId, text, operationId: item.id })
   } catch (cause) {
-    const error = cause instanceof Error ? cause.message : "Message failed to send"
+    const error = cause instanceof Error ? cause.message : "Message not sent. Check your connection and send it again."
     thread(sessionId, (state) => {
       state.pending = state.pending.filter((entry) => entry.id !== item.id)
       state.error = error
@@ -221,7 +221,7 @@ export async function answerAsk(sessionId: string, answer: string) {
     await socket.request("ask.answer", { sessionId, answer })
   } catch (cause) {
     thread(sessionId, (state) => {
-      state.error = cause instanceof Error ? cause.message : "Answer failed to send"
+      state.error = cause instanceof Error ? cause.message : "Answer not sent. Check your connection and answer again."
     })
   }
 }

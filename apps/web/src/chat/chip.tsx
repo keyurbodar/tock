@@ -106,7 +106,7 @@ export function ThreadChip(props: { id: string; label?: string }) {
           </span>
           <b>{title()}</b>
         </div>
-        <Show when={session()} fallback={<span class="tds-thread-card-line">This chat was deleted or isn't on this device yet.</span>}>
+        <Show when={session()} fallback={<span class="tds-thread-card-line">This chat was deleted or isn’t on this device yet.</span>}>
           {(current) => (
             <>
               <Show when={current().preview}>

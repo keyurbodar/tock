@@ -40,7 +40,7 @@
   .tds-lightbox-bar {
     position: absolute; top: var(--tds-size-lightbox-bar); left: var(--tds-size-lightbox-bar-x); right: var(--tds-size-lightbox-bar-x); display: flex; align-items: center; gap: var(--tds-space-8);
     opacity: 0; transition: opacity var(--tds-dur-lightbox-bar) var(--tds-ease-out);
-    & b { font-size: var(--tds-type-body-size); font-weight: 600; color: var(--tds-text-tx) }
+    & b { font-size: var(--tds-type-body-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
     & em { display: flex; gap: var(--tds-space-10); margin-right: auto; font-style: normal; font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
   }
   .tds-lightbox-button, .tds-lightbox-nav, .tds-lightbox-film {
@@ -48,7 +48,7 @@
   }
   .tds-lightbox-button {
     display: flex; align-items: center; gap: var(--tds-space-6); height: var(--tds-size-lightbox-button); padding: 0 var(--tds-space-12); border-radius: var(--tds-radius-pill);
-    font-size: var(--tds-type-secondary-size); font-weight: 500; color: var(--tds-text-tx2); transition: scale var(--tds-dur-press) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
+    font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx2); transition: scale var(--tds-dur-press) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
     &[data-action="close"] { width: var(--tds-size-lightbox-button); padding: 0; justify-content: center }
     &:active { scale: var(--tds-press) }
   }

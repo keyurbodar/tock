@@ -204,7 +204,7 @@ export function buildItems(
     if (open && message.timestamp) open.endedAt = message.timestamp
     if (!streaming && message.stopReason === "aborted") items.push({ kind: "caption", key: `${key}:stopped`, text: "Stopped", side: "agent" })
     if (!streaming && message.stopReason === "error" && message.errorMessage)
-      items.push({ kind: "error", key: `${key}:error`, title: "The model returned an error", detail: message.errorMessage })
+      items.push({ kind: "error", key: `${key}:error`, title: "The model returned an error. Send your message again to retry.", detail: message.errorMessage })
   }
 
   let users = 0
@@ -234,7 +234,7 @@ export function buildItems(
   if (running && current) current.active = true
   if (running && !current && items.at(-1)?.kind !== "text") items.splice(turnAt, 0, { kind: "typing", key: "typing" })
   pending.forEach(({ text, seq }) => items.push({ kind: "user", key: `user:${seq}`, text, images: [], at: null, queued: true }))
-  if (pending.length > 0 && !online) items.push({ kind: "caption", key: "caption:offline", text: "Sends when you're back online", side: "me" })
+  if (pending.length > 0 && !online) items.push({ kind: "caption", key: "caption:offline", text: "Sends when you’re back online", side: "me" })
   else if (pending.length > 0 && running) items.push({ kind: "caption", key: "caption:queued", text: "Waiting for toast to finish this step", side: "me" })
   if (pending.length > 0 && !running && online) items.push({ kind: "typing", key: "typing" })
   if (!running && live?.runFailure?.reason === "aborted" && items.at(-1)?.kind !== "caption" && items.some((item) => item.kind === "user"))
@@ -245,7 +245,7 @@ export function buildItems(
     items.push({
       kind: "error",
       key: "failure",
-      title: "The run stopped",
+      title: "The run stopped. Send a message to pick it up again.",
       detail: live.runFailure.detail ?? live.runFailure.reason,
     })
   return items

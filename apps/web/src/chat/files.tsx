@@ -56,7 +56,7 @@ export function fileMeta(id: string, name: string): Meta | undefined {
 }
 
 export const describe = (meta: { size: number | null; lines: number | null } | undefined) =>
-  meta ? [meta.size !== null ? formatSize(meta.size) : null, meta.lines !== null ? `${meta.lines.toLocaleString()} line${meta.lines === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ") : ""
+  meta ? [meta.size !== null ? formatSize(meta.size) : null, meta.lines !== null ? (new Intl.PluralRules().select(meta.lines) === "one" ? "# line" : "# lines").replace("#", meta.lines.toLocaleString()) : null].filter(Boolean).join(" · ") : ""
 
 const typeName = (name: string) => {
   const ext = extension(name)

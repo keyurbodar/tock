@@ -4,6 +4,7 @@ import source from "./tokens.json" with { type: "json" }
 type Tokens = typeof source
 const t: Tokens = source
 const px = (n: number) => (n === 0 ? "0" : `${n}px`)
+const rem = (n: number) => `${+(n / 16).toFixed(5)}rem`
 const lines: string[] = []
 const theme: string[] = []
 const v = (name: string, value: string | number) => lines.push(`  --tds-${name}: ${value};`)
@@ -53,9 +54,9 @@ v("font-sans", t.font.sans); v("font-mono", t.font.mono)
 th("font-sans", "var(--tds-font-sans)"); th("font-mono", "var(--tds-font-mono)")
 for (const [k, w] of Object.entries(t.weight)) { v(`weight-${k}`, w); th(`font-weight-${k}`, `var(--tds-weight-${k})`) }
 for (const [role, [size, lh, weight, tracking]] of Object.entries(t.type) as [string, [number, number, number, string]][]) {
-  v(`type-${role}-size`, px(size)); v(`type-${role}-leading`, px(lh)); v(`type-${role}-weight`, weight); v(`type-${role}-tracking`, tracking)
+  v(`type-${role}-size`, rem(size)); v(`type-${role}-leading`, px(lh)); v(`type-${role}-lh`, `calc(${lh} / ${size})`); v(`type-${role}-weight`, weight); v(`type-${role}-tracking`, tracking)
   th(`text-${role}`, `var(--tds-type-${role}-size)`)
-  th(`text-${role}--line-height`, `var(--tds-type-${role}-leading)`)
+  th(`text-${role}--line-height`, `var(--tds-type-${role}-lh)`)
   th(`text-${role}--letter-spacing`, `var(--tds-type-${role}-tracking)`)
   th(`text-${role}--font-weight`, `var(--tds-type-${role}-weight)`)
 }

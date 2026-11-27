@@ -65,7 +65,7 @@
     display: flex; flex-direction: column; align-items: center; text-align: center; margin: auto;
     & img { width: var(--tds-size-empty-art); height: auto }
     & b { margin-top: var(--tds-space-10); font-size: var(--tds-type-title-size); font-weight: var(--tds-type-title-weight); letter-spacing: var(--tds-type-title-tracking) }
-    & span { max-width: var(--tds-size-empty-text); margin-top: var(--tds-space-6); font-size: var(--tds-type-body-size); line-height: var(--tds-space-20); color: var(--tds-text-muted) }
+    & span { max-width: var(--tds-size-empty-text); margin-top: var(--tds-space-6); font-size: var(--tds-type-body-size); line-height: var(--tds-type-empty-body-lh); letter-spacing: var(--tds-type-empty-body-tracking); color: var(--tds-text-muted) }
     animation: tds-empty-in var(--tds-dur-panel) var(--tds-ease-out) both;
   }
   .tds-empty[data-small] {

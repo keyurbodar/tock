@@ -245,9 +245,9 @@ export function ThreadMenu() {
   }
 
   const confirmForever = (session: Session) => {
-    const id = toast("Deleting", { description: titleOf(session), tone: "failed", icon: "spin", hold: true })
+    const id = toast("Deleting chat…", { description: titleOf(session), tone: "failed", icon: "spin", hold: true })
     void Promise.resolve(deleteThread(session.id)).then(
-      () => updateToast(id, "Deleted forever", { description: titleOf(session), tone: "failed", icon: "trash" }),
+      () => updateToast(id, "Chat deleted forever", { description: titleOf(session), tone: "failed", icon: "trash" }),
       () => updateToast(id, "Couldn’t delete", { description: titleOf(session), tone: "failed", icon: "warning-circle", duration: tokens.motion.toast.error }),
     )
   }
