@@ -3417,6 +3417,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
         ab("press", "Enter")
       } else ab("click", from)
       until(() => exists(".tds-lightbox[data-ready] .tds-lightbox-preview"), Boolean, "the preview of " + name, 10000)
+      check(text(".tds-lightbox-bar b") === name, "the lightbox opened " + name + ", not " + text(".tds-lightbox-bar b"))
       wait(400)
       const kind = name.split(".").pop()!
       until(() => exists({ html: ".tds-lightbox-preview > iframe", svg: ".tds-lightbox-preview > img", md: ".tds-lightbox-md" }[kind]!), Boolean, "the " + kind + " preview to render")
@@ -3453,6 +3454,8 @@ const journeys: Record<string, () => void | Promise<void>> = {
     say("Here are the previews")
     until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").length"), (n) => n === 3, "three sent cards")
     js<boolean>("document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").forEach((a) => a.dataset.verifyName = a.querySelector('b')?.textContent ?? a.getAttribute('aria-label').replace(/^Open /, '')); return true")
+    until(() => js<boolean>("return [...document.querySelectorAll(\".tds-files[data-side='me'] img\")].every((i) => i.complete)"), Boolean, "the sent tiles to finish loading, so the cards stop moving")
+    wait(400)
     for (const name of Object.keys(files)) opened(name, "[data-verify-name='" + name + "']", "click")
     for (const [w, h] of [[390, 844], [768, 1024]] as const) {
       ab("set", "viewport", String(w), String(h))
