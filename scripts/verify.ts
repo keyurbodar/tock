@@ -108,6 +108,7 @@ const journeys: Record<string, () => void> = {
     check(transparent(style(".tds-act-button", "backgroundColor")), "the activity line must have no hover background")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws-line"), Boolean, "the work log rows")
+    until(() => js<number>("return document.querySelectorAll('.tds-worklog .tds-plan-item').length"), (n) => n === 3, "the three plan steps from update_plan")
     check(js<boolean>("return [...document.querySelectorAll('.tds-ws-line')].every((e) => ['rgba(0, 0, 0, 0)', 'transparent'].includes(getComputedStyle(e).backgroundColor))"), "work log rows must have no background")
     ab("hover", ".tds-ws-line")
     check(transparent(style(".tds-ws-line", "backgroundColor")), "work log rows must have no hover background")

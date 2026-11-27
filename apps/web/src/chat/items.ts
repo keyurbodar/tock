@@ -85,14 +85,16 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
   let turn: Work | undefined
   let turnAt = 0
   let turnStart: number | null = null
-  const work = (key: string): Work => {
+  let turnKey = "work:start"
+  const work = (): Work => {
     if (turn) return turn
-    turn = { kind: "work", key, steps: [], plan: undefined, active: false, startedAt: turnStart, endedAt: null }
+    turn = { kind: "work", key: turnKey, steps: [], plan: undefined, active: false, startedAt: turnStart, endedAt: null }
     items.splice(turnAt, 0, turn)
     return turn
   }
-  const startTurn = (at: number | null) => {
+  const startTurn = (key: string, at: number | null) => {
     turn = undefined
+    turnKey = `work:${key}`
     turnAt = items.length
     turnStart = at
   }
@@ -106,7 +108,7 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
       }
       if (block.type === "thinking") {
         if (block.thinking.trim() === "") return
-        const group = work(blockKey)
+        const group = work()
         const active = streaming && index === message.content.length - 1
         group.steps.push({ kind: "thinking", key: blockKey, text: block.thinking, active })
         group.active ||= active
@@ -116,7 +118,7 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
       const slot = slots.get(block.id)
       const unfinished = result === undefined && (streaming || (running && slot?.status !== "done"))
       const cancelled = result === undefined ? !unfinished && message.stopReason === "aborted" : aborted.has(block.id)
-      const group = work(blockKey)
+      const group = work()
       if (isPlan(block)) {
         group.plan = planOf(block) ?? group.plan
         return
@@ -145,11 +147,11 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
         const routine = routineName(entry)
         if (routine === undefined) {
           items.push({ kind: "user", key, text, images: userImages(message), at: message.timestamp ?? null })
-          startTurn(message.timestamp ?? null)
+          startTurn(key, message.timestamp ?? null)
         } else {
           const tag = `[routine:${routine}] `
           items.push({ kind: "routine", key, name: routine, text: text.startsWith(tag) ? text.slice(tag.length) : text, at: message.timestamp ?? null })
-          startTurn(message.timestamp ?? null)
+          startTurn(key, message.timestamp ?? null)
         }
       } else if (message.role === "assistant") {
         assistant(message, key, false)
