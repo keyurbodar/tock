@@ -1105,7 +1105,7 @@ const journeys: Record<string, () => void> = {
   sheet() {
     const bell = ".tds-rail-button[data-bell]"
     const x = () => js<number>("return document.querySelector('.tds-centre').getBoundingClientRect().x")
-    const receding = () => js<string>("const s = document.querySelector('.tds-backdrop-scrim'); return s && document.documentElement.hasAttribute('data-backdrop-p') ? getComputedStyle(s).opacity : ''")
+    const receding = () => js<string>("const m = document.querySelector('main[data-backdrop-layer]'); return m && document.documentElement.hasAttribute('data-backdrop-p') ? getComputedStyle(m).scale : ''")
     const drag = (from: number, to: number, y = 420) => {
       ab("mouse", "move", String(from), String(y))
       ab("mouse", "down")
@@ -1116,7 +1116,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-centre[data-open]"), Boolean, "the centre to open")
     wait(600)
     const rest = x()
-    check(Number(receding()) > 0.5, `the chat recedes behind the open centre: scrim opacity ${receding() || "none"}`)
+    check(parseFloat(receding()) < 1 && js<number>("return +getComputedStyle(document.querySelector('.tds-backdrop-scrim')).opacity") > 0.5, `the chat recedes behind the open centre (scale ${receding()}, scrim up)`)
     shot("sheet-open")
     ab("mouse", "move", "300", "420")
     ab("mouse", "down")

@@ -53,6 +53,12 @@
   }
   :root[data-backdrop] .tds-backdrop-scrim { opacity: 1 }
   :root[data-backdrop-p]:not([data-backdrop]) .tds-backdrop-scrim { transition: none; opacity: var(--backdrop-p) }
+  /* Recede (sheets on a progress, e.g. the notification centre): the app scales back a touch behind the open surface; popovers only get the scrim. Transform only, on a layer promoted just for the
+     open, so the compositor moves it without repainting; the dim comes from the scrim, never a filter. */
+  [data-backdrop-layer] { transform-origin: 50% 50%; transition: scale var(--tds-dur-panel) var(--tds-ease-sheet) }
+  :root[data-backdrop-p] [data-backdrop-layer] { will-change: transform }
+  :root[data-backdrop-p]:not([data-backdrop]) [data-backdrop-layer] { transition: none; scale: calc(1 - (1 - var(--tds-backdrop-scale)) * var(--backdrop-p)) }
+  @media (prefers-reduced-motion: reduce) { [data-backdrop-layer] { scale: none !important } }
   [data-recede] {
     transform-origin: 50% 0; transition: none;
     scale: calc(1 - var(--p) * (1 - var(--tds-backdrop-scale)));
