@@ -2403,11 +2403,12 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => rect(".tds-field")?.h, (h) => h === 44, "the field to shrink back")
   },
   tokens() {
+    linkFixtures()
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
     field()
     ab("keyboard", "type", "see https://github.com/keyurbodar/tock and")
-    until(() => exists(".tds-input .tds-link-token .tds-chip-slot img"), Boolean, "the typed link chip with its favicon")
+    until(() => exists(".tds-input .tds-link-token .tds-chip-slot img"), Boolean, "the typed link chip with its favicon", 12000)
     const m = js<{ line: number; text: number[]; label: number[]; chip: number[] }>(
       "const p = document.querySelector('.tds-input p'); const t = [...p.childNodes].find((n) => n.nodeType === 3); const a = document.createRange(); a.selectNodeContents(t); const tr = a.getClientRects()[0]; const b = document.createRange(); b.selectNodeContents(p.querySelector('.tds-chip-label')); const lr = b.getClientRects()[0]; const c = p.querySelector('.tds-chip').getBoundingClientRect(); return { line: p.getBoundingClientRect().height, text: [tr.top, tr.bottom], label: [lr.top, lr.bottom], chip: [c.top, c.height] }",
     )
