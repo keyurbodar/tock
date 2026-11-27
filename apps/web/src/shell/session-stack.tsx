@@ -9,7 +9,7 @@ import { glyphFor } from "../lib/glyph"
 import { STATUS_LABEL, statusOf, type ChatStatus } from "../lib/status"
 import { shortTime } from "../lib/time"
 import { minute } from "../lib/clock"
-import { app, titleOf, type Session } from "../state/app"
+import { app, titleOf } from "../state/app"
 import { hidePeek } from "./peek"
 
 type Status = ChatStatus

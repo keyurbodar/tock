@@ -169,7 +169,7 @@ export function createAttachments() {
         continue
       }
       if (file.size > tokens.limit["file-mb"] * MB) {
-        rejected.push({ title: `${name} is ${formatSize(file.size)}`, hint: `Files can be up to ${tokens.limit["file-mb"]} MB. ${/^video\//.test(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(name) ? "Try a shorter clip or a link." : "Try a smaller file or a link."}` })
+        rejected.push({ title: `${name} is ${formatSize(file.size)}`, hint: `Files can be up to ${tokens.limit["file-mb"]} MB. ${file.type.startsWith('video/') || /\.(mp4|mov|webm|m4v)$/i.test(name) ? "Try a shorter clip or a link." : "Try a smaller file or a link."}` })
         continue
       }
       const key = crypto.randomUUID()

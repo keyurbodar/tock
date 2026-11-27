@@ -249,7 +249,7 @@ export async function subscribe(sessionId: string) {
     thread(sessionId, (state) => {
       withEntries(sessionId, state, result.messages)
       state.pending = settleQueue(state.pending, result.queued ?? [])
-      state.thinking = { ...state.thinking, ...(result.thinking ?? {}) }
+      state.thinking = { ...state.thinking, ...result.thinking }
       state.phase = "ready"
     })
   } catch (cause) {

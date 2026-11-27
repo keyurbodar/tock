@@ -38,7 +38,7 @@ export class ThinkingSpans {
     const stamp = typeof message?.timestamp === "number" ? message.timestamp : undefined
     const blocks = stamp === undefined ? [] : (message?.content ?? [])
     const ended: ThinkingSpan[] = []
-    for (const key of [...live]) {
+    for (const key of live) {
       const [msg, block] = key.split(":").map(Number) as [number, number]
       if (msg === stamp && blocks.length <= block + 1) continue
       live.delete(key)

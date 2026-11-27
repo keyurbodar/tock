@@ -16,5 +16,5 @@ export function plainMarkdown(text: string): string {
     .replace(/~~(?=\S)([\s\S]*?\S)~~/g, "$1")
     .replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?!\w)/g, "$1$2")
     .replace(/(^|[^\w_])_(?=\S)([^_\n]*?\S)_(?!\w)/g, "$1$2")
-    .replace(/\\([\\`*_{}\[\]()#+\-.!~>|])/g, "$1")
+    .replace(/\\([\\`*_{}[\]()#+\-.!~>|])/g, "$1")
 }
