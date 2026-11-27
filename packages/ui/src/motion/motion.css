@@ -54,3 +54,19 @@
 /* Morph (morph.ts): content of a surface opening from its source fades and unblurs off the same --p as its clip. */
 [data-morphing] > * { opacity: var(--p, 1); filter: blur(calc((1 - var(--p, 1)) * var(--tds-blur-enter))) }
 
+
+/* Edge fade (edge.ts): a scrolling box fades only the edges content continues past. One mask for every axis: the
+   vertical and horizontal ramps intersect, and an unset side is 0, so it stays fully opaque. */
+[data-edge-fade] {
+  --edge-y-t: min(var(--edge-t, 0px), var(--tds-size-edge-fade));
+  --edge-y-b: min(var(--edge-b, 0px), var(--tds-size-edge-fade));
+  --edge-x-l: min(var(--edge-l, 0px), var(--tds-size-edge-fade));
+  --edge-x-r: min(var(--edge-r, 0px), var(--tds-size-edge-fade));
+}
+[data-edge-fade][data-edge] {
+  mask-image:
+    linear-gradient(to bottom, transparent, black var(--edge-y-t), black calc(100% - var(--edge-y-b)), transparent),
+    linear-gradient(to right, transparent, black var(--edge-x-l), black calc(100% - var(--edge-x-r)), transparent);
+  mask-composite: intersect;
+}
+

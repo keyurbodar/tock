@@ -21,7 +21,7 @@
   .tds-code-action[aria-pressed="true"] { color: var(--tds-text-tx2); background: var(--tds-overlay-hover) }
   .tds-code-copy[data-glyph="check"] { color: var(--tds-status-done) }
 
-  .tds-code-body, .tds-input pre {
+  .tds-code-body[data-edge-fade], .tds-input pre[data-edge-fade] {
     margin: 0; max-width: 100%; max-height: var(--tds-size-code-max); overflow: auto; overscroll-behavior-x: contain;
     font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); line-height: var(--tds-type-code-lh); color: var(--tds-code-fg); tab-size: 2;
     scrollbar-width: thin; scrollbar-color: var(--tds-code-thumb) transparent;

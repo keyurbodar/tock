@@ -114,7 +114,7 @@ export function Pins(props: { show: boolean }) {
             )}
           </For>
         </div>
-        <MenuContent class="tds-menu tds-over">
+        <MenuContent class="tds-menu tds-over" data-edge-fade="y">
           <MenuItem value="unpin" class="tds-menu-item">
             <MenuItemIcon class="tds-menu-icon">
               <Icon name="push-pin-slash" size="menu" />

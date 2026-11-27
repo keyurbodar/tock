@@ -108,7 +108,7 @@ export function Centre() {
           Mark All Read
         </button>
       </div>
-      <div class="tds-centre-body tds-scroll">
+      <div class="tds-centre-body tds-scroll" data-edge-fade="y">
         <Show when={notes.list.length > 0} fallback={<p class="tds-centre-empty">Nothing yet. When toast finishes something while you’re elsewhere, it lands here.</p>}>
           <Show when={sections().needs.length > 0}>
             <div class="tds-centre-sec">Needs you</div>

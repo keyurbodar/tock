@@ -81,6 +81,17 @@ scrub(grip, { axis: "y", direction: -1, area: field, distance: () => travel(), f
 - `<TextMorph value={n} numbers />` morphs titles, statuses and counters (torph). In journeys, read the value through `[torph-sr]`.
 - `<MorphIcon name={busy ? "stop" : "arrow-up"} />` morphs line shapes stroke by stroke, and uses a blur and scale swap otherwise. Add new line shapes to `shapes` in morph-icon.tsx.
 
+## Edge fade: scroll boxes
+Every box that scrolls fades the edges its content continues past, and only those: at the top of a list there is no top fade. The `edge-fade` lint (scripts/lint/edge.ts) fails on any apps/web CSS rule that sets `overflow(-x|-y): auto|scroll` unless its selector carries `[data-edge-fade]`.
+```tsx
+<div class="tds-x-list" data-edge-fade="y">…</div>          // declarative: installEdgeFade() (main.tsx) attaches on mount
+.tds-x-list[data-edge-fade] { overflow-y: auto }            // CSS: the overflow lives on the same selector, so it never scrolls unfaded
+edgeFade(el, { axis: "x" })                                 // imperative, returns stop(); axis "y" | "x" | "both"
+```
+- One passive scroll listener per box, rAF-throttled, plus a ResizeObserver on the box and its children for content changes. It writes the distance left on each side as `--edge-t/-b/-l/-r`; one mask rule in motion.css clamps each to `--tds-size-edge-fade` (`size.edge-fade`), so a fade grows in over the first pixels of scroll instead of popping.
+- `data-edge` is set only while some side overflows, and the mask applies only then, so a box that fits keeps its shadow and glass unmasked.
+- For markup you do not render (TipTap code blocks, the roster's VList viewport), pass the attribute through its props. A box that draws its own mask (the transcript's column fade) owns its edges, and the lint skips it.
+
 ## Material: Raise
 `tds-raise-1` (fields, chips, cards), `tds-raise-2` (buttons, selected states, pin circles) and `tds-raise-3` (panes and floating cards) add a top highlight, a gradient sheen and a small plus a large shadow. When a state adds a ring, set `--tds-raise-ring` rather than `box-shadow`. Glass overlays keep `tds-over` and `tds-glass`. `raise` exports the class names.
 

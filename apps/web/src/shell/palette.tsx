@@ -63,7 +63,7 @@ export function Palette() {
             <Icon name="magnifying-glass" size="menu" />
             <CommandInput aria-label="Search or run a command" placeholder="Search or run a command" />
           </div>
-          <CommandList class="tds-palette-list tds-scroll">
+          <CommandList class="tds-palette-list tds-scroll" data-edge-fade="y">
             <CommandEmpty class="tds-palette-empty">No matches. Try a chat name or a command.</CommandEmpty>
             <CommandGroup>
               <CommandGroupLabel class="tds-palette-label">Actions</CommandGroupLabel>

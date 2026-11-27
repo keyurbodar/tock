@@ -90,7 +90,7 @@ export function CodeBlock(props: { code: string; lang?: string | null; open?: bo
           </button>
         </span>
       </figcaption>
-      <pre class="tds-code-body" tabindex="0"><code><span innerHTML={html()} />{tail()}</code></pre>
+      <pre class="tds-code-body" data-edge-fade="both" tabindex="0"><code><span innerHTML={html()} />{tail()}</code></pre>
     </figure>
   )
 }

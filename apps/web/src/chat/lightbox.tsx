@@ -111,6 +111,7 @@ function Viewer(props: { opening: Opening }) {
       doc.className = "tds-lightbox-doc"
       const pre = document.createElement("pre")
       pre.className = "tds-scroll"
+      pre.dataset.edgeFade = "y"
       pre.textContent = "Loading…"
       doc.append(pre)
       void fetch(fileUrl(item.id))
@@ -375,7 +376,7 @@ function Viewer(props: { opening: Opening }) {
         <button type="button" class="tds-lightbox-nav tds-over" data-dir="next" aria-label="Next image" onClick={() => show(untrack(index) + 1, 1)}>
           <Icon name="caret-right" size="lightbox-nav" />
         </button>
-        <div class="tds-lightbox-film tds-over">
+        <div class="tds-lightbox-film tds-over" data-edge-fade="x">
           <For each={items} keyed={(entry) => entry.id}>
             {(entry, i) => (
               <button type="button" data-on={i() === index() ? "" : undefined} aria-label={entry().name} aria-current={i() === index() ? "true" : undefined} onClick={() => show(untrack(i), untrack(i) > untrack(index) ? 1 : -1)}>

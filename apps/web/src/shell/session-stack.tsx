@@ -6,7 +6,6 @@ import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
-import { edgeFade } from "../lib/edge-fade"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
 import { app, titleOf, type Session } from "../state/app"
@@ -149,8 +148,9 @@ export function ToastRow(props: { show: boolean }) {
         >
           <div class="tds-stack-label">Hold and slide to a chat, let go to open it</div>
           <div
-            ref={(el) => ((scroller = el), edgeFade(el))}
-            class="tds-stack-scroll tds-edge-fade"
+            ref={scroller}
+            class="tds-stack-scroll"
+            data-edge-fade="y"
             style={{ height: `${place().height}px` }}
             onScroll={() => dragging && setHot(pillAt(pointerY))}
           >

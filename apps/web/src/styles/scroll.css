@@ -16,7 +16,7 @@
   .tds-worklog .tds-worklog-body { padding: var(--tds-space-6) var(--tds-space-6) var(--tds-space-8) }
   .tds-worklog .tds-ws-line { min-height: var(--tds-size-worklog-row); padding: var(--tds-space-4) var(--tds-space-6); column-gap: var(--tds-space-6) }
   .tds-worklog .tds-plan { padding: var(--tds-space-2) var(--tds-space-6) var(--tds-space-8); margin-bottom: var(--tds-space-6) }
-  .tds-ws-clip > .tds-ws-body { max-height: var(--tds-size-worklog-out); overflow-y: auto; overscroll-behavior: contain }
+  .tds-ws-clip > .tds-ws-body[data-edge-fade] { max-height: var(--tds-size-worklog-out); overflow-y: auto; overscroll-behavior: contain }
   .tds-jump {
     position: absolute; left: 50%; bottom: calc(var(--composer-reserve, var(--tds-size-fade-bottom)) + var(--tds-space-8)); z-index: 1;
     display: inline-flex; align-items: center; justify-content: center; gap: 0;

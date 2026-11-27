@@ -811,10 +811,10 @@ const journeys: Record<string, () => void> = {
     const box = js<{ top: number; bottom: number; scroll: number; height: number }>("const s = document.querySelector('.tds-stack-scroll'); const r = s.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, scroll: s.scrollHeight, height: s.clientHeight }")
     check(box.bottom <= 520, `the stack stays on screen (bottom ${box.bottom})`)
     if (box.scroll > box.height + 2) {
-      check(exists(".tds-stack-scroll[data-fade-bottom]") && !exists(".tds-stack-scroll[data-fade-top]"), "only the edge with more chats fades")
+      check(js<boolean>("const e = document.querySelector('.tds-stack-scroll'); return parseFloat(e.style.getPropertyValue('--edge-b')) > 0 && parseFloat(e.style.getPropertyValue('--edge-t')) === 0"), "only the edge with more chats fades")
       ab("mouse", "move", String(at.x + 120), String(box.bottom - 6), "--steps", "4")
       until(() => js<number>("return document.querySelector('.tds-stack-scroll').scrollTop"), (top) => top > 20, "holding near the bottom edge scrolls the stack")
-      check(exists(".tds-stack-scroll[data-fade-top]"), "the top edge fades once scrolled")
+      check(until(() => js<number>("return parseFloat(document.querySelector('.tds-stack-scroll').style.getPropertyValue('--edge-t'))"), (t) => t > 0, "the top fade"), "the top edge fades once scrolled")
       check(exists(".tds-stack-pill[data-hot]"), "a pill stays hot while it scrolls")
     }
     shot("stack-scroll")
@@ -840,7 +840,7 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>(`return getComputedStyle(document.querySelector('.tds-pin[data-id="${id}"]'), '::before').opacity`), (o) => o === "1", "the open pin's tile")
     check(js<number>("return document.querySelectorAll('.tds-pin[data-active]').length") === 1, "exactly one pin is highlighted")
     shot("pin-active")
-    check(exists(".tds-edge-fade[data-fade-bottom]") || js<boolean>("const s = document.querySelector('.tds-sidebar .tds-scroll'); return s.scrollHeight <= s.clientHeight"), "the roster fades at its bottom edge when it overflows")
+    check(js<boolean>("const e = document.querySelector('.tds-roster'); return !!e && parseFloat(e.style.getPropertyValue('--edge-b')) > 0") || js<boolean>("const s = document.querySelector('.tds-sidebar .tds-scroll'); return s.scrollHeight <= s.clientHeight"), "the roster fades at its bottom edge when it overflows")
   },
   type() {
     seeded()
@@ -1953,6 +1953,36 @@ const journeys: Record<string, () => void> = {
       ab("set", "viewport", "1440", "900")
     }
   },
+  edges() {
+    ab("set", "viewport", "1440", "480")
+    try {
+      ensureRows(8)
+      const read = () => js<{ mask: string; edge: boolean; t: number; b: number; top: number; max: number; len: number }>("const e = document.querySelector('.tds-roster'); const s = getComputedStyle(e); return { mask: s.maskImage, edge: e.hasAttribute('data-edge'), t: parseFloat(e.style.getPropertyValue('--edge-t')), b: parseFloat(e.style.getPropertyValue('--edge-b')), top: e.scrollTop, max: e.scrollHeight - e.clientHeight, len: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tds-size-edge-fade')) }")
+      const scrollTo = (where: string) => ab("eval", "(() => { const e = document.querySelector('.tds-roster'); e.scrollTop = " + where + " })()")
+      const first = until(read, (r) => r.max > 0 && r.b > 0, "the roster to overflow")
+      check(first.edge && /gradient/.test(first.mask), "an overflowing roster carries no edge mask (" + first.mask + ")")
+      check(first.top === 0 && first.t === 0, "at the top the roster fades its top edge (" + first.t + "px)")
+      check(first.b >= first.len, "at the top the bottom fade is shorter than the token (" + first.b + "px)")
+      shot("edges-top")
+      scrollTo("Math.round((e.scrollHeight - e.clientHeight) / 2)")
+      const mid = until(read, (r) => r.t > 0 && r.b > 0, "both fades in the middle")
+      check(mid.t >= Math.min(mid.len, mid.top) && mid.b > 0, "in the middle both edges fade (" + mid.t + "/" + mid.b + ")")
+      shot("edges-middle")
+      scrollTo("e.scrollHeight")
+      const end = until(read, (r) => r.b < 1 && r.t > 0, "only the top fade at the bottom")
+      check(end.t >= end.len, "at the bottom the top fade is shorter than the token (" + end.t + "px)")
+      shot("edges-bottom")
+      ab("set", "viewport", "1440", "900")
+      until(() => js<boolean>("const e = document.querySelector('.tds-roster'); return e.scrollHeight <= e.clientHeight ? !e.hasAttribute('data-edge') : true"), Boolean, "a roster that fits to drop its mask")
+      ab("open", BASE + "/__motion")
+      until(() => exists(".tds-motion-strip"), Boolean, "the motion demo")
+      const strip = until(() => js<{ l: number; r: number; edge: boolean }>("const e = document.querySelector('.tds-motion-strip'); return { l: parseFloat(e.style.getPropertyValue('--edge-l')), r: parseFloat(e.style.getPropertyValue('--edge-r')), edge: e.hasAttribute('data-edge') }"), (s) => s.r > 0, "the demo strip to fade its right edge")
+      check(strip.l === 0 && strip.edge, "the demo strip fades its left edge at the start")
+      shot("edges-demo")
+    } finally {
+      ab("set", "viewport", "1440", "900")
+    }
+  },
   motion() {
     seeded()
     ab("set", "media", "dark")
@@ -2344,7 +2374,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

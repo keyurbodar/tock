@@ -1,0 +1,5 @@
+/* Scroll boxes that only scroll once they outgrow their place: menus past the viewport, a filmstrip past the screen. Fades come from edgeFade (@tock/ui/motion). */
+@layer components {
+  .tds-menu[data-edge-fade] { max-height: calc(100dvh - var(--tds-space-64)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none }
+  .tds-lightbox-film[data-edge-fade] { max-width: calc(100vw - var(--tds-space-64) * 2); overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none; & button { flex: none } }
+}

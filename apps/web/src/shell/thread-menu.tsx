@@ -256,7 +256,7 @@ export function ThreadMenu() {
   return (
     <>
       <Menu controller={threadMenu} onAction={(value) => run(String(value))}>
-        <MenuContent<Session> class="tds-menu tds-over" align="start" sideOffset={tokens.size["menu-offset"]}>
+        <MenuContent<Session> class="tds-menu tds-over" data-edge-fade="y" align="start" sideOffset={tokens.size["menu-offset"]}>
           {(state) => (
             <Show when={state.payload}>
               {(session) => (
@@ -292,7 +292,7 @@ export function ThreadMenu() {
                         Snooze
                         <Icon name="caret-right" size="chip" class="tds-menu-caret" />
                       </MenuSubTrigger>
-                      <MenuSubContent class="tds-menu tds-menu-subcontent tds-over">
+                      <MenuSubContent class="tds-menu tds-menu-subcontent tds-over" data-edge-fade="y">
                         <Item value="snooze:hour" label="1 Hour" />
                         <Item value="snooze:tonight" label="Tonight" />
                         <Item value="snooze:tomorrow" label="Tomorrow" />

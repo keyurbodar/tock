@@ -12,7 +12,6 @@ import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
-import { edgeFade } from "../lib/edge-fade"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
@@ -490,7 +489,7 @@ export function Sidebar() {
       <Pins show={query().trim() === ""} />
       <ToastRow show={query().trim() === ""} />
 
-      <div class="tds-edge-fade relative -mx-12 min-h-0 flex-1" ref={(el) => edgeFade(el, () => el.querySelector(".tds-scroll"))} onPointerLeave={() => peekLeave()}>
+      <div class="relative -mx-12 min-h-0 flex-1" onPointerLeave={() => peekLeave()}>
         <Show
           when={entries().length > 0}
           fallback={
@@ -501,7 +500,7 @@ export function Sidebar() {
             </Show>
           }
         >
-          <VList data={entries()} class="tds-scroll h-full px-12 pb-16" itemSize={tokens.size.row}>
+          <VList data={entries()} class="tds-roster tds-scroll h-full px-12 pb-16" data-edge-fade="y" itemSize={tokens.size.row}>
             {(entry) =>
               entry.kind === "archive" ? (
                 <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>

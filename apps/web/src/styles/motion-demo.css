@@ -8,6 +8,9 @@
   .tds-motion-grid { display: flex; flex-wrap: wrap; gap: var(--tds-space-8); flex-basis: 100% }
   .tds-motion-tile { display: grid; place-items: center; min-width: var(--tds-size-pin); height: var(--tds-size-pin); padding: 0 var(--tds-space-8); border-radius: var(--tds-radius-card); background-color: var(--tds-surface-field) }
   .tds-motion-drive { --p: 0; flex-basis: 100%; height: calc(var(--tds-size-pin) * (1 + var(--p) * 2)); border-radius: var(--tds-radius-card); background-color: var(--tds-surface-field); touch-action: none }
+  .tds-motion-scroll[data-edge-fade] { flex-basis: 100%; height: calc(var(--tds-size-pin) * 3); overflow-y: auto }
+  .tds-motion-row { padding: var(--tds-space-6) var(--tds-space-8); color: var(--tds-text-tx2) }
+  .tds-motion-strip[data-edge-fade] { display: flex; flex-basis: 100%; min-width: 0; gap: var(--tds-space-8); overflow-x: auto; & > * { flex: none } }
   .tds-motion-track { --p: 0; position: relative; width: calc(var(--tds-size-pin) * 4); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); background: var(--tds-surface-field); touch-action: pan-y }
   .tds-motion-knob { position: absolute; top: 0; left: 0; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); background-color: var(--tds-surface-white); translate: calc(var(--p) * var(--tds-size-pin) * 3) 0 }
 }

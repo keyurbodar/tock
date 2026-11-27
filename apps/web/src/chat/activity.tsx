@@ -172,10 +172,10 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
       <div class="tds-ws-clip">
       <Show when={seen() || open() ? body() : undefined}>
         {(shown) => (
-          <div class="tds-ws-body">
+          <div class="tds-ws-body" data-edge-fade="y">
             <Switch>
               <Match when={shown().kind === "think"}>
-                <div class="tds-ws-thought">
+                <div class="tds-ws-thought" data-edge-fade="y">
                   <For each={(shown() as { text: string }).text.split(/\n{2,}/)} keyed={false}>
                     {(para) => <p>{para()}</p>}
                   </For>
@@ -189,12 +189,12 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
                   </div>
                   <div class="tds-ws-on">on tock</div>
                   <Show when={(shown() as { out: string }).out}>
-                    {(out) => <pre data-bad={(shown() as { bad: boolean }).bad ? "" : undefined}>{out()}</pre>}
+                    {(out) => <pre data-edge-fade="y" data-bad={(shown() as { bad: boolean }).bad ? "" : undefined}>{out()}</pre>}
                   </Show>
                 </div>
               </Match>
               <Match when={shown().kind === "out"}>
-                <pre class="tds-ws-output" data-bad={(shown() as { bad: boolean }).bad ? "" : undefined}>{(shown() as { text: string }).text}</pre>
+                <pre class="tds-ws-output" data-edge-fade="y" data-bad={(shown() as { bad: boolean }).bad ? "" : undefined}>{(shown() as { text: string }).text}</pre>
               </Match>
             </Switch>
           </div>
@@ -527,6 +527,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
             <div
               ref={setBody}
               class="tds-worklog-body tds-scroll"
+              data-edge-fade="y"
               onScroll={(e) => {
                 const scroller = e.currentTarget
                 setScrolled(scroller.scrollTop > tokens.size["worklog-up"])

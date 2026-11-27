@@ -496,7 +496,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       element,
       autofocus: matchMedia("(pointer: fine)").matches ? "end" : false,
       extensions: [
-        StarterKit.configure({ heading: false, horizontalRule: false, dropcursor: false, gapcursor: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false } }),
+        StarterKit.configure({ codeBlock: { HTMLAttributes: { "data-edge-fade": "both" } }, heading: false, horizontalRule: false, dropcursor: false, gapcursor: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false } }),
         Markdown,
         Token,
         CodeHighlight,
@@ -655,7 +655,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   return (
     <div ref={wrap} class="tds-composer-wrap">
       <Show when={trigger() && suggestions().length > 0}>
-        <div ref={list} class="tds-menu tds-suggest tds-over" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: "0px", transform: `translateX(${caret().left}px)`, bottom: `${caret().bottom}px` }}>
+        <div ref={list} class="tds-menu tds-suggest tds-over" data-edge-fade="y" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: "0px", transform: `translateX(${caret().left}px)`, bottom: `${caret().bottom}px` }}>
           <span class="tds-suggest-glide" aria-hidden="true" style={{ translate: `0 ${glide().top}px`, height: `${glide().height}px` }} />
           <span class="tds-menu-label">{trigger()?.char === "@" ? "Chats" : "Commands"}</span>
           <For each={suggestions()} keyed={(item) => item.key}>
@@ -700,7 +700,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           <MenuTrigger class="tds-press tds-composer-plus tds-raise-1" aria-label="Add">
             <Icon name="plus" size="composer" class="tds-plus-glyph" />
           </MenuTrigger>
-          <MenuContent class="tds-menu tds-plus-menu tds-over" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
+          <MenuContent class="tds-menu tds-plus-menu tds-over" data-edge-fade="y" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
             <MenuItem value="files" class="tds-menu-item">
               <MenuItemIcon class="tds-menu-icon">
                 <Icon name="image" size="menu" />
@@ -734,7 +734,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
                   <Icon name="caret-right" size="chip" />
                 </span>
               </MenuSubTrigger>
-              <MenuSubContent class="tds-menu tds-plus-menu tds-over">
+              <MenuSubContent class="tds-menu tds-plus-menu tds-over" data-edge-fade="y">
                 <For each={apps} keyed={(entry) => entry.key}>
                   {(entry) => (
                     <MenuItem value={entry().key} disabled class="tds-menu-item">
@@ -753,7 +753,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         <button ref={grip} type="button" class="tds-sheet-grip" aria-label={sheet() ? "Collapse composer" : "Expand composer"} aria-expanded={sheet() ? "true" : "false"} onClick={() => expand(!untrack(sheet))} />
         <div ref={mountField} class="tds-field tds-raise-2" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
           <Show when={props.attachments.items().length > 0}>
-            <div ref={(el) => ((tray = el), watchLayout(el, ".tds-attach", (card) => card.dataset.key ?? ""))} class="tds-attach-tray tds-scroll">
+            <div ref={(el) => ((tray = el), watchLayout(el, ".tds-attach", (card) => card.dataset.key ?? ""))} class="tds-attach-tray tds-scroll" data-edge-fade="x">
               <For each={props.attachments.items()} keyed={(item) => item.key}>
                 {(item) => (
                   <Card
@@ -773,7 +773,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </div>
           </Show>
           <div class="tds-field-body">
-            <div ref={mount} class="tds-editor tds-scroll" onMouseDown={(e) => e.target === e.currentTarget && (e.preventDefault(), editor?.commands.focus("end"))} />
+            <div ref={mount} class="tds-editor tds-scroll" data-edge-fade="y" onMouseDown={(e) => e.target === e.currentTarget && (e.preventDefault(), editor?.commands.focus("end"))} />
             <button type="button" class="tds-press tds-mic" aria-label="Dictate">
               <Icon name="waveform" size="composer" />
             </button>

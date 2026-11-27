@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import { tokens } from "@tock/tokens"
-import { backdrop, drive, growFrom, MorphIcon, morphFrom, morphInto, raise, recede, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
+import { backdrop, drive, edgeFade, growFrom, MorphIcon, morphFrom, morphInto, raise, recede, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
 
 /** Dev-only catalogue of the motion primitives (route /__motion). Each card is the smallest working use of one primitive. */
 export default function MotionDemo() {
@@ -50,7 +50,7 @@ export default function MotionDemo() {
       </section>
       <section class="tds-raise-1">
         <h2>Glide</h2>
-        <div class="tds-menu tds-over" role="menu">
+        <div class="tds-menu tds-over" data-edge-fade="y" role="menu">
           <For each={["Rename", "Pin", "Archive"]}>{(label) => <div class="tds-menu-item" role="menuitem" tabindex="-1" onPointerEnter={(e) => e.currentTarget.setAttribute("data-highlighted", "")} onPointerLeave={(e) => e.currentTarget.removeAttribute("data-highlighted")}>{label}</div>}</For>
         </div>
       </section>
@@ -87,6 +87,15 @@ export default function MotionDemo() {
         <button type="button" class="tds-motion-chip tds-raise-2" onClick={() => setCount((n) => n + 7)}><TextMorph value={count()} numbers /></button>
         <button type="button" class="tds-motion-chip tds-raise-2" aria-label="Toggle icon" onClick={() => setIcon((on) => !on)}><MorphIcon name={icon() ? "stop" : "arrow-up"} /></button>
         <button type="button" class="tds-motion-chip tds-raise-2 tds-motion-step" aria-label="Toggle step" onClick={() => setBusy((on) => !on)}><MorphIcon name={busy() ? "spinner" : "check"} /></button>
+      </section>
+      <section class="tds-raise-1">
+        <h2>Edge fade (scroll either list)</h2>
+        <div class="tds-motion-scroll tds-scroll" data-edge-fade="y">
+          <For each={Array.from({ length: 16 }, (_, i) => i + 1)} keyed={false}>{(n) => <div class="tds-motion-row">Row {n()}</div>}</For>
+        </div>
+        <div class="tds-motion-strip tds-scroll" ref={(el) => edgeFade(el, { axis: "x" })}>
+          <For each={Array.from({ length: 12 }, (_, i) => i + 1)} keyed={false}>{(n) => <div class="tds-motion-tile tds-raise-2">{n()}</div>}</For>
+        </div>
       </section>
       <section class="tds-raise-1">
         <h2>Raise and Backdrop</h2>
