@@ -1,4 +1,5 @@
 import { createSignal, For, onCleanup, Show, untrack } from "solid-js"
+import { TextMorph } from "@tock/ui/text-morph"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { animate, prefersReducedMotion } from "@tock/motion"
@@ -278,11 +279,11 @@ function Viewer(props: { opening: Opening }) {
         <b>{item().name}</b>
         <em class="num" aria-live="polite" aria-atomic="true">
           <Show when={items.length > 1}>
-            <span class="tds-lightbox-count">{index() + 1 + " of " + items.length}</span>
+            <span class="tds-lightbox-count"><TextMorph value={index() + 1 + " of " + items.length} /></span>
           </Show>
-          <Show when={sizes()[item().id]}>{(bytes) => <span>{formatSize(bytes())}</span>}</Show>
+          <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} /></span>}</Show>
           <Show when={zoom() > 1}>
-            <span class="tds-lightbox-zoom">{Math.round(zoom() * 100) + "%"}</span>
+            <span class="tds-lightbox-zoom"><TextMorph value={Math.round(zoom() * 100) + "%"} /></span>
           </Show>
         </em>
         <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>

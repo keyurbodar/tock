@@ -647,7 +647,7 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>("return document.querySelector('.tds-lightbox-bar em')?.textContent ?? ''"), (t) => /B$/.test(t), "the size in the bar")
     shot("lightbox-open")
     ab("click", ".tds-lightbox-picture")
-    until(() => js<string>("return document.querySelector('.tds-lightbox-zoom')?.textContent ?? ''"), (t) => t === "200%", "a click to zoom to 200%")
+    until(() => js<string>("const e = document.querySelector('.tds-lightbox-zoom'); return (e?.querySelector('[torph-sr]') ?? e)?.textContent ?? ''"), (t) => t === "200%", "a click to zoom to 200%")
     check(exists(".tds-lightbox[data-zoomed]"), "the lightbox marks itself zoomed")
     const pic = rect(".tds-lightbox-stage")!
     ab("mouse", "move", String(pic.x + pic.w / 2), String(pic.y + pic.h / 2))
