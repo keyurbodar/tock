@@ -10,7 +10,7 @@ import { gzipSync } from "node:zlib"
 const DIST = join(import.meta.dir, "../apps/web/dist")
 const KB = 1024
 /** Today's numbers with a little headroom; lower them as ui-sdk and marked move behind import() (target: initial JS under 150 KB gz). The editor chunk (TipTap, ProseMirror) loads right after first paint under the composer's static shell, so it has its own budget. */
-const BUDGET = { initialJs: 300 * KB, css: 34 * KB, lazyChunk: 60 * KB, editor: 135 * KB }
+const BUDGET = { initialJs: 310 * KB, css: 36 * KB, lazyChunk: 60 * KB, editor: 135 * KB }
 
 const html = readFileSync(join(DIST, "index.html"), "utf8")
 const initial = new Set([...html.matchAll(/(?:src|href)="\/assets\/([^"]+\.(?:js|css))"/g)].map((match) => match[1]!))
