@@ -56,6 +56,15 @@ export function leaveList(ids: readonly string[], then: () => void) {
   const done = () => {
     then()
     requestAnimationFrame(() => {
+      for (const wrap of wraps) {
+        wrap.getAnimations().forEach((animation) => animation.cancel())
+        wrap.removeAttribute("data-swiping")
+        wrap.removeAttribute("data-leaving")
+        wrap.dataset.go = ""
+        const row = wrap.querySelector<HTMLElement>(".tds-row")
+        if (row) Object.assign(row.style, { transform: "", transition: "" })
+        wrap.querySelectorAll<HTMLElement>(".tds-swipe-side").forEach((side) => (side.style.width = ""))
+      }
       for (const wrap of document.querySelectorAll<HTMLElement>(".tds-row-wrap")) {
         const from = before.get(wrap.dataset.id)
         const delta = from === undefined ? 0 : from - wrap.getBoundingClientRect().top
@@ -63,6 +72,7 @@ export function leaveList(ids: readonly string[], then: () => void) {
       }
     })
   }
+  for (const wrap of wraps) wrap.setAttribute("data-leaving", "")
   for (const wrap of wraps) wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit, easing: tokens.motion.curve.out, fill: "forwards" }).onfinish = () => --left || done()
 }
 

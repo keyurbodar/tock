@@ -40,6 +40,7 @@ export function MoveDialog() {
         <div class="tds-move-search">
           <Icon name="magnifying-glass" size="menu" />
           <input
+            ref={(el) => queueMicrotask(() => el.focus())}
             value={query()}
             placeholder={`Move “${titleOf(moving())}” to…`}
             aria-label="Folder name"

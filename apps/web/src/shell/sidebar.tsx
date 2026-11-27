@@ -186,7 +186,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
     <div
       ref={(el) => {
         wrap = el
-        if (takeEntering(props.session.id)) el.animate([{ clipPath: "inset(0 0 100% 0)", opacity: 0 }, { clipPath: "inset(0)", opacity: 1 }], { duration: D.layout, easing: curve.std })
+        if (takeEntering(props.session.id)) el.setAttribute("data-entering", "")
       }}
       class="tds-row-wrap"
       data-id={props.session.id}
@@ -388,7 +388,7 @@ export function Sidebar() {
   const onKey = (e: KeyboardEvent) => {
     const typing = (e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable=true], .ProseMirror")
     if (e.key === "Escape" && untrack(selected).length) return setSelected([])
-    if (e.key === " " && !typing && !e.repeat) {
+    if ((e.key === " " || e.code === "Space") && !typing && !e.repeat) {
       const row = document.querySelector<HTMLElement>(".tds-row:hover") ?? document.querySelector<HTMLElement>(".tds-row[aria-current=page]")
       const session = app.sessions.find((item) => row && row.getAttribute("href") === `/t/${item.id}`)
       if (!row || !session) return

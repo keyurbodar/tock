@@ -102,8 +102,9 @@ export function ToastRow(props: { show: boolean }) {
           ref={pills}
           class="tds-stack"
           data-open={open() ? "" : undefined}
-          role="dialog"
+          role={open() ? "dialog" : undefined}
           aria-label="Sessions"
+          aria-hidden={open() ? undefined : "true"}
           style={{ left: `${origin().left}px`, top: `${origin().top}px` }}
           onKeyDown={(e) => e.key === "Escape" && close()}
         >
@@ -126,7 +127,7 @@ export function ToastRow(props: { show: boolean }) {
                 <span class="min-w-0">
                   <b>{titleOf(session())}</b>
                   <span>
-                    {statusName[statusOf(session())]}, {shortTime(session().updatedAt, now())}
+                    {statusName[statusOf(session())]}, in the cloud, {shortTime(session().updatedAt, now()) || "now"}
                   </span>
                 </span>
                 <Show when={statusOf(session()) !== "idle"}>

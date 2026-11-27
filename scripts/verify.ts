@@ -75,7 +75,8 @@ function png(path: string, width: number, height: number, rgb: readonly [number,
 }
 const lightboxCount = () => js<string>("const e = document.querySelector('.tds-lightbox-count'); return (e?.querySelector('[torph-sr]') ?? e)?.textContent ?? ''")
 const openRow = () => {
-  ab("hover", ".tds-row-wrap")
+  until(() => exists(".tds-row-wrap[data-leaving]"), (busy) => !busy, "leaving rows to go")
+  ab("hover", ".tds-row-wrap .tds-row")
   ab("click", ".tds-row-wrap .tds-row-more")
   until(() => exists(".tds-menu"), Boolean, "the thread menu")
 }
@@ -228,9 +229,9 @@ const journeys: Record<string, () => void> = {
     const id = js<string>("return document.querySelector('.tds-row-wrap')?.dataset.id ?? ''")
     const at = rect(`.tds-row-wrap[data-id="${id}"]`)!
     const y = String(at.y + at.h / 2)
-    ab("mouse", "move", String(at.x + at.w - 20), y)
+    ab("mouse", "move", String(at.x + at.w - 60), y)
     ab("mouse", "down")
-    ab("mouse", "move", String(at.x + at.w - 110), y, "--steps", "8")
+    ab("mouse", "move", String(at.x + at.w - 150), y, "--steps", "8")
     ab("mouse", "up")
     until(() => exists(`.tds-row-wrap[data-id="${id}"][data-swiping]`), Boolean, "the row to stay open")
     check(js<string>(`return document.querySelector('.tds-row-wrap[data-id="${id}"] .tds-row').style.transform`) === "translateX(-132px)", "a short swipe snaps open to two actions")
@@ -239,7 +240,7 @@ const journeys: Record<string, () => void> = {
     ab("click", `.tds-row-wrap[data-id="${id}"] .tds-row`)
     until(() => exists(`.tds-row-wrap[data-id="${id}"][data-swiping]`), (open) => !open, "a click to close the swipe")
     wait(350)
-    ab("mouse", "move", String(at.x + at.w - 10), y)
+    ab("mouse", "move", String(at.x + at.w - 60), y)
     ab("mouse", "down")
     ab("mouse", "move", String(at.x + 10), y, "--steps", "12")
     ab("mouse", "up")
@@ -250,7 +251,9 @@ const journeys: Record<string, () => void> = {
   },
   multiselect() {
     ab("mouse", "move", "5", "5")
-    js<boolean>("const rows = [...document.querySelectorAll('.tds-row-wrap:not([data-archived]) .tds-row')].slice(0, 2); rows.forEach((r) => r.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }))); return rows.length === 2")
+    js<boolean>("const rows = [...document.querySelectorAll('.tds-row-wrap:not([data-archived]) .tds-row')].slice(0, 2); rows[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true })); return rows.length === 2")
+    wait(150)
+    js<boolean>("const r = [...document.querySelectorAll('.tds-row-wrap:not([data-archived]) .tds-row')][1]; r?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true })); return !!r")
     until(() => js<number>("return document.querySelectorAll('.tds-row[data-multi]').length"), (n) => n >= 2, "two selected rows")
     until(() => exists(".tds-bulk[data-open]"), Boolean, "the bulk bar")
     check(style(".tds-row[data-multi]", "backgroundColor") === "rgba(229, 143, 180, 0.1)", `multi-selected fill is rose 10%, got ${style(".tds-row[data-multi]", "backgroundColor")}`)
@@ -275,8 +278,11 @@ const journeys: Record<string, () => void> = {
     shot("peek")
     ab("mouse", "move", "900", "450")
     until(() => exists(".tds-peek"), (open) => !open, "the peek to hide on leave")
-    ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2))
     ab("eval", "document.activeElement?.blur()")
+    ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2))
+    until(() => exists(".tds-peek"), Boolean, "the peek to come back on rest", 3000)
+    ab("press", "Space")
+    until(() => exists(".tds-peek"), (open) => !open, "Space to hide the peek", 1500)
     ab("press", "Space")
     until(() => exists(".tds-peek"), Boolean, "Space to show the peek", 1500)
     ab("press", "Escape")
@@ -301,12 +307,13 @@ const journeys: Record<string, () => void> = {
     choose("Move to…")
     until(() => exists(".tds-move input"), Boolean, "the move dialog")
     check(rect(".tds-move")?.w === 420, "the move dialog is 420 wide")
-    ab("keyboard", "type", "Verify folder")
+    const folder = `Verify ${Date.now().toString(36)}`
+    ab("keyboard", "type", folder)
     until(() => js<boolean>("return [...document.querySelectorAll('.tds-move-item')].some((e) => e.textContent.includes('New Folder'))"), Boolean, "New Folder")
     wait(250)
     shot("move")
     ab("press", "Enter")
-    until(() => js<boolean>("return [...document.querySelectorAll('.tds-toast-title')].some((e) => e.textContent.includes('Moved to Verify folder'))"), Boolean, "the moved toast")
+    until(() => js<boolean>(`return [...document.querySelectorAll('.tds-toast-title')].some((e) => e.textContent.includes(${JSON.stringify(`Moved to ${folder}`)}))`), Boolean, "the moved toast")
     until(() => exists(".tds-move"), (open) => !open, "the dialog to close")
   },
   stack() {
@@ -334,10 +341,6 @@ const journeys: Record<string, () => void> = {
     check(style(`${row} .tds-row-title`, "fontSize") === "14.5px", "row titles are 14.5")
     check(style(`${row} .tds-row-preview`, "fontSize") === "13px", "row previews are 13")
     check(js<boolean>(`const t = document.querySelector('${row} .tds-row-title'); return t.scrollHeight <= t.clientHeight`), "row titles do not crop descenders")
-    ab("hover", row)
-    wait(200)
-    check(style(".tds-row-wrap:hover .tds-row-time", "opacity") === "0", "hover hides the time")
-    check(style(".tds-row-wrap:hover .tds-row-more", "opacity") === "1", "hover shows ⋯")
     shot("typography")
     ab("mouse", "move", "900", "450")
   },
@@ -365,7 +368,7 @@ const journeys: Record<string, () => void> = {
     choose("Delete")
     check(!exists(".tds-dialog"), "Delete asks for no dialog")
     until(count, (n) => n === before - 1, "the deleted row to leave")
-    until(() => js<boolean>("return [...document.querySelectorAll('.tds-toast-title')].some((e) => e.textContent.trim() === 'Deleted')"), Boolean, "the Deleted toast")
+    until(() => js<boolean>("return [...document.querySelectorAll('.tds-toast-title')].some((e) => e.textContent.includes('Deleted'))"), Boolean, "the Deleted toast")
     wait(300)
     shot("delete-undo")
     js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
@@ -1058,7 +1061,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

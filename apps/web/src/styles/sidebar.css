@@ -1,6 +1,10 @@
 @layer components {
   /* TDS px2 sidebar: pins, swipe actions, multi-select, bulk bar, peek, session stack, move dialog */
   .tds-row-wrap { overflow: hidden; border-radius: var(--tds-radius-row); touch-action: pan-y }
+  .tds-row-wrap[data-entering] {
+    transition: opacity var(--tds-dur-layout) var(--tds-ease-std), clip-path var(--tds-dur-layout) var(--tds-ease-std);
+    @starting-style { opacity: 0; clip-path: inset(0 0 100% 0) }
+  }
   .tds-row { user-select: none; -webkit-user-drag: none; will-change: transform }
   @media (hover: hover) and (pointer: fine) {
     .tds-row-wrap:hover :is(.tds-row-time, .tds-row-mark) { opacity: 0 }
