@@ -119,6 +119,32 @@ const SLOW_PROBE = `(() => {
   requestAnimationFrame(tick)
 })()`
 
+/** Sets the browser's default font size (the reader's "large text" setting) over CDP for as long as the returned session stays open. Chrome drops the override when the session detaches, so close it when done. */
+async function readerFont(px: number) {
+  const ws = new WebSocket(ab("get", "cdp-url"))
+  let id = 0
+  const pending = new Map<number, (m: { result?: any; error?: { message: string } }) => void>()
+  ws.onmessage = (e) => {
+    const m = JSON.parse(String(e.data))
+    pending.get(m.id)?.(m)
+  }
+  const send = (method: string, params: object = {}, sessionId?: string) =>
+    new Promise<any>((done, fail) => {
+      const i = ++id
+      pending.set(i, (m) => (m.error ? fail(new Error(`${method}: ${m.error.message}`)) : done(m.result)))
+      ws.send(JSON.stringify({ id: i, method, params, sessionId }))
+    })
+  await new Promise((open) => (ws.onopen = open))
+  const page = js<string>("return location.href")
+  const { targetInfos } = await send("Target.getTargets")
+  const target = targetInfos.find((t: { type: string; url: string }) => t.type === "page" && t.url === page)
+  check(target, `no CDP page target at ${page}`)
+  const { sessionId } = await send("Target.attachToTarget", { targetId: target.targetId, flatten: true })
+  await send("Page.enable", {}, sessionId)
+  await send("Page.setFontSizes", { fontSizes: { standard: px, fixed: px } }, sessionId)
+  return () => ws.close()
+}
+
 const WEATHER = "Check the weather in Tokyo and summarise it"
 const liveRows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
 /** Every journey starts here: a reload clears overlays, toasts, sidebar search and hover. */
@@ -1140,6 +1166,56 @@ const journeys: Record<string, () => void | Promise<void>> = {
     console.log(pairs.map((p) => `    ${p.sel}: ${p.wcag}:1, Lc ${p.apca} (${p.fg} on ${p.bg}, ${p.size})`).join("\n"))
     for (const p of pairs.filter((p) => p.sel.startsWith(".tds-bubble") || p.sel === ".tds-row-title")) check(p.wcag >= 4.5 && Math.abs(p.apca) >= 75, `${p.sel} body text passes 4.5:1 and Lc 75 (${p.wcag}, ${p.apca})`)
     shot("type")
+  },
+  async text200() {
+    ensureRows(2)
+    const close = await readerFont(32)
+    try {
+      ab("open", BASE)
+      until(() => exists(".tds-row"), Boolean, "the sidebar at 200% text")
+      check(style("html", "fontSize") === "32px", `the reader font applies, html is ${style("html", "fontSize")}`)
+      const clipped = (sels: string[]) =>
+        js<string[]>(`return ${JSON.stringify(sels)}.flatMap((s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length && e.scrollHeight > e.clientHeight + 1).map((e) => s + ' ' + e.scrollHeight + '>' + e.clientHeight))`)
+      const home = [".tds-row", ".tds-row-title", ".tds-row-preview", ".tds-row-time", ".tds-badge", ".tds-toast-row", ".tds-toast-row b", ".tds-toast-status", ".tds-search", ".tds-search-hint kbd", ".tds-empty-button", ".tds-pin-label"]
+      check(!exists("[data-narrow]"), "1440px at 200% text (45em) keeps the three panes")
+      check(exists(".tds-empty-button") && exists(".tds-badge"), "the New Chat pill and the rail badge are on screen")
+      const wide = clipped(home)
+      check(wide.length === 0, `no text box clips at 200% text: ${wide.join(", ")}`)
+      check(js<number>("return document.querySelector('.tds-row').getBoundingClientRect().height") > 100, "rows grow with the text")
+      shot("text200-wide")
+      ab("set", "viewport", "1280", "800")
+      until(() => exists("[data-narrow]"), Boolean, "the narrow layout at 1280px with 200% text (40em)")
+      const narrowClips = clipped(home)
+      check(narrowClips.length === 0, `no text box clips in the narrow layout: ${narrowClips.join(", ")}`)
+      shot("text200-narrow")
+      ab("set", "viewport", "1440", "900")
+      fresh()
+      const head = clipped([".tds-header-pill", ".tds-header-title"])
+      check(head.length === 0, `the header does not clip at 200% text: ${head.join(", ")}`)
+      shot("text200-chat")
+    } finally {
+      close()
+      ab("set", "viewport", "1440", "900")
+    }
+    ab("open", BASE)
+    until(() => style("html", "fontSize") === "16px", Boolean, "the default font after the override closes")
+    ab("set", "viewport", "1280", "800")
+    check(!exists("[data-narrow]"), "1280px at the default 16px text keeps the three panes")
+    ab("set", "viewport", "1440", "900")
+  },
+  rtl() {
+    const id = fresh()
+    say("مرحبا، هل يمكنك مساعدتي في كتابة رسالة قصيرة؟")
+    const bubble = ".tds-bubble[data-side='me']"
+    check(style(bubble, "direction") === "rtl", `an Arabic bubble reads right to left, got ${style(bubble, "direction")}`)
+    check(style(bubble, "unicodeBidi") === "plaintext", "bubble paragraphs resolve their own direction")
+    const title = `.tds-row-wrap[data-id="${id}"] .tds-row-title`
+    until(() => text(title), (t) => t.startsWith("مرحبا"), "the row to take the Arabic title")
+    check(style(title, "direction") === "rtl", `the Arabic row title reads right to left, got ${style(title, "direction")}`)
+    check(style(".tds-header-title", "direction") === "rtl", "the Arabic header title reads right to left")
+    settled()
+    check(style(".tds-bubble[data-side='agent']", "direction") === "ltr", "an English reply stays left to right")
+    shot("rtl")
   },
   typography() {
     ensureRows(1)
@@ -3838,7 +3914,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

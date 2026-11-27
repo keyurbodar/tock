@@ -172,7 +172,7 @@ export function Peek() {
               <Show when={peek().lines.length > 0} fallback={<div class="tds-peek-line">No messages yet</div>}>
                 <For each={peek().lines} keyed={(line) => line.key}>
                   {(line) => (
-                    <div class="tds-peek-line" data-me={line().me ? "" : undefined}>
+                    <div class="tds-peek-line" dir="auto" data-me={line().me ? "" : undefined}>
                       <span>{line().text}</span>
                     </div>
                   )}

@@ -5,6 +5,7 @@ import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { animate, morphFrom, watchLayout } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
+import { dirOf } from "../lib/dir"
 import { app, pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
 import { takeFlight, unpin } from "./thread-menu"
 import { hidePeek, peekEnter, peekLeave } from "./peek"
@@ -74,7 +75,7 @@ function PinLabel(props: { session: Session }) {
     if (title && title !== titleOf(props.session)) void updateThread(props.session.id, { title })
   }
   return (
-    <Show when={renamingPin() === props.session.id} fallback={<span class="tds-pin-label">{titleOf(props.session)}</span>}>
+    <Show when={renamingPin() === props.session.id} fallback={<span class="tds-pin-label" dir={dirOf(titleOf(props.session))}>{titleOf(props.session)}</span>}>
       <input
         ref={(el) => queueMicrotask(() => (el.focus(), el.select()))}
         class="tds-pin-rename"

@@ -155,13 +155,13 @@ function blocks(list: readonly Token[], clock?: Words): JSX.Element[] {
 function Block(props: { token: Token; clock?: () => Words | undefined; nested?: boolean }) {
   const side = () => (props.nested ? undefined : "agent")
   return (
-    <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" data-side={side()}>{props.token.raw.trim()}</div>}>
+    <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()}>{props.token.raw.trim()}</div>}>
       <Match when={props.token.type === "code"}>
         <CodeCard token={props.token as Tokens.Code} />
       </Match>
       <Match when={filesOnly(props.token)}>{(files) => <Attachments files={files()} side="agent" />}</Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" data-side={side()} data-heading={props.token.type === "heading" ? "" : undefined}>
+        <div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-heading={props.token.type === "heading" ? "" : undefined}>
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
         </div>
       </Match>
@@ -169,7 +169,7 @@ function Block(props: { token: Token; clock?: () => Words | undefined; nested?: 
         <hr class="tds-rule" />
       </Match>
       <Match when={props.token.type === "list" || props.token.type === "blockquote" || props.token.type === "table" || props.token.type === "html"}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" data-side={side()}>
+        <div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()}>
           {blocks([props.token], props.clock?.())}
         </div>
       </Match>

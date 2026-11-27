@@ -64,7 +64,8 @@ for (const [role, [size, lh, weight, tracking]] of Object.entries(t.type) as [st
 
 for (const n of t.space) { v(`space-${n}`, px(n)); th(`spacing-${n}`, `var(--tds-space-${n})`) }
 th("spacing-full", "100%")
-for (const [k, n] of Object.entries(t.size)) { v(`size-${k}`, px(n)); th(`spacing-${k}`, `var(--tds-size-${k})`) }
+const textBox = new Set<string>(t["text-box"])
+for (const [k, n] of Object.entries(t.size)) { v(`size-${k}`, textBox.has(k) ? rem(n) : px(n)); th(`spacing-${k}`, `var(--tds-size-${k})`) }
 for (const [k, n] of Object.entries(t.radius)) { v(`radius-${k}`, k === "pill" ? "9999px" : typeof n === "number" ? px(n) : n); th(`radius-${k}`, `var(--tds-radius-${k})`) }
 
 for (const [k, c] of Object.entries(t.motion.curve)) { v(`ease-${k}`, c); th(`ease-${k}`, `var(--tds-ease-${k})`) }

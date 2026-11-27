@@ -22,8 +22,8 @@ function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void
         <MorphIcon name={glyph[props.tone]} size="chip" />
       </span>
       <span class="tds-note-text">
-        <b>{props.note.title}</b>
-        <span>{props.note.body}</span>
+        <b dir="auto">{props.note.title}</b>
+        <span dir="auto">{props.note.body}</span>
       </span>
       <i class="num"><TextMorph value={shortTime(props.note.at, minute())} mode="calm" /></i>
     </button>

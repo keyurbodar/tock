@@ -9,6 +9,7 @@ import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { app, newThreadId, plainText, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
+import { dirOf } from "../lib/dir"
 import { shortTime } from "../lib/time"
 import { minute } from "../lib/clock"
 import { setShortcutsOpen } from "./shortcuts"
@@ -75,7 +76,7 @@ export function Palette() {
                     <span class="tds-palette-icon">
                       <Icon name={action().icon} size="menu" />
                     </span>
-                    <span class="tds-palette-title">{action().label}</span>
+                    <span class="tds-palette-title" dir="auto">{action().label}</span>
                     <span class="tds-palette-trail">
                       <Keys keys={action().keys} />
                     </span>
@@ -97,7 +98,7 @@ export function Palette() {
                       <span class={`tds-palette-icon ${glyphFor(session().id).hue}`}>
                         <Icon name={glyphFor(session().id).icon} size="menu" />
                       </span>
-                      <span class="tds-palette-title">{titleOf(session())}</span>
+                      <span class="tds-palette-title" dir={dirOf(titleOf(session()))}>{titleOf(session())}</span>
                       <span class="tds-palette-trail num">
                         <Show when={session().busy} fallback={shortTime(session().updatedAt, minute())}>
                           <Orb status="working" surface="side" size="orb-sm" />

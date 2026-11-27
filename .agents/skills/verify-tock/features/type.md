@@ -1,3 +1,5 @@
 # Type
 
 - `type`: root font smoothing, italic synthesis on, unitless leading and rem sizes (bubble scales with a 20px root and stays 14/20 at the default), tabular row times, and WCAG + APCA contrast of rendered text pairs written to `type-contrast.json`; bubbles and row titles must reach 4.5:1 and Lc 75.
+- `text200`: sets the reader's default font to 32px over CDP (`readerFont`), then checks that no sidebar text box (rows, title, preview, time, rail badge, toast row, search and its keycaps, New Chat pill, pin labels) or header pill clips (`scrollHeight <= clientHeight + 1`), that rows grow, that 1440px keeps three panes and 1280px (40em) switches to the narrow layout, and that 1280px at 16px does not. Text-bearing size tokens are listed in tokens.json `text-box` and emitted in rem.
+- `rtl`: sends an Arabic message and checks that the bubble, row title and header title compute `direction: rtl`, that bubbles use `unicode-bidi: plaintext`, and that the English reply stays LTR. Titles that change in place use `dirOf()` (lib/dir.ts), because Chrome does not re-resolve `dir="auto"` when a TextMorph swaps its text.

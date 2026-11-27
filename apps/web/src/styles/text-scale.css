@@ -1,0 +1,4 @@
+@layer components {
+  .tds-row { align-content: center }
+  .tds-bubble { unicode-bidi: plaintext }
+}

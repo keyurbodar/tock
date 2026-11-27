@@ -8,6 +8,7 @@ import { Skeleton } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app } from "../state/app"
 import { STATUS_LABEL } from "../lib/status"
+import { dirOf } from "../lib/dir"
 import { toast } from "../shell/toasts"
 
 const LABEL: Record<OrbStatus, string> = STATUS_LABEL
@@ -46,7 +47,7 @@ export function Header(props: { title: string; glyph: ReturnType<typeof glyphFor
             </span>
           </span>
           <span class="tds-header-pill tds-glass">
-            <span class="tds-header-title" title={props.title} role="heading" aria-level="1">
+            <span class="tds-header-title" dir={dirOf(props.title)} title={props.title} role="heading" aria-level="1">
               <Skeleton inline id={props.shape} label="Loading chat title" loading={props.loading === true} sample={() => <span>Planning the week ahead</span>}>
                 <TextMorph value={props.title} mode="morph" />
               </Skeleton>

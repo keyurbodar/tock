@@ -30,6 +30,7 @@
 @import "./skills-ui.css";
 @import "./cards.css";
 @import "./links.css";
+@import "./text-scale.css";
 
 @layer base {
   html {

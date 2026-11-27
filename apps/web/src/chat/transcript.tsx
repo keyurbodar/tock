@@ -24,7 +24,7 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
         <Attachments files={parts().files} side={mine() ? "me" : "agent"} queued={props.queued} />
       </Show>
       <Show when={parts().text}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
+        <div ref={(el) => clamp(el)} class="tds-bubble" dir="auto" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
           <div class="tds-bubble-rich">
             <Markdown text={parts().text} nested />
           </div>

@@ -13,6 +13,7 @@ import { glyphFor } from "../lib/glyph"
 import { statusOf } from "../lib/status"
 import { pressable } from "../lib/keys"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
+import { dirOf } from "../lib/dir"
 import { shortTime } from "../lib/time"
 import { minute } from "../lib/clock"
 import { archive, doomed, markRead, pin, remove, renaming, selected, setRenaming, setSelected, takeEntering, threadAction, threadMenu, ThreadMenu } from "./thread-menu"
@@ -374,13 +375,13 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
         <span class={`tds-row-icon ${glyph().hue}`} ref={icon}>
           <MorphIcon name={glyph().icon} size="row" />
         </span>
-        <span class="tds-row-title">
+        <span class="tds-row-title" dir={dirOf(titleOf(props.session))}>
           <Show when={renaming() === props.session.id} fallback={<Show when={props.query.trim()} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}><Highlight text={titleOf(props.session)} query={props.query} /></Show>}>
             <RenameField session={props.session} />
           </Show>
         </span>
         <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, minute())} mode="calm" /></span>
-        <span class="tds-row-preview">
+        <span class="tds-row-preview" dir={dirOf(previewOf(props.session))}>
           <Show when={props.query.trim()} fallback={<TextMorph value={previewOf(props.session)} mode="calm" />}>
             <Highlight text={previewOf(props.session)} query={props.query} />
           </Show>
