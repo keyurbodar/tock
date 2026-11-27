@@ -179,7 +179,7 @@ function OfflineBanner() {
     },
   )
   return (
-    <div class="tds-banner tds-raise-1" data-state={shown()} role="status" aria-live="polite" aria-hidden={shown() === "off" ? "true" : undefined}>
+    <div class="tds-banner tds-glass" data-state={shown()} role="status" aria-live="polite" aria-hidden={shown() === "off" ? "true" : undefined}>
       <Icon name={shown() === "ok" ? "check" : online() ? "arrow-clockwise" : "wifi-slash"} size="toast" />
       <TextMorph value={shown() === "ok" ? "Back online" : online() ? "Reconnecting…" : "You’re offline. Messages and files wait, and send when you’re back."} mode="calm" />
     </div>

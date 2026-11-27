@@ -1881,25 +1881,31 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("keyboard", "type", "hi there")
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me']"), Boolean, "a bubble to sit under the banner")
+    until(() => exists(".tds-header-status[data-on]"), (on) => !on, "the reply to finish", 15000)
+    wait(600)
     until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "off", "the banner to start hidden")
     check(js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''") === "off", "the banner starts hidden")
+    const layout = () => js<{ pad: string; top: number; first: number; height: number }>("const c = document.querySelector('.tds-column'); const b = c.querySelector('.tds-bubble'); return { pad: getComputedStyle(c).paddingTop, top: c.offsetTop, first: b.offsetTop, height: document.querySelector('.tds-transcript').scrollHeight }")
+    const before = layout()
     ab("set", "offline", "on")
     ab("eval", "window.dispatchEvent(new Event('offline'))")
     try {
       until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "on", "the offline banner", 12000)
       wait(400)
-      check(rect(".tds-banner")!.y >= rect(".tds-header-pill")!.y + rect(".tds-header-pill")!.h + 8, `the banner sits clear below the header pill (banner ${rect(".tds-banner")?.y}, pill bottom ${rect(".tds-header-pill")!.y + rect(".tds-header-pill")!.h})`)
-      const fill = js<string>("return getComputedStyle(document.querySelector('.tds-banner')).backgroundColor")
-      check(/^rgb\(/.test(fill), `the banner sits on a solid fill, got ${fill}`)
-      const band = js<{ banner: number; bubbles: number[]; clear: number }>("const b = document.querySelector('.tds-banner').getBoundingClientRect(); const t = document.querySelector('.tds-transcript'); const p = document.createElement('div'); p.style.height = 'var(--banner-clear)'; t.append(p); const clear = t.getBoundingClientRect().top + p.getBoundingClientRect().height; p.remove(); return { banner: b.bottom, clear, bubbles: [...document.querySelectorAll('.tds-column .tds-bubble, .tds-column .tds-md, .tds-column p')].map((e) => e.getBoundingClientRect()).filter((r) => r.height > 0 && r.bottom > 0).map((r) => r.top) }")
-      check(band.clear >= band.banner, `the transcript clears the band under the banner (clear to ${band.clear}, banner bottom ${band.banner})`)
-      check(band.bubbles.every((top) => top >= band.banner), `no bubble sits under the banner (banner bottom ${band.banner}, tops ${band.bubbles.join(", ")})`)
+      const banner = rect(".tds-banner")!
+      const pill = rect(".tds-header-pill")!
+      check(banner.y >= pill.y + pill.h || banner.y + banner.h <= pill.y, `the banner never covers the header pill (banner ${banner.y}..${banner.y + banner.h}, pill ${pill.y}..${pill.y + pill.h})`)
+      check(/blur/.test(js<string>("const s = getComputedStyle(document.querySelector('.tds-banner')); return s.backdropFilter || s.webkitBackdropFilter")), "the banner is glass")
+      check(JSON.stringify(layout()) === JSON.stringify(before), `the chat keeps its layout while the banner shows (${JSON.stringify(before)} -> ${JSON.stringify(layout())})`)
       shot("offline-banner")
     } finally {
       ab("set", "offline", "off")
     }
     until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "back online", 15000)
+    check(JSON.stringify(layout()) === JSON.stringify(before), "the chat keeps its layout while Back online shows")
     shot("offline-back")
+    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "off", "the banner to hide", 15000)
+    check(JSON.stringify(layout()) === JSON.stringify(before), "no gap is left behind once the banner hides")
   },
   needsrow() {
     ab("click", "button[aria-label='New chat']")
