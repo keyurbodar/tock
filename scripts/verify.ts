@@ -122,8 +122,11 @@ const SLOW_PROBE = `(() => {
 const WEATHER = "Check the weather in Tokyo and summarise it"
 const liveRows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
 /** Every journey starts here: a reload clears overlays, toasts, sidebar search and hover. */
+const gated = () => exists("input[autocomplete='current-password']")
 function reset() {
   ab("open", BASE)
+  // A journey that closes the browser (mobile swaps the device) drops the auth cookie; sign back in instead of failing every journey after it.
+  if (process.env.TOCK_KEY && gated()) (unlock(), ab("open", BASE))
   ab("mouse", "move", "900", "450")
   until(() => exists(".tds-row, .tds-sidebar .tds-empty"), Boolean, "the sidebar to load", 12000)
 }
@@ -2451,10 +2454,10 @@ const journeys: Record<string, () => void | Promise<void>> = {
       shot("mobile")
     } finally {
       ab("close")
-      ab("open", BASE)
-      unlock()
-
+      ab("open", BASE, "--args", "--no-sandbox")
       ab("set", "viewport", "1440", "900")
+      unlock()
+      ab("open", BASE)
     }
   },
   ui() {
@@ -3403,12 +3406,12 @@ const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog"
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
  */
-const requires: Record<string, { mode: "dev" | "build"; why: string }> = {
+const requires: Record<string, { mode: "dev" | "build" | "preview"; why: string }> = {
   newdivider: { mode: "dev", why: "imports /src/chat/items.ts to build its fixtures" },
   faults: { mode: "dev", why: "uses the dev-only sessionStorage tock.fault switch" },
   longchat: { mode: "dev", why: "seeds 650 bubbles with the dev-only window.__tockSeed" },
   offlinereload: { mode: "build", why: "the service worker registers only in a production build" },
-  swdeploy: { mode: "build", why: "swaps the files of a local production build (vite preview + TOCK_DIST)" },
+  swdeploy: { mode: "preview", why: "swaps the files of a local production build (vite preview + TOCK_DIST), so it cannot run against a deploy" },
   jank: { mode: "build", why: "the dev build runs Solid's dev-only performance track, which inflates every frame" },
 }
 let devCache: boolean | undefined
@@ -3424,8 +3427,11 @@ for (const name of run) {
   if (!journey) throw new Error(`unknown journey ${name}; known: ${order.join(", ")}`)
   const started = Date.now()
   const need = requires[name]
-  if (need && (need.mode === "dev") !== devServer()) {
-    console.log(`skip  ${name.padEnd(12)} ${need.mode === "dev" ? "dev server only" : "production build only"}: ${need.why}`)
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(BASE)
+  const runs = !need || (need.mode === "dev" ? devServer() : need.mode === "build" ? !devServer() : !devServer() && local)
+  if (!runs) {
+    const label = need.mode === "dev" ? "dev server only" : need.mode === "build" ? "production build only" : "local vite preview only"
+    console.log(`skip  ${name.padEnd(12)} ${label}: ${need.why}`)
     continue
   }
   try {
