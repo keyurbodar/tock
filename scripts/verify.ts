@@ -2091,6 +2091,20 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
     shot("longchat")
   },
+  prefetch() {
+    ensureRows(3)
+    ab("open", BASE)
+    until(liveRows, (n) => n >= 3, "rows")
+    const target = js<string>("return [...document.querySelectorAll('.tds-row-wrap:not([data-archived])')][2].dataset.id")
+    ab("hover", `.tds-row-wrap[data-id="${target}"] .tds-row`)
+    wait(400)
+    js<boolean>("window.__nav = { frames: 0, blank: 0, skeleton: 0 }; const end = performance.now() + 1500; const tick = () => { const n = window.__nav; if (location.pathname.startsWith('/t/')) { n.frames++; if (document.querySelector('.tds-transcript-skeleton')) n.skeleton++; if (!document.querySelector('.tds-column .tds-bubble')) n.blank++ } if (performance.now() < end) requestAnimationFrame(() => setTimeout(tick)) }; requestAnimationFrame(() => setTimeout(tick)); return true")
+    ab("click", `.tds-row-wrap[data-id="${target}"] .tds-row`)
+    wait(1700)
+    const nav = js<{ frames: number; blank: number; skeleton: number }>("return window.__nav")
+    check(nav.frames > 0, "the chat never opened")
+    check(nav.skeleton === 0 && nav.blank === 0, "a chat prefetched on hover opens with its messages in the first painted frame, no skeleton or blank: " + JSON.stringify(nav))
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -2100,7 +2114,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "revealstable", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "revealstable", "prefetch", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
