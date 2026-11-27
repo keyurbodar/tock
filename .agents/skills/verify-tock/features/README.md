@@ -37,6 +37,7 @@
 | Broken media and SVG | badmedia | a picture that won't decode shows a placeholder (no broken glyph) in the tray and the gallery; an SVG stays a picture before and after sending and opens in the lightbox |
 | Doc previews | docpreview | .html, .svg and .md open on Preview from the tray and the sent card: the page renders in a sandboxed iframe (no allow-same-origin, scripts never run) scaled from a 1280px desktop width to the box, SVG as an image, Markdown filling the box; Tab reaches the Preview / Source toggle and Source shows the CodeBlock filling and centred in the box; Escape closes and focus returns; at 390 and 768 every bar button stays on screen, actions collapse to labelled icons and the box never scrolls |
 | Lightbox failure | lightboxfail | a 2 KB .webm of zeros opens to a centred "video can’t be played" message in the words of its kind, the broken player hidden, Download still there |
+| Lightbox edges | lightboxedge | a 1x1 picture grows to the 160px minimum box with pixelated rendering; a 60x3000 strip keeps its width and scrolls along its length; a .png that is not a picture says "isn’t a valid image" over a placeholder tile, no broken image, no zoom bar, a type tile in the film strip; at 375x812 Close is at least 32px and every bar button is on screen |
 | Health | diagnostics | no Solid diagnostics or page errors across the run |
 - [media.md](media.md): image rows, doc cards, lightbox, finished-elsewhere dot (`lightbox`, `finished`)
 - [ui.md](ui.md): interface/layout rules from the jk and ek skills (`ui`)

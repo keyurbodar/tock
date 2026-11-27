@@ -161,7 +161,7 @@ function Block(props: { token: Token; clock?: () => Words | undefined; nested?: 
       </Match>
       <Match when={filesOnly(props.token)}>{(files) => <Attachments files={files()} side="agent" />}</Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-heading={props.token.type === "heading" ? "" : undefined}>
+        <div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-heading={props.token.type === "heading" ? "" : undefined} data-level={props.token.type === "heading" ? (props.token as Tokens.Heading).depth : undefined}>
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
         </div>
       </Match>

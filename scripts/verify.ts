@@ -3365,6 +3365,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
       until(() => exists(".tds-lightbox[data-ready] .tds-lightbox-preview"), Boolean, "the preview of " + name, 10000)
       wait(400)
       const kind = name.split(".").pop()!
+      until(() => exists({ html: ".tds-lightbox-preview > iframe", svg: ".tds-lightbox-preview > img", md: ".tds-lightbox-md" }[kind]!), Boolean, "the " + kind + " preview to render")
       const seen = inspect()
       check(seen.view === "preview", name + " opens on Preview")
       check(seen.sw <= seen.cw && seen.sh <= seen.ch, name + ": the box has no scrollbars " + JSON.stringify(seen))
@@ -3374,6 +3375,10 @@ const journeys: Record<string, () => void | Promise<void>> = {
         check(js<boolean>("return !window.__ran"), name + ": scripts in the page do not run")
       }
       if (kind === "svg") check(seen.svg?.ok && inside(seen.svg.r, seen.box), name + ": the drawing renders inside the box " + JSON.stringify(seen.svg))
+      if (kind === "md") {
+        const doc = js<{ size: number; bg: string }>("const h = document.querySelector('.tds-lightbox-md > [data-heading]'); return { size: parseFloat(getComputedStyle(h).fontSize), bg: getComputedStyle(h).backgroundColor }")
+        check(doc.size >= 24 && transparent(doc.bg), name + ": the file reads as a document, a real heading and no bubbles " + JSON.stringify(doc))
+      }
       if (kind === "md") check(seen.md && seen.md.w >= seen.cw - 48 - 2, name + ": the Markdown fills its column (" + seen.md?.w + " of " + seen.cw + ")")
       shot("docpreview-" + kind + "-" + how)
       let hops = 0
@@ -3392,16 +3397,16 @@ const journeys: Record<string, () => void | Promise<void>> = {
     }
     for (const name of Object.keys(files)) opened(name, ".tds-attach-open[aria-label='Open " + name + "']", "key")
     say("Here are the previews")
-    until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] .tds-doc\").length"), (n) => n === 3, "three sent doc cards")
-    js<boolean>("document.querySelectorAll(\".tds-files[data-side='me'] .tds-doc\").forEach((a) => a.dataset.verifyName = a.querySelector('b').textContent); return true")
-    for (const name of Object.keys(files)) opened(name, ".tds-doc[data-verify-name='" + name + "']", "click")
+    until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").length"), (n) => n === 3, "three sent cards")
+    js<boolean>("document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").forEach((a) => a.dataset.verifyName = a.querySelector('b')?.textContent ?? a.getAttribute('aria-label').replace(/^Open /, '')); return true")
+    for (const name of Object.keys(files)) opened(name, "[data-verify-name='" + name + "']", "click")
     for (const [w, h] of [[390, 844], [768, 1024]] as const) {
       ab("set", "viewport", String(w), String(h))
       wait(300)
       for (const name of Object.keys(files)) {
-        js<boolean>("document.querySelector(\".tds-doc[data-verify-name='" + name + "']\").scrollIntoView({ block: 'center' }); return true")
+        js<boolean>("document.querySelector(\"[data-verify-name='" + name + "']\").scrollIntoView({ block: 'center' }); return true")
         wait(300)
-        ab("click", ".tds-doc[data-verify-name='" + name + "']")
+        ab("click", "[data-verify-name='" + name + "']")
         until(() => exists(".tds-lightbox[data-ready] .tds-lightbox-preview"), Boolean, "the preview at " + w)
         wait(400)
         const bar = js<{ name: number; out: string[] }>("const b = document.querySelector('.tds-lightbox-bar b'); return { name: b.getBoundingClientRect().width, out: [...document.querySelectorAll('.tds-lightbox-bar button')].filter((e) => { const r = e.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth }).map((e) => e.getAttribute('aria-label')) }")
@@ -3444,6 +3449,52 @@ const journeys: Record<string, () => void | Promise<void>> = {
     shot("lightboxfail")
     ab("press", "Escape")
     until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
+  },
+  lightboxedge() {
+    fresh()
+    const broken = join(FIXTURES, "verify-broken.png")
+    writeFileSync(broken, "this is not a png")
+    const dot = png(join(FIXTURES, "verify-dot.png"), 1, 1, [229, 72, 77])
+    const strip = png(join(FIXTURES, "verify-strip.png"), 60, 3000, [48, 164, 108])
+    ab("upload", ".tds-composer-wrap input[type=file]", broken, dot, strip)
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 3 && s.every((x) => x === "done" || x === "failed"), "three uploads")
+    const open = (name: string) => {
+      ab("focus", ".tds-attach-open[aria-label='Open " + name + "']")
+      ab("press", "Enter")
+      until(() => exists(".tds-lightbox[data-ready]"), Boolean, "the lightbox for " + name)
+      wait(400)
+    }
+    const close = () => {
+      ab("press", "Escape")
+      until(() => exists(".tds-lightbox"), (on) => !on, "Escape to close")
+    }
+    open("verify-dot.png")
+    const tiny = js<{ w: number; h: number; render: string }>("const i = document.querySelector('.tds-lightbox-stage > img'); const r = i.getBoundingClientRect(); return { w: r.width, h: r.height, render: getComputedStyle(i).imageRendering }")
+    check(tiny.w >= tokens.size["lightbox-min"] - 1 && tiny.h >= tokens.size["lightbox-min"] - 1 && tiny.render === "pixelated", "a 1x1 picture grows to the minimum box with crisp pixels " + JSON.stringify(tiny))
+    shot("lightboxedge-dot")
+    close()
+    open("verify-strip.png")
+    const long = js<{ w: number; sh: number; ch: number }>("const s = document.querySelector('.tds-lightbox-stage'); const i = s.lastElementChild; return { w: i.getBoundingClientRect().width, sh: s.scrollHeight, ch: s.clientHeight }")
+    check(Math.abs(long.w - 60) < 1 && long.sh > long.ch, "a 60x3000 strip keeps its 60px width and scrolls along its length " + JSON.stringify(long))
+    js<boolean>("document.querySelector('.tds-lightbox-stage').scrollTop = 600; return true")
+    shot("lightboxedge-strip")
+    close()
+    open("verify-broken.png")
+    until(() => exists(".tds-lightbox[data-failed] .tds-lightbox-failed"), Boolean, "the broken picture's failure state")
+    const failed = js<{ copy: string; img: string; glyph: boolean }>("const i = document.querySelector('.tds-lightbox-stage > img'); return { copy: document.querySelector('.tds-lightbox-failed p').textContent, img: i ? getComputedStyle(i).visibility : 'gone', glyph: !!document.querySelector('.tds-lightbox-failed-glyph svg') }")
+    check(!exists(".tds-lightbox-zoom") && !exists(".tds-lightbox-film img[src$='" + js<string>("return document.querySelector('.tds-lightbox-film [aria-current] img')?.getAttribute('src') ?? 'none'") + "']"), "a picture that will not decode drops the zoom bar and shows a type tile in the film strip")
+    check(/isn’t a valid image/.test(failed.copy) && failed.img !== "visible" && failed.glyph, "a file that is not a picture says so over a placeholder, with no broken image behind it " + JSON.stringify(failed))
+    shot("lightboxedge-broken")
+    close()
+    ab("set", "viewport", "375", "812")
+    wait(300)
+    open("verify-dot.png")
+    const bar = js<{ close: number; out: string[] }>("return { close: document.querySelector(\".tds-lightbox-button[data-action='close']\").getBoundingClientRect().width, out: [...document.querySelectorAll('.tds-lightbox-bar button')].filter((e) => { const r = e.getBoundingClientRect(); return r.left < 0 || r.right > innerWidth || r.width < 32 }).map((e) => e.getAttribute('aria-label')) }")
+    check(bar.close >= 32 && bar.out.length === 0, "at 375 Close is at least 32px and every bar button sits on screen " + JSON.stringify(bar))
+    shot("lightboxedge-375")
+    close()
+    ab("set", "viewport", "1440", "900")
+    js<boolean>("document.querySelectorAll('.tds-attach-remove').forEach((b) => b.click()); return true")
   },
   trayopen() {
     fresh()

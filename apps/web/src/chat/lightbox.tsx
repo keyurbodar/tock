@@ -27,11 +27,11 @@ const previewable = (name: string): Previewable | undefined => (/\.html?$/i.test
 const sourceLang: Record<Previewable, string> = { html: "html", svg: "xml", md: "md" }
 
 /** What to say when an item will not show, in the words of its kind. */
-const failure = (name: string) => {
+const failure = (name: string, found: boolean | undefined) => {
   if (/\.(mp4|mov|webm|m4v)$/i.test(name)) return "This video can’t be played here. Download it to watch it."
   if (/\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(name)) return "This audio can’t be played here. Download it to listen."
   if (/\.pdf$/i.test(name)) return "PDF unavailable. The file may have been moved, deleted or damaged."
-  if (isImage(name) || /\.svg$/i.test(name)) return "Image unavailable. The file may have been moved or deleted."
+  if (isImage(name)) return found ? "This file isn’t a valid image. Download it to open it elsewhere." : "Image unavailable. The file may have been moved or deleted."
   return "Document unavailable. The file may have been moved or deleted."
 }
 
@@ -61,6 +61,7 @@ function Viewer(props: { opening: Opening }) {
   const [zoom, setZoom] = createSignal(1)
   const [failed, setFailed] = createSignal<Record<string, true>>({})
   const [sizes, setSizes] = createSignal<Record<string, number>>({})
+  const [found, setFound] = createSignal<Record<string, boolean>>({})
   const [pages, setPages] = createSignal<Record<string, number>>({})
   const [view, setView] = createSignal<View>("preview")
   const texts = new Map<string, string>()
@@ -71,8 +72,11 @@ function Viewer(props: { opening: Opening }) {
 
   for (const item of items)
     void fetch(fileUrl(item.id))
-      .then((response) => response.blob())
-      .then((blob) => setSizes((all) => ({ ...all, [item.id]: blob.size })))
+      .then((response) => {
+        setFound((all) => ({ ...all, [item.id]: response.ok }))
+        return response.ok ? response.blob() : undefined
+      })
+      .then((blob) => blob && setSizes((all) => ({ ...all, [item.id]: blob.size })))
       .catch(() => undefined)
 
   const current = () => stage.lastElementChild as HTMLElement | null
@@ -162,6 +166,33 @@ function Viewer(props: { opening: Opening }) {
     if (next === "source" && body !== undefined && !doc.querySelector(".tds-lightbox-source")) doc.append(source(kind, body))
   }
 
+  /**
+   * A picture smaller than the minimum box grows to it (crisp pixels when it is tiny), and a strip too thin to read
+   * keeps its short side and scrolls along its long one instead of shrinking to a sliver.
+   */
+  const fitSmall = (img: HTMLImageElement) => {
+    const { naturalWidth: w, naturalHeight: h } = img
+    if (!w || !h) return
+    const gutter = tokens.size["lightbox-nav-x"] + tokens.size["lightbox-nav"]
+    const boxW = Math.min(tokens.size["lightbox-w"], innerWidth - gutter * 2)
+    const boxH = Math.min(tokens.size["lightbox-h"], innerHeight - gutter * 3)
+    const min = tokens.size["lightbox-min"]
+    const fit = Math.min(1, boxW / w, boxH / h)
+    if (Math.max(w, h) < min) {
+      const grow = min / Math.max(w, h)
+      img.style.width = px(w * grow)
+      img.style.height = px(h * grow)
+      if (Math.max(w, h) < tokens.size["lightbox-pixelated"]) img.dataset.pixelated = ""
+      return
+    }
+    if (Math.min(w, h) * fit >= min) return
+    const keep = Math.min(1, (w < h ? boxW : boxH) / Math.min(w, h))
+    img.dataset.long = w < h ? "y" : "x"
+    stage.dataset.edgeFade = img.dataset.long
+    img.style.width = px(w * keep)
+    img.style.height = px(h * keep)
+  }
+
   const picture = (item: LightboxItem): HTMLElement => {
     if (/\.(mp4|mov|webm|m4v)$/i.test(item.name)) {
       const video = document.createElement("video")
@@ -234,6 +265,7 @@ function Viewer(props: { opening: Opening }) {
     img.draggable = false
     img.className = "tds-lightbox-picture"
     img.onerror = () => setFailed((all) => ({ ...all, [item.id]: true }))
+    void img.decode().then(() => fitSmall(img), () => undefined)
     return img
   }
 
@@ -250,6 +282,8 @@ function Viewer(props: { opening: Opening }) {
     setZoom(1)
     setView("preview")
     setIndex(next)
+    delete stage.dataset.edgeFade
+    stage.scrollTo(0, 0)
     preload(items[next + dir])
     if (old) {
       old.style.position = "absolute"
@@ -332,7 +366,7 @@ function Viewer(props: { opening: Opening }) {
   }
 
   const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0 || !(event.target as HTMLElement).closest("img.tds-lightbox-picture")) return
+    if (event.button !== 0 || !(event.target as HTMLElement).closest("img.tds-lightbox-picture:not([data-long])")) return
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y, touch: event.pointerType !== "mouse", moved: false }
     stage.setPointerCapture(event.pointerId)
   }
@@ -472,7 +506,7 @@ function Viewer(props: { opening: Opening }) {
         onPointerCancel={onPointerUp}
         onClick={onStageClick}
       />
-      <Show when={isImage(item().name)}>
+      <Show when={isImage(item().name) && !previewable(item().name) && !failed()[item().id]}>
         <div class="tds-lightbox-zoom tds-over" role="group" aria-label="Zoom">
           <button type="button" aria-label="Zoom out" disabled={zoom() <= 1} onClick={() => zoomTo(untrack(zoom) / limit["zoom-step"])}>
             <Icon name="minus" size="chip" />
@@ -489,7 +523,10 @@ function Viewer(props: { opening: Opening }) {
         </div>
       </Show>
       <Show when={failed()[item().id]}>
-        <p class="tds-lightbox-failed" role="alert">{failure(item().name)}</p>
+        <div class="tds-lightbox-failed" role="alert">
+          <span class="tds-lightbox-failed-glyph"><Icon name={isImage(item().name) ? "image" : "file"} size="menu" /></span>
+          <p>{failure(item().name, found()[item().id])}</p>
+        </div>
       </Show>
       <Show when={items.length > 1}>
         <button type="button" class="tds-lightbox-nav tds-over" data-dir="prev" aria-label="Previous image" onClick={() => show(untrack(index) - 1, -1)}>
@@ -502,8 +539,8 @@ function Viewer(props: { opening: Opening }) {
           <For each={items} keyed={(entry) => entry.id}>
             {(entry, i) => (
               <button type="button" data-on={i() === index() ? "" : undefined} aria-label={entry().name} aria-current={i() === index() ? "true" : undefined} onClick={() => show(untrack(i), untrack(i) > untrack(index) ? 1 : -1)}>
-                <Show when={isImage(entry().name)} fallback={<span class="tds-lightbox-film-doc">{entry().name.split(".").pop()?.toUpperCase()}</span>}>
-                  <img src={fileUrl(entry().id)} alt="" draggable={false} />
+                <Show when={isImage(entry().name) && !failed()[entry().id]} fallback={<span class="tds-lightbox-film-doc">{entry().name.split(".").pop()?.toUpperCase()}</span>}>
+                  <img src={fileUrl(entry().id)} alt="" draggable={false} onError={() => setFailed((all) => ({ ...all, [untrack(entry).id]: true }))} />
                 </Show>
               </button>
             )}
