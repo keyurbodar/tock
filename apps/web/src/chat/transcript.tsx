@@ -1,7 +1,6 @@
 import { clamp } from "./clamp"
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
-import { Dynamic } from "@solidjs/web"
-import "skullet/element"
+import { Skeleton } from "@tock/ui/motion"
 import { Icon } from "@tock/ui/icon"
 import { MorphIcon, TextMorph } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
@@ -78,6 +77,14 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
     </>
   )
 }
+
+/** One finished exchange in the shapes a chat loads into: drawn as the transcript's bones while its messages load. */
+const SAMPLE: readonly Item[] = [
+  { kind: "divider", key: "divider", text: "Today" },
+  { kind: "user", key: "user", text: "Plan the week ahead with me", images: [], at: null },
+  { kind: "work", key: "work", steps: [], plan: undefined, active: false, startedAt: 0, endedAt: 2000 },
+  { kind: "text", key: "text", text: "Here is a first pass at the week, with the three things worth a look today.", streaming: false, at: null },
+]
 
 export function Transcript(props: { state: ThreadState | undefined; sessionId: string }) {
   let scroller!: HTMLDivElement
@@ -163,54 +170,56 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
       requestAnimationFrame(() => toEnd())
     },
   )
+  const view = (item: () => Item) => (
+    <Switch>
+      <Match when={item().kind === "text"}>
+        <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} />
+      </Match>
+      <Match when={item().kind === "user" || item().kind === "routine"}>
+        <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} />
+      </Match>
+      <Match when={item().kind === "work"}>
+        <Activity work={item() as Work} open={open()?.key === item().key} onToggle={(anchor) => toggle(item().key, anchor)} />
+      </Match>
+      <Match when={item().kind === "ask" && (item() as Extract<Item, { kind: "ask" }>)}>
+        {(ask) => <AskCard sessionId={props.sessionId} ask={ask().ask} answer={ask().answer} pending={ask().pending} />}
+      </Match>
+      <Match when={item().kind === "typing"}>
+        <Typing />
+      </Match>
+      <Match when={item().kind === "caption"}>
+        <span class="tds-caption" data-side={(item() as Extract<Item, { kind: "caption" }>).side}>{(item() as Extract<Item, { kind: "caption" }>).text}</span>
+      </Match>
+      <Match when={item().kind === "divider"}>
+        <div class="tds-divider" role="separator"><span class="tds-divider-rule" /><span class="tds-divider-text">{(item() as Extract<Item, { kind: "divider" }>).text}</span><span class="tds-divider-rule" /></div>
+      </Match>
+      <Match when={item().kind === "error"}>
+        <div class="tds-alert tds-raise-1" role="status">
+          <span class="tds-tint tds-tint-failed size-toast-icon"><Icon name="warning-circle" size="toast" /></span>
+          <span class="min-w-0">
+            <b class="block text-body">{(item() as Extract<Item, { kind: "error" }>).title}</b>
+            <span class="text-caption text-muted">{(item() as Extract<Item, { kind: "error" }>).detail}</span>
+          </span>
+        </div>
+      </Match>
+    </Switch>
+  )
   return (
     <>
     <div ref={scroller} class="tds-transcript tds-scroll" onContextMenu={openLinkMenu} onScroll={onScroll}>
-      <div ref={column} class="tds-column">
-        <Show when={props.state?.phase === "loading" && items().length === 0}>
-          <Dynamic component="skullet-reveal" loading="" label="Loading messages" class="tds-transcript-skeleton">
-            <div class="tds-bubble" data-side="me">Plan the week ahead with me</div>
-            <p>Here is a first pass at the week, with the three things worth a look today and what can wait.</p>
-            <p>Tuesday holds the longest block, so the deep work goes there.</p>
-          </Dynamic>
-        </Show>
-        <For each={shown()} keyed={(item) => item.key}>
-          {(item) => (
-            <Switch>
-              <Match when={item().kind === "text"}>
-                <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} />
-              </Match>
-              <Match when={item().kind === "user" || item().kind === "routine"}>
-                <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} />
-              </Match>
-              <Match when={item().kind === "work"}>
-                <Activity work={item() as Work} open={open()?.key === item().key} onToggle={(anchor) => toggle(item().key, anchor)} />
-              </Match>
-              <Match when={item().kind === "ask" && (item() as Extract<Item, { kind: "ask" }>)}>
-                {(ask) => <AskCard sessionId={props.sessionId} ask={ask().ask} answer={ask().answer} pending={ask().pending} />}
-              </Match>
-              <Match when={item().kind === "typing"}>
-                <Typing />
-              </Match>
-              <Match when={item().kind === "caption"}>
-                <span class="tds-caption" data-side={(item() as Extract<Item, { kind: "caption" }>).side}>{(item() as Extract<Item, { kind: "caption" }>).text}</span>
-              </Match>
-              <Match when={item().kind === "divider"}>
-                <div class="tds-divider" role="separator"><span class="tds-divider-rule" /><span class="tds-divider-text">{(item() as Extract<Item, { kind: "divider" }>).text}</span><span class="tds-divider-rule" /></div>
-              </Match>
-              <Match when={item().kind === "error"}>
-                <div class="tds-alert tds-raise-1" role="status">
-                  <span class="tds-tint tds-tint-failed size-toast-icon"><Icon name="warning-circle" size="toast" /></span>
-                  <span class="min-w-0">
-                    <b class="block text-body">{(item() as Extract<Item, { kind: "error" }>).title}</b>
-                    <span class="text-caption text-muted">{(item() as Extract<Item, { kind: "error" }>).detail}</span>
-                  </span>
-                </div>
-              </Match>
-            </Switch>
-          )}
-        </For>
-      </div>
+      <Skeleton
+        fill
+        id={`transcript:${props.sessionId}`}
+        label="Loading messages"
+        loading={props.state?.phase === "loading" && items().length === 0}
+        sample={() => <div class="tds-column">{SAMPLE.map((item) => view(() => item))}</div>}
+      >
+        <div ref={column} class="tds-column">
+          <For each={shown()} keyed={(item) => item.key}>
+            {(item) => view(item)}
+          </For>
+        </div>
+      </Skeleton>
     </div>
     <button type="button" class="tds-jump tds-glass" data-on={away() ? "" : undefined} data-count={unseen() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} aria-label={unseen() ? `Scroll to end, ${unseen()} new` : "Scroll to end"} onClick={() => toEnd(true)}>
       <MorphIcon name="arrow-down" size="chip" class="tds-optical-down" weight={tokens.icon["stroke-send"]} />

@@ -28,8 +28,6 @@
   .tds-collapse[data-open] { grid-template-rows: 1fr; opacity: 1 }
   .tds-collapse > * { min-height: 0; overflow: hidden }
 
-  skullet-reveal { --skullet-speed: fast }
-  .tds-transcript-skeleton { display: flex; flex-direction: column; gap: var(--tds-space-12) }
 }
 
 @layer components {

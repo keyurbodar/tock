@@ -11,6 +11,7 @@
  * Backdrop   backdrop, backdropTo                            dim / scale / blur behind an expanded surface (on/off or by progress)
  * Text/Icon  TextMorph (roll|morph|calm|swap), MorphIcon     text, number and glyph morphs
  * Edge       edgeFade, installEdgeFade                      scroll-edge mask fade, only where content continues past an edge
+ * Skeleton   Skeleton                                        skullet placeholder drawn from a sample through the real components, revealed in place
  * Material   raise                                           shade classes (tds-raise-1/2/3) beside tds-over / tds-glass
  */
 export * from "./core"
@@ -22,6 +23,7 @@ export { scrub, type ScrubOptions } from "./gesture"
 export { inertiaTail, lockAxis, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeDecision, type SwipeSide, type SwipeStage, type SwipeThresholds } from "./swipe"
 export { drive, recede } from "./drive"
 export { edgeFade, installEdgeFade, type EdgeAxis } from "./edge"
+export { Skeleton } from "./skeleton"
 export { TextMorph, type TextMode } from "../text-morph"
 export { MorphIcon, type GlyphName, type MorphIconName } from "../morph-icon"
 

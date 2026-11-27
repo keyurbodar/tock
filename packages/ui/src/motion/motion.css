@@ -35,6 +35,16 @@
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: var(--tds-dur-tooltip) !important; filter: none !important; translate: none !important }
 }
 
+/* Skeleton: skullet bones in TDS material; the host fills its slot so the sample and the content share one box. */
+@layer components {
+  .tds-skeleton {
+    --skullet-base: var(--tds-overlay-fill-8); --skullet-highlight: var(--tds-overlay-hover); --skullet-radius: var(--tds-radius-kbd); --skullet-speed: fast;
+    min-width: 0;
+  }
+  .tds-skeleton[data-fill], .tds-skeleton[data-fill] > [skullet-pane], .tds-skeleton[data-fill] > [skullet-pane] > [skullet-loading], .tds-skeleton[data-fill] > [skullet-pane] > [skullet-loading] > :is([skullet-ghost], [skullet-snapshot]) { height: 100% }
+  .tds-skeleton[data-inline] { display: inline-flex; max-width: 100%; & > [skullet-pane] { min-width: 0 } }
+}
+
 /* Backdrop: one static scrim fades in behind an expanded surface (opacity only: blurring or scaling the whole app every frame cost 50+ long frames per open). */
 @layer components {
   .tds-backdrop-scrim {

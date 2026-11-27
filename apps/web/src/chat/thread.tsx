@@ -67,7 +67,7 @@ export function Thread() {
         attach(attachments, [...(e.dataTransfer?.files ?? [])], new DOMRect(e.clientX, e.clientY, 1, 1))
       }}
     >
-      <Header title={titleOf(session())} status={status()} />
+      <Header title={titleOf(session())} status={status()} loading={!session() && !app.sessionsLoaded} shape={`title:${params.id}`} />
       <Show when={state()?.phase !== "ready" || state()!.entries.length > 0 || state()!.pending.length > 0} fallback={<div class="tds-transcript grid"><Empty art="hi" /></div>}>
         <Boundary surface="transcript">
           <Transcript state={state()} sessionId={params.id} />

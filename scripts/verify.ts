@@ -48,7 +48,7 @@ function until<T>(read: () => T, ok: (value: T) => boolean, what: string, ms = 8
 const rect = (sel: string) => js<{ x: number; y: number; w: number; h: number } | null>(
   `const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null`,
 )
-const exists = (sel: string) => js<boolean>(`return [...document.querySelectorAll(${JSON.stringify(sel)})].some((e) => !e.closest("[data-ghost]"))`)
+const exists = (sel: string) => js<boolean>(`return [...document.querySelectorAll(${JSON.stringify(sel)})].some((e) => !e.closest("[data-ghost], [aria-busy='true']"))`)
 const style = (sel: string, prop: string) => js<string | null>(`const e = document.querySelector(${JSON.stringify(sel)}); return e ? getComputedStyle(e)[${JSON.stringify(prop)}] : null`)
 const transparent = (value: string | null) => value === "rgba(0, 0, 0, 0)" || value === "transparent"
 const choose = (label: string) =>
@@ -84,6 +84,37 @@ const openRow = () => {
   until(() => exists(".tds-menu"), Boolean, "the thread menu")
   until(() => js<number>("return document.querySelector('.tds-menu')?.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length ?? 0"), (n) => n === 0, "the thread menu to finish growing in")
 }
+
+/** Delays every socket message by ?slow=ms and records, per key element, its box on the last frame its skeleton was up and once loaded. */
+const SLOW_PROBE = `(() => {
+  const delay = Number(new URLSearchParams(location.search).get("slow") || 0)
+  if (!delay) return
+  const Native = window.WebSocket
+  window.WebSocket = class extends Native {
+    addEventListener(type, fn, opts) {
+      if (type !== "message") return super.addEventListener(type, fn, opts)
+      return super.addEventListener(type, (e) => setTimeout(() => fn.call(this, e), delay), opts)
+    }
+  }
+  const keys = { row: ".tds-row", me: ".tds-bubble[data-side='me']", act: ".tds-act", pill: ".tds-header-pill", title: ".tds-header-title", column: ".tds-column", composer: ".tds-composer-row" }
+  const box = (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height } }
+  const busy = (el) => !!el.closest("[aria-busy='true']") || !!el.querySelector("[aria-busy='true']")
+  const probe = (window.__skel = { skel: {}, last: {}, busyFrames: 0 })
+  const tick = () => {
+    const any = !!document.querySelector("[aria-busy='true']")
+    if (any) probe.busyFrames++
+    for (const [name, sel] of Object.entries(keys)) {
+      const all = [...document.querySelectorAll(sel)].filter((el) => !el.closest("[skullet-exiting]") && el.getBoundingClientRect().width > 0)
+      const loading = all.find(busy)
+      const real = all.find((el) => !busy(el) && !el.closest("[skullet-loading]"))
+      if (loading) probe.skel[name] = box(loading)
+      else if (any && real) probe.skel[name] = box(real)
+      else if (real && probe.skel[name]) probe.last[name] = box(real)
+    }
+    requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+})()`
 
 const WEATHER = "Check the weather in Tokyo and summarise it"
 const liveRows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
@@ -2318,7 +2349,7 @@ const journeys: Record<string, () => void> = {
     const target = js<string>("return [...document.querySelectorAll('.tds-row-wrap:not([data-archived])')][2].dataset.id")
     ab("hover", `.tds-row-wrap[data-id="${target}"] .tds-row`)
     wait(400)
-    js<boolean>("window.__nav = { frames: 0, blank: 0, skeleton: 0 }; const end = performance.now() + 1500; const tick = () => { const n = window.__nav; if (location.pathname.startsWith('/t/')) { n.frames++; if (document.querySelector('.tds-transcript-skeleton')) n.skeleton++; if (!document.querySelector('.tds-column .tds-bubble')) n.blank++ } if (performance.now() < end) requestAnimationFrame(() => setTimeout(tick)) }; requestAnimationFrame(() => setTimeout(tick)); return true")
+    js<boolean>("window.__nav = { frames: 0, blank: 0, skeleton: 0 }; const end = performance.now() + 1500; const tick = () => { const n = window.__nav; if (location.pathname.startsWith('/t/')) { n.frames++; if (document.querySelector('.tds-transcript [aria-busy=true]')) n.skeleton++; if (!document.querySelector('.tds-column .tds-bubble')) n.blank++ } if (performance.now() < end) requestAnimationFrame(() => setTimeout(tick)) }; requestAnimationFrame(() => setTimeout(tick)); return true")
     ab("click", `.tds-row-wrap[data-id="${target}"] .tds-row`)
     wait(1700)
     const nav = js<{ frames: number; blank: number; skeleton: number }>("return window.__nav")
@@ -2405,6 +2436,32 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
     js<boolean>("document.querySelectorAll('.tds-attach-remove').forEach((b) => b.click()); return true")
   },
+  skeleton() {
+    const id = seeded()
+    const probe = join(FIXTURES, "verify-slow.js")
+    writeFileSync(probe, SLOW_PROBE)
+    ab("close")
+    ab("open", `${BASE}/brand/toast-mascot-36.svg`, "--init-script", probe, "--args", "--no-sandbox")
+    ab("set", "viewport", "1440", "900")
+    type Box = { x: number; y: number; w: number; h: number }
+    const pass = (forget: string) => {
+      js<boolean>(`indexedDB.databases().then((all) => all.forEach((d) => indexedDB.deleteDatabase(d.name))); ${forget}; return true`)
+      ab("open", `${BASE}/t/${id}?slow=${tokens.motion.duration.panel * 5}`)
+      until(() => js<number>("return window.__skel?.busyFrames ?? 0"), (n) => n > 0, "a skeleton on the first frames")
+      until(() => exists(".tds-bubble[data-side='agent']") && js<boolean>("return !document.querySelector(\"[aria-busy='true']\")"), Boolean, "the chat to load over its skeleton", 12000)
+      wait(tokens.motion.duration.panel * 2)
+      const probed = js<{ skel: Record<string, Box>; last: Record<string, Box> }>("return window.__skel")
+      return Object.fromEntries(Object.entries(probed.last).filter(([name]) => probed.skel[name]).map(([name, box]) => [name, Math.max(...(["x", "y", "w", "h"] as const).map((m) => Math.abs(box[m] - probed.skel[name]![m])))]))
+    }
+    const cold = pass("localStorage.clear()")
+    for (const name of ["row", "column", "composer"]) check(cold[name] !== undefined && cold[name]! < 1, `first visit: ${name} moved ${cold[name]}px from its skeleton (sample rows and column must sit where loaded ones do) ${JSON.stringify(cold)}`)
+    const warm = pass("0")
+    shot("skeleton")
+    for (const name of ["row", "me", "act", "pill", "title", "column", "composer"]) check(warm[name] !== undefined && warm[name]! < 1, `reload: ${name} moved ${warm[name]}px between first paint and loaded data ${JSON.stringify(warm)}`)
+    ab("close")
+    ab("open", BASE, "--args", "--no-sandbox")
+    ab("set", "viewport", "1440", "900")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -2414,7 +2471,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

@@ -1,9 +1,7 @@
 import { Empty } from "../chat/empty"
-import { animate, inertiaTail, lockAxis, morphFrom, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
+import { animate, inertiaTail, lockAxis, morphFrom, Skeleton, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
 import { createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
-import { Dynamic } from "@solidjs/web"
-import "skullet/element"
 import { useNavigate, useParams } from "@solidjs/router"
 import { VList } from "virtua/solid"
 import { MenuTrigger } from "@ui-sdk/solid/menu"
@@ -369,7 +367,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
         <span class="tds-row-preview">
           <Highlight text={plainText(props.session.preview) || "No messages yet"} query={props.query} />
         </span>
-        <span class="tds-row-mark">
+        <span class="tds-row-mark" skullet-ignore="">
           <Show when={props.session.busy} fallback={<Show when={props.session.meta.unread}><i class="tds-unread" /></Show>}>
             <Orb status="working" surface={props.selected ? "sel" : "side"} />
           </Show>
@@ -490,14 +488,14 @@ export function Sidebar() {
       <ToastRow show={query().trim() === ""} />
 
       <div class="relative -mx-12 min-h-0 flex-1" onPointerLeave={() => peekLeave()}>
+        <Skeleton fill label="Loading chats" loading={!app.sessionsLoaded && entries().length === 0 && !query()} sample={() => <SampleRows />}>
+        <div class="h-full">
         <Show
           when={entries().length > 0}
           fallback={
-            <Show when={app.sessionsLoaded || query()} fallback={<RowSkeletons />}>
-              <div class="px-12 py-36">
-                <Empty art={query() ? "search" : "hi"} small />
-              </div>
-            </Show>
+            <div class="px-12 py-36">
+              <Empty art={query() ? "search" : "hi"} small />
+            </div>
           }
         >
           <VList data={entries()} class="tds-roster tds-scroll h-full px-12 pb-16" data-edge-fade="y" itemSize={tokens.size.row}>
@@ -522,6 +520,8 @@ export function Sidebar() {
             }
           </VList>
         </Show>
+        </div>
+        </Skeleton>
       </div>
 
       <div class="tds-bulk tds-over" data-open={selected().length > 1 ? "" : undefined} role="toolbar" aria-label="Selected chats" inert={selected().length > 1 ? undefined : true}>
@@ -551,23 +551,22 @@ export function Sidebar() {
 
 const sample = { title: "Planning the week ahead", preview: "Three things worth a look today", time: "2h" }
 
-function RowSkeletons() {
+/** Sample rows through the row's own classes, so each bone sits where a loaded row will. */
+function SampleRows() {
   return (
-    <div class="px-12">
-      <Dynamic component="skullet-reveal" loading="" label="Loading chats">
-        <For each={Array.from({ length: tokens.limit["skeleton-rows"] })}>
-          {() => (
-            <div class="tds-row">
-              <span class="tds-row-icon">
-                <Icon name="hash" size="row" />
-              </span>
-              <span class="tds-row-title">{sample.title}</span>
-              <span class="tds-row-time">{sample.time}</span>
-              <span class="tds-row-preview">{sample.preview}</span>
-            </div>
-          )}
-        </For>
-      </Dynamic>
+    <div class="h-full px-12 pb-16">
+      <For each={Array.from({ length: tokens.limit["skeleton-rows"] })} keyed={false}>
+        {() => (
+          <div class="tds-row">
+            <span class="tds-row-icon">
+              <Icon name="hash" size="row" />
+            </span>
+            <span class="tds-row-title">{sample.title}</span>
+            <span class="tds-row-time num">{sample.time}</span>
+            <span class="tds-row-preview">{sample.preview}</span>
+          </div>
+        )}
+      </For>
     </div>
   )
 }

@@ -2,13 +2,14 @@ import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { Orb, type OrbStatus } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
+import { Skeleton } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app } from "../state/app"
 import { toast } from "../shell/toasts"
 
 const LABEL: Record<OrbStatus, string> = { working: "working", needs: "needs you", failed: "failed", done: "done" }
 
-export function Header(props: { title: string; status: OrbStatus | undefined }) {
+export function Header(props: { title: string; status: OrbStatus | undefined; loading?: boolean; shape?: string }) {
   const [finding, setFinding] = createSignal(false)
   const share = async () => {
     await navigator.clipboard.writeText(location.href)
@@ -32,7 +33,11 @@ export function Header(props: { title: string; status: OrbStatus | undefined }) 
             <img src="/brand/toast-face-center.svg" alt="" class="size-header-face" draggable={false} />
           </span>
           <span class="tds-header-pill tds-glass">
-            <span class="tds-header-title" title={props.title} role="heading" aria-level="1"><TextMorph value={props.title} mode="morph" /></span>
+            <span class="tds-header-title" title={props.title} role="heading" aria-level="1">
+              <Skeleton inline id={props.shape} label="Loading chat title" loading={props.loading === true} sample={() => <span>Planning the week ahead</span>}>
+                <TextMorph value={props.title} mode="morph" />
+              </Skeleton>
+            </span>
             <span class="tds-header-status" data-on={status() ? "" : undefined}>
               <Show when={status()}>{(s) => <Orb status={s()} surface="main" size="orb-sm" />}</Show>
               <TextMorph value={status() ? LABEL[status()!] : ""} mode="morph" />

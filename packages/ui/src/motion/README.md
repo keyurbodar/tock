@@ -128,6 +128,19 @@ edgeFade(el, { axis: "x" })                                 // imperative, retur
 - `data-edge` is set only while some side overflows, and the mask applies only then, so a box that fits keeps its shadow and glass unmasked.
 - For markup you do not render (TipTap code blocks, the roster's VList viewport), pass the attribute through its props. A box that draws its own mask (the transcript's column fade) owns its edges, and the lint skips it.
 
+## Skeleton: loading without a shift
+Use it for anything that shows a placeholder while data loads: sidebar rows, the chat title, the transcript. It wraps skullet's `Reveal`; never write a shimmer or a `skullet-reveal` by hand.
+```tsx
+<Skeleton loading={!loaded()} id={`transcript:${id}`} label="Loading messages" fill sample={() => <Rows rows={SAMPLE} />}>
+  <div class="h-full">…the real content…</div>
+</Skeleton>
+```
+- `sample` renders sample data through the same components and classes as the content, so the bones take exactly the content's box. skullet draws a bar per text line and a block per icon, image and control.
+- `children` is one element, created once; it is revealed into the same host when `loading` turns false (smart reveal: instant under 150ms, else in sequence). Content that never loaded is mounted directly, with no reveal.
+- `id` keys the remembered shape. After a reveal the shape is saved once and the watcher stops, so ticking text inside (TextMorph, relative times) costs nothing. The next load under that `id` (a reload of the same chat) draws the remembered shape, which matches the content exactly. Leave `id` off for virtual lists (the sidebar): their shape passes skullet's 20k-character cap, so it would be remembered empty; uniform sample rows already sit where loaded rows do.
+- `fill` makes the host and its panes fill a sized slot (scrollers, virtual lists); `inline` sizes to its text (titles).
+- Bones use `--skullet-base` / `--skullet-highlight` from TDS overlays (motion.css). The `skeleton` journey proves key elements move less than 1px between first paint and loaded data.
+
 ## Material: Raise
 `tds-raise-1` (fields, chips, cards), `tds-raise-2` (buttons, selected states, pin circles) and `tds-raise-3` (panes and floating cards) add a top highlight, a gradient sheen and a small plus a large shadow. When a state adds a ring, set `--tds-raise-ring` rather than `box-shadow`. Glass overlays keep `tds-over` and `tds-glass`. `raise` exports the class names.
 
