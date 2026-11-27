@@ -163,6 +163,37 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
     close()
   }
 
+  let wheel: { lock: "swipe" | "scroll" | undefined; acc: number; idle?: ReturnType<typeof setTimeout>; t: number } | undefined
+  /** px2 trackpad swipe: two-finger horizontal scroll moves the row; intent locks per gesture, release comes a beat (wheel-idle) after the last event. */
+  const onWheel = (e: WheelEvent) => {
+    if (renaming() === untrack(() => props.session.id) || start) return
+    wheel ??= { lock: undefined, acc: x, t: e.timeStamp }
+    if (!wheel.lock) {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * L["swipe-ratio"]) wheel.lock = "swipe"
+      else if (Math.abs(e.deltaY) > 0) wheel.lock = "scroll"
+      if (wheel.lock === "swipe") {
+        if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe()
+        go = false
+        velocity = 0
+        hidePeek()
+      }
+    }
+    clearTimeout(wheel.idle)
+    const done = () => {
+      const ended = wheel
+      wheel = undefined
+      if (ended?.lock === "swipe") release()
+    }
+    wheel.idle = setTimeout(done, D["wheel-idle"])
+    if (wheel.lock !== "swipe") return
+    e.preventDefault()
+    const dt = e.timeStamp - wheel.t
+    if (dt > 0) velocity = velocity * 0.4 + (-e.deltaX / dt) * 0.6
+    wheel.t = e.timeStamp
+    wheel.acc -= e.deltaX
+    drag(wheel.acc)
+  }
+
   const dragStart = (e: PointerEvent) => {
     const box = row.getBoundingClientRect()
     ghost = row.cloneNode(true) as HTMLElement
@@ -242,6 +273,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
         aria-current={props.selected ? "page" : undefined}
         onPointerEnter={(e) => peekEnter(untrack(() => props.session), e.currentTarget)}
         onPointerLeave={() => peekLeave()}
+        onWheel={(e) => onWheel(e)}
         onPointerDown={(e) => {
           hidePeek()
           if (e.button !== 0 || renaming() === untrack(() => props.session.id)) return

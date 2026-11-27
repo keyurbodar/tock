@@ -689,6 +689,23 @@ const journeys: Record<string, () => void> = {
     ab("mouse", "move", "900", "450")
     until(() => exists(".tds-peek"), (open) => !open, "the peek to hide once the pointer leaves it")
   },
+  trackpad() {
+    const box = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
+    ab("mouse", "move", String(box.x + box.w / 2), String(box.y + box.h / 2))
+    for (let i = 0; i < 6; i++) ab("mouse", "wheel", "0", "-14")
+    wait(60)
+    const open = js<string>("const r = document.querySelector('.tds-row-wrap:not([data-archived]) .tds-row'); return r.style.transform")
+    check(/translateX\((\d|[1-9]\d)/.test(open), `two-finger swipe right moves the row (${open})`)
+    shot("trackpad-swipe")
+    wait(400)
+    check(exists(".tds-row-wrap[data-swiping]"), "release past the snap point leaves Pin and Unread open")
+    ab("mouse", "move", "900", "450")
+    ab("mouse", "down")
+    ab("mouse", "up")
+    until(() => exists(".tds-row-wrap[data-swiping]"), (on) => !on, "an outside press closes the swipe")
+    for (let i = 0; i < 4; i++) ab("mouse", "wheel", "40", "0")
+    check(!exists(".tds-row-wrap[data-swiping]"), "vertical scrolling never swipes")
+  },
   morph() {
     ab("click", "button[aria-label='New chat']")
     ab("click", ".tds-composer-plus")
@@ -1334,7 +1351,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

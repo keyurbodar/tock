@@ -9,7 +9,6 @@ import { Placeholder } from "@tiptap/extensions"
 import { EditorState } from "@tiptap/pm/state"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
-import { Swap } from "@tock/ui/swap"
 import { tokens } from "@tock/tokens"
 import { idb } from "../lib/idb"
 import { app, newThreadId, titleOf } from "../state/app"
@@ -687,7 +686,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           </div>
         </div>
         <button type="submit" class="tds-press tds-send" data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
-          <Swap on={stop()} a={<MorphIcon name="arrow-up" class="tds-optical-up" weight={tokens.icon["stroke-send"]} />} b={<Icon name="stop:fill" size="toast" />} />
+          <MorphIcon name={stop() ? "stop" : "arrow-up"} class={stop() ? "" : "tds-optical-up"} weight={tokens.icon["stroke-send"]} />
         </button>
       </form>
     </div>

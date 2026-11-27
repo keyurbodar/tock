@@ -22,7 +22,7 @@
     transition: rotate var(--tds-dur-swap) var(--tds-ease-sheet);
   }
   .tds-morph line {
-    transition-property: x1, y1, x2, y2, opacity;
+    transition-property: opacity;
     transition-duration: var(--tds-dur-swap);
     transition-timing-function: var(--tds-ease-sheet);
   }
