@@ -467,6 +467,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(`.tds-row[href="/t/${chat}"][data-unread] .tds-unread`), Boolean, "chat A's row to show unread")
     shot("finished-landed")
     void title
+  },
   empty() {
     ab("open", BASE)
     until(() => exists(".tds-empty img[src*='toast-hi']"), Boolean, "the home empty state")
