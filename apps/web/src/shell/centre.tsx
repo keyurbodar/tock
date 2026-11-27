@@ -107,6 +107,11 @@ export function Centre() {
       </div>
       <div class="tds-centre-body tds-scroll" data-edge-fade="y">
         <Show when={notes.list.length > 0} fallback={<Empty art="quiet" small />}>
+          <Show when={sections().needs.length === 0 && unreadNotes() === 0}>
+            <div class="tds-centre-caught">
+              <Empty art="inbox" small />
+            </div>
+          </Show>
           <Show when={sections().needs.length > 0}>
             <div class="tds-centre-sec">Needs you</div>
             <For each={sections().needs} keyed={(group) => group.key}>

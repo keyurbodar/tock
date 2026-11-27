@@ -45,4 +45,8 @@
     content: ""; position: absolute; z-index: -1; inset: calc(var(--tds-space-16) * -1) calc(var(--tds-space-32) * -1); pointer-events: none;
     background: radial-gradient(closest-side, var(--tds-surface-main), transparent);
   }
+
+  /* EmptyObjects: the archive group opened with nothing left in it, and the centre once everything is read */
+  .tds-archive-empty { padding: var(--tds-space-16) 0 var(--tds-space-24) }
+  .tds-centre-caught { padding: var(--tds-space-16) 0 var(--tds-space-8) }
 }

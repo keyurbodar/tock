@@ -2332,6 +2332,53 @@ const journeys: Record<string, () => void | Promise<void>> = {
     wait(1500)
     check(!exists(".tds-followups"), `the dismissed row stays gone after a reload (${key})`)
   },
+  emptystates() {
+    // Loading: until the server's chat list arrives, home shows "Warming up…" instead of the greeting. The boot is too quick to
+    // catch, so the journey holds the app in that state through its own store, then lets it go.
+    ab("open", `${BASE}/`)
+    until(() => text("#main .tds-empty b"), (t) => t === "Say hi to toast", "the greeting once chats load", 15000)
+    const store = "import(performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes('/src/state/app.ts')) ?? '/src/state/app.ts')"
+    ab("eval", `${store}.then((m) => m.setApp((st) => { st.sessionsLoaded = false }))`)
+    until(() => text("#main .tds-empty b"), (t) => t === "Warming up…", "the loading empty state while the chat list loads")
+    check(js<string>("return document.querySelector('#main .tds-empty img')?.getAttribute('src') ?? ''").endsWith("toast-loading.svg"), "the loading state uses the EmptyToast art")
+    wait(500)
+    shot("empty-loading")
+    ab("eval", `${store}.then((m) => m.setApp((st) => { st.sessionsLoaded = true }))`)
+    until(() => text("#main .tds-empty b"), (t) => t === "Say hi to toast", "the greeting once chats load", 15000)
+    // Inbox: once every note is read and nothing needs you, the centre says so above the history.
+    const chat = fresh()
+    field()
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
+    ab("eval", "[...document.querySelectorAll('.tds-row:not([aria-current])')][0]?.click()")
+    until(() => js<string>("return location.pathname"), (p) => !p.endsWith(chat), "another chat to open")
+    ab("click", "[data-bell]")
+    until(() => exists(`.tds-centre .tds-note-group[data-chat="${chat}"]`), Boolean, "this chat's note in the centre", 25000)
+    ab("click", ".tds-centre .tds-centre-read")
+    until(() => text(".tds-centre-caught .tds-empty b") || (exists(".tds-centre-sec") && text(".tds-centre-sec") === "Needs you" ? "needs" : ""), Boolean, "the inbox empty state once all is read")
+    if (exists(".tds-centre-caught")) {
+      check(text(".tds-centre-caught .tds-empty b") === "All caught up", "the centre reads All caught up")
+      check(js<string>("return document.querySelector('.tds-centre-caught img')?.getAttribute('src') ?? ''").endsWith("obj-inbox.svg"), "with the EmptyObjects inbox art")
+      shot("empty-inbox")
+    }
+    ab("press", "Escape")
+    // Archive: archive one chat, open the archive, then unarchive it: the open archive says it is empty.
+    ab("eval", `import(performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes('/src/state/app.ts')) ?? '/src/state/app.ts').then(async (m) => { for (const s of m.app.sessions.filter((s) => s.meta.archived)) await m.updateThread(s.id, { archived: false }); await m.updateThread('${chat}', { archived: true }); window.__arch = true })`)
+    until(() => js<boolean>("return window.__arch === true"), Boolean, "the archive to hold just this chat")
+    until(() => (js<boolean>("const r = document.querySelector('.tds-roster'); r.scrollTop = r.scrollHeight; r.dispatchEvent(new Event('scroll')); return true"), exists(".tds-archive-head")), Boolean, "the archive group at the end of the list")
+    js<boolean>("document.querySelector('.tds-archive-head').click(); return true")
+    until(() => js<string>("return document.querySelector('.tds-archive-head')?.getAttribute('aria-expanded') ?? ''"), (e) => e === "true", "the archive to open")
+    ab("eval", `import(performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes('/src/state/app.ts')) ?? '/src/state/app.ts').then((m) => m.updateThread('${chat}', { archived: false }))`)
+    until(() => (js<boolean>("const r = document.querySelector('.tds-roster'); r.scrollTop = r.scrollHeight; r.dispatchEvent(new Event('scroll')); return true"), text(".tds-archive-empty .tds-empty b")), (t) => t === "Archive is empty", "the open archive to say it is empty")
+    wait(400)
+    js<boolean>("const r = document.querySelector('.tds-roster'); r.scrollTop = r.scrollHeight; return true")
+    wait(300)
+    check(js<string>("return document.querySelector('.tds-archive-empty img')?.getAttribute('src') ?? ''").endsWith("obj-archive.svg"), "with the EmptyObjects archive art")
+    shot("empty-archive")
+    js<boolean>("document.querySelector('.tds-archive-head').click(); return true")
+    until(() => exists(".tds-archive-head"), (on) => !on, "a closed, empty archive to leave the list")
+  },
   headerglyph() {
     const id = fresh()
     check(!exists(".tds-header-avatar[data-glyph]"), "a new chat keeps the toast mascot")
@@ -5051,7 +5098,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "previews", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "reactsmooth", "reactanchorless", "reactrecent", "replyrail", "quoteselect", "quoteheader", "quoteesc", "quotesidebar", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "emptystates", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "previews", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "reactsmooth", "reactanchorless", "reactrecent", "replyrail", "quoteselect", "quoteheader", "quoteesc", "quotesidebar", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

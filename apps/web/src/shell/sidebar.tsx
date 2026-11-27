@@ -25,7 +25,7 @@ import { createHotkey } from "@tanstack/solid-hotkeys"
 import { appHotkeys, typing } from "./hotkeys"
 import { reactionLine } from "../state/reactions"
 
-type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number }
+type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number } | { kind: "archive-empty" }
 
 const rowEntries = new WeakMap<Session, Entry>()
 const rowEntry = (session: Session): Entry => {
@@ -471,7 +471,7 @@ export function Sidebar() {
     const active = matches().filter((s) => !s.meta.archived)
     const archived = matches().filter((s) => s.meta.archived)
     const rows = active.map(rowEntry)
-    if (archived.length === 0) return rows
+    if (archived.length === 0) return archiveOpen() && query().trim() === "" ? [...rows, archiveEntry(0), { kind: "archive-empty" } as const] : rows
     const open = archiveOpen() || query().trim() !== ""
     return [...rows, archiveEntry(archived.length), ...(open ? archived.map(rowEntry) : [])]
   })
@@ -527,7 +527,11 @@ export function Sidebar() {
         >
           <VList ref={roster} data={entries()} class="tds-roster tds-scroll h-full px-12 pb-16" tabindex="-1" data-edge-fade="y" itemSize={tokens.size.row}>
             {(entry) =>
-              entry.kind === "archive" ? (
+              entry.kind === "archive-empty" ? (
+                <div class="tds-archive-empty">
+                  <Empty art="archive" small />
+                </div>
+              ) : entry.kind === "archive" ? (
                 <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>
                   <Icon name="archive" size="chip" />
                   <span>Archive</span>
