@@ -25,7 +25,8 @@ export type Step =
     }
 
 export type Item =
-  | { readonly kind: "user"; readonly key: string; readonly text: string; readonly images: readonly ImageBlock[]; readonly at: number | null; readonly queued?: boolean }
+  /** ref: the message's durable address, "<entry id>:<message index>" (user) or "<entry id>:<message index>:<block index>" (agent text). Reactions and replies point at it; key stays the render key. Queued bubbles have none yet. */
+  | { readonly kind: "user"; readonly key: string; readonly ref?: string; readonly text: string; readonly images: readonly ImageBlock[]; readonly at: number | null; readonly queued?: boolean }
   | { readonly kind: "routine"; readonly key: string; readonly name: string; readonly text: string; readonly at: number | null }
   | {
       readonly kind: "work"
@@ -37,7 +38,7 @@ export type Item =
       readonly endedAt: number | null
     }
   | { readonly kind: "typing"; readonly key: string }
-  | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
+  | { readonly kind: "text"; readonly key: string; readonly ref?: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
   | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string; readonly retry?: string }
   | { readonly kind: "caption"; readonly key: string; readonly text: string; readonly side: "me" | "agent" }
   | { readonly kind: "divider"; readonly key: string; readonly text: string; readonly tone?: "passed" | "new" }
@@ -193,7 +194,7 @@ export function buildItems(
     message.content.forEach((block, index) => {
       const blockKey = `${key}:${index}`
       if (block.type === "text") {
-        if (block.text.trim() !== "") items.push({ kind: "text", key: blockKey, text: block.text, streaming, at: message.timestamp ?? null })
+        if (block.text.trim() !== "") items.push({ kind: "text", key: blockKey, ref: streaming ? undefined : blockKey, text: block.text, streaming, at: message.timestamp ?? null })
         return
       }
       if (block.type === "thinking") {
@@ -244,7 +245,7 @@ export function buildItems(
         asked = text
         stamp(key, message.timestamp ?? null)
         if (routine === undefined) {
-          items.push({ kind: "user", key: bubble, text, images: userImages(message), at: message.timestamp ?? null })
+          items.push({ kind: "user", key: bubble, ref: key, text, images: userImages(message), at: message.timestamp ?? null })
           startTurn(key, message.timestamp ?? null)
         } else {
           const tag = `[routine:${routine}] `
