@@ -4,7 +4,8 @@
  * fails loudly. Usage: bun scripts/verify.ts [journey ...]
  * Needs Vite on :5199 and wrangler dev on :8787 (see .agents/skills/verify-tock).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { execSync } from "node:child_process"
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { tokens } from "../packages/tokens/dist/tokens"
@@ -2124,7 +2125,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(js<number>("return document.querySelectorAll('.tds-lightbox-film button').length") === 3, "three filmstrip thumbs")
     check(js<boolean>("return document.querySelectorAll('.tds-lightbox-film button')[1].hasAttribute('data-on')"), "the second thumb is current")
     check(style(".tds-media[data-count='3'] .tds-media-tile:nth-child(2)", "visibility") === "hidden", "the source thumbnail hides while it is grown")
-    until(() => js<string>("return document.querySelector('.tds-lightbox-bar em')?.textContent ?? ''"), (t) => /B$/.test(t), "the size in the bar")
+    until(() => js<string>("return document.querySelector('.tds-lightbox-bar em')?.textContent ?? ''"), (t) => /\d (B|KB|MB)/.test(t), "the size in the bar")
     shot("lightbox-open")
     ab("click", ".tds-lightbox-picture")
     until(() => morphed(".tds-lightbox-zoom .num"), (t) => t === "200%", "a click to zoom to 200%")
@@ -3906,13 +3907,12 @@ const journeys: Record<string, () => void | Promise<void>> = {
     fresh()
     const files = {
       "verify-page.html": '<!doctype html><html lang="en"><head><title>page</title><style>body{margin:0;font-family:sans-serif;background:#f4efe6;color:#1d1b19} h1{font-size:72px;margin:48px} .row{display:flex;gap:32px;margin:0 48px} .b{flex:1;height:360px;border-radius:24px}</style></head><body><h1>Preview heading</h1><div class="row"><div class="b" style="background:#e5484d"></div><div class="b" style="background:#30a46c"></div><div class="b" style="background:#0090ff"></div></div><script>parent.postMessage("script-ran", "*")</script></body></html>',
-      "verify-shape.svg": '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" rx="24" fill="#0090ff"/><circle cx="200" cy="150" r="90" fill="#ffd60a"/></svg>',
       "verify-doc.md": "# Doc preview\n\nSome **bold** text that should run the full width of the box instead of wrapping a word or two per line.\n\n- one\n- two\n",
     } as const
     const paths = Object.entries(files).map(([name, body]) => (writeFileSync(join(FIXTURES, name), body), join(FIXTURES, name)))
     js<boolean>("window.__ran = false; window.addEventListener('message', (e) => { if (e.data === 'script-ran') window.__ran = true }); return true")
     ab("upload", ".tds-composer-wrap input[type=file]", ...paths)
-    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 3 && s.every((x) => x === "done"), "three uploads")
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "done"), "two uploads")
     type Box = { x: number; y: number; w: number; h: number }
     const near = (a: number, b: number) => Math.abs(a - b) <= 1.5
     const inspect = () =>
@@ -3929,16 +3929,16 @@ const journeys: Record<string, () => void | Promise<void>> = {
       check(text(".tds-lightbox-bar b") === name, "the lightbox opened " + name + ", not " + text(".tds-lightbox-bar b"))
       wait(400)
       const kind = name.split(".").pop()!
-      until(() => exists({ html: ".tds-lightbox-preview > iframe", svg: ".tds-lightbox-preview > img", md: ".tds-lightbox-md" }[kind]!), Boolean, "the " + kind + " preview to render")
+      until(() => exists({ html: ".tds-lightbox-preview > iframe", md: ".tds-lightbox-md" }[kind]!), Boolean, "the " + kind + " preview to render")
       const seen = inspect()
       check(seen.view === "preview", name + " opens on Preview")
       check(seen.sw <= seen.cw && seen.sh <= seen.ch, name + ": the box has no scrollbars " + JSON.stringify(seen))
       if (kind === "html") {
-        check(seen.sandbox !== null && !/allow-same-origin/.test(seen.sandbox), name + ": the frame is sandboxed without allow-same-origin (" + seen.sandbox + ")")
-        check(seen.frame && near(seen.frame.w, seen.cw) && inside(seen.frame, seen.box), name + ": the page is scaled to the box width and stays inside it " + JSON.stringify(seen))
-        check(js<boolean>("return !window.__ran"), name + ": scripts in the page do not run")
+        check(seen.sandbox !== null && /allow-scripts/.test(seen.sandbox) && !/allow-same-origin/.test(seen.sandbox), name + ": the frame runs scripts in an opaque-origin sandbox, as t3code does (" + seen.sandbox + ")")
+        check(seen.frame && near(seen.frame.w, seen.cw) && inside(seen.frame, seen.box), name + ": the page lays out at the box width and stays inside it " + JSON.stringify(seen))
+        until(() => js<boolean>("return window.__ran"), Boolean, name + ": the page's own script runs")
+        check(js<boolean>("const f = document.querySelector('.tds-lightbox-preview > iframe'); try { return f.contentDocument === null } catch { return true }"), name + ": the page cannot reach Tock's DOM")
       }
-      if (kind === "svg") check(seen.svg?.ok && inside(seen.svg.r, seen.box), name + ": the drawing renders inside the box " + JSON.stringify(seen.svg))
       if (kind === "md") {
         const doc = js<{ size: number; bg: string }>("const h = document.querySelector('.tds-lightbox-md > [data-heading]'); return { size: parseFloat(getComputedStyle(h).fontSize), bg: getComputedStyle(h).backgroundColor }")
         check(doc.size >= 24 && transparent(doc.bg), name + ": the file reads as a document, a real heading and no bubbles " + JSON.stringify(doc))
@@ -3961,7 +3961,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     }
     for (const name of Object.keys(files)) opened(name, ".tds-attach-open[aria-label='Open " + name + "']", "key")
     say("Here are the previews")
-    until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").length"), (n) => n === 3, "three sent cards")
+    until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").length"), (n) => n === 2, "two sent cards")
     js<boolean>("document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").forEach((a) => a.dataset.verifyName = a.querySelector('b')?.textContent ?? a.getAttribute('aria-label').replace(/^Open /, '')); return true")
     until(() => js<boolean>("return [...document.querySelectorAll(\".tds-files[data-side='me'] img\")].every((i) => i.complete)"), Boolean, "the sent tiles to finish loading, so the cards stop moving")
     wait(400)
@@ -3981,13 +3981,149 @@ const journeys: Record<string, () => void | Promise<void>> = {
         const seen = inspect()
         check(seen.sw <= seen.cw && seen.sh <= seen.ch && seen.box.x >= 0 && seen.box.x + seen.box.w <= w, name + " at " + w + ": the box fits the screen without scrollbars " + JSON.stringify(seen.box))
         if (name.endsWith(".md")) check(seen.md && seen.md.w >= seen.cw - 48 - 2, name + " at " + w + ": the Markdown fills the box (" + seen.md?.w + " of " + seen.cw + ")")
-        if (name.endsWith(".html")) check(seen.frame && near(seen.frame.w, seen.cw), name + " at " + w + ": the page scales to the box")
+        if (name.endsWith(".html")) check(seen.frame && near(seen.frame.w, seen.cw), name + " at " + w + ": the page lays out at the box width")
         shot("docpreview-" + name.split(".").pop() + "-" + w)
         ab("press", "Escape")
         until(() => exists(".tds-lightbox"), (open) => !open, "Escape at " + w)
       }
     }
     ab("set", "viewport", "1440", "900")
+  },
+  previews() {
+    fresh()
+    const dir = join(FIXTURES, "previews")
+    mkdirSync(dir, { recursive: true })
+    rmSync(join(dir, "kit"), { recursive: true, force: true })
+    const put = (name: string, body: string | Uint8Array) => (writeFileSync(join(dir, name), body), join(dir, name))
+    const pdfBody = (pages: number) => {
+      const objects = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [" + Array.from({ length: pages }, (_, i) => 3 + i * 2 + " 0 R").join(" ") + "] /Count " + pages + " >>"]
+      for (let i = 0; i < pages; i++) {
+        const stream = "BT /F1 48 Tf 72 700 Td (Page " + (i + 1) + ") Tj ET"
+        objects.push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents " + (4 + i * 2) + " 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>")
+        objects.push("<< /Length " + stream.length + " >>\nstream\n" + stream + "\nendstream")
+      }
+      let out = "%PDF-1.4\n"
+      const offsets = objects.map((body, i) => {
+        const at = out.length
+        out += i + 1 + " 0 obj\n" + body + "\nendobj\n"
+        return at
+      })
+      const xref = out.length
+      out += "xref\n0 " + (objects.length + 1) + "\n0000000000 65535 f \n" + offsets.map((o) => String(o).padStart(10, "0") + " 00000 n \n").join("")
+      return out + "trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF\n"
+    }
+    const wav = () => {
+      const rate = 8000
+      const bytes = new Uint8Array(44 + rate)
+      const v = new DataView(bytes.buffer)
+      const tag = (at: number, s: string) => [...s].forEach((c, i) => (bytes[at + i] = c.charCodeAt(0)))
+      tag(0, "RIFF")
+      v.setUint32(4, 36 + rate, true)
+      tag(8, "WAVEfmt ")
+      v.setUint32(16, 16, true)
+      v.setUint16(20, 1, true)
+      v.setUint16(22, 1, true)
+      v.setUint32(24, rate, true)
+      v.setUint32(28, rate, true)
+      v.setUint16(32, 1, true)
+      v.setUint16(34, 8, true)
+      tag(36, "data")
+      v.setUint32(40, rate, true)
+      for (let i = 0; i < rate; i++) bytes[44 + i] = 128 + Math.round(60 * Math.sin((i / rate) * 2 * Math.PI * 440))
+      return bytes
+    }
+    mkdirSync(join(dir, "kit/src"), { recursive: true })
+    writeFileSync(join(dir, "kit/README.md"), "# Kit\n")
+    writeFileSync(join(dir, "kit/src/main.ts"), "export const x = 1\n")
+    execSync("cd " + JSON.stringify(dir) + " && rm -f kit.zip kit.tar.gz && zip -qr kit.zip kit && tar czf kit.tar.gz kit")
+    const font = join(dir, "Lato.ttf")
+    copyFileSync(execSync("fc-list : file | grep -m1 -i 'lato.*\\.ttf'").toString().split(":")[0]!.trim(), font)
+    const notebook = {
+      metadata: { language_info: { name: "python" } },
+      cells: [
+        { cell_type: "markdown", source: ["# Notebook\n", "Saved outputs only."] },
+        { cell_type: "code", execution_count: 1, source: ["print('hi')"], outputs: [{ output_type: "stream", name: "stdout", text: ["hi\n"] }] },
+        { cell_type: "code", execution_count: 2, source: ["1 + 1"], outputs: [{ output_type: "execute_result", data: { "text/plain": ["2"] } }] },
+      ],
+    }
+    /** Each file, what its preview puts on the stage, and the rendered toggle's label ("" when the kind has no toggle). */
+    const kinds: [string, string, string][] = [
+      [put("verify-page.html", '<!doctype html><html><head><style>body{margin:0;font-family:sans-serif;background:#f4efe6} h1{margin:48px;font-size:56px}</style></head><body><h1 id="h">Static</h1><script>document.getElementById("h").textContent = "Script ran"</script></body></html>'), ".tds-lightbox-preview > iframe.tds-preview-page", "Page"],
+      [put("verify-notes.md", "---\ntitle: hidden frontmatter\n---\n# Notes\n\nSome **bold** text.\n\n- one\n- two\n"), ".tds-lightbox-preview .tds-lightbox-md", "Preview"],
+      [put("verify-flow.mmd", "graph LR\n  A[Upload] --> B{Kind}\n  B --> C[Preview]\n  B --> D[Source]\n"), ".tds-preview-diagram[data-drawn] iframe", "Diagram"],
+      [put("verify-data.csv", 'name,qty,note\napple,3,"red, crisp"\npear,5,green\n'), ".tds-preview-table td", "Table"],
+      [put("verify-data.tsv", "city\tpop\nPune\t7\nGoa\t2\n"), ".tds-preview-table td", "Table"],
+      [put("verify-book.ipynb", JSON.stringify(notebook)), ".tds-preview-notebook .tds-preview-cell", "Notebook"],
+      [put("verify-app.ts", "export function add(a: number, b: number) {\n  return a + b\n}\n"), ".tds-lightbox-source .tds-code", ""],
+      [put("verify-shape.svg", '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" rx="24" fill="#0090ff"/><circle cx="200" cy="150" r="90" fill="#ffd60a"/></svg>'), ".tds-lightbox-stage > img.tds-lightbox-picture", ""],
+      [png(join(dir, "verify-photo.png"), 640, 400, [80, 150, 220]), ".tds-lightbox-stage > img.tds-lightbox-picture", ""],
+      [put("verify-pages.pdf", pdfBody(2)), ".tds-lightbox-previewable[data-kind='pdf'] :is(canvas.tds-lightbox-page, iframe)", ""],
+      [put("verify-tone.wav", wav()), ".tds-preview-audio audio", ""],
+      [font, ".tds-lightbox-previewable[data-kind='font'] iframe[sandbox='']", ""],
+      [join(dir, "kit.zip"), ".tds-preview-table td", ""],
+      [join(dir, "kit.tar.gz"), ".tds-preview-table td", ""],
+      [put("verify-report.docx", new Uint8Array([0x50, 0x4b, 3, 4, 0, 0])), ".tds-preview-empty", ""],
+    ]
+    if (existsSync("/usr/bin/ffmpeg")) {
+      execSync("ffmpeg -loglevel error -y -f lavfi -i testsrc=size=320x240:rate=10 -t 1 -pix_fmt yuv420p " + JSON.stringify(join(dir, "verify-clip.mp4")))
+      kinds.splice(9, 0, [join(dir, "verify-clip.mp4"), ".tds-lightbox-stage > video", ""])
+    }
+    ab("upload", ".tds-composer-wrap input[type=file]", ...kinds.map(([path]) => path))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === kinds.length && s.every((x) => x === "done"), kinds.length + " uploads", 30000)
+    say("Every preview kind")
+    until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").length"), (n) => n === kinds.length, kinds.length + " sent cards", 15000)
+    js<boolean>("document.querySelectorAll(\".tds-files[data-side='me'] :is(.tds-doc, .tds-media-tile)\").forEach((a) => a.dataset.verifyName = a.querySelector('b')?.textContent ?? a.getAttribute('aria-label').replace(/^Open /, '')); return true")
+    wait(1200)
+    const name = () => text(".tds-lightbox-bar b")
+    const seen = new Set<string>()
+    for (let step = 0; step < kinds.length; step++) {
+      const file = kinds[step]![0].split("/").pop()!
+      js<boolean>("document.querySelector(\"[data-verify-name='" + file + "']\").scrollIntoView({ block: 'center' }); return true")
+      wait(300)
+      ab("click", "[data-verify-name='" + file + "']")
+      until(() => exists(".tds-lightbox[data-ready]"), Boolean, "the lightbox for " + file)
+      const shown = name()
+      const entry = kinds.find(([path]) => path.endsWith("/" + shown))
+      check(!!entry, "the lightbox shows one of the sent files: " + shown)
+      const [, selector, label] = entry!
+      const slug = "previews-" + shown.replace(/^verify-/, "")
+      seen.add(shown)
+      until(() => exists(".tds-lightbox " + selector), Boolean, shown + " renders " + selector, 15000)
+      check(!exists(".tds-lightbox[data-failed]"), shown + " opens without a failure: " + (exists(".tds-lightbox-failed p") ? text(".tds-lightbox-failed p") : ""))
+      wait(500)
+      if (label) {
+        const labels = js<{ shown: string; pressed: string }>("const v = document.querySelector('.tds-lightbox-views'); return { shown: v?.querySelector('[aria-label=Preview] span')?.textContent ?? '', pressed: v?.querySelector('[aria-pressed=true]')?.getAttribute('aria-label') ?? '' }")
+        check(labels.shown === label && labels.pressed === "Preview", shown + ": the toggle reads " + label + " and starts on the rendered view " + JSON.stringify(labels))
+        shot(slug + "-rendered")
+        ab("click", ".tds-lightbox-views [aria-label=Source]")
+        until(() => exists(".tds-lightbox .tds-lightbox-source .tds-code"), Boolean, shown + ": Source shows the file as code")
+        check(!exists(".tds-lightbox .tds-lightbox-preview"), shown + ": the rendered view leaves when Source is on")
+        ab("click", ".tds-lightbox .tds-code-action[aria-pressed]")
+        until(() => exists(".tds-lightbox .tds-code[data-wrap]"), Boolean, shown + ": the wrap toggle wraps the source")
+        wait(300)
+        shot(slug + "-source")
+        ab("click", ".tds-lightbox-views [aria-label=Preview]")
+        until(() => exists(".tds-lightbox " + selector), Boolean, shown + ": Preview brings the rendered view back")
+      } else {
+        check(!exists(".tds-lightbox-views"), shown + ": no Preview / Source toggle for this kind")
+        shot(slug)
+      }
+      if (shown.endsWith(".html")) check(/allow-scripts/.test(js<string>("return document.querySelector('.tds-preview-page').getAttribute('sandbox')")) && !/allow-same-origin/.test(js<string>("return document.querySelector('.tds-preview-page').getAttribute('sandbox')")), shown + ": scripts run only in an opaque-origin sandbox")
+      if (shown.endsWith(".md")) check(!/hidden frontmatter/.test(text(".tds-lightbox-preview")), shown + ": frontmatter is masked in the rendered view")
+      if (shown.endsWith(".csv")) check(js<string>("return document.querySelector('.tds-preview-table tbody tr td:nth-child(4)')?.textContent ?? ''") === "red, crisp", shown + ": a quoted cell keeps its comma")
+      if (/\.(zip|tar\.gz)$/.test(shown)) check(/kit\/src\/main\.ts/.test(text(".tds-preview-table")), shown + ": the listing names the nested file")
+      if (shown.endsWith(".ts")) check(js<string>("return document.querySelector(\".tds-lightbox-button[data-action='copy']\").title") === "Copy contents", shown + ": Copy copies the contents")
+      if (/\.(svg|png)$/.test(shown)) check(exists(".tds-lightbox-zoom") && /\d+ × \d+/.test(text(".tds-lightbox-bar em")), shown + ": a picture keeps the zoom bar and shows its dimensions")
+      if (shown.endsWith(".docx")) check(/No preview for this file/.test(text(".tds-preview-empty")) && /docx files/.test(text(".tds-preview-empty")), shown + ": an office file says there is no preview and how to open it")
+      if (shown.endsWith(".svg")) {
+        ab("press", "ArrowRight")
+        until(() => name(), (next) => next !== shown, "ArrowRight to the next picture in the strip")
+      }
+      ab("press", "Escape")
+      until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close " + shown)
+      check(js<boolean>("return document.activeElement === document.querySelector(\"[data-verify-name='" + file + "']\")"), shown + ": focus returns to its card")
+    }
+    check(seen.size === kinds.length, "walked every kind: " + [...seen].join(", "))
   },
   lightboxfail() {
     fresh()
@@ -4714,7 +4850,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "seen", "replyrail", "quoteselect", "quoteesc", "quotesidebar", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "previews", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "seen", "replyrail", "quoteselect", "quoteesc", "quotesidebar", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

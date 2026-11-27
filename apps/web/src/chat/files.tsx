@@ -4,6 +4,7 @@ import { Icon } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/text-morph"
 import { extension, fileUrl, formatSize, isImage, lineCount } from "./attachments"
 import { fileChip } from "./chip"
+import { previewKind } from "./preview-kind"
 import { openLightbox, type LightboxItem } from "./lightbox-state"
 import { pdfThumb } from "../lib/pdf"
 import { tokens } from "@tock/tokens"
@@ -18,7 +19,8 @@ export type FileKind = "image" | "video" | "text" | "doc"
 const TEXTUAL = /\.(md|markdown|mdx|txt|csv|log|m?[jt]sx?|json|css|html?|py|rs|go|rb|swift|sh|ya?ml|toml|sql|xml|svg)$/i
 export const isPdf = (name: string) => /\.pdf$/i.test(name)
 /** Text and PDFs open in the lightbox; anything else opens in a new tab. */
-const opensInViewer = (name: string) => kindOf(name) === "text" || isPdf(name)
+/** Every file t3code has a preview kind for opens in the lightbox; the rest stay plain links. */
+const opensInViewer = (name: string) => kindOf(name) === "text" || isPdf(name) || previewKind(name) !== "unsupported"
 export const kindOf = (name: string): FileKind => (isImage(name) ? "image" : /\.(mp4|mov|webm|m4v)$/i.test(name) ? "video" : TEXTUAL.test(name) ? "text" : "doc")
 
 interface Meta {

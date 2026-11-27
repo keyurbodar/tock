@@ -4,13 +4,11 @@ import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { afterLayout, animate, prefersReducedMotion } from "@tock/ui/motion"
 import { render } from "@solidjs/web"
-import { lang } from "sugar-high/lang"
-import { extension, fileUrl, formatSize, isImage } from "./attachments"
-import { CodeBlock } from "./code"
-import { Markdown } from "./markdown"
+import { fileUrl, formatSize, isImage } from "./attachments"
+import { FileBody, type View } from "./previews"
+import { previewDelimiter, previewKind, renderedMode, type PreviewKind, type RenderedMode } from "./preview-kind"
 import { toast } from "../shell/toasts"
 import { opening, setOpening, type LightboxItem, type Opening } from "./lightbox-state"
-import { openPdf, renderPage } from "../lib/pdf"
 
 const d = tokens.motion.duration
 const ease = tokens.motion.curve
@@ -20,27 +18,14 @@ const flip = (from: DOMRect, to: DOMRect) => "translate(" + (from.x - to.x) + "p
 const slide = (dir: number) => "translateX(" + dir * tokens.size["lightbox-slide"] + "px) scale(" + tokens.motion.press + ")"
 const clamp = (value: number, max: number) => Math.min(max, Math.max(-max, value))
 
-type Previewable = "html" | "svg" | "md"
-type View = "preview" | "source"
-/** Files with a rendered view as well as their source: a page, a drawing, a Markdown note. */
-const previewable = (name: string): Previewable | undefined => (/\.html?$/i.test(name) ? "html" : /\.svg$/i.test(name) ? "svg" : /\.(md|markdown|mdx)$/i.test(name) ? "md" : undefined)
-const sourceLang: Record<Previewable, string> = { html: "html", svg: "xml", md: "md" }
-
 /** What to say when an item will not show, in the words of its kind. */
 const failure = (name: string, found: boolean | undefined) => {
+  if (/\.(mp4|mov|webm|m4v)$/i.test(name) && found === false) return "Video unavailable. The file may have been moved or deleted."
   if (/\.(mp4|mov|webm|m4v)$/i.test(name)) return "This video can’t be played here. Download it to watch it."
   if (/\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(name)) return "This audio can’t be played here. Download it to listen."
   if (/\.pdf$/i.test(name)) return "PDF unavailable. The file may have been moved, deleted or damaged."
   if (isImage(name)) return found ? "This file isn’t a valid image. Download it to open it elsewhere." : "Image unavailable. The file may have been moved or deleted."
   return "Document unavailable. The file may have been moved or deleted."
-}
-
-/** No scripts, no network but styles, fonts and pictures, nothing that can reach back into Tock: the sandbox gives the page an opaque origin and this policy caps what it loads. */
-const PAGE_POLICY = "default-src 'none'; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; form-action 'none'; base-uri 'none'"
-const withPolicy = (html: string) => {
-  const meta = '<meta http-equiv="Content-Security-Policy" content="' + PAGE_POLICY + '">'
-  const doctype = /^\s*<!doctype[^>]*>/i.exec(html)
-  return doctype ? doctype[0] + meta + html.slice(doctype[0].length) : meta + html
 }
 
 /** Warms the browser cache so the next arrow press lands on a decoded picture (as T3Code preloads neighbours). */
@@ -59,25 +44,35 @@ function Viewer(props: { opening: Opening }) {
   const [ready, setReady] = createSignal(false)
   const [closing, setClosing] = createSignal(false)
   const [zoom, setZoom] = createSignal(1)
-  const [failed, setFailed] = createSignal<Record<string, true>>({})
+  const [failed, setFailed] = createSignal<Record<string, string>>({})
   const [sizes, setSizes] = createSignal<Record<string, number>>({})
   const [found, setFound] = createSignal<Record<string, boolean>>({})
   const [pages, setPages] = createSignal<Record<string, number>>({})
   const [view, setView] = createSignal<View>("preview")
-  const texts = new Map<string, string>()
+  const [kinds, setKinds] = createSignal<Record<string, { kind: PreviewKind; mode: RenderedMode | null }>>({})
+  const [texts, setTexts] = createSignal<Record<string, { text: string; truncated: boolean }>>({})
+  const [dims, setDims] = createSignal<Record<string, string>>({})
+  const fail = (item: LightboxItem, message?: string) => setFailed((all) => ({ ...all, [item.id]: message ?? failure(item.name, untrack(found)[item.id]) }))
   let root!: HTMLDivElement
   let stage!: HTMLDivElement
   let pan = { x: 0, y: 0 }
   let drag: { id: number; x: number; y: number; panX: number; panY: number; touch: boolean; moved: boolean } | undefined
 
-  for (const item of items)
-    void fetch(fileUrl(item.id))
-      .then((response) => {
-        setFound((all) => ({ ...all, [item.id]: response.ok }))
-        return response.ok ? response.blob() : undefined
-      })
-      .then((blob) => blob && setSizes((all) => ({ ...all, [item.id]: blob.size })))
-      .catch(() => undefined)
+  /** Each file is fetched once; its bytes feed the size chip, the type check and the preview. */
+  const blobs = new Map<string, Promise<Blob>>()
+  const load = (item: LightboxItem, fresh = false) => {
+    const known = blobs.get(item.id)
+    if (known && !fresh) return known
+    const made = fetch(fileUrl(item.id), fresh ? { cache: "reload" } : undefined).then((response) => {
+      setFound((all) => ({ ...all, [item.id]: response.ok }))
+      if (!response.ok) throw new Error("missing")
+      return response.blob()
+    })
+    made.then((blob) => setSizes((all) => ({ ...all, [item.id]: blob.size })), () => undefined)
+    blobs.set(item.id, made)
+    return made
+  }
+  for (const item of items) void load(item)
 
   const current = () => stage.lastElementChild as HTMLElement | null
   const zoomable = () => current() instanceof HTMLImageElement
@@ -108,62 +103,10 @@ function Viewer(props: { opening: Opening }) {
     apply()
   }
 
-  /** The rendered view. A page renders at a desktop width in a sandboxed frame and is scaled down to the box, like a thumbnail of the real thing that still scrolls and clicks. */
-  const preview = (kind: Previewable, body: string, name: string): HTMLElement => {
-    const pane = document.createElement("div")
-    pane.className = "tds-lightbox-preview"
-    if (kind === "html") {
-      const frame = document.createElement("iframe")
-      frame.setAttribute("sandbox", "")
-      frame.setAttribute("referrerpolicy", "no-referrer")
-      frame.title = name
-      frame.srcdoc = withPolicy(body)
-      const page = tokens.size["lightbox-page"]
-      const fit = () => {
-        const scale = pane.clientWidth / page
-        if (!scale) return
-        frame.style.width = px(page)
-        frame.style.height = px(pane.clientHeight / scale)
-        frame.style.transform = "scale(" + scale + ")"
-      }
-      const observer = new ResizeObserver(fit)
-      observer.observe(pane)
-      mounted.push(() => observer.disconnect())
-      pane.append(frame)
-      return pane
-    }
-    if (kind === "svg") {
-      const url = URL.createObjectURL(new Blob([body], { type: "image/svg+xml" }))
-      mounted.push(() => URL.revokeObjectURL(url))
-      const img = document.createElement("img")
-      img.src = url
-      img.alt = name
-      img.draggable = false
-      pane.append(img)
-      return pane
-    }
-    pane.classList.add("tds-scroll")
-    pane.dataset.edgeFade = "y"
-    mounted.push(render(() => <div class="tds-lightbox-md"><Markdown text={body} /></div>, pane))
-    return pane
-  }
-
-  /** The source, in the one CodeBlock, drawn the first time someone asks for it. */
-  const source = (kind: Previewable, body: string): HTMLElement => {
-    const pane = document.createElement("div")
-    pane.className = "tds-lightbox-source"
-    mounted.push(render(() => <CodeBlock code={body} lang={sourceLang[kind]} />, pane))
-    return pane
-  }
-
   const choose = (next: View) => {
     setView(next)
     const doc = current()
-    if (!doc?.classList.contains("tds-lightbox-previewable")) return
-    doc.dataset.view = next
-    const kind = doc.dataset.kind as Previewable
-    const body = texts.get(untrack(item).id)
-    if (next === "source" && body !== undefined && !doc.querySelector(".tds-lightbox-source")) doc.append(source(kind, body))
+    if (doc?.classList.contains("tds-lightbox-previewable")) doc.dataset.view = next
   }
 
   /**
@@ -193,80 +136,81 @@ function Viewer(props: { opening: Opening }) {
     img.style.height = px(h * keep)
   }
 
-  const picture = (item: LightboxItem): HTMLElement => {
-    if (/\.(mp4|mov|webm|m4v)$/i.test(item.name)) {
+  /** One file's view: pictures and clips stay bare so they can zoom and grow from the card; every other kind is t3code's preview in a box. */
+  const picture = (item: LightboxItem, fresh = false): HTMLElement => {
+    const named = previewKind(item.name)
+    if (named === "video") {
       const video = document.createElement("video")
       video.src = fileUrl(item.id)
       video.controls = true
       video.autoplay = true
       video.playsInline = true
       video.className = "tds-lightbox-picture tds-lightbox-video"
-      video.onerror = () => setFailed((all) => ({ ...all, [item.id]: true }))
+      video.onerror = () => fail(item)
       return video
     }
-    if (/\.pdf$/i.test(item.name)) {
-      const doc = document.createElement("div")
-      doc.className = "tds-lightbox-doc tds-lightbox-pdf tds-scroll"
-      doc.dataset.edgeFade = "y"
-      void openPdf(fileUrl(item.id))
-        .then(async (pdf) => {
-          setPages((all) => ({ ...all, [item.id]: pdf.numPages }))
-          for (let n = 1; n <= Math.min(pdf.numPages, limit["pdf-pages"]) && doc.isConnected !== false; n++) {
-            const page = await renderPage(pdf, n, tokens.size["lightbox-doc"])
-            page.className = "tds-lightbox-page"
-            page.dataset.page = String(n)
-            doc.append(page)
-          }
-        })
-        .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
-      return doc
+    if (named === "image") {
+      const img = document.createElement("img")
+      img.src = fileUrl(item.id)
+      img.alt = item.name
+      img.draggable = false
+      img.className = "tds-lightbox-picture"
+      img.onerror = () => fail(item)
+      void img.decode().then(() => {
+        setDims((all) => ({ ...all, [item.id]: img.naturalWidth.toLocaleString() + " × " + img.naturalHeight.toLocaleString() }))
+        fitSmall(img)
+      }, () => undefined)
+      return img
     }
-    const kind = previewable(item.name)
-    if (kind) {
-      const doc = document.createElement("div")
-      doc.className = "tds-lightbox-doc tds-lightbox-previewable"
-      doc.dataset.kind = kind
-      doc.dataset.view = "preview"
-      void fetch(fileUrl(item.id))
-        .then((response) => (response.ok ? response.text() : Promise.reject(new Error("missing"))))
-        .then((text) => {
-          const body = text.slice(0, limit["lightbox-text"])
-          texts.set(item.id, body)
-          doc.append(preview(kind, body, item.name))
-          if (doc.dataset.view === "source") doc.append(source(kind, body))
-        })
-        .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
-      return doc
-    }
-    if (!isImage(item.name)) {
-      const doc = document.createElement("div")
-      doc.className = "tds-lightbox-doc"
-      const pre = document.createElement("pre")
-      pre.className = "tds-scroll"
-      pre.dataset.edgeFade = "y"
-      pre.textContent = "Loading…"
-      doc.append(pre)
-      void fetch(fileUrl(item.id))
-        .then((response) => (response.ok ? response.text() : Promise.reject(new Error("missing"))))
-        .then((text) => {
-          const body = text.slice(0, limit["lightbox-text"])
-          const ext = extension(item.name).toLowerCase()
-          if (lang(ext) && lang(ext) !== "plaintext") {
-            pre.remove()
-            mounted.push(render(() => <CodeBlock code={body} lang={ext} />, doc))
-          } else pre.textContent = body
-        })
-        .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
-      return doc
-    }
-    const img = document.createElement("img")
-    img.src = fileUrl(item.id)
-    img.alt = item.name
-    img.draggable = false
-    img.className = "tds-lightbox-picture"
-    img.onerror = () => setFailed((all) => ({ ...all, [item.id]: true }))
-    void img.decode().then(() => fitSmall(img), () => undefined)
-    return img
+    const doc = document.createElement("div")
+    doc.className = "tds-lightbox-doc tds-lightbox-previewable"
+    doc.dataset.kind = named
+    doc.dataset.view = untrack(view)
+    void load(item, fresh).then(
+      (blob) => {
+        if (!doc.isConnected && untrack(closing)) return
+        const kind = previewKind(item.name, blob.type)
+        const delimiter = previewDelimiter(item.name, blob.type)
+        const mode = renderedMode(kind, delimiter)
+        doc.dataset.kind = kind
+        if (mode) doc.dataset.mode = mode
+        setKinds((all) => ({ ...all, [item.id]: { kind, mode } }))
+        const url = URL.createObjectURL(blob)
+        mounted.push(() => URL.revokeObjectURL(url))
+        mounted.push(
+          render(
+            () => (
+              <FileBody
+                name={item.name}
+                kind={kind}
+                mode={mode}
+                delimiter={delimiter}
+                blob={blob}
+                url={kind === "pdf" ? fileUrl(item.id) : url}
+                view={view}
+                onFail={(message) => fail(item, message)}
+                onText={(text, truncated) => setTexts((all) => ({ ...all, [item.id]: { text, truncated } }))}
+                onPages={(count) => setPages((all) => ({ ...all, [item.id]: count }))}
+              />
+            ),
+            doc,
+          ),
+        )
+      },
+      () => fail(item),
+    )
+    return doc
+  }
+
+  /** Try again, as t3code's failure offers: refetch the file and rebuild its view in place. */
+  const retry = () => {
+    const now = untrack(item)
+    setFailed((all) => {
+      const { [now.id]: _, ...rest } = all
+      return rest
+    })
+    const next = picture(now, true)
+    current()?.replaceWith(next)
   }
 
   const show = (next: number, dir: -1 | 1) => {
@@ -434,6 +378,11 @@ function Viewer(props: { opening: Opening }) {
   }
   const copy = async () => {
     const current = untrack(item)
+    const read = untrack(texts)[current.id]
+    if (read) {
+      await navigator.clipboard.writeText(read.text).catch(() => undefined)
+      return toast("Copied", { description: current.name, id: "lightbox-copy", duration: tokens.motion.toast.copy })
+    }
     try {
       const blob = await (await fetch(fileUrl(current.id))).blob()
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
@@ -441,6 +390,16 @@ function Viewer(props: { opening: Opening }) {
       await navigator.clipboard.writeText(new URL(fileUrl(current.id), location.href).href).catch(() => undefined)
     }
     toast("Copied", { description: current.name, id: "lightbox-copy", duration: tokens.motion.toast.copy })
+  }
+
+  /** The Preview / Source toggle and its labels, for the kinds t3code renders: Markdown, Mermaid, HTML, CSV/TSV and notebooks. */
+  const toggle = (id: string) => {
+    const known = kinds()[id]
+    if (!known || (!known.mode && known.kind !== "ipynb")) return undefined
+    const mode = known.mode ?? "notebook"
+    const name = { markdown: "Preview", mermaid: "Diagram", html: "Page", table: "Table", notebook: "Notebook" }[mode]
+    const what = { markdown: "markdown", mermaid: "Mermaid", html: "HTML", table: "table", notebook: "notebook" }[mode]
+    return { name, preview: mode === "mermaid" ? "Show rendered diagram" : mode === "markdown" ? "Show rendered markdown" : mode === "table" ? "Show table" : mode === "html" ? "Show rendered page" : "Show notebook", source: "Show " + what + " source" }
   }
 
   return (
@@ -469,24 +428,27 @@ function Viewer(props: { opening: Opening }) {
           </Show>
           <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} mode="calm" /></span>}</Show>
           <Show when={pages()[item().id]}>{(count) => <span>{count() === 1 ? "1 page" : count() + " pages"}</span>}</Show>
+          <Show when={dims()[item().id]}>{(size) => <span data-dims="">{size()}</span>}</Show>
         </em>
-        <Show when={previewable(item().name)}>
+        <Show when={!failed()[item().id] && toggle(item().id)}>
+          {(labels) => (
           <div class="tds-lightbox-views tds-over" role="group" aria-label="View">
-            <button type="button" aria-label="Preview" aria-pressed={view() === "preview" ? "true" : "false"} onClick={() => choose("preview")}>
+            <button type="button" aria-label="Preview" title={labels().preview} aria-pressed={view() === "preview" ? "true" : "false"} onClick={() => choose("preview")}>
               <Icon name="eye" size="chip" />
-              <span>Preview</span>
+              <span>{labels().name}</span>
             </button>
-            <button type="button" aria-label="Source" aria-pressed={view() === "source" ? "true" : "false"} onClick={() => choose("source")}>
+            <button type="button" aria-label="Source" title={labels().source} aria-pressed={view() === "source" ? "true" : "false"} onClick={() => choose("source")}>
               <Icon name="code" size="chip" />
               <span>Source</span>
             </button>
           </div>
+          )}
         </Show>
         <button type="button" class="tds-lightbox-button tds-over" data-action="download" aria-label="Download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />
           <span>Download</span>
         </button>
-        <button type="button" class="tds-lightbox-button tds-over" data-action="copy" aria-label="Copy" onClick={() => void copy()}>
+        <button type="button" class="tds-lightbox-button tds-over" data-action="copy" aria-label="Copy" title={texts()[item().id]?.truncated ? "Copy preview" : texts()[item().id] ? "Copy contents" : "Copy file"} onClick={() => void copy()}>
           <Icon name="copy" size="menu" />
           <span>Copy</span>
         </button>
@@ -506,7 +468,7 @@ function Viewer(props: { opening: Opening }) {
         onPointerCancel={onPointerUp}
         onClick={onStageClick}
       />
-      <Show when={isImage(item().name) && !previewable(item().name) && !failed()[item().id]}>
+      <Show when={isImage(item().name) && !failed()[item().id]}>
         <div class="tds-lightbox-zoom tds-over" role="group" aria-label="Zoom">
           <button type="button" aria-label="Zoom out" disabled={zoom() <= 1} onClick={() => zoomTo(untrack(zoom) / limit["zoom-step"])}>
             <Icon name="minus" size="chip" />
@@ -525,7 +487,8 @@ function Viewer(props: { opening: Opening }) {
       <Show when={failed()[item().id]}>
         <div class="tds-lightbox-failed" role="alert">
           <span class="tds-lightbox-failed-glyph"><Icon name={isImage(item().name) ? "image" : "file"} size="menu" /></span>
-          <p>{failure(item().name, found()[item().id])}</p>
+          <p>{failed()[item().id]}</p>
+          <button type="button" class="tds-lightbox-button tds-over" data-action="retry" onClick={() => retry()}>Try again</button>
         </div>
       </Show>
       <Show when={items.length > 1}>
@@ -540,7 +503,7 @@ function Viewer(props: { opening: Opening }) {
             {(entry, i) => (
               <button type="button" data-on={i() === index() ? "" : undefined} aria-label={entry().name} aria-current={i() === index() ? "true" : undefined} onClick={() => show(untrack(i), untrack(i) > untrack(index) ? 1 : -1)}>
                 <Show when={isImage(entry().name) && !failed()[entry().id]} fallback={<span class="tds-lightbox-film-doc">{entry().name.split(".").pop()?.toUpperCase()}</span>}>
-                  <img src={fileUrl(entry().id)} alt="" draggable={false} onError={() => setFailed((all) => ({ ...all, [untrack(entry).id]: true }))} />
+                  <img src={fileUrl(entry().id)} alt="" draggable={false} onError={() => fail(untrack(entry))} />
                 </Show>
               </button>
             )}

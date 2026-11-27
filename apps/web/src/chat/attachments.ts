@@ -1,4 +1,5 @@
 import { createStore, untrack } from "solid-js"
+import { previewKind } from "./preview-kind"
 import type { FileMeta } from "@tock/protocol"
 import { tokens } from "@tock/tokens"
 
@@ -29,7 +30,8 @@ const TEXTUAL = /\.(md|markdown|mdx|m?[jt]sx?|py|sql|json|css|html?|svg|go|rs|rb
 
 export const isImage = (name: string, mime = "") => mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(name)
 const READABLE_MIME = /^(image|audio|video|text)\/|^application\/(pdf|zip|x-zip-compressed|gzip|x-gzip|x-tar|json|javascript|x-javascript|typescript|xml|x-sh|x-python|sql|toml|yaml|x-yaml)$/
-export const isReadable = (name: string, mime = "") => READABLE.test(name) || READABLE_MIME.test(mime)
+/** Anything the lightbox has a t3code preview kind for is attachable, office and notebook files included. */
+export const isReadable = (name: string, mime = "") => READABLE.test(name) || READABLE_MIME.test(mime) || previewKind(name, mime) !== "unsupported"
 export const extension = (name: string) => (/\.([a-z0-9]{1,8})$/i.exec(name)?.[1] ?? "file").toUpperCase()
 /** Lines as an editor counts them: a trailing newline ends the last line instead of starting another, and an empty file has none. */
 export const lineCount = (text: string) => (text === "" ? 0 : text.replace(/\r?\n$/, "").split("\n").length)

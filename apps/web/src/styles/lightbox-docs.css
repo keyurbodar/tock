@@ -1,18 +1,55 @@
-/* Previewable docs in the lightbox (HTML, SVG, Markdown): a rendered view and its source behind one toggle, both filling the box. */
+/* File previews in the lightbox, ported from t3code's attachment preview: every kind fills one box, and the rendered kinds keep their source behind one toggle. */
 @layer components {
   .tds-lightbox-previewable { position: relative; flex-direction: column }
   .tds-lightbox-doc { --lightbox-gutter: calc(var(--tds-size-lightbox-nav-x) + var(--tds-size-lightbox-nav) + var(--tds-space-8)); width: min(var(--tds-size-lightbox-doc), calc(100vw - var(--lightbox-gutter) * 2)) }
   .tds-lightbox-doc[data-kind="html"] { width: min(var(--tds-size-lightbox-w), calc(100vw - var(--lightbox-gutter) * 2)) }
-  .tds-lightbox-preview, .tds-lightbox-source { display: flex; flex: 1; min-width: 0; min-height: 0 }
-  .tds-lightbox-previewable[data-view="preview"] > .tds-lightbox-source, .tds-lightbox-previewable[data-view="source"] > .tds-lightbox-preview { display: none }
+  .tds-lightbox-doc:is([data-kind="html"], [data-kind="pdf"], [data-kind="font"], [data-kind="archive"], [data-kind="mermaid"], [data-mode="table"]) { width: min(var(--tds-size-lightbox-w), calc(100vw - var(--lightbox-gutter) * 2)) }
+  .tds-lightbox-preview, .tds-lightbox-source { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0 }
   .tds-lightbox-preview { overflow: hidden }
-  .tds-lightbox-preview > iframe { flex: none; border: 0; transform-origin: 0 0; background: var(--tds-surface-white) }
-  .tds-lightbox-previewable[data-kind="svg"][data-view="preview"] > .tds-lightbox-preview {
-    align-items: center; justify-content: center; padding: var(--tds-space-24); background: var(--tds-surface-backdrop);
-    & > img { display: block; max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; object-fit: contain; user-select: none }
+  .tds-preview-page { flex: 1; width: 100%; min-height: 0; border: 0; background: var(--tds-surface-white) }
+  .tds-preview-markdown[data-edge-fade] { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--tds-space-20) var(--tds-space-24) }
+  .tds-preview-diagram {
+    display: flex; flex: 1; min-height: 0; align-items: center; justify-content: center; background: var(--tds-surface-white);
+    & > iframe { flex: 1; align-self: stretch; border: 0; background: var(--tds-surface-white) }
   }
-  .tds-lightbox-previewable[data-kind="md"][data-view="preview"] > .tds-lightbox-preview[data-edge-fade] { display: block; overflow-y: auto; overscroll-behavior: contain; padding: var(--tds-space-20) var(--tds-space-24) }
-  .tds-lightbox-preview > .tds-lightbox-md {
+  .tds-preview-table[data-edge-fade] {
+    flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain;
+    & table { border-collapse: separate; border-spacing: 0; min-width: 100%; font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-label-lh); color: var(--tds-text-tx2) }
+    & th { position: sticky; top: 0; background: var(--tds-surface-card); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx); text-align: start; box-shadow: inset 0 -1px 0 var(--tds-overlay-fill-8) }
+    & th, & td { padding: var(--tds-space-6) var(--tds-space-10); white-space: nowrap; max-width: var(--tds-size-lightbox-doc); overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid var(--tds-overlay-fill-8) }
+    & .num { color: var(--tds-text-muted); text-align: end }
+    & td > :not(:only-child):first-child { display: inline-block; vertical-align: middle; margin-inline-end: var(--tds-space-6); color: var(--tds-text-muted) }
+  }
+  .tds-preview-notice { flex: none; margin: 0; padding: var(--tds-space-6) var(--tds-space-12); background: var(--tds-overlay-fill-8); font-size: var(--tds-type-caption-size); color: var(--tds-text-tx2) }
+  .tds-preview-loading { display: grid; flex: 1; place-items: center; font-size: var(--tds-type-secondary-size); color: var(--tds-text-muted) }
+  .tds-preview-empty {
+    display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: var(--tds-space-8); padding: var(--tds-space-24); text-align: center;
+    & b { font-size: var(--tds-type-body-size); color: var(--tds-text-tx) }
+    & p { margin: 0; max-width: var(--tds-size-lightbox-min); min-width: 50%; font-size: var(--tds-type-secondary-size); color: var(--tds-text-muted) }
+  }
+  .tds-preview-audio {
+    display: flex; flex: 1; align-items: center; gap: var(--tds-space-12); padding: var(--tds-space-24);
+    & .num { font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
+    & .tds-lightbox-button { width: var(--tds-size-lightbox-button); padding: 0; justify-content: center }
+  }
+  .tds-lightbox-doc[data-kind="audio"] { height: auto }
+  .tds-preview-track { flex: 1; min-width: 0; accent-color: var(--tds-text-tx) }
+  .tds-preview-notebook[data-edge-fade] {
+    display: flex; flex: 1; flex-direction: column; gap: var(--tds-space-16); min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: var(--tds-space-20);
+    & > .tds-preview-notice { position: sticky; top: 0; z-index: 1 }
+  }
+  .tds-preview-cell {
+    display: flex; flex-direction: column; gap: var(--tds-space-8); padding: 0 var(--tds-space-24);
+    & > .tds-code { margin: 0; max-width: none }
+  }
+  .tds-preview-count { font-family: var(--tds-font-mono); font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
+  .tds-preview-output {
+    margin: 0; max-width: 100%;
+    &:is(pre) { padding: var(--tds-space-8) var(--tds-space-12); border-radius: var(--tds-radius-glyph); background: var(--tds-overlay-fill-8); font-family: var(--tds-font-mono); font-size: var(--tds-type-secondary-size); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--tds-text-tx2) }
+    &:is(iframe) { width: 100%; height: var(--tds-size-lightbox-min); border: 0; background: var(--tds-surface-white) }
+    &:is(img) { align-self: flex-start; background: var(--tds-surface-white) }
+  }
+  .tds-lightbox-preview > .tds-lightbox-md, .tds-preview-markdown > .tds-lightbox-md, .tds-preview-cell > .tds-lightbox-md {
     width: 100%; max-width: none; gap: var(--tds-space-10);
     & > .tds-bubble { align-self: stretch; max-width: none; padding: 0; border-radius: 0; background: none; box-shadow: none; font-size: var(--tds-type-body-size); line-height: var(--tds-type-body-lh) }
     & > .tds-bubble[data-heading] { margin-top: var(--tds-space-8); font-size: var(--tds-type-dialog-size); line-height: var(--tds-type-dialog-lh); letter-spacing: var(--tds-type-dialog-tracking) }
@@ -54,6 +91,7 @@
     display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-12); max-width: calc(100vw - var(--tds-space-32) * 2);
     text-align: center; font-size: var(--tds-type-body-size); line-height: var(--tds-type-body-lh); color: var(--tds-text-tx2);
     & p { margin: 0 }
+    & .tds-lightbox-button { color: var(--tds-text-tx) }
   }
   .tds-lightbox-failed-glyph {
     display: grid; place-items: center; width: var(--tds-size-file-tile); height: var(--tds-size-file-tile); border-radius: var(--tds-radius-glyph);
