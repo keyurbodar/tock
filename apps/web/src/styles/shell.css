@@ -192,24 +192,6 @@
   .tds-bubble[data-heading] { font-weight: var(--tds-weight-semibold) }
   .tds-list { margin: 0; padding-left: var(--tds-space-18); white-space: normal; & li + li { margin-top: var(--tds-space-3) } }
   .tds-list:not([data-ordered]) { list-style: disc } .tds-list[data-ordered] { list-style: decimal }
-  .tds-code {
-    align-self: flex-start; width: min(var(--tds-size-code-card), 78%); margin: var(--tds-space-4) 0 0; overflow: hidden;
-    border-radius: var(--tds-radius-bubble); background: var(--tds-surface-well); box-shadow: var(--tds-ring-card);
-    --sh-class: var(--tds-code-type); --sh-identifier: var(--tds-code-fg); --sh-sign: var(--tds-code-sign); --sh-property: var(--tds-code-property);
-    --sh-entity: var(--tds-code-entity); --sh-jsxliterals: var(--tds-code-jsx); --sh-string: var(--tds-code-string); --sh-keyword: var(--tds-code-keyword); --sh-comment: var(--tds-code-comment);
-    @starting-style { opacity: 0; translate: 0 var(--tds-space-10) }
-    transition: opacity var(--tds-dur-swap) var(--tds-ease-out), translate var(--tds-dur-swap) var(--tds-ease-out);
-  }
-  .tds-code-head {
-    display: flex; align-items: center; justify-content: space-between; padding: var(--tds-space-12) var(--tds-space-12) var(--tds-space-4) var(--tds-space-16);
-    font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); text-transform: lowercase; color: var(--tds-text-muted);
-  }
-  .tds-code-action { display: grid; place-items: center; width: var(--tds-size-action); height: var(--tds-size-action); border-radius: var(--tds-radius-small); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out) }
-  @media (hover: hover) and (pointer: fine) { .tds-code-action:hover { color: var(--tds-text-tx2) } }
-  .tds-code pre {
-    margin: 0; padding: var(--tds-space-6) var(--tds-space-16) var(--tds-space-16); overflow-x: auto;
-    font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); line-height: var(--tds-type-code-lh); color: var(--tds-code-fg);
-  }
   .tds-code + .tds-bubble, .tds-bubble + .tds-code { margin-top: var(--tds-space-6) }
 }
 
@@ -470,15 +452,16 @@
 
 @layer components {
   .tds-chip {
-    --tds-chip-ink: color-mix(in oklab, var(--tds-chip-accent) 70%, var(--tds-text-tx));
-    display: inline-flex; align-items: center; gap: var(--tds-space-4); max-width: 100%; height: var(--tds-size-token);
-    padding: 0 var(--tds-space-7) 0 var(--tds-space-6); border-radius: var(--tds-radius-tok); vertical-align: calc(var(--tds-space-4) * -1);
-    background: color-mix(in oklab, var(--tds-chip-accent) 14%, transparent); color: var(--tds-chip-ink);
-    font-size: var(--tds-type-bubble-size); font-weight: var(--tds-weight-regular); line-height: 1; text-decoration: none; white-space: nowrap; cursor: pointer;
+    --tds-chip-ink: color-mix(in oklab, var(--tds-chip-accent) 82%, var(--tds-text-tx));
+    display: inline-flex; align-items: center; gap: var(--tds-space-3); max-width: 100%; height: var(--tds-size-token);
+    padding: 0 var(--tds-space-2); border-radius: var(--tds-radius-kbd); vertical-align: calc(var(--tds-space-4) * -1);
+    background: transparent; color: var(--tds-chip-ink);
+    font-size: var(--tds-type-bubble-size); font-weight: var(--tds-weight-medium); line-height: 1; text-decoration: none; white-space: nowrap; cursor: pointer;
     transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
   }
   .tds-chip[data-kind="command"] { font-weight: var(--tds-weight-medium) }
-  @media (hover: hover) and (pointer: fine) { .tds-chip:is(a, button, [data-open]):hover { background: color-mix(in oklab, var(--tds-chip-accent) 22%, transparent) } }
+  .tds-chip-label { text-decoration: underline transparent; text-decoration-thickness: var(--tds-size-focus-width); text-underline-offset: .2em; transition: text-decoration-color var(--tds-dur-hover) var(--tds-ease-out) }
+  @media (hover: hover) and (pointer: fine) { .tds-chip:is(a, button, [data-open]):hover .tds-chip-label { text-decoration-color: currentColor } }
   .tds-chip[data-state="invalid"] { --tds-chip-accent: var(--tds-text-faint); color: var(--tds-text-faint); & .tds-chip-label { text-decoration: line-through } }
   .tds-chip-icon { display: block; flex: none; width: var(--tds-icon-chip); height: var(--tds-icon-chip) }
   .tds-chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis }
@@ -487,7 +470,7 @@
     border-radius: var(--tds-radius-kbd); color: inherit; opacity: .7; & .tds-chip-icon { width: var(--tds-space-10); height: var(--tds-space-10) }
   }
   @media (hover: hover) and (pointer: fine) { .tds-chip-action:hover { opacity: 1; background: color-mix(in oklab, var(--tds-chip-accent) 22%, transparent) } }
-  .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-text-me); background: var(--tds-accent-rose-16) }
+  .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-text-me) }
 
   .tds-link {
     color: var(--tds-accent-rose); text-decoration: none;
@@ -570,8 +553,6 @@
     display: inline-flex; align-items: center; gap: var(--tds-space-2); font-variant-numeric: tabular-nums;
     & kbd { display: inline-grid; place-items: center; min-width: var(--tds-size-key); height: var(--tds-size-key); padding: 0 var(--tds-space-5); border-radius: var(--tds-radius-key); background: var(--tds-surface-key); box-shadow: var(--tds-lift-key); font: inherit; font-size: var(--tds-type-kbd-size); color: var(--tds-text-tx2) }
   }
-  .tds-code pre { max-width: 100%; overflow-x: auto }
-  .tds-code { min-width: 0; max-width: 100% }
 }
 
 @layer components {

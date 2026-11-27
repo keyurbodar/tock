@@ -212,21 +212,42 @@ const journeys: Record<string, () => void> = {
     ab("click", ".ProseMirror")
     ab("keyboard", "type", "Show a long code block please")
     ab("press", "Enter")
-    until(() => exists(".tds-code-more"), Boolean, "the show-all button", 15000)
-    const collapsed = rect(".tds-code pre")!.h
-    const pre = js<{ sw: number; cw: number }>("const p = document.querySelector('.tds-code pre'); return { sw: p.scrollWidth, cw: p.clientWidth }")
-    check(pre.sw > pre.cw, "long lines should scroll sideways, not wrap")
-    shot("code-collapsed")
-    ab("click", ".tds-code-more")
-    until(() => rect(".tds-code pre")!.h, (h) => h > collapsed + 100, "the block to expand")
-    check(js<string>("return document.querySelector('.tds-code-more').textContent") === "Show less", "the button should offer Show less")
-    shot("code-expanded")
+    until(() => exists(".tds-code .tds-code-action") && !exists("button[aria-label='Stop']"), Boolean, "a finished long code block", 15000)
+    const pre = js<{ sw: number; cw: number; sh: number; ch: number; h: number; cap: number; wrap: string }>("const p = document.querySelector('.tds-code-body'); return { sw: p.scrollWidth, cw: p.clientWidth, sh: p.scrollHeight, ch: p.clientHeight, h: p.getBoundingClientRect().height, cap: parseFloat(getComputedStyle(p).maxHeight), wrap: getComputedStyle(p).whiteSpace }")
+    check(pre.wrap === "pre" && pre.sw > pre.cw, "long lines should scroll sideways, not wrap: " + JSON.stringify(pre))
+    check(pre.sh > pre.ch && Math.abs(pre.h - pre.cap) < 1, "a tall block stops at its cap and scrolls inside: " + JSON.stringify(pre))
+    check(!exists(".tds-code-more"), "no show-all button: the block scrolls instead")
+    const scrolled = js<{ top: number; left: number; page: number }>("const p = document.querySelector('.tds-code-body'); const page = document.querySelector('.tds-transcript')?.scrollTop ?? 0; p.scrollTop = 120; p.scrollLeft = 80; return { top: p.scrollTop, left: p.scrollLeft, page: (document.querySelector('.tds-transcript')?.scrollTop ?? 0) - page }")
+    check(scrolled.top === 120 && scrolled.left === 80, "the block scrolls both ways inside itself: " + JSON.stringify(scrolled))
+    check(js<string>("return getComputedStyle(document.querySelector('.tds-code-body')).scrollbarWidth") === "thin", "the block uses thin scrollbars")
+    shot("code-scroll")
     ab("click", ".tds-code button[aria-label='Wrap lines']")
     until(() => js<{ sw: number; cw: number }>("const p = document.querySelector('.tds-code pre'); return { sw: p.scrollWidth, cw: p.clientWidth }"), (p) => p.sw <= p.cw, "wrapped lines to fit the block")
     check(js<string | null>("return document.querySelector('.tds-code button[aria-label=\"Disable line wrap\"]')?.getAttribute('aria-pressed') ?? null") === "true", "the wrap toggle should read pressed")
     shot("code-wrapped")
     ab("click", ".tds-code button[aria-label='Disable line wrap']")
     until(() => js<{ sw: number; cw: number }>("const p = document.querySelector('.tds-code pre'); return { sw: p.scrollWidth, cw: p.clientWidth }"), (p) => p.sw > p.cw, "unwrapped lines to scroll again")
+  },
+  fence() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "```ts ")
+    until(() => exists(".tds-input pre code"), Boolean, "a typed fence to become a code block")
+    ab("keyboard", "type", "const answer = compute(42) // done")
+    until(() => js<string>("return [...document.querySelectorAll('.tds-input pre .sh__token--keyword')].map((e) => e.textContent).join(',')"), (t) => t.includes("const"), "the keyword to colour as it is typed")
+    const live = js<{ keyword: string; comment: string; bg: string }>("const q = (s) => getComputedStyle(document.querySelector('.tds-input pre ' + s)); return { keyword: q('.sh__token--keyword').color, comment: q('.sh__token--comment').color, bg: getComputedStyle(document.querySelector('.tds-input pre')).backgroundColor }")
+    check(live.keyword === "rgb(255, 103, 141)" && live.comment === "rgb(115, 115, 115)", "the composer fence uses the shared theme colours: " + JSON.stringify(live))
+    check(live.bg === "rgb(21, 21, 21)", "the composer fence sits on the code surface: " + live.bg)
+    ab("press", "Enter")
+    check(exists(".tds-input pre") && !exists(".tds-bubble[data-side='me']"), "Enter inside a fence adds a line instead of sending")
+    ab("keyboard", "type", "const more = 1")
+    shot("composer-fence")
+    ab("press", "Control+Enter")
+    until(() => exists(".tds-bubble[data-side='me'] .tds-code"), Boolean, "the sent fence to render as a code block in my bubble")
+    const sent = js<{ lang: string; text: string; keyword: boolean }>("const c = document.querySelector('.tds-bubble[data-side=me] .tds-code'); return { lang: c.dataset.language, text: c.querySelector('.tds-code-body').textContent, keyword: !!c.querySelector('.sh__token--keyword') }")
+    check(sent.lang === "ts" && sent.text.includes("compute(42)") && sent.text.includes("const more = 1") && sent.keyword, "the fence round-trips through send, highlighted: " + JSON.stringify(sent))
+    shot("sent-fence")
   },
   stopped() {
     ab("click", "button[aria-label='New chat']")
@@ -1626,7 +1647,7 @@ const journeys: Record<string, () => void> = {
   files() {
     const work = join(homedir(), ".capy/work")
     const pics = [0, 1, 2, 3, 4].map((i) => png(join(work, `verify-g${i}.png`), 480, 360, [80 + i * 30, 140, 200 - i * 25]))
-    writeFileSync(join(work, "verify-notes.md"), "# Notes\n\nA small markdown file for the files journey.\n")
+    writeFileSync(join(work, "verify-notes.md"), "# Notes\n\nA small markdown file for the files journey.\n\n```ts\nexport const answer = (n: number) => n * 42\n```\n")
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
     ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"), ...pics)
@@ -1659,8 +1680,9 @@ const journeys: Record<string, () => void> = {
     wait(300)
     shot("files-sent")
     ab("click", ".tds-files[data-side='agent'] .tds-doc")
-    until(() => exists(".tds-lightbox[data-ready] .tds-lightbox-doc pre"), Boolean, "a text file to open in the lightbox")
-    check(js<string>("return document.querySelector('.tds-lightbox-doc pre')?.textContent ?? ''").includes("# Notes"), "the lightbox shows the file text")
+    until(() => exists(".tds-lightbox[data-ready] .tds-lightbox-doc .tds-lightbox-md"), Boolean, "a markdown file to open in the lightbox as rendered markdown")
+    check(js<string>("return document.querySelector('.tds-lightbox-md')?.textContent ?? ''").includes("Notes"), "the lightbox shows the file text")
+    check(js<boolean>("const c = document.querySelector('.tds-lightbox-md .tds-code'); return !!c && c.dataset.language === 'ts' && !!c.querySelector('.tds-code-body [class^=sh__]') && c.querySelector('.tds-code-body').textContent.includes('n * 42')"), "the markdown preview highlights its fence through the shared code block")
     wait(300)
     shot("files-doc-lightbox")
     ab("press", "Escape")
@@ -1930,7 +1952,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

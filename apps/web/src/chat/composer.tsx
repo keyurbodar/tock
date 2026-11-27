@@ -19,6 +19,7 @@ import { setShortcutsOpen } from "../shell/shortcuts"
 import { linkToken, linkTyped, selectTokenBefore, Token, triggerAt, type TokenAttrs, type Trigger } from "./tokens"
 import { extension, formatSize, readingLabel, withFiles, type Attachment, type createAttachments, type Rejection } from "./attachments"
 import { fileChip } from "./chip"
+import { CodeHighlight } from "./code-highlight"
 
 type Attachments = ReturnType<typeof createAttachments>
 
@@ -473,6 +474,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         StarterKit.configure({ heading: false, horizontalRule: false, dropcursor: false, gapcursor: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false } }),
         Markdown,
         Token,
+        CodeHighlight,
         Placeholder.configure({ placeholder: "Message toast" }),
       ],
       editorProps: {

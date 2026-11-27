@@ -1,12 +1,10 @@
 import { clamp } from "./clamp"
-import { createMemo, createSignal, For, Match, Show, Switch, onCleanup } from "solid-js"
+import { createMemo, For, Match, Switch } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { Lexer, type Token, type Tokens } from "marked"
-import { highlight } from "sugar-high"
-import { Icon } from "@tock/ui/icon"
-import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
 import { FileChip, ThreadChip } from "./chip"
+import { CodeBlock } from "./code"
 import { Attachments, type SentFile } from "./files"
 import { ExternalLink, shortUrl, webHost } from "./link"
 import { createReveal } from "./stream"
@@ -66,21 +64,6 @@ export function Reference(props: { href: string; text: string; raw: string; chil
 const entities: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }
 const decode = (text: string) => text.replace(/&(amp|lt|gt|quot|#39);/g, (match) => entities[match] ?? match)
 
-/** Finished blocks never change, so their highlighted HTML is shared by every mount (T3Code highlightedCodeCache). */
-const highlighted = new Map<string, string>()
-const highlightOnce = (code: string) => {
-  const hit = highlighted.get(code)
-  if (hit !== undefined) {
-    highlighted.delete(code)
-    highlighted.set(code, hit)
-    return hit
-  }
-  const html = highlight(code)
-  highlighted.set(code, html)
-  if (highlighted.size > tokens.size["code-cache"]) highlighted.delete(highlighted.keys().next().value!)
-  return html
-}
-
 /** As T3Code isClosedCodeFence: a block is done only when its closing fence has arrived, not when the stream pauses. */
 export function isClosedFence(raw: string, code: string): boolean {
   const source = raw.replace(/\n+$/, "")
@@ -96,56 +79,7 @@ export function isClosedFence(raw: string, code: string): boolean {
 }
 
 function CodeCard(props: { token: Tokens.Code }) {
-  const [copied, setCopied] = createSignal(false)
-  const [expanded, setExpanded] = createSignal(false)
-  const [wrapped, setWrapped] = createSignal(false)
-  let timer: ReturnType<typeof setTimeout> | undefined
-  onCleanup(() => clearTimeout(timer))
-  const closed = createMemo(() => isClosedFence(props.token.raw, props.token.text))
-  /** While the fence is open only whole lines are highlighted, so a token that lands mid-line re-renders nothing above it. */
-  const settled = createMemo(() => {
-    const text = props.token.text
-    if (closed()) return text
-    const cut = text.lastIndexOf("\n")
-    return cut < 0 ? "" : text.slice(0, cut + 1)
-  })
-  const html = createMemo(() => (closed() ? highlightOnce(settled()) : highlight(settled())))
-  const tail = () => (closed() ? "" : props.token.text.slice(settled().length))
-  const lines = createMemo(() => props.token.text.split("\n").length)
-  const long = () => lines() * tokens.type.code[1] > tokens.size["code-collapsed"]
-  const copy = async () => {
-    await navigator.clipboard.writeText(props.token.text.replace(/\n$/, ""))
-    setCopied(true)
-    clearTimeout(timer)
-    timer = setTimeout(() => setCopied(false), tokens.motion.duration.confirm)
-  }
-  return (
-    <figure class="tds-code" data-wrap={wrapped() ? "" : undefined} data-streaming={closed() ? undefined : ""}>
-      <figcaption class="tds-code-head">
-        <span>{props.token.lang || "code"}</span>
-        <span class="tds-code-actions">
-          <button
-            type="button"
-            class="tds-code-action tds-press"
-            aria-pressed={wrapped() ? "true" : "false"}
-            aria-label={wrapped() ? "Disable line wrap" : "Wrap lines"}
-            onClick={() => setWrapped((on) => !on)}
-          >
-            <Icon name="arrow-u-down-left" size="code-action" />
-          </button>
-          <button type="button" class="tds-code-action tds-press" aria-label={copied() ? "Copied" : "Copy code"} onClick={copy}>
-            <MorphIcon name={copied() ? "check" : "copy"} size="code-action" class="tds-code-copy" />
-          </button>
-        </span>
-      </figcaption>
-      <pre class="tds-scroll" data-collapsed={long() && !expanded() ? "" : undefined}><code><span innerHTML={html()} />{tail()}</code></pre>
-      <Show when={long()}>
-        <button type="button" class="tds-code-more tds-press" aria-expanded={expanded() ? "true" : "false"} onClick={() => setExpanded((open) => !open)}>
-          {expanded() ? "Show less" : `Show all ${lines()} lines`}
-        </button>
-      </Show>
-    </figure>
-  )
+  return <CodeBlock code={props.token.text} lang={props.token.lang} open={!isClosedFence(props.token.raw, props.token.text)} />
 }
 
 /** A paragraph that is only file links is an attachment group, not prose: the agent returned files. */

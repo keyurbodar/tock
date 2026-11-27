@@ -3,7 +3,11 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { animate, prefersReducedMotion } from "@tock/ui/motion"
-import { fileUrl, formatSize, isImage } from "./attachments"
+import { render } from "@solidjs/web"
+import { lang } from "sugar-high/lang"
+import { extension, fileUrl, formatSize, isImage } from "./attachments"
+import { CodeBlock } from "./code"
+import { Markdown } from "./markdown"
 import { toast } from "../shell/toasts"
 
 export interface LightboxItem {
@@ -44,6 +48,7 @@ function preload(item: LightboxItem | undefined) {
 function Viewer(props: { opening: Opening }) {
   const { items, from, index: start } = untrack(() => props.opening)
   const returnFocusVisible = from.matches(":focus-visible")
+  const mounted: (() => void)[] = []
   const [index, setIndex] = createSignal(start)
   const [ready, setReady] = createSignal(false)
   const [closing, setClosing] = createSignal(false)
@@ -110,7 +115,17 @@ function Viewer(props: { opening: Opening }) {
       doc.append(pre)
       void fetch(fileUrl(item.id))
         .then((response) => (response.ok ? response.text() : Promise.reject(new Error("missing"))))
-        .then((text) => (pre.textContent = text.slice(0, limit["lightbox-text"])))
+        .then((text) => {
+          const body = text.slice(0, limit["lightbox-text"])
+          const ext = extension(item.name).toLowerCase()
+          if (ext === "md" || ext === "markdown" || ext === "mdx") {
+            pre.remove()
+            mounted.push(render(() => <div class="tds-lightbox-md"><Markdown text={body} /></div>, doc))
+          } else if (lang(ext) && lang(ext) !== "plaintext") {
+            pre.remove()
+            mounted.push(render(() => <CodeBlock code={body} lang={ext} />, doc))
+          } else pre.textContent = body
+        })
         .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
       return doc
     }
@@ -197,6 +212,7 @@ function Viewer(props: { opening: Opening }) {
   }
   window.addEventListener("keydown", onKey, true)
   onCleanup(() => window.removeEventListener("keydown", onKey, true))
+  onCleanup(() => mounted.forEach((dispose) => dispose()))
 
   const onWheel = (event: WheelEvent) => {
     if (event.ctrlKey) {

@@ -1,0 +1,47 @@
+/* Code blocks everywhere (agent replies, my bubbles, the composer, the lightbox), after T3Code's chat-markdown-codeblock. */
+@layer components {
+  .tds-code, .tds-input pre {
+    --sh-class: var(--tds-code-type); --sh-identifier: var(--tds-code-fg); --sh-sign: var(--tds-code-sign); --sh-property: var(--tds-code-property);
+    --sh-entity: var(--tds-code-entity); --sh-jsxliterals: var(--tds-code-jsx); --sh-string: var(--tds-code-string); --sh-keyword: var(--tds-code-keyword); --sh-comment: var(--tds-code-comment);
+  }
+  .tds-code {
+    align-self: flex-start; width: min(var(--tds-size-code-card), 100%); min-width: 0; max-width: 100%; margin: var(--tds-space-4) 0 0; overflow: hidden; text-align: start;
+    border-radius: var(--tds-radius-code); background: var(--tds-surface-code); box-shadow: var(--tds-ring-card);
+    @starting-style { opacity: 0; translate: 0 var(--tds-space-10) }
+    transition: opacity var(--tds-dur-swap) var(--tds-ease-out), translate var(--tds-dur-swap) var(--tds-ease-out);
+  }
+  .tds-code-head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--tds-space-8); padding: var(--tds-space-6) var(--tds-space-6) 0 var(--tds-space-12);
+    font-family: var(--tds-font-mono); font-size: var(--tds-type-kbd-size); line-height: var(--tds-type-kbd-lh); color: var(--tds-code-head); user-select: none;
+    & > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  }
+  .tds-code-actions { display: flex; align-items: center; gap: var(--tds-space-2) }
+  .tds-code-action { display: grid; place-items: center; width: var(--tds-size-action); height: var(--tds-size-action); border-radius: var(--tds-radius-small); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out) }
+  @media (hover: hover) and (pointer: fine) { .tds-code-action:hover { color: var(--tds-text-tx2); background: var(--tds-overlay-hover) } }
+  .tds-code-action[aria-pressed="true"] { color: var(--tds-text-tx2); background: var(--tds-overlay-hover) }
+  .tds-code-copy[data-glyph="check"] { color: var(--tds-status-done) }
+
+  .tds-code-body, .tds-input pre {
+    margin: 0; max-width: 100%; max-height: var(--tds-size-code-max); overflow: auto; overscroll-behavior-x: contain;
+    font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); line-height: var(--tds-type-code-lh); color: var(--tds-code-fg); tab-size: 2;
+    scrollbar-width: thin; scrollbar-color: var(--tds-code-thumb) transparent;
+  }
+  .tds-code-body { padding: var(--tds-space-8) var(--tds-space-14) var(--tds-space-12); white-space: pre; border-radius: 0 0 var(--tds-radius-code) var(--tds-radius-code) }
+  .tds-code-body code { font: inherit; background: none; padding: 0 }
+  .tds-code[data-wrap] .tds-code-body { white-space: pre-wrap; overflow-wrap: anywhere }
+  .tds-code[data-streaming] .tds-code-body { overflow-anchor: none }
+  .tds-code:is([data-language="text"], [data-language="txt"], [data-language="plain"], [data-language="plaintext"]) .tds-code-body * { color: inherit !important }
+  .tds-code + .tds-bubble, .tds-bubble + .tds-code { margin-top: var(--tds-space-6) }
+  .tds-bubble-rich .tds-code { width: 100%; margin-block: var(--tds-space-6) }
+
+  /* The composer's fence (TipTap codeBlock), as T3Code's ComposerCodeBlockNodeView: the same surface, lines wrap while editing, colours from the same highlighter. */
+  .tds-input pre {
+    margin: var(--tds-space-4) 0; padding: var(--tds-space-8) var(--tds-space-12); border-radius: var(--tds-radius-code);
+    background: var(--tds-surface-code); box-shadow: var(--tds-ring-card); white-space: pre-wrap; overflow-wrap: anywhere;
+    & code { font: inherit; background: none; padding: 0 }
+  }
+
+  .tds-lightbox-md { max-width: var(--tds-size-code-card); margin: 0 auto; display: flex; flex-direction: column; gap: var(--tds-space-6); text-align: start }
+  .tds-lightbox-md .tds-code { width: 100% }
+  .tds-lightbox-doc > .tds-code { width: min(var(--tds-size-code-card), 100%); margin: 0 auto; --tds-size-code-max: none }
+}
