@@ -31,6 +31,15 @@ export const Token = Node.create({
   parseHTML: () => [{ tag: "span[data-token]", getAttrs: (el) => ({ kind: el.dataset.kind, id: el.dataset.id, label: el.textContent ?? "" }) }],
   renderHTML: ({ node, HTMLAttributes }) => {
     const attrs = node.attrs as TokenAttrs
+    if (attrs.kind === "link") {
+      const host = attrs.label.split("/")[0] ?? ""
+      return [
+        "span",
+        mergeAttributes(HTMLAttributes, { "data-token": "", "data-kind": "link", "data-id": attrs.id, class: "tds-chip tds-link-token", contenteditable: "false" }),
+        ["span", { class: "tds-token-fav", "data-letter": host.charAt(0).toUpperCase(), "aria-hidden": "true" }, ["img", { src: `https://${host}/favicon.ico`, alt: "", draggable: "false", loading: "lazy" }]],
+        ["span", { class: "tds-chip-label" }, attrs.label],
+      ]
+    }
     const label = attrs.kind === "command" ? `/${attrs.label}` : attrs.label
     return [
       "span",
@@ -85,14 +94,19 @@ export function linkTyped(view: EditorView): boolean {
   const href = match[1]!
   const end = selection.from - 1
   const start = end - href.length
-  let label = href
-  try {
-    const url = new URL(href)
-    label = (url.hostname.replace(/^www\./, "") + url.pathname).replace(/\/$/, "")
-  } catch {
-    return false
-  }
-  const node = view.state.schema.nodes.token!.create({ kind: "link", id: href, label })
+  const attrs = linkToken(href)
+  if (!attrs) return false
+  const node = view.state.schema.nodes.token!.create(attrs)
   view.dispatch(view.state.tr.replaceWith(start, end, node))
   return true
+}
+
+/** A URL as a link token: host and path, no scheme or trailing slash. */
+export function linkToken(href: string): TokenAttrs | null {
+  try {
+    const url = new URL(href)
+    return { kind: "link", id: href, label: (url.hostname.replace(/^www\./, "") + url.pathname).replace(/\/$/, "") }
+  } catch {
+    return null
+  }
 }

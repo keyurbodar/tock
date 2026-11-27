@@ -11,6 +11,16 @@ import { join } from "node:path"
 const BASE = process.env.TOCK_URL ?? "http://localhost:5199"
 const OUT = process.env.TOCK_VERIFY_OUT ?? join(homedir(), ".capy/work/verify", new Date().toISOString().replace(/[:.]/g, "-"))
 mkdirSync(OUT, { recursive: true })
+const FIXTURES = join(homedir(), ".capy/work")
+mkdirSync(FIXTURES, { recursive: true })
+await Bun.write(join(FIXTURES, "verify-notes.md"), "# Notes\n\nExport is a scan.\nFacts stay append-only.\n")
+await Bun.write(join(FIXTURES, "verify-data.json"), '{ "a": 1, "b": [1, 2] }\n')
+await Bun.write(join(FIXTURES, "verify-app.exe"), "MZ")
+await Bun.write(join(FIXTURES, "verify-big.zip"), new Uint8Array(31 * 1024 * 1024))
+if (!(await Bun.file(join(FIXTURES, "verify-pixel.png")).exists())) {
+  const canvas = "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAQ0lEQVR4nO3OQQ0AIBDAsEnHOsKwwGdpIqHt7Bk6PwCvBEgJkBIgJUBKgJQAKQFSAqQESAmQEiAlQEqAlAApAVICpBYk4QHFm1Q0rgAAAABJRU5ErkJggg=="
+  await Bun.write(join(FIXTURES, "verify-pixel.png"), Buffer.from(canvas, "base64"))
+}
 
 function ab(...args: string[]): string {
   const run = Bun.spawnSync(["agent-browser", ...args], { stdout: "pipe", stderr: "pipe" })
@@ -599,16 +609,6 @@ const journeys: Record<string, () => void> = {
     ab("click", ".tds-rail-button[data-bell]")
     until(() => js<string>("return document.querySelector('.tds-rail-button[data-bell] .tds-glyph').dataset.glyph"), (g) => g === "bell", "the outline bell")
   },
-  plus() {
-    ab("click", "button[aria-label='New chat']")
-    ab("click", ".tds-composer-plus")
-    until(() => exists(".tds-menu"), Boolean, "the plus menu")
-    const items = js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())")
-    check(items.some((t) => t.startsWith("Photos and Files")) && items.includes("Paste from Clipboard"), `plus menu items: ${items.join(", ")}`)
-    shot("plus-menu")
-    ab("press", "Escape")
-    until(() => exists(".tds-menu"), (open) => !open, "the plus menu to close")
-  },
   attach() {
     const work = join(homedir(), ".capy/work")
     ab("click", "button[aria-label='New chat']")
@@ -624,7 +624,7 @@ const journeys: Record<string, () => void> = {
     until(() => js<boolean>("const img = document.querySelector('.tds-sent-image img'); return !!img && img.complete && img.naturalWidth > 0"), Boolean, "the sent image to load")
     check(!js<string>("return document.querySelector('.tds-bubble[data-side=me]:last-of-type')?.textContent ?? ''").includes("tock-file:"), "raw file links must not show in the bubble")
     check(!js<string>("return document.querySelector('.tds-header-pill')?.textContent ?? ''").includes(".png"), "the title should not list file names when there is text")
-    until(() => rect(".tds-field")?.h, (h) => h === 38, "the composer to shrink back after sending")
+    until(() => rect(".tds-field")?.h, (h) => h === 44, "the composer to shrink back after sending")
     shot("attach-sent")
   },
   lightbox() {
@@ -789,6 +789,220 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
     shot("ask-question-answered")
   },
+  composer() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    const sizes = js<number[]>("return ['.tds-field', '.tds-send', '.tds-composer-plus'].map((s) => document.querySelector(s).offsetHeight)")
+    check(sizes.every((h) => h === 44), `SPEC: plus, field and send are 44 (got ${sizes})`)
+    check(style(".tds-input", "fontSize") === "14.5px" && style(".tds-input", "lineHeight") === "20px", "composer type is 14.5/20")
+    check(style(".tds-field", "borderTopLeftRadius") === "22px", "the resting field is radius 22")
+    ab("click", ".ProseMirror")
+    check(style(".tds-input", "outlineStyle") === "none" && !js<boolean>("return getComputedStyle(document.activeElement).outlineStyle !== 'none'"), "no focus ring on click")
+    ab("keyboard", "type", "line one")
+    ab("press", "Shift+Enter")
+    ab("keyboard", "type", "line two")
+    until(() => rect(".tds-field")?.h, (h) => h === 64, "the field to grow to two lines")
+    check(style(".tds-field", "borderTopLeftRadius") === "20px", "the tall field is radius 20")
+    shot("composer-grown")
+    js<boolean>("document.querySelector('.ProseMirror').editor?.commands?.clearContent?.(); return true")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+    until(() => rect(".tds-field")?.h, (h) => h === 44, "the field to shrink back")
+  },
+  tokens() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "see https://github.com/keyurbodar/tock and")
+    until(() => exists(".tds-input .tds-link-token .tds-token-fav"), Boolean, "the typed link chip with its favicon")
+    const m = js<{ line: number; text: number[]; label: number[]; chip: number[] }>(
+      "const p = document.querySelector('.tds-input p'); const t = [...p.childNodes].find((n) => n.nodeType === 3); const a = document.createRange(); a.selectNodeContents(t); const tr = a.getClientRects()[0]; const b = document.createRange(); b.selectNodeContents(p.querySelector('.tds-chip-label')); const lr = b.getClientRects()[0]; const c = p.querySelector('.tds-chip').getBoundingClientRect(); return { line: p.getBoundingClientRect().height, text: [tr.top, tr.bottom], label: [lr.top, lr.bottom], chip: [c.top, c.height] }",
+    )
+    check(m.line === 20, `a chip must not grow the 20px line (got ${m.line})`)
+    check(m.chip[1] === 22, "tokens are 22 tall")
+    check(Math.abs(m.text[1]! - m.label[1]!) < 0.5, `chip text sits on the line's baseline (text ${m.text}, label ${m.label})`)
+    ab("keyboard", "type", " ")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+    ab("keyboard", "type", "ask @")
+    until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ list")
+    const menu = rect(".tds-suggest")!
+    const caret = rect(".tds-input p")!
+    check(menu.y + menu.h <= caret.y && caret.y - (menu.y + menu.h) <= 8, "the @ list sits just above the caret")
+    ab("press", "Enter")
+    until(() => exists(".tds-input .tds-chip[data-kind='thread']"), Boolean, "the thread token")
+    ab("press", "Backspace")
+    ab("press", "Backspace")
+    check(/229, 143, 180/.test(style(".tds-input .tds-chip.ProseMirror-selectednode", "boxShadow") ?? ""), "the first Backspace rings the token rose")
+    shot("tokens-ring")
+    ab("press", "Backspace")
+    check(!exists(".tds-input .tds-chip[data-kind='thread']"), "the second Backspace deletes it")
+    js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', 'https://linear.app/tock/issue/T-12'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
+    until(() => js<string>("return document.querySelector('.tds-input .tds-link-token:last-of-type .tds-chip-label')?.textContent ?? ''"), (t) => t === "linear.app/tock/issue/T-12", "a pasted URL to become a link chip")
+    shot("tokens-links")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+  },
+  longpaste() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', Array.from({ length: 20 }, (_, i) => 'line ' + (i + 1)).join('\\n')); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
+    until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Long text became a file"), "the long paste toast")
+    until(() => js<string>("return document.querySelector('.tds-attach .tds-attach-meta')?.textContent ?? ''"), (t) => t.startsWith("Pasted text.txt") && t.endsWith("20 lines"), "the Pasted text card with its line count", 10000)
+    check(js<string>("return document.querySelector('.tds-input').textContent") === "", "the long text stays out of the field")
+    wait(300)
+    shot("longpaste-card")
+    ab("click", ".tds-attach-remove")
+  },
+  plus() {
+    ab("click", "button[aria-label='New chat']")
+    ab("click", ".tds-composer-plus")
+    until(() => exists(".tds-menu"), Boolean, "the plus menu")
+    const items = js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())")
+    check(items[0]?.startsWith("Photos and Files") && items[1] === "Take a Screenshot" && items[2] === "Paste from Clipboard" && items[3] === "From an App", `plus menu items: ${items.join(", ")}`)
+    wait(400)
+    check(style(".tds-plus-glyph", "rotate") === "45deg", "the plus turns 45° while open")
+    ab("hover", ".tds-plus-menu .tds-menu-item:nth-last-child(1)")
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())"), (t) => t.some((x) => x.startsWith("GitHub")), "the From an App submenu")
+    check(js<boolean>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].filter((e) => /Drive|GitHub|Notion/.test(e.textContent)).every((e) => e.hasAttribute('data-disabled') || e.getAttribute('aria-disabled') === 'true')"), "app sources are disabled until they have a backend")
+    wait(250)
+    shot("plus-menu")
+    ab("press", "Escape")
+    ab("press", "Escape")
+    until(() => exists(".tds-menu"), (open) => !open, "the plus menu to close")
+    check(style(".tds-plus-glyph", "rotate") !== "45deg" || (wait(400), style(".tds-plus-glyph", "rotate") === "none" || style(".tds-plus-glyph", "rotate") === "0deg"), "the plus turns back")
+    js<boolean>("const c = document.createElement('canvas'); c.width = 320; c.height = 200; const x = c.getContext('2d'); x.fillStyle = 'tomato'; x.fillRect(0, 0, 320, 200); const s = c.captureStream(5); setInterval(() => x.fillRect(0, 0, 1, 1), 100); navigator.mediaDevices.getDisplayMedia = async () => s; return true")
+    ab("click", ".tds-composer-plus")
+    until(() => exists(".tds-menu"), Boolean, "the plus menu again")
+    choose("Take a Screenshot")
+    until(() => js<string>("return document.querySelector('.tds-attach img')?.alt ?? ''"), (t) => /^Screenshot \d\d\.\d\d\.png$/.test(t), "the screenshot to land in the tray", 10000)
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done", "the screenshot upload")
+    shot("plus-screenshot")
+    ab("click", ".tds-attach-remove")
+  },
+  lifecycle() {
+    const work = join(homedir(), ".capy/work")
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+    js<boolean>("window.__send ??= XMLHttpRequest.prototype.send; XMLHttpRequest.prototype.send = function (b) { setTimeout(() => window.__send.call(this, b), 2500) }; return true")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"), join(work, "verify-pixel.png"))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "uploading"), "both cards uploading")
+    check(exists(".tds-attach[data-kind='doc'] .tds-attach-ring") && exists(".tds-attach[data-kind='image'] .tds-attach-ring"), "uploading cards show the ring")
+    shot("lifecycle-uploading")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "two files, held")
+    ab("press", "Enter")
+    until(() => exists(".tds-held") && exists(".tds-send[data-held]"), Boolean, "the held send")
+    shot("lifecycle-held")
+    until(() => exists(".tds-attach[data-status='reading'] [data-shimmer]"), Boolean, "the reading shimmer", 8000)
+    shot("lifecycle-reading")
+    until(() => exists(".tds-bubble[data-side='me']"), Boolean, "the held send to go on its own once files are ready", 10000)
+    check(!exists(".tds-attach"), "the tray clears after the held send")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"))
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done", "the upload", 10000)
+    check(/lines?$/.test(js<string>("return document.querySelector('.tds-attach .tds-attach-meta span').textContent")), "ready cards show the meta")
+    shot("lifecycle-ready")
+    ab("click", ".tds-attach-remove")
+    js<boolean>("XMLHttpRequest.prototype.send = function () { setTimeout(() => this.onerror?.(new ProgressEvent('error')), 600) }; return true")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"))
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "failed", "the failed upload")
+    check(js<number>("return document.querySelector('.tds-attach').getAnimations().length") > 0 || style(".tds-attach", "animationName") === "tds-attach-shake", "a failure shakes the card")
+    check(exists(".tds-attach-retry"), "a failure offers Retry")
+    shot("lifecycle-failed")
+    js<boolean>("XMLHttpRequest.prototype.send = window.__send; return true")
+    ab("click", ".tds-attach-retry")
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done", "Retry to finish the upload", 10000)
+    ab("click", ".tds-attach-remove")
+    until(() => exists(".tds-attach"), (x) => !x, "the tray to empty")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-app.exe"))
+    check(js<number>("return document.querySelector('.tds-composer-row').getAnimations().length") > 0, "an unreadable file shakes the composer")
+    until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("can’t read .exe"), "the unsupported toast")
+    check(!exists(".tds-attach"), "unsupported files never reach the tray")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-big.zip"))
+    until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("verify-big.zip is"), "the too large toast")
+    check(!exists(".tds-attach"), "too large files never reach the tray")
+    wait(300)
+    shot("lifecycle-rejected")
+  },
+  tray() {
+    const work = join(homedir(), ".capy/work")
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"), join(work, "verify-pixel.png"), join(work, "verify-data.json"))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 3 && s.every((x) => x === "done"), "three uploads", 15000)
+    const names = () => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.querySelector('b:not(.tds-attach-glyph b)')?.textContent ?? e.querySelector('img')?.alt)")
+    const before = names()
+    ab("hover", ".tds-attach:nth-child(1)")
+    wait(200)
+    check(!exists(".tds-attach-preview"), "the preview waits for hover intent")
+    until(() => exists(".tds-attach-preview"), Boolean, "the preview card after 450ms", 2000)
+    wait(200)
+    shot("tray-preview")
+    const a = rect(".tds-attach:nth-child(1)")!
+    const b = rect(".tds-attach:nth-child(2)")!
+    ab("mouse", "move", String(a.x + 30), String(a.y + 30))
+    ab("mouse", "down")
+    ab("mouse", "move", String(b.x + b.w - 10), String(a.y + 30), "--steps", "10")
+    check(exists(".tds-attach[data-dragging]") && !exists(".tds-attach-preview"), "dragging lifts the card and hides the preview")
+    shot("tray-dragging")
+    ab("mouse", "up")
+    const after = names()
+    check(after[0] === before[1] && after[1] === before[0], `drag reorders the tray (${before} → ${after})`)
+    ab("mouse", "move", "5", "5")
+    wait(300)
+    const w = rect(".tds-attach:nth-child(1)")!.w
+    ab("hover", ".tds-attach:nth-child(1)")
+    ab("click", ".tds-attach:nth-child(1) .tds-attach-remove")
+    wait(100)
+    const mid = rect(".tds-attach:nth-child(1)")!.w
+    check(mid < w && mid > 0, `remove collapses the width (${w} → ${mid})`)
+    until(() => names().length, (n) => n === 2, "the card to leave")
+    ab("press", "Escape")
+    js<boolean>("document.querySelectorAll('.tds-attach-remove').forEach((b) => b.click()); return true")
+  },
+  dropzone() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".tds-composer-wrap"), Boolean, "the composer")
+    const fire = (type: string, mime: string) => js<boolean>(`const dt = new DataTransfer(); dt.items.add(new File(['x'], 'f', { type: '${mime}' })); document.querySelector('.tds-composer-wrap').closest('section').dispatchEvent(new DragEvent('${type}', { dataTransfer: dt, bubbles: true, cancelable: true })); return true`)
+    fire("dragenter", "image/png")
+    until(() => exists(".tds-drop"), Boolean, "the drop zone")
+    const r = rect(".tds-drop")!
+    const s = rect(".tds-drop")!
+    check(style(".tds-drop", "borderTopLeftRadius") === "24px" && /229, 143, 180/.test(style(".tds-drop", "boxShadow") ?? ""), "glass r24 rose ring")
+    void r, s
+    wait(350)
+    shot("drop-zone")
+    fire("dragleave", "image/png")
+    until(() => exists(".tds-drop"), (x) => !x, "the drop zone to leave")
+    fire("dragenter", "application/x-msdownload")
+    until(() => exists(".tds-drop[data-bad]"), Boolean, "the unreadable drop zone")
+    check(/232, 144, 138/.test(style(".tds-drop", "boxShadow") ?? ""), "unreadable files ring red")
+    wait(350)
+    shot("drop-zone-bad")
+    fire("drop", "application/x-msdownload")
+    until(() => exists(".tds-drop"), (x) => !x, "the drop zone to close on drop")
+    check(!exists(".tds-attach"), "unreadable drops never reach the tray")
+  },
+  queued() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Plan a long trip through Japan for two weeks")
+    ab("press", "Enter")
+    until(() => exists(".tds-send[data-stop]"), Boolean, "Stop while toast works and the field is empty", 4000)
+    wait(300)
+    const tint = [style(".tds-send", "backgroundColor"), style(".tds-send", "color")].join(" ")
+    check(/232,? 144,? 138/.test(tint), "Stop is tinted red: " + tint)
+    shot("queued-stop")
+    js<boolean>("window.__queued = null; new MutationObserver((_, o) => { const b = document.querySelector('.tds-bubble[data-queued]'); const c = [...document.querySelectorAll('.tds-caption')].find((e) => e.textContent.includes('Waiting for toast')); if (b && c && !window.__queued) { window.__queued = { opacity: getComputedStyle(b).opacity, caption: c.textContent }; o.disconnect() } }).observe(document.body, { subtree: true, childList: true, attributes: true }); return true")
+    ab("keyboard", "type", "second while working")
+    ab("press", "Enter")
+    wait(120)
+    shot("queued-caption")
+    const seen = until(() => js<{ opacity: string; caption: string } | null>("return window.__queued"), Boolean, "the queued bubble and its caption", 4000)!
+    check(Number(seen.opacity) < 1, "queued sends are dimmed")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -798,7 +1012,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

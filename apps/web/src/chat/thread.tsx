@@ -1,10 +1,10 @@
 import { createEffect, createMemo, createSignal, Show, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { createAttachments } from "./attachments"
+import { createAttachments, isReadable } from "./attachments"
 import { useNavigate, useParams } from "@solidjs/router"
 import { abort, app, isWorking, newThreadId, send, subscribe, titleOf } from "../state/app"
-import { Composer } from "./composer"
+import { attach, Composer } from "./composer"
 import { Header } from "./header"
 import { Empty } from "./empty"
 import type { OrbStatus } from "@tock/ui/orb"
@@ -28,12 +28,19 @@ export function Thread() {
   }
   const attachments = createAttachments()
   const [dragging, setDragging] = createSignal(false)
+  const [unreadable, setUnreadable] = createSignal(false)
   let depth = 0
   const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes("Files") ?? false
+  const enter = (e: DragEvent) => {
+    e.preventDefault()
+    depth++
+    setUnreadable([...(e.dataTransfer?.items ?? [])].some((item) => item.kind === "file" && item.type !== "" && !isReadable("", item.type)))
+    setDragging(true)
+  }
   return (
     <section
       class="relative flex min-w-0 flex-1 flex-col bg-main"
-      onDragEnter={(e) => hasFiles(e) && (e.preventDefault(), depth++, setDragging(true))}
+      onDragEnter={(e) => hasFiles(e) && enter(e)}
       onDragOver={(e) => hasFiles(e) && e.preventDefault()}
       onDragLeave={(e) => hasFiles(e) && --depth <= 0 && ((depth = 0), setDragging(false))}
       onDrop={(e) => {
@@ -41,7 +48,7 @@ export function Thread() {
         e.preventDefault()
         depth = 0
         setDragging(false)
-        attachments.add([...(e.dataTransfer?.files ?? [])])
+        attach(attachments, [...(e.dataTransfer?.files ?? [])])
       }}
     >
       <Header title={titleOf(session())} status={status()} />
@@ -50,14 +57,14 @@ export function Thread() {
       </Show>
       <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
       <Show when={dragging()}>
-        <div class="tds-drop" aria-hidden="true">
+        <div class="tds-drop" data-bad={unreadable() ? "" : undefined} aria-hidden="true">
           <span class="tds-drop-fan">
             <i><Icon name="file-pdf" size="menu" /></i>
             <i><Icon name="image" size="menu" /></i>
             <i><Icon name="file-text" size="menu" /></i>
           </span>
-          <b>Drop to add to your message</b>
-          <span>Images, PDFs, docs, code, audio and video, up to {tokens.limit["file-mb"]} MB each</span>
+          <b>{unreadable() ? "Tock can’t read some of these" : "Drop to add to your message"}</b>
+          <span>{unreadable() ? "Try a PDF, image, text or code file" : `Images, PDFs, docs, code, audio and video, up to ${tokens.limit["file-mb"]} MB each`}</span>
         </div>
       </Show>
     </section>

@@ -1,7 +1,7 @@
 import { TextMorph } from "@tock/ui/text-morph"
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { useNavigate } from "@solidjs/router"
-import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuTrigger } from "@ui-sdk/solid/menu"
+import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from "@ui-sdk/solid/menu"
 import { Editor, type JSONContent } from "@tiptap/core"
 import Document from "@tiptap/extension-document"
 import Paragraph from "@tiptap/extension-paragraph"
@@ -18,48 +18,127 @@ import { app, newThreadId, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
 import { toast } from "../shell/toasts"
 import { setShortcutsOpen } from "../shell/shortcuts"
-import { linkTyped, selectTokenBefore, Token, triggerAt, type TokenAttrs, type Trigger } from "./tokens"
-import { extension, formatSize, withFiles, type Attachment, type createAttachments } from "./attachments"
+import { linkToken, linkTyped, selectTokenBefore, Token, triggerAt, type TokenAttrs, type Trigger } from "./tokens"
+import { extension, formatSize, readingLabel, withFiles, type Attachment, type createAttachments, type Rejection } from "./attachments"
+import { fileChip } from "./chip"
 
 type Attachments = ReturnType<typeof createAttachments>
 
-function Chip(props: { item: Attachment; onRemove: () => void; onRetry: () => void }) {
+/** Refused files never reach the tray: the composer shakes and a toast says why (TDS px3 reject). */
+export function refuse(rejected: readonly Rejection[]) {
+  if (rejected.length === 0) return
+  document.querySelector(".tds-composer-row")?.animate(
+    [{ translate: "0" }, { translate: "calc(var(--tds-space-6) * -1) 0" }, { translate: "var(--tds-space-6) 0" }, { translate: "calc(var(--tds-space-3) * -1) 0" }, { translate: "0" }],
+    { duration: tokens.motion.duration.shake, easing: "ease-in-out" },
+  )
+  for (const reason of rejected) toast(reason.title, { description: reason.hint, tone: "failed", icon: "prohibit", duration: tokens.motion.toast.error })
+}
+
+export const attach = (attachments: Attachments, files: Iterable<File>) => refuse(attachments.add(files))
+
+function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => void; onPointerDown: (event: PointerEvent, el: HTMLElement) => void; onHover: (el: HTMLElement | null) => void }) {
+  let el!: HTMLDivElement
   const ring = () => `${Math.round(props.item.progress * 100)} 100`
+  const kind = () => fileChip(props.item.name)
+  const collapse = () => {
+    props.onHover(null)
+    el.style.pointerEvents = "none"
+    el.animate(
+      [
+        { width: `${el.offsetWidth}px`, marginRight: "0px", opacity: 1, scale: "1" },
+        { width: "0px", marginRight: `-${tokens.space[8]}px`, opacity: 0, scale: String(tokens.motion["press-tight"]) },
+      ],
+      { duration: tokens.motion.duration.layout, easing: tokens.motion.curve.std, fill: "forwards" },
+    ).onfinish = () => props.onRemove()
+  }
+  const retry = (event: MouseEvent) => {
+    event.stopPropagation()
+    props.onRetry()
+  }
   return (
-    <div class="tds-attach" data-kind={props.item.preview ? "image" : "doc"} data-status={props.item.status}>
+    <div
+      ref={el}
+      class="tds-attach"
+      data-kind={props.item.preview ? "image" : "doc"}
+      data-status={props.item.status}
+      data-key={props.item.key}
+      onPointerDown={(event) => props.onPointerDown(event, el)}
+      onPointerEnter={() => props.onHover(el)}
+      onPointerLeave={() => props.onHover(null)}
+    >
       <Show
         when={props.item.preview}
         fallback={
           <>
-            <span class="tds-attach-glyph">
-              <Icon name="file-text" size="menu" />
+            <span class="tds-attach-glyph" data-kind={kind().kind} style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}>
+              <Icon name={kind().icon} size="menu" />
               <b>{extension(props.item.name)}</b>
             </span>
             <span class="tds-attach-meta">
               <b>{props.item.name}</b>
-              <span>
-                <Show when={props.item.status === "failed"} fallback={props.item.status === "uploading" ? `${Math.round(props.item.progress * 100)}% of ${formatSize(props.item.size)}` : formatSize(props.item.size)}>
-                  {props.item.error}
-                  <button type="button" class="tds-attach-retry" onClick={props.onRetry}>
+              <Show
+                when={props.item.status === "failed"}
+                fallback={
+                  <span class="num" data-shimmer={props.item.status === "reading" ? "" : undefined}>
+                    {props.item.status === "uploading" ? `${Math.round(props.item.progress * 100)}% of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))}
+                  </span>
+                }
+              >
+                <span>
+                  {props.item.error},{" "}
+                  <button type="button" class="tds-attach-retry" onClick={retry}>
                     Retry
                   </button>
-                </Show>
-              </span>
+                </span>
+              </Show>
             </span>
           </>
         }
       >
-        {(src) => <img src={src()} alt={props.item.name} draggable={false} />}
+        {(src) => (
+          <>
+            <img src={src()} alt={props.item.name} draggable={false} />
+            <Show when={props.item.status === "failed"}>
+              <span class="tds-attach-veil">
+                <button type="button" class="tds-attach-retry-pill" onClick={retry}>
+                  Retry
+                </button>
+              </span>
+            </Show>
+          </>
+        )}
       </Show>
       <Show when={props.item.status === "uploading"}>
-        <svg class="tds-attach-ring" viewBox="0 0 36 36" aria-hidden="true">
-          <circle cx="18" cy="18" r="15.9" pathLength="100" />
-          <circle cx="18" cy="18" r="15.9" pathLength="100" stroke-dasharray={ring()} />
+        <svg class="tds-attach-ring" viewBox="0 0 26 26" aria-hidden="true">
+          <circle cx="13" cy="13" r="10" pathLength="100" />
+          <circle cx="13" cy="13" r="10" pathLength="100" stroke-dasharray={ring()} />
         </svg>
       </Show>
-      <button type="button" class="tds-attach-remove tds-press" aria-label={`Remove ${props.item.name}`} onClick={props.onRemove}>
+      <button type="button" class="tds-attach-remove tds-press" aria-label={`Remove ${props.item.name}`} onPointerDown={(event) => event.stopPropagation()} onClick={collapse}>
         <Icon name="x" size="chip" />
       </button>
+    </div>
+  )
+}
+
+/** The tray's hover card (TDS PxHover, files): a bigger look at the file after hover intent. */
+function Preview(props: { item: Attachment; left: number; bottom: number }) {
+  const kind = () => fileChip(props.item.name)
+  return (
+    <div class="tds-attach-preview" role="tooltip" style={{ left: `${props.left}px`, bottom: `${props.bottom}px` }}>
+      <Show when={props.item.preview}>{(src) => <img class="tds-attach-preview-image" src={src()} alt="" draggable={false} />}</Show>
+      <div class="tds-attach-preview-head">
+        <Show when={!props.item.preview}>
+          <span class="tds-attach-glyph" data-kind={kind().kind} style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}>
+            <Icon name={kind().icon} size="menu" />
+            <b>{extension(props.item.name)}</b>
+          </span>
+        </Show>
+        <span class="tds-attach-meta">
+          <b>{props.item.name}</b>
+          <span class="num">{props.item.status === "failed" ? props.item.error : (props.item.meta ?? formatSize(props.item.size))}</span>
+        </span>
+      </div>
     </div>
   )
 }
@@ -80,9 +159,37 @@ const commands = [
   { key: "shortcuts", label: "shortcuts", hint: "Keyboard shortcuts", icon: "keyboard" },
 ] as const
 
+const apps = [
+  { key: "drive", label: "Google Drive", icon: "google-drive-logo" },
+  { key: "github", label: "GitHub", icon: "github-logo" },
+  { key: "notion", label: "Notion", icon: "notion-logo" },
+] as const
+
 const drafts = new Map<string, JSONContent>()
 const typing = (e: KeyboardEvent) => e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey
 const editable = (el: Element | null) => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)
+const URL_ONLY = /^https?:\/\/\S+$/
+const pad = (value: number) => String(value).padStart(2, "0")
+
+async function screenshot(): Promise<File | null> {
+  const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+  try {
+    const video = document.createElement("video")
+    video.muted = true
+    video.srcObject = stream
+    await video.play()
+    if (!video.videoWidth) await new Promise((done) => video.addEventListener("resize", done, { once: true }))
+    const canvas = document.createElement("canvas")
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext("2d")!.drawImage(video, 0, 0)
+    const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/png"))
+    const now = new Date()
+    return blob ? new File([blob], `Screenshot ${pad(now.getHours())}.${pad(now.getMinutes())}.png`, { type: "image/png" }) : null
+  } finally {
+    for (const track of stream.getTracks()) track.stop()
+  }
+}
 
 export function Composer(props: { draftKey: string; working: boolean; attachments: Attachments; onSend: (text: string) => void; onStop: () => void }) {
   const navigate = useNavigate()
@@ -93,17 +200,22 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const [trigger, setTrigger] = createSignal<Trigger | null>(null)
   const [active, setActive] = createSignal(0)
   const [caret, setCaret] = createSignal({ left: 0, bottom: 0 })
+  const [preview, setPreview] = createSignal<{ key: string; left: number; bottom: number } | null>(null)
   let picker!: HTMLInputElement
+  let wrap!: HTMLDivElement
+  let tray: HTMLDivElement | undefined
   const blank = () => empty() && props.attachments.items().length === 0
-  const pending = () => props.attachments.items().filter((item) => item.status === "uploading")
+  const pending = () => props.attachments.items().filter((item) => item.status === "uploading" || item.status === "reading")
   const failed = () => props.attachments.items().filter((item) => item.status === "failed")
   const tooLong = () => length() > tokens.limit["prompt-chars"]
   const [height, setHeight] = createSignal<number>(tokens.size.composer)
   let editor: Editor | undefined
   let saveTimer: ReturnType<typeof setTimeout> | undefined
+  let hoverTimer: ReturnType<typeof setTimeout> | undefined
   let key = ""
   let teardown = () => {}
   const stop = () => props.working && blank()
+  const add = (files: Iterable<File>) => attach(props.attachments, files)
 
   const save = (forKey: string) => {
     clearTimeout(saveTimer)
@@ -134,7 +246,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
 
   const text = () => editor?.getText({ blockSeparator: "\n" }).trim() ?? ""
 
-  /** T3Code's held send: a send while files upload waits for them, then goes on its own; editing or Esc cancels it. */
+  /** T3Code's held send: a send while files upload or read waits for them, then goes on its own; editing or Esc cancels it. */
   const submit = () => {
     if (!editor) return
     if (stop()) return props.onStop()
@@ -150,6 +262,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       return
     }
     setHeld(false)
+    setPreview(null)
     props.onSend(withFiles(text(), props.attachments.files()))
     props.attachments.clear()
     load(undefined)
@@ -160,7 +273,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   createEffect(
     () => held() && pending().length === 0,
     (ready) => {
-      if (ready) submit()
+      if (ready) untrack(submit)
     },
   )
 
@@ -215,15 +328,78 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     setTrigger(next)
     if (!next) return
     const at = editor.view.coordsAtPos(next.from)
-    const host = editor.view.dom.closest(".tds-composer-wrap")!.getBoundingClientRect()
+    const host = wrap.getBoundingClientRect()
     setCaret({ left: at.left - host.left, bottom: host.bottom - at.top + tokens.size["menu-offset"] })
   }
 
   const longPaste = (value: string) => {
-    if (value.split("\n").length <= tokens.limit["paste-lines"]) return false
-    props.attachments.add([new File([value], "pasted.txt", { type: "text/plain" })])
-    toast("Long text became a file", { description: `${value.split("\n").length} lines, so your message stays readable`, tone: "mono", icon: "text-align-left" })
+    const lines = value.split("\n").length
+    if (lines <= tokens.limit["paste-lines"]) return false
+    add([new File([value], "Pasted text.txt", { type: "text/plain" })])
+    toast("Long text became a file", { description: `${lines} lines, so your message stays readable`, tone: "mono", icon: "text-align-left" })
     return true
+  }
+
+  const pasteLink = (value: string) => {
+    const url = value.trim()
+    if (!editor || !URL_ONLY.test(url)) return false
+    const node = linkToken(url)
+    if (!node) return false
+    editor.chain().focus().insertContent([{ type: "token", attrs: node }, { type: "text", text: " " }]).run()
+    return true
+  }
+
+  const hover = (key: string, el: HTMLElement | null) => {
+    clearTimeout(hoverTimer)
+    if (!el || drag) return setPreview(null)
+    hoverTimer = setTimeout(() => {
+      const box = el.getBoundingClientRect()
+      const host = wrap.getBoundingClientRect()
+      setPreview({ key, left: Math.max(0, Math.min(box.left - host.left, host.width - tokens.size["hover-card"])), bottom: host.bottom - box.top + tokens.size["menu-offset"] * 2 })
+    }, tokens.motion["hover-intent"].open)
+  }
+
+  let drag: { key: string; el: HTMLElement; x: number; from: number; to: number; moved: boolean; cards: HTMLElement[]; centers: number[] } | null = null
+  const grab = (event: PointerEvent, key: string, el: HTMLElement) => {
+    if (event.button !== 0 || !tray) return
+    const cards = [...tray.querySelectorAll<HTMLElement>(".tds-attach")]
+    drag = { key, el, x: event.clientX, from: cards.indexOf(el), to: cards.indexOf(el), moved: false, cards, centers: cards.map((card) => card.getBoundingClientRect().left + card.offsetWidth / 2) }
+  }
+  const dragMove = (event: PointerEvent) => {
+    if (!drag) return
+    const dx = event.clientX - drag.x
+    if (!drag.moved && Math.abs(dx) < tokens.space[6]) return
+    if (!drag.moved) {
+      drag.moved = true
+      drag.el.dataset.dragging = ""
+      clearTimeout(hoverTimer)
+      setPreview(null)
+    }
+    drag.el.style.translate = `${dx}px 0`
+    const center = drag.centers[drag.from]! + dx
+    const to = drag.centers.filter((other, index) => index !== drag!.from && other < center).length
+    drag.to = to
+    const shift = drag.el.offsetWidth + tokens.space[8]
+    drag.cards.forEach((card, index) => {
+      if (card === drag!.el) return
+      const moves = drag!.from < index && index <= to ? -shift : to <= index && index < drag!.from ? shift : 0
+      card.style.translate = moves ? `${moves}px 0` : ""
+    })
+  }
+  const drop = () => {
+    if (!drag) return
+    const done = drag
+    drag = null
+    if (!done.moved) return
+    for (const card of done.cards) {
+      card.style.transition = "none"
+      card.style.translate = ""
+      delete card.dataset.dragging
+    }
+    props.attachments.move(done.key, done.to)
+    requestAnimationFrame(() => {
+      for (const card of done.cards) card.style.transition = ""
+    })
   }
 
   const mount = (element: HTMLDivElement) => {
@@ -235,10 +411,11 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         handlePaste: (_view, event) => {
           const files = [...(event.clipboardData?.files ?? [])]
           if (files.length > 0) {
-            props.attachments.add(files)
+            add(files)
             return true
           }
-          return longPaste(event.clipboardData?.getData("text/plain") ?? "")
+          const value = event.clipboardData?.getData("text/plain") ?? ""
+          return longPaste(value) || pasteLink(value)
         },
         attributes: { class: "tds-input", role: "textbox", "aria-multiline": "true", "aria-label": "Message toast" },
         handleKeyDown: (view, event) => {
@@ -287,14 +464,29 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       editor.commands.focus("end")
     }
     document.addEventListener("keydown", onKey)
+    window.addEventListener("pointermove", dragMove)
+    window.addEventListener("pointerup", drop)
+    window.addEventListener("pointercancel", drop)
     teardown = () => {
       observer.disconnect()
       document.removeEventListener("keydown", onKey)
+      window.removeEventListener("pointermove", dragMove)
+      window.removeEventListener("pointerup", drop)
+      window.removeEventListener("pointercancel", drop)
     }
   }
 
   async function plus(action: string) {
     if (action === "files") return picker.click()
+    if (action === "screenshot") {
+      try {
+        const shot = await screenshot()
+        if (shot) add([shot])
+      } catch (error) {
+        if ((error as DOMException).name !== "NotAllowedError") toast("Couldn’t take a screenshot", { description: "Your browser didn’t share the screen", tone: "failed", icon: "warning-circle" })
+      }
+      return editor?.commands.focus("end")
+    }
     try {
       const items = await navigator.clipboard.read()
       const files: File[] = []
@@ -303,10 +495,10 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         if (type) files.push(new File([await item.getType(type)], `pasted.${type.split("/")[1] ?? "bin"}`, { type }))
         else if (item.types.includes("text/plain")) {
           const value = await (await item.getType("text/plain")).text()
-          if (!longPaste(value)) editor?.commands.insertContent(value)
+          if (!longPaste(value) && !pasteLink(value)) editor?.commands.insertContent(value)
         }
       }
-      props.attachments.add(files)
+      add(files)
     } catch {
       editor?.commands.insertContent(await navigator.clipboard.readText().catch(() => ""))
     }
@@ -316,6 +508,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   onCleanup(() => {
     save(key)
     teardown()
+    clearTimeout(hoverTimer)
     editor?.destroy()
     editor = undefined
   })
@@ -344,9 +537,14 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     const waiting = pending()
     return waiting.length > 1 ? `Sending when ${waiting.length} files finish` : `Sending when ${waiting[0]?.name ?? "the file"} finishes`
   }
+  const previewed = () => {
+    const current = preview()
+    const item = current && props.attachments.items().find((entry) => entry.key === current.key)
+    return item && current ? { item, left: current.left, bottom: current.bottom } : null
+  }
 
   return (
-    <div class="tds-composer-wrap">
+    <div ref={wrap} class="tds-composer-wrap">
       <Show when={trigger() && suggestions().length > 0}>
         <div class="tds-menu tds-suggest" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: `${caret().left}px`, bottom: `${caret().bottom}px` }}>
           <span class="tds-menu-label">{trigger()?.char === "@" ? "Chats" : "Commands"}</span>
@@ -370,6 +568,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           </For>
         </div>
       </Show>
+      <Show when={previewed()}>{(current) => <Preview item={current().item} left={current().left} bottom={current().bottom} />}</Show>
       <Show when={held() && pending().length > 0}>
         <div class="tds-held" role="status" aria-live="polite">
           <span class="tds-spinner" />
@@ -385,13 +584,13 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           <TextMorph value={(length() - tokens.limit["prompt-chars"]).toLocaleString()} /> characters over the limit. Attach long text as a file instead.
         </p>
       </Show>
-      <form class="flex items-end gap-8" onSubmit={(e) => (e.preventDefault(), submit())}>
-        <input ref={picker} type="file" multiple hidden onChange={(e) => (props.attachments.add([...(e.currentTarget.files ?? [])]), (e.currentTarget.value = ""))} />
+      <form class="tds-composer-row" onSubmit={(e) => (e.preventDefault(), submit())}>
+        <input ref={picker} type="file" multiple hidden onChange={(e) => (add([...(e.currentTarget.files ?? [])]), (e.currentTarget.value = ""))} />
         <Menu open={plusOpen()} onOpenChange={(next) => setPlusOpen(next)} onAction={(value) => void plus(String(value))}>
           <MenuTrigger class="tds-press tds-composer-plus" aria-label="Add">
-            <MorphIcon name={plusOpen() ? "x" : "plus"} />
+            <Icon name="plus" size="composer" class="tds-plus-glyph" />
           </MenuTrigger>
-          <MenuContent class="tds-menu" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
+          <MenuContent class="tds-menu tds-plus-menu" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
             <MenuItem value="files" class="tds-menu-item">
               <MenuItemIcon class="tds-menu-icon">
                 <Icon name="image" size="menu" />
@@ -402,19 +601,58 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
                 <kbd class="tds-kbd">O</kbd>
               </span>
             </MenuItem>
+            <MenuItem value="screenshot" class="tds-menu-item">
+              <MenuItemIcon class="tds-menu-icon">
+                <Icon name="camera" size="menu" />
+              </MenuItemIcon>
+              Take a Screenshot
+            </MenuItem>
             <MenuItem value="clipboard" class="tds-menu-item">
               <MenuItemIcon class="tds-menu-icon">
                 <Icon name="clipboard-text" size="menu" />
               </MenuItemIcon>
               Paste from Clipboard
             </MenuItem>
+            <span class="tds-menu-gap" aria-hidden="true" />
+            <MenuSub>
+              <MenuSubTrigger class="tds-menu-item">
+                <span class="tds-menu-icon">
+                  <Icon name="plug" size="menu" />
+                </span>
+                From an App
+                <span class="tds-menu-caret">
+                  <Icon name="caret-right" size="chip" />
+                </span>
+              </MenuSubTrigger>
+              <MenuSubContent class="tds-menu tds-plus-menu">
+                <For each={apps} keyed={(entry) => entry.key}>
+                  {(entry) => (
+                    <MenuItem value={entry().key} disabled class="tds-menu-item">
+                      <MenuItemIcon class="tds-menu-icon">
+                        <Icon name={entry().icon} size="menu" />
+                      </MenuItemIcon>
+                      {entry().label}
+                      <span class="tds-menu-soon">Soon</span>
+                    </MenuItem>
+                  )}
+                </For>
+              </MenuSubContent>
+            </MenuSub>
           </MenuContent>
         </Menu>
         <div class="tds-field" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
           <Show when={props.attachments.items().length > 0}>
-            <div class="tds-attach-tray tds-scroll">
+            <div ref={tray} class="tds-attach-tray tds-scroll">
               <For each={props.attachments.items()} keyed={(item) => item.key}>
-                {(item) => <Chip item={item()} onRemove={() => props.attachments.remove(item().key)} onRetry={() => props.attachments.retry(item().key)} />}
+                {(item) => (
+                  <Card
+                    item={item()}
+                    onRemove={() => props.attachments.remove(item().key)}
+                    onRetry={() => props.attachments.retry(item().key)}
+                    onPointerDown={(event, el) => grab(event, item().key, el)}
+                    onHover={(el) => hover(item().key, el)}
+                  />
+                )}
               </For>
             </div>
           </Show>
