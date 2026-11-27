@@ -554,7 +554,7 @@ const journeys: Record<string, () => void> = {
   },
   header() {
     until(() => exists(".tds-row"), Boolean, "sidebar rows")
-    ab("click", ".tds-row")
+    check(js<boolean>("const r = [...document.querySelectorAll('.tds-row')].find((e) => e.textContent.includes('what I found')); r?.click(); return !!r"), "no chat with a reply in the sidebar")
     until(() => exists(".tds-bubble[data-side='agent']"), Boolean, "a thread with a reply", 15000)
     check(rect(".tds-header-pill")?.h === 31, `header pill should be 31 tall, got ${rect(".tds-header-pill")?.h}`)
     check(style(".tds-header-pill", "fontSize") === "14px", "header title is 14px")
