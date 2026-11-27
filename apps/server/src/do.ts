@@ -438,8 +438,7 @@ export class TockDO extends DurableObject<Env> {
         });
         await this.scheduler.set(300, "consolidateMemory", { sessionId }, { idempotent: true });
         this.broadcastSession(sessionId, "chat.accepted", receipt, false);
-        await this.announceQueue(sessionId);
-        return receipt;
+        return { ...receipt, queued: await this.announceQueue(sessionId) };
       }
       case "chat.abort": {
         const sessionId = frame.sessionId ?? ROOT_SESSION;

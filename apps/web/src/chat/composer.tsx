@@ -348,7 +348,6 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   /** T3Code's held send: a send while files upload or read waits for them, then goes on its own; editing or Esc cancels it. */
   const submit = () => {
     if (!editor) return
-    if (stop()) return props.onStop()
     if ((!text() && props.attachments.items().length === 0) || tooLong()) return
     const broken = untrack(failed)
     if (broken.length > 0) {
@@ -845,7 +844,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             <div ref={mount} class="tds-editor tds-scroll" data-edge-fade="y" onMouseDown={(e) => e.target === e.currentTarget && (e.preventDefault(), editor?.commands.focus("end"))} />
           </div>
         </div>
-        <button type="submit" class="tds-press tds-send tds-raise-2" data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
+        <button type="submit" class="tds-press tds-send tds-raise-2" onClick={(event) => stop() && (event.preventDefault(), event.detail <= 1 && props.onStop())} data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
           <MorphIcon name={stop() ? "stop" : "arrow-up"} class={stop() ? "" : "tds-optical-up"} weight={tokens.icon["stroke-send"]} />
         </button>
       </form>

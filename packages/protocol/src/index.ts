@@ -130,6 +130,12 @@ export interface FileMeta {
 
 export type ThreadStatus = "idle" | "working" | "needs" | "failed" | "done"
 
+/** A send the server holds queued behind the running work, keyed by the client's operationId. */
+export interface QueuedSend {
+  readonly operationId: string
+  readonly text: string
+}
+
 export interface ThreadMeta {
   readonly pinned: boolean
   /** Epoch ms the chat was pinned at, null when it is not pinned. Orders the pins strip, newest first. */

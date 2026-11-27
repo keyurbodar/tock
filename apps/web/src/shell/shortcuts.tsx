@@ -1,4 +1,4 @@
-import { createSignal, For, untrack } from "solid-js"
+import { createSignal, For, onCleanup, untrack } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from "@ui-sdk/solid/dialog"
 import { createAppHotkeyList, createHotkey } from "@tanstack/solid-hotkeys"
@@ -7,7 +7,7 @@ import { threadAction, selected, setSelected } from "./thread-menu"
 import { hidePeek, peeking } from "./peek"
 import { appHotkeys, keysFor, sheet, typing } from "./hotkeys"
 
-const overlayOpen = () => document.querySelector("[role=dialog], [role=menu], .tds-worklog") !== null
+const overlayOpen = () => document.querySelector("[role=dialog], [role=menu], [role=listbox], .tds-worklog, .tds-centre[data-open], .tds-stack[data-open]") !== null
 
 const [open, setOpen] = createSignal(false)
 export const setShortcutsOpen = setOpen
@@ -45,11 +45,16 @@ export function Shortcuts() {
     event.preventDefault()
     threadAction("rename", session, params.id, navigate)
   })
+  /** Esc stops a run only when nothing on screen took it: overlays close themselves on the same key, so look before they do. */
+  let overlayAtEscape = false
+  const onEscapeFirst = (event: KeyboardEvent) => void (event.key === "Escape" && (overlayAtEscape = overlayOpen()))
+  addEventListener("keydown", onEscapeFirst, { capture: true })
+  onCleanup(() => removeEventListener("keydown", onEscapeFirst, { capture: true }))
   createHotkey(appHotkeys["layer.escape"], (event) => {
     if (event.isComposing) return
     if (selected().length) return setSelected([])
     if (peeking()) return hidePeek()
-    if (params.id && !overlayOpen() && isWorking(app.threads[params.id])) return event.preventDefault(), void abort(params.id)
+    if (params.id && !overlayAtEscape && isWorking(app.threads[params.id])) return event.preventDefault(), void abort(params.id)
   })
   createHotkey(appHotkeys["help.shortcuts"], (event) => {
     if (typing(event.target) || event.metaKey || event.ctrlKey) return

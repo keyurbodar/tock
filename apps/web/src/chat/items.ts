@@ -148,7 +148,7 @@ const userImages = (message: Extract<Message, { role: "user" }>) =>
 export function buildItems(
   entries: readonly EntryRecord[],
   live: LiveState | null,
-  pending: readonly { readonly text: string; readonly seq: number }[],
+  pending: readonly { readonly text: string; readonly status?: string }[],
   online = true,
   now = Date.now(),
   thinking: Readonly<Record<string, number>> = {},
@@ -263,10 +263,11 @@ export function buildItems(
   const mine = items.findLastIndex((item) => item.kind === "user")
   if (running && mine >= 0 && !items.slice(mine + 1).some((item) => item.kind === "text" || item.kind === "user"))
     items.splice(mine + 1, 0, { kind: "caption", key: "caption:seen", text: "Seen", side: "me", seen: true })
-  pending.forEach(({ text, seq }) => items.push({ kind: "user", key: `user:${seq}`, text, images: [], at: null, queued: true }))
+  pending.forEach(({ text }, index) => items.push({ kind: "user", key: `user:${users + index}`, text, images: [], at: null, queued: true }))
+  const held = running || pending.some((item) => item.status === "queued")
   if (pending.length > 0 && !online) items.push({ kind: "caption", key: "caption:offline", text: "Sends when you’re back online", side: "me" })
-  else if (pending.length > 0 && running) items.push({ kind: "caption", key: "caption:queued", text: "Waiting for toast to finish this step", side: "me" })
-  if (pending.length > 0 && !running && online) items.push({ kind: "typing", key: "typing" })
+  else if (pending.length > 0 && held) items.push({ kind: "caption", key: "caption:queued", text: "Waiting for toast to finish this step", side: "me" })
+  if (pending.length > 0 && !held && online) items.push({ kind: "typing", key: "typing" })
   if (!running && live?.runFailure?.reason === "aborted" && items.at(-1)?.kind !== "caption" && items.some((item) => item.kind === "user"))
     items.push({ kind: "caption", key: "caption:stopped", text: "Stopped", side: "agent" })
   if (live?.generation?.retry)

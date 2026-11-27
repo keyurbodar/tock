@@ -1852,6 +1852,72 @@ const journeys: Record<string, () => void> = {
     const seen = until(() => js<{ opacity: string; caption: string } | null>("return window.__queued"), Boolean, "the queued bubble and its caption", 4000)!
     check(Number(seen.opacity) < 1, "queued sends are dimmed")
   },
+  queuestop() {
+    const id = fresh()
+    say("Plan a long trip through Japan for two weeks")
+    until(() => exists(".tds-send[data-stop]"), Boolean, "the run to start", 4000)
+    ab("keyboard", "type", "second message queued")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-queued]"), Boolean, "the queued bubble")
+    ab("click", "button[aria-label='Stop']")
+    const mine = () => js<number>("return [...document.querySelectorAll('.tds-bubble[data-side=me]')].filter((b) => b.textContent.includes('second message queued')).length")
+    until(() => exists(".tds-bubble[data-queued]"), (queued) => !queued, "the queued send to run after Stop", 20000)
+    settled()
+    check(mine() === 1, "the queued send shows once after Stop, got " + mine())
+    shot("queuestop-after")
+    ab("open", `${BASE}/t/${id}`)
+    until(() => exists(".tds-bubble[data-side='agent']"), Boolean, "the chat after a reload", 15000)
+    until(mine, (n) => n === 1, "the queued send to survive Stop and a reload")
+    check(!exists(".tds-bubble[data-queued]"), "no ghost queued bubble after the reload")
+    shot("queuestop-reload")
+  },
+  askqueued() {
+    const id = fresh()
+    say("help me choose a base branch")
+    until(() => exists(".tds-ask[data-kind='question'] .tds-key"), Boolean, "the question card", 15000)
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "ok go")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-queued]"), Boolean, "the send to queue behind the ask")
+    ab("open", `${BASE}/t/${id}`)
+    until(() => exists(".tds-ask[data-kind='question'] .tds-key"), Boolean, "the question card after a reload", 15000)
+    until(() => exists(".tds-bubble[data-queued]"), Boolean, "the queued send to survive a reload")
+    shot("askqueued-reloaded")
+    ab("click", ".tds-ask .tds-key[data-option='main']")
+    until(() => exists(".tds-ask-done"), Boolean, "the answered summary")
+    const mine = () => js<number>("return [...document.querySelectorAll('.tds-bubble[data-side=me]')].filter((b) => b.textContent.trim() === 'ok go' && !b.hasAttribute('data-queued')).length")
+    until(mine, (n) => n === 1, "the queued send to run after the answer", 20000)
+    settled()
+    ab("open", `${BASE}/t/${id}`)
+    until(() => exists(".tds-ask-done"), Boolean, "the answer to persist across a reload", 15000)
+    until(() => js<string>("return [...document.querySelectorAll('.tds-ask-done')].filter((e) => !e.closest('[data-ghost]')).map((e) => e.textContent).join(' | ')"), (s) => s.includes("You chose main"), "the summary to say You chose main after a reload")
+    until(() => exists(".tds-ask .tds-key"), (card) => !card, "the ask card to stay answered after a reload")
+    until(mine, (n) => n === 1, "the queued send once after a reload")
+    check(js<string>("return document.querySelector('.tds-header')?.textContent ?? ''").toLowerCase().includes("needs you") === false, "the header no longer says needs you")
+    shot("askqueued-done")
+  },
+  enterstop() {
+    fresh()
+    say("Plan a long trip through Japan for two weeks")
+    until(() => exists(".tds-send[data-stop]"), Boolean, "Stop while working with an empty field", 4000)
+    wait(300)
+    ab("press", "Enter")
+    wait(50)
+    ab("press", "Enter")
+    wait(600)
+    const captions = () => js<string[]>("return [...document.querySelectorAll('.tds-caption')].map((e) => e.textContent)")
+    check(!captions().includes("Stopped"), "Enter on an empty composer never stops the run: " + captions())
+    ab("click", "[data-bell]")
+    until(() => exists(".tds-centre[data-open]"), Boolean, "the notification centre to open")
+    ab("press", "Escape")
+    until(() => exists(".tds-centre[data-open]"), (open) => !open, "Escape to close the centre")
+    wait(600)
+    check(!captions().includes("Stopped"), "Escape that closes the centre never stops the run")
+    check(exists(".tds-send[data-stop]"), "the run is still working")
+    ab("press", "Escape")
+    until(captions, (c) => c.includes("Stopped"), "Escape with nothing open to stop the run", 8000)
+    shot("enterstop")
+  },
   baseline() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
@@ -2947,7 +3013,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

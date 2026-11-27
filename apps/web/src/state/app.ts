@@ -1,20 +1,15 @@
 import { createStore, reconcile, snapshot } from "solid-js"
-import type { ConversationView, EntryRecord, LiveState, SessionSummary, ThreadMeta } from "@tock/protocol"
+import type { ConversationView, EntryRecord, LiveState, QueuedSend, SessionSummary, ThreadMeta } from "@tock/protocol"
 import { idb } from "../lib/idb"
 import { RequestError, socket, type ConnectionState } from "../lib/socket"
 import { addNote, needsNote } from "./notes"
+import { settleQueue, type Pending } from "./queue"
 import { finishedElsewhere } from "../shell/finished"
 import { announce } from "../shell/announce"
 import { tokens } from "@tock/tokens"
 import { Lexer, type Token, type Tokens } from "marked"
 
 const LIVE_DOC = "pi.live"
-
-export interface Pending {
-  readonly id: string
-  readonly text: string
-  readonly seq: number
-}
 
 export interface ThreadState {
   phase: "loading" | "ready" | "missing"
@@ -48,9 +43,6 @@ export const [app, setApp] = createStore<AppState>({ connection: "connecting", s
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null
 
-const userCount = (entries: readonly EntryRecord[]) =>
-  entries.reduce((count, entry) => count + (entry.model ?? []).filter((message) => message.role === "user").length, 0)
-
 function thread(sessionId: string, update: (state: ThreadState) => void) {
   setApp((s) => {
     s.threads[sessionId] ??= blank()
@@ -60,9 +52,8 @@ function thread(sessionId: string, update: (state: ThreadState) => void) {
 
 /** The transcript is cached per chat for the next cold open, written once the run is idle rather than on every streamed delta. */
 function withEntries(sessionId: string, state: ThreadState, entries: readonly EntryRecord[]) {
-  const users = userCount(entries)
   state.entries = entries
-  state.pending = state.pending.filter((item) => item.seq >= users)
+  state.pending = state.pending.filter((item) => item.status !== "placed")
   if (state.live?.run === undefined) void idb.put("threads", sessionId, entries)
 }
 
@@ -85,6 +76,9 @@ function touch(sessionId: string) {
     for (const id of dropped) delete s.threads[id]
   })
 }
+
+const isQueue = (value: unknown): value is QueuedSend[] =>
+  Array.isArray(value) && value.every((send) => isRecord(send) && typeof send.operationId === "string" && typeof send.text === "string")
 
 function upsertSession(next: Session) {
   setApp((s) => {
@@ -150,6 +144,10 @@ socket.onEvent(({ event, payload }) => {
     })
     if (!busy) void refreshSessions().then(() => noteFinished(sessionId, isRecord(payload.failure) ? (payload.failure as unknown as LiveState["runFailure"]) : undefined))
     return
+  }
+  if (event === "chat.queue" && isQueue(payload.queued)) {
+    const queued = payload.queued
+    return thread(sessionId, (state) => void (state.pending = settleQueue(state.pending, queued)))
   }
   if (event === "session.error" && typeof payload.error === "string") {
     const error = payload.error
@@ -240,9 +238,10 @@ export async function subscribe(sessionId: string) {
   if (app.sessions.find((session) => session.id === sessionId)?.meta.unread) queueMicrotask(() => void updateThread(sessionId, { unread: false }))
   await warm(sessionId)
   try {
-    const result = await socket.request<{ messages: readonly EntryRecord[]; thinking?: Record<string, number> }>("chat.subscribe", { sessionId })
+    const result = await socket.request<{ messages: readonly EntryRecord[]; thinking?: Record<string, number>; queued?: QueuedSend[] }>("chat.subscribe", { sessionId })
     thread(sessionId, (state) => {
       withEntries(sessionId, state, result.messages)
+      state.pending = settleQueue(state.pending, result.queued ?? [])
       state.thinking = { ...state.thinking, ...(result.thinking ?? {}) }
       state.phase = "ready"
     })
@@ -253,8 +252,7 @@ export async function subscribe(sessionId: string) {
 }
 
 export async function send(sessionId: string, text: string) {
-  const current = app.threads[sessionId] ?? blank()
-  const item: Pending = { id: crypto.randomUUID(), text, seq: userCount(current.entries) + current.pending.length }
+  const item: Pending = { id: crypto.randomUUID(), text, status: "sending" }
   thread(sessionId, (state) => {
     state.phase = "ready"
     state.pending = [...state.pending, item]
@@ -270,13 +268,16 @@ export async function send(sessionId: string, text: string) {
     messageCount: (known?.messageCount ?? 0) + 1,
     updatedAt: Date.now(),
   })
-  const queued: Queued = { ...item, sessionId }
-  await idb.put("outbox", item.id, queued)
-  await deliver(queued)
+  const outgoing: Outgoing = { id: item.id, text, sessionId, at: Date.now() }
+  await idb.put("outbox", item.id, outgoing)
+  await deliver(outgoing)
 }
 
-interface Queued extends Pending {
+interface Outgoing {
+  readonly id: string
+  readonly text: string
   readonly sessionId: string
+  readonly at: number
 }
 
 const delivering = new Set<string>()
@@ -285,12 +286,13 @@ const delivering = new Set<string>()
  * A send lives in the IndexedDB outbox until the server accepts it, so a reload or a dropped connection never loses it.
  * A lost connection keeps it queued for the next open; any other refusal drops it and says why.
  */
-async function deliver(item: Queued) {
+async function deliver(item: Outgoing) {
   if (delivering.has(item.id)) return
   delivering.add(item.id)
   try {
-    await socket.request("chat.send", { sessionId: item.sessionId, text: item.text, operationId: item.id })
+    const receipt = await socket.request<{ accepted: boolean; queued?: QueuedSend[] }>("chat.send", { sessionId: item.sessionId, text: item.text, operationId: item.id })
     void idb.del("outbox", item.id)
+    thread(item.sessionId, (state) => void (state.pending = settleQueue(state.pending, receipt.queued ?? [], { id: item.id, fresh: receipt.accepted })))
   } catch (cause) {
     if (cause instanceof RequestError && cause.code === "disconnected") return
     void idb.del("outbox", item.id)
@@ -304,16 +306,11 @@ async function deliver(item: Queued) {
   }
 }
 
-/** Sends what the outbox still holds, once the thread's entries are fresh: a send the server already has is dropped by its seq, not sent twice. */
+/** Sends what the outbox still holds, oldest first. The server dedupes by operationId, so a send it already has is acked again, never doubled. */
 async function flushOutbox() {
-  for (const item of await idb.all<Queued>("outbox")) {
-    const state = app.threads[item.sessionId]
-    if (state && userCount(state.entries) > item.seq) {
-      void idb.del("outbox", item.id)
-      continue
-    }
+  for (const item of (await idb.all<Outgoing>("outbox")).sort((a, b) => (a.at ?? 0) - (b.at ?? 0))) {
     thread(item.sessionId, (next) => {
-      if (!next.pending.some((entry) => entry.id === item.id)) next.pending = [...next.pending, { id: item.id, text: item.text, seq: item.seq }].sort((a, b) => a.seq - b.seq)
+      if (!next.pending.some((entry) => entry.id === item.id)) next.pending = [...next.pending, { id: item.id, text: item.text, status: "sending" }]
       if (next.phase === "loading" && next.entries.length === 0) next.phase = "ready"
     })
     if (socket.state === "open") void deliver(item)
@@ -332,7 +329,8 @@ export async function answerAsk(sessionId: string, answer: string) {
 
 export async function abort(sessionId: string) {
   try {
-    await socket.request("chat.abort", { sessionId })
+    const result = await socket.request<{ queued?: QueuedSend[] }>("chat.abort", { sessionId })
+    thread(sessionId, (state) => void (state.pending = settleQueue(state.pending, result.queued ?? [])))
     await reload(sessionId)
   } catch {
     return
@@ -342,19 +340,25 @@ export async function abort(sessionId: string) {
 export async function updateThread(threadId: string, patch: Partial<ThreadMeta>) {
   const before = app.sessions.find((session) => session.id === threadId)
   if (!before) return
-  const apply = (meta: ThreadMeta) =>
+  const optimistic: Partial<ThreadMeta> = patch.pinned === undefined ? patch : { ...patch, pinnedAt: patch.pinned ? (before.meta.pinnedAt ?? Date.now()) : null }
+  const keys = Object.keys(optimistic) as (keyof ThreadMeta)[]
+  const prior: Partial<ThreadMeta> = Object.fromEntries(keys.map((key) => [key, before.meta[key]]))
+  /** Writes only this update's keys, so an edit made while it was in flight survives; a rollback skips keys changed since. */
+  const apply = (values: Partial<ThreadMeta>, rollback = false) =>
     setApp((s) => {
-      const target = s.sessions.find((session) => session.id === threadId)
-      if (target) (target as { meta: ThreadMeta }).meta = meta
+      const target = s.sessions.find((session) => session.id === threadId) as { meta: ThreadMeta } | undefined
+      if (!target) return
+      const next: Record<string, unknown> = { ...target.meta }
+      for (const key of keys) if (!rollback || target.meta[key] === optimistic[key]) next[key] = values[key]
+      target.meta = next as unknown as ThreadMeta
       ordered(s.sessions)
     })
-  const pinnedAt = patch.pinned === undefined ? before.meta.pinnedAt : patch.pinned ? (before.meta.pinnedAt ?? Date.now()) : null
-  apply({ ...before.meta, ...patch, pinnedAt })
+  apply(optimistic)
   try {
     const result = await socket.request<{ meta: ThreadMeta }>("thread.update", { threadId, ...patch })
     apply(result.meta)
   } catch {
-    apply(before.meta)
+    apply(prior, true)
   }
   void idb.put("sessions", "list", snapshot(app.sessions))
 }
@@ -412,16 +416,23 @@ export async function peekLines(sessionId: string): Promise<readonly PeekLine[]>
 }
 
 export async function deleteThread(threadId: string) {
-  const index = app.sessions.findIndex((session) => session.id === threadId)
-  if (index < 0) return
-  const removed = app.sessions[index]!
-  setApp((s) => void s.sessions.splice(index, 1))
+  const removed = app.sessions.find((session) => session.id === threadId)
+  if (!removed) return
+  const restore = snapshot(removed)
+  setApp((s) => {
+    const index = s.sessions.findIndex((session) => session.id === threadId)
+    if (index >= 0) s.sessions.splice(index, 1)
+  })
   try {
     await socket.request("thread.delete", { threadId })
     void idb.put("sessions", "list", snapshot(app.sessions))
     void idb.del("threads", threadId)
   } catch {
-    setApp((s) => void s.sessions.splice(index, 0, removed))
+    setApp((s) => {
+      if (s.sessions.some((session) => session.id === threadId)) return
+      s.sessions.push(restore)
+      ordered(s.sessions)
+    })
   }
 }
 
