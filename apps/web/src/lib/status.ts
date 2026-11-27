@@ -9,7 +9,7 @@ export const STATUS_LABEL: Record<ChatStatus | "done", string> = { needs: "Needs
 export function statusOf(session: Session | undefined): ChatStatus {
   if (!session) return "idle"
   const thread = app.threads[session.id]
-  if (session.needs || (thread && hasPendingAsk(thread.entries))) return "needs"
+  if (session.needs || (thread?.fresh && hasPendingAsk(thread.entries))) return "needs"
   if (session.busy) return "working"
   if (thread?.error) return "failed"
   return "idle"

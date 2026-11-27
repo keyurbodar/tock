@@ -4,7 +4,10 @@ import { Icon } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import type { Ask } from "./items"
-import { answerAsk } from "../state/app"
+import { answerAsk, app } from "../state/app"
+
+/** A cached transcript can show an ask that was answered since; its keys wait for the server before they appear. */
+const live = (sessionId: string) => app.threads[sessionId]?.fresh === true
 
 const choicesOf = (ask: Ask, answer: string) =>
   ask.questions.length > 1 ? answer.split("\n").map((line, index) => line.slice((ask.questions[index]?.question.length ?? -2) + 2) || line).join(", ") : answer
@@ -95,7 +98,7 @@ export function AskCard(props: { sessionId: string; ask: Ask; answer: string | u
   onCleanup(flush)
   return (
     <Show
-      when={!answer() && props.pending}
+      when={!answer() && props.pending && live(props.sessionId)}
       fallback={
         <Show when={answer()}>
           {(value) => (
@@ -167,6 +170,7 @@ export function AskCard(props: { sessionId: string; ask: Ask; answer: string | u
 export function AskButtons(props: { sessionId: string; ask: Ask }) {
   const [sent, setSent] = createSignal(false)
   return (
+    <Show when={live(props.sessionId)}>
     <div class="tds-wa" data-sent={sent() ? "" : undefined}>
       <For each={props.ask.options} keyed={false}>
         {(option, index) => (
@@ -185,5 +189,6 @@ export function AskButtons(props: { sessionId: string; ask: Ask }) {
         )}
       </For>
     </div>
+    </Show>
   )
 }

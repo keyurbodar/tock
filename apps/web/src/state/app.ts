@@ -20,6 +20,8 @@ export interface ThreadState {
   error: string | null
   /** Real reasoning times from the server: "<assistant message timestamp>:<block index>" -> ms. */
   thinking: Readonly<Record<string, number>>
+  /** The entries came from the server this session, not only from the IndexedDB cache of an earlier visit. */
+  fresh: boolean
 }
 
 export interface Session extends SessionSummary {
@@ -38,7 +40,7 @@ interface AppState {
   threads: Record<string, ThreadState>
 }
 
-const blank = (): ThreadState => ({ phase: "loading", entries: [], live: null, pending: [], error: null, thinking: {} })
+const blank = (): ThreadState => ({ phase: "loading", entries: [], live: null, pending: [], error: null, thinking: {}, fresh: false })
 
 export const [app, setApp] = createStore<AppState>({ connection: "connecting", sessionsLoaded: false, sessions: [], threads: {} })
 
@@ -54,6 +56,7 @@ function thread(sessionId: string, update: (state: ThreadState) => void) {
 /** The transcript is cached per chat for the next cold open, written once the run is idle rather than on every streamed delta. */
 function withEntries(sessionId: string, state: ThreadState, entries: readonly EntryRecord[]) {
   state.entries = entries
+  state.fresh = true
   state.pending = state.pending.filter((item) => item.status !== "placed")
   if (state.live?.run === undefined) void idb.put("threads", sessionId, entries)
 }

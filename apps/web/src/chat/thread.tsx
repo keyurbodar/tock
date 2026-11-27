@@ -32,7 +32,7 @@ export function Thread() {
   )
   const status = (): OrbStatus | undefined => {
     const s = state()
-    if (s && hasPendingAsk(s.entries)) return "needs"
+    if (s?.fresh && hasPendingAsk(s.entries)) return "needs"
     if (isWorking(s)) return "working"
     if (s?.live?.runFailure && s.live.runFailure.reason !== "aborted") return "failed"
     return undefined

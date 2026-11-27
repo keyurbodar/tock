@@ -125,7 +125,11 @@ export class Socket {
       clearInterval(this.heartbeat)
       this.heartbeat = setInterval(() => void this.alive(), HEARTBEAT_MS)
     })
-    ws.addEventListener("message", (message) => this.receive(String(message.data)))
+    ws.addEventListener("message", (message) => {
+      const slow = import.meta.env.DEV ? Number(sessionStorage.getItem("tock.slow")) : 0
+      if (slow > 0) return void setTimeout(() => this.receive(String(message.data)), slow)
+      this.receive(String(message.data))
+    })
     ws.addEventListener("close", () => {
       if (this.ws === ws) void this.lost(ws, Date.now() - opened < 1500)
     })

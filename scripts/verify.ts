@@ -1921,6 +1921,22 @@ const journeys: Record<string, () => void> = {
     until(mine, (n) => n === 1, "the queued send to run after the answer", 20000)
     settled()
     ab("open", `${BASE}/t/${id}`)
+    for (const end = Date.now() + 2500; Date.now() < end; wait(40)) check(!exists(".tds-ask .tds-key"), "an answered ask never flashes its keys after a reload")
+    ab("eval", `(async () => {
+      const db = await new Promise((r) => { const q = indexedDB.open("tock"); q.onsuccess = () => r(q.result) })
+      const tx = (mode) => db.transaction("threads", mode).objectStore("threads")
+      const entries = await new Promise((r) => { const q = tx("readonly").get(${JSON.stringify(id)}); q.onsuccess = () => r(q.result ?? []) })
+      const stale = entries.map((entry) => ({ ...entry, model: (entry.model ?? []).filter((m) => !(m.role === "toolResult" && m.toolName === "ask_owner")) }))
+      await new Promise((r) => { const q = tx("readwrite").put(stale, ${JSON.stringify(id)}); q.onsuccess = r })
+      sessionStorage.setItem("tock.slow", "1500")
+      return "ok"
+    })()`)
+    ab("open", `${BASE}/t/${id}`)
+    try {
+      for (const end = Date.now() + 1200; Date.now() < end; wait(40)) check(!exists(".tds-ask .tds-key") && !exists(".tds-wa .tds-wbtn"), "a cached transcript with the ask still open never shows its keys before the server answers")
+    } finally {
+      ab("eval", "sessionStorage.removeItem('tock.slow')")
+    }
     until(() => exists(".tds-ask-done"), Boolean, "the answer to persist across a reload", 15000)
     until(() => js<string>("return [...document.querySelectorAll('.tds-ask-done')].filter((e) => !e.closest('[data-ghost]')).map((e) => e.textContent).join(' | ')"), (s) => s.includes("You chose main"), "the summary to say You chose main after a reload")
     until(() => exists(".tds-ask .tds-key"), (card) => !card, "the ask card to stay answered after a reload")
