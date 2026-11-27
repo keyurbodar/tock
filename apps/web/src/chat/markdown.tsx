@@ -150,15 +150,17 @@ function blocks(list: readonly Token[], clock?: Words): JSX.Element[] {
   })
 }
 
-function Block(props: { token: Token; clock?: () => Words | undefined }) {
+/** Blocks speak for the agent only in a reply; inside your own bubble they take no side, so selectors for agent bubbles never match your message's paragraphs. */
+function Block(props: { token: Token; clock?: () => Words | undefined; nested?: boolean }) {
+  const side = () => (props.nested ? undefined : "agent")
   return (
-    <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent">{props.token.raw.trim()}</div>}>
+    <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" data-side={side()}>{props.token.raw.trim()}</div>}>
       <Match when={props.token.type === "code"}>
         <CodeCard token={props.token as Tokens.Code} />
       </Match>
       <Match when={filesOnly(props.token)}>{(files) => <Attachments files={files()} side="agent" />}</Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent" data-heading={props.token.type === "heading" ? "" : undefined}>
+        <div ref={(el) => clamp(el)} class="tds-bubble" data-side={side()} data-heading={props.token.type === "heading" ? "" : undefined}>
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
         </div>
       </Match>
@@ -166,7 +168,7 @@ function Block(props: { token: Token; clock?: () => Words | undefined }) {
         <hr class="tds-rule" />
       </Match>
       <Match when={props.token.type === "list" || props.token.type === "blockquote" || props.token.type === "table" || props.token.type === "html"}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent">
+        <div ref={(el) => clamp(el)} class="tds-bubble" data-side={side()}>
           {blocks([props.token], props.clock?.())}
         </div>
       </Match>
@@ -207,7 +209,7 @@ function lexBlocks(text: string, open: boolean): Token[] {
 }
 
 /** A reply. While it streams, words arrive one at a time and each fades in from a slight blur (TDS streaming words). */
-export function Markdown(props: { text: string; streaming?: boolean }) {
+export function Markdown(props: { text: string; streaming?: boolean; nested?: boolean }) {
   const reveal = createReveal(() => props.text, () => props.streaming ?? false)
   const blocks = createMemo(() => lexBlocks(props.text, props.streaming ?? false))
   /** Word numbers restart for every render pass; blocks render in order, so block i counts after the blocks before it. */
@@ -224,5 +226,5 @@ export function Markdown(props: { text: string; streaming?: boolean }) {
     let i = offsets()[index] ?? 0
     return { next: () => i++, delay: reveal.delay, hidden: reveal.hidden }
   }
-  return <For each={blocks()} keyed={false}>{(token, index) => <Block token={token()} clock={() => clockFor(index)} />}</For>
+  return <For each={blocks()} keyed={false}>{(token, index) => <Block token={token()} clock={() => clockFor(index)} nested={props.nested} />}</For>
 }

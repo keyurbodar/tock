@@ -26,7 +26,7 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
       <Show when={parts().text}>
         <div ref={(el) => clamp(el)} class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
           <div class="tds-bubble-rich">
-            <Markdown text={parts().text} />
+            <Markdown text={parts().text} nested />
           </div>
         </div>
       </Show>

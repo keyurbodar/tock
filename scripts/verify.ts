@@ -2203,7 +2203,9 @@ const journeys: Record<string, () => void | Promise<void>> = {
       "const c = window.__sent.querySelector('.tds-chip'); const p = c.parentElement; const a = document.createRange(); a.selectNodeContents(c.querySelector('.tds-chip-label')); const l = a.getClientRects()[0]; const t = [...p.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim()); const b = document.createRange(); b.selectNodeContents(t); const x = b.getClientRects()[0]; return { line: parseFloat(getComputedStyle(p).lineHeight), text: x.bottom, label: l.bottom, chip: c.getBoundingClientRect().height }",
     )
     check(Math.abs(m.text - m.label) < 0.5, "bubble chips sit on the text baseline: " + JSON.stringify(m))
-    const inner = js<number>("const s = getComputedStyle(window.__sent); return window.__sent.getBoundingClientRect().height - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom)")
+    const inner = js<number>("const s = getComputedStyle(window.__sent); return window.__sent.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom)")
+    const visual = js<{ rect: number; running: string[] }>("const b = window.__sent; const s = getComputedStyle(b); return { rect: b.getBoundingClientRect().height - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom), running: document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.target?.contains?.(b) || a.effect?.target === b).map((a) => Object.keys(a.effect.getKeyframes()[0] ?? {}).filter((k) => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)).join('/')) }")
+    if (Math.abs(visual.rect - inner) > 0.5) console.log("      note: the bubble was mid-animation (" + visual.running.join(", ") + "): " + visual.rect + " on screen, " + inner + " laid out")
     check(Math.abs(inner / m.line - Math.round(inner / m.line)) < 0.05, "a bubble chip does not grow its line: " + inner + " for line " + m.line)
     shot("baseline-bubble")
   },
