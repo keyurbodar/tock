@@ -22,6 +22,8 @@ import { extension, formatSize, readingLabel, withFiles, type Attachment, type c
 import { fileChip } from "./chip"
 import { openLightbox } from "./lightbox-state"
 import { CodeHighlight } from "./code-highlight"
+import { createHotkey } from "@tanstack/solid-hotkeys"
+import { appHotkeys } from "../shell/hotkeys"
 import { STATUS_LABEL, statusOf } from "../lib/status"
 
 const plural = new Intl.PluralRules("en")
@@ -233,6 +235,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const [preview, setPreview] = createSignal<{ key: string; left: number; bottom: number } | null>(null)
   const [glide, setGlide] = createSignal({ top: 0, height: 0 })
   let picker!: HTMLInputElement
+  createHotkey(appHotkeys["composer.attach"], () => picker.click())
   let wrap!: HTMLDivElement
   const reserve = new ResizeObserver(([entry]) => !(field && "sheet" in field.dataset) && wrap.parentElement?.style.setProperty("--composer-reserve", `${Math.ceil(entry!.borderBoxSize[0]!.blockSize)}px`))
   onSettled(() => reserve.observe(wrap))
@@ -566,7 +569,6 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     const observer = new ResizeObserver(() => setHeight(Math.min((element.firstElementChild as HTMLElement | null)?.offsetHeight ?? element.scrollHeight, tokens.size["composer-max"])))
     observer.observe(element.firstElementChild ?? element)
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") return event.preventDefault(), picker.click()
       if (!editor || event.defaultPrevented || !typing(event) || editable(document.activeElement) || (event.key === " " && pressable(document.activeElement))) return
       editor.commands.focus("end")
     }

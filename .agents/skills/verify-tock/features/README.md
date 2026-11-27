@@ -6,7 +6,7 @@
 | [Thread actions](thread-actions.md) | menu, pin, rename, dialog, toasts | roster menu opens from the row's more button; pin, rename and delete-cancel round-trip through the server; Archive shows a toast whose Undo restores the row |
 | [Chat](chat.md) | send, worklog | a new chat gets a UUID url that survives the first send; the activity line and work log are text only and open and close |
 | Notification centre sheet | sheet, smooth | the centre slides from behind the rail on a live spring that retargets mid-flight (three quick bell clicks land it open); a short drag springs it back, a long drag or flick closes it; the chat recedes (scale, blur, dim) while it is open |
-| [Shortcuts](shortcuts.md) | shortcuts, palette | `?` opens the shortcuts sheet; ⌘K opens the palette, filters, runs an action with Enter and closes on Escape |
+| [Shortcuts](shortcuts.md) | shortcuts, hotkeys, palette | `?` opens the shortcuts sheet; ⌘K opens the palette, filters, runs an action with Enter and closes on Escape |
 | [Composer](composer.md) | plus, attach, mention, command | plus menu items, upload with progress, sent image and file card; `@` lists chats, inserts a thread token, first Backspace selects it and the second deletes it, the sent chip previews the chat after hover intent; `/` filters commands and runs one |
 | [Links](links.md) | links | a typed URL plus a space becomes a link token; a sent link reads host and path behind the site's mark, gets no hover card, and right-click offers Open and Copy, which confirms with a toast |
 | Sidebar motion | flip | archiving a row slides the rows below up into the gap (FLIP) and lands with no offset; Undo restores it |

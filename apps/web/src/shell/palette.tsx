@@ -1,4 +1,5 @@
-import { createSignal, For, onCleanup, Show } from "solid-js"
+import { createSignal, For, Show } from "solid-js"
+import { createHotkey } from "@tanstack/solid-hotkeys"
 import { useNavigate } from "@solidjs/router"
 import { Command, CommandEmpty, CommandGroup, CommandGroupLabel, CommandInput, CommandItem, CommandList } from "@ui-sdk/solid/command"
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from "@ui-sdk/solid/dialog"
@@ -10,16 +11,17 @@ import { glyphFor } from "../lib/glyph"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
 import { setShortcutsOpen } from "./shortcuts"
+import { appHotkeys, keysFor } from "./hotkeys"
 
 const [open, setOpen] = createSignal(false)
 export const setPaletteOpen = setOpen
 
 /** SysPalette's Actions. Search Files and Open Settings stay disabled until those surfaces exist (TG-02). */
 const actions: readonly { value: string; label: string; icon: IconName; keys: readonly string[]; disabled?: boolean }[] = [
-  { value: "action:new", label: "New Chat", icon: "note-pencil", keys: ["⌥", "N"] },
+  { value: "action:new", label: "New Chat", icon: "note-pencil", keys: keysFor(["chats.new"]) },
   { value: "action:files", label: "Search Files…", icon: "folder-simple", keys: ["⌘", "⇧", "F"], disabled: true },
   { value: "action:settings", label: "Open Settings…", icon: "gear-six", keys: ["⌘", ","], disabled: true },
-  { value: "action:shortcuts", label: "Keyboard Shortcuts", icon: "keyboard", keys: ["?"] },
+  { value: "action:shortcuts", label: "Keyboard Shortcuts", icon: "keyboard", keys: keysFor(["help.shortcuts"]) },
 ]
 
 function Keys(props: { keys: readonly string[] }) {
@@ -47,14 +49,7 @@ export function Palette() {
       navigate(`/t/${value.slice("chat:".length)}`)
     }, tokens.motion.duration["palette-hit"])
   }
-  const onKey = (event: KeyboardEvent) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault()
-      setOpen((current) => !current)
-    }
-  }
-  addEventListener("keydown", onKey)
-  onCleanup(() => removeEventListener("keydown", onKey))
+  createHotkey(appHotkeys["chats.search"], () => setOpen((current) => !current))
   const sessions = () => app.sessions.filter((session) => !session.meta.archived)
   return (
     <Dialog open={open()} onOpenChange={(next) => setOpen(next)}>

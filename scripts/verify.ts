@@ -1013,6 +1013,29 @@ const journeys: Record<string, () => void> = {
     ab("press", "Control+u")
     until(unread, (now) => now === before, "Ctrl+U to toggle unread back")
   },
+  hotkeys() {
+    ensureRows(1)
+    fresh()
+    ab("eval", "document.activeElement?.blur()")
+    ab("press", "?")
+    until(() => exists(".tds-keys"), Boolean, "? to open the shortcuts sheet")
+    const rows = js<{ label: string; ids: string; status: string; keys: string }[]>("return [...document.querySelectorAll('.tds-keys-row')].map((r) => ({ label: r.firstElementChild.textContent, ids: r.dataset.hotkeys ?? '', status: r.dataset.status ?? '', keys: [...r.querySelectorAll('kbd')].map((k) => k.textContent).join(' ') }))")
+    check(rows.length === 10, `the sheet lists the 10 GUIDE §5 shortcuts (got ${rows.length})`)
+    check(rows.some((r) => r.label === "Peek at a chat" && r.keys === "Space"), "the sheet has the Space, Peek row")
+    const dead = rows.filter((r) => !r.ids || r.status !== "active")
+    check(dead.length === 0, `every sheet row has a live binding (dead: ${dead.map((r) => `${r.label} [${r.ids}] ${r.status}`).join(", ")})`)
+    shot("hotkeys-sheet")
+    ab("press", "Escape")
+    until(() => exists(".tds-keys"), (open) => !open, "Escape to close the sheet")
+    ab("press", "Control+k")
+    until(() => exists(".tds-palette"), Boolean, "Ctrl+K from the registry opens the palette")
+    check(js<string>("return document.querySelector('.tds-palette-item .tds-kbds')?.textContent ?? ''") === "AltN", "the palette shows New Chat with the registry's keys")
+    ab("press", "Escape")
+    until(() => exists(".tds-palette"), (open) => !open, "the palette to close")
+    const before = js<string>("return location.pathname")
+    ab("press", "Alt+n")
+    until(() => js<string>("return location.pathname"), (p) => p !== before && /^\/t\/[0-9a-f-]{36}$/.test(p), "Alt+N from the registry to open a new chat")
+  },
   notifications() {
     ensureRows(2)
     const unread = () => js<number>("return Number(document.querySelector('[data-bell] .tds-badge:not([data-zero])')?.textContent?.trim() || 0)")
@@ -2656,7 +2679,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "markdown", "keys", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "markdown", "keys", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

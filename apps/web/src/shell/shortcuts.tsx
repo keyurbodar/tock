@@ -1,36 +1,22 @@
-import { createSignal, For, onCleanup } from "solid-js"
+import { createSignal, For, untrack } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from "@ui-sdk/solid/dialog"
+import { createAppHotkeyList, createHotkey } from "@tanstack/solid-hotkeys"
 import { abort, app, isWorking, newThreadId } from "../state/app"
-import { threadAction } from "./thread-menu"
+import { threadAction, selected, setSelected } from "./thread-menu"
+import { hidePeek, peeking } from "./peek"
+import { appHotkeys, keysFor, sheet, typing } from "./hotkeys"
 
-const mac = /Mac|iPhone|iPad/.test(navigator.platform)
-const mod = mac ? "⌘" : "Ctrl"
-const alt = mac ? "⌥" : "Alt"
-
-/** TDS px2 keys(): the same list, in the same order. New chat sits on ⌥N because browsers keep ⌘N for a window. */
-const list: readonly (readonly [string, readonly string[]])[] = [
-  ["Search chats", [mod, "K"]],
-  ["New chat", [alt, "N"]],
-  ["Previous or next chat", [alt, "↑", "↓"]],
-  ["Rename the chat", ["↵"]],
-  ["Archive", [mod, "E"]],
-  ["Mark as unread", [mod, "U"]],
-  ["Attach files", [mod, "O"]],
-  ["Stop toast", ["esc"]],
-  ["Keyboard shortcuts", ["?"]],
-]
-
-const typing = (target: EventTarget | null) =>
-  target instanceof HTMLElement && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA")
 const overlayOpen = () => document.querySelector("[role=dialog], [role=menu], .tds-worklog") !== null
 
 const [open, setOpen] = createSignal(false)
 export const setShortcutsOpen = setOpen
 
+/** Binds the app-wide shortcuts from the registry in ./hotkeys and renders the sheet from the same registry. */
 export function Shortcuts() {
   const navigate = useNavigate()
   const params = useParams<{ id?: string }>()
+  const live = untrack(createAppHotkeyList)
 
   const step = (delta: number) => {
     const rows = app.sessions.filter((session) => !session.meta.archived)
@@ -40,29 +26,38 @@ export function Shortcuts() {
     if (next) navigate(`/t/${next.id}`)
   }
   const current = () => app.sessions.find((session) => session.id === params.id)
-
-  const onKey = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || event.isComposing) return
-    const command = event.metaKey || event.ctrlKey
-    if (event.altKey && event.code === "KeyN") return event.preventDefault(), navigate(`/t/${newThreadId()}`)
-    if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) return event.preventDefault(), step(event.key === "ArrowUp" ? -1 : 1)
-    if (command && !event.shiftKey && (event.code === "KeyE" || event.code === "KeyU")) {
-      const session = current()
-      if (!session) return
-      event.preventDefault()
-      return threadAction(event.code === "KeyE" ? "archive" : "unread", session, params.id, navigate)
-    }
-    if (event.key === "Enter" && event.target instanceof HTMLElement && event.target.matches(".tds-row")) {
-      const session = app.sessions.find((item) => event.target instanceof HTMLElement && item.id === event.target.getAttribute("href")?.slice("/t/".length))
-      if (!session) return
-      event.preventDefault()
-      return threadAction("rename", session, params.id, navigate)
-    }
-    if (event.key === "Escape" && params.id && !overlayOpen() && isWorking(app.threads[params.id])) return event.preventDefault(), void abort(params.id)
-    if (event.key === "?" && !typing(event.target) && !command) return event.preventDefault(), setOpen((value) => !value)
+  const onChat = (action: "archive" | "unread") => (event: KeyboardEvent) => {
+    const session = current()
+    if (!session || event.shiftKey) return
+    event.preventDefault()
+    threadAction(action, session, params.id, navigate)
   }
-  addEventListener("keydown", onKey)
-  onCleanup(() => removeEventListener("keydown", onKey))
+
+  createHotkey(appHotkeys["chats.new"], () => navigate(`/t/${newThreadId()}`))
+  createHotkey(appHotkeys["chats.previous"], () => step(-1))
+  createHotkey(appHotkeys["chats.next"], () => step(1))
+  createHotkey(appHotkeys["chat.archive"], onChat("archive"))
+  createHotkey(appHotkeys["chat.unread"], onChat("unread"))
+  createHotkey(appHotkeys["chat.rename"], (event) => {
+    const row = event.target instanceof HTMLElement && event.target.matches(".tds-row") ? event.target : undefined
+    const session = row && app.sessions.find((item) => item.id === row.getAttribute("href")?.slice("/t/".length))
+    if (!session || event.isComposing) return
+    event.preventDefault()
+    threadAction("rename", session, params.id, navigate)
+  })
+  createHotkey(appHotkeys["layer.escape"], (event) => {
+    if (event.isComposing) return
+    if (selected().length) return setSelected([])
+    if (peeking()) return hidePeek()
+    if (params.id && !overlayOpen() && isWorking(app.threads[params.id])) return event.preventDefault(), void abort(params.id)
+  })
+  createHotkey(appHotkeys["help.shortcuts"], (event) => {
+    if (typing(event.target) || event.metaKey || event.ctrlKey) return
+    event.preventDefault()
+    setOpen((value) => !value)
+  })
+
+  const status = (ids: readonly string[]) => (ids.every((id) => live().find((item) => item.appHotkey.id === id)?.status === "active") ? "active" : "inactive")
 
   return (
     <Dialog open={open()} onOpenChange={(next) => setOpen(next)}>
@@ -74,12 +69,12 @@ export function Shortcuts() {
             <kbd>?</kbd>
           </span>
         </div>
-        <For each={list} keyed={false}>
+        <For each={sheet} keyed={false}>
           {(entry) => (
-            <div class="tds-keys-row">
-              <span>{entry()[0]}</span>
+            <div class="tds-keys-row" data-hotkeys={entry().ids.join(" ")} data-status={status(entry().ids)}>
+              <span>{entry().label}</span>
               <span class="tds-kbds">
-                <For each={entry()[1]} keyed={false}>{(key) => <kbd>{key()}</kbd>}</For>
+                <For each={keysFor(entry().ids)} keyed={false}>{(key) => <kbd>{key()}</kbd>}</For>
               </span>
             </div>
           )}

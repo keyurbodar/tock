@@ -14,6 +14,8 @@ import { Toasts } from "./shell/toasts"
 import { Palette } from "./shell/palette"
 import { Router } from "./router"
 import { Boundary } from "./shell/boundary"
+import { HotkeysProvider } from "@tanstack/solid-hotkeys"
+import { appHotkeys } from "./shell/hotkeys"
 
 /** The viewer is its own chunk: it loads once the app is idle, or at once if something opens before that. */
 const [Viewer, setViewer] = createSignal<() => JSX.Element>()
@@ -51,6 +53,8 @@ export function App() {
   void boot()
   void loadNotes()
   return (
-    <Router>{(props) => <Shell>{props.children}</Shell>}</Router>
+    <HotkeysProvider appHotkeys={appHotkeys} defaultOptions={{ hotkey: { ignoreDefaultPrevented: true } }}>
+      <Router>{(props) => <Shell>{props.children}</Shell>}</Router>
+    </HotkeysProvider>
   )
 }

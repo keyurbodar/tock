@@ -1,6 +1,6 @@
 import { Empty } from "../chat/empty"
 import { animate, inertiaTail, lockAxis, morphFrom, Skeleton, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
-import { createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
+import { createMemo, createSignal, For, Show, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { useNavigate, useParams } from "@solidjs/router"
 import { VList } from "virtua/solid"
@@ -20,6 +20,8 @@ import { dropping, Pins, setDropping } from "./pins"
 import { hidePeek, Peek, peekEnter, peekLeave, peekToggle } from "./peek"
 import { ToastRow } from "./session-stack"
 import { MoveDialog } from "./move-dialog"
+import { createHotkey } from "@tanstack/solid-hotkeys"
+import { appHotkeys, typing } from "./hotkeys"
 
 type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number }
 
@@ -469,20 +471,14 @@ export function Sidebar() {
   const chosen = () => app.sessions.filter((s) => selected().includes(s.id))
   const startChat = () => navigate(`/t/${newThreadId()}`)
 
-  const onKey = (e: KeyboardEvent) => {
-    const typing = (e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable=true], .ProseMirror")
-    if (e.key === "Escape" && untrack(selected).length) return setSelected([])
-    if ((e.key === " " || e.code === "Space") && !typing && !pressable(e.target) && !e.repeat) {
-      const row = document.querySelector<HTMLElement>(".tds-row:hover") ?? document.querySelector<HTMLElement>(".tds-row[aria-current=page]")
-      const session = app.sessions.find((item) => row && row.getAttribute("href") === `/t/${item.id}`)
-      if (!row || !session) return
-      e.preventDefault()
-      peekToggle({ session, row })
-    }
-    if (e.key === "Escape") hidePeek()
-  }
-  addEventListener("keydown", onKey)
-  onCleanup(() => removeEventListener("keydown", onKey))
+  createHotkey(appHotkeys["chat.peek"], (e) => {
+    if (typing(e.target) || pressable(e.target) || e.repeat) return
+    const row = document.querySelector<HTMLElement>(".tds-row:hover") ?? document.querySelector<HTMLElement>(".tds-row[aria-current=page]")
+    const session = app.sessions.find((item) => row && row.getAttribute("href") === `/t/${item.id}`)
+    if (!row || !session) return
+    e.preventDefault()
+    peekToggle({ session, row })
+  })
 
   return (
     <aside class="tds-sidebar" data-backdrop-layer style={{ width: `${width()}px` }} aria-label="Chats">
