@@ -1,0 +1,3 @@
+@layer components {
+  .tds-column { padding-bottom: max(var(--tds-size-column-bottom), calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--tds-space-16))) }
+}

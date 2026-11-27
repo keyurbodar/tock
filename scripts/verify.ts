@@ -1466,6 +1466,7 @@ const journeys: Record<string, () => void> = {
     check(sq.w === 112 && sq.h === 112, `square tray card: ${JSON.stringify(sq)}`)
     shot("files-tray")
     ab("click", ".ProseMirror")
+    js<boolean>("window.__fileChips = 0; new MutationObserver(() => { window.__fileChips = Math.max(window.__fileChips, document.querySelectorAll('.tds-bubble[data-side=agent] .tds-chip').length) }).observe(document.querySelector('.tds-transcript') ?? document.body, { subtree: true, childList: true }); return true")
     ab("keyboard", "type", "Send the files back")
     ab("press", "Enter")
     until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] .tds-media[data-layout='grid'] .tds-media-tile\").length"), (n) => n === 4, "a grid of four with the overflow")
@@ -1487,6 +1488,7 @@ const journeys: Record<string, () => void> = {
     shot("files-doc-lightbox")
     ab("press", "Escape")
     until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
+    check(js<number>("return window.__fileChips") === 0, "agent files must render as the gallery and cards, never as chips in a bubble (saw " + js<number>("return window.__fileChips") + ")")
   },
   flip() {
     ensureRows(3)
@@ -1720,6 +1722,24 @@ const journeys: Record<string, () => void> = {
     check(Math.abs(first[0] + first[2] / 2 - (line.x + line.w / 2)) < Math.abs(end[0] + end[2] / 2 - (line.x + line.w / 2)) + 1, "the first visible frame should sit nearer the line than the settled pane")
     ab("press", "Escape")
   },
+  trayfit() {
+    seeded()
+    const clip = join(FIXTURES, "verify-clip-with-a-long-name-for-truncation.mp4")
+    writeFileSync(clip, new Uint8Array(3.5 * 1024 * 1024))
+    js<boolean>("window.__tray = { frames: 0, slot: 0, clash: 0, cover: 0 }; const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom; const end = performance.now() + 20000; const tick = () => { const t = window.__tray; t.frames++; for (const card of document.querySelectorAll('.tds-attach')) { const name = card.querySelector('b'); const ring = card.querySelector('.tds-attach-ring'); if (name && ring) { t.slot++; if (hit(name.getBoundingClientRect(), ring.getBoundingClientRect())) t.clash++ } } const last = [...document.querySelectorAll('.tds-column .tds-bubble')].at(-1); const field = document.querySelector('.tds-composer-wrap .tds-field'); if (last && field && last.getBoundingClientRect().bottom > field.getBoundingClientRect().top + 1) t.cover++; if (performance.now() < end && !window.__trayStop) requestAnimationFrame(() => setTimeout(tick)) }; window.__trayStop = false; requestAnimationFrame(() => setTimeout(tick)); return true")
+    ab("upload", ".tds-composer-wrap input[type=file]", clip)
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done", "the large upload to finish", 30000)
+    wait(600)
+    ab("eval", "window.__trayStop = true")
+    const seen = js<{ frames: number; slot: number; clash: number; cover: number }>("return window.__tray")
+    shot("trayfit")
+    check(seen.slot > 0, "the upload progress was never on screen: " + JSON.stringify(seen))
+    check(seen.clash === 0, "the progress slot must never sit on the file name: " + JSON.stringify(seen))
+    check(seen.cover === 0, "the tray must never cover the last message in a painted frame: " + JSON.stringify(seen))
+    const gap = js<number>("const last = [...document.querySelectorAll('.tds-column .tds-bubble')].at(-1).getBoundingClientRect(); return Math.round(document.querySelector('.tds-composer-wrap .tds-field').getBoundingClientRect().top - last.bottom)")
+    check(gap >= 0, "the last message sits above the grown composer, gap " + gap)
+    ab("click", ".tds-attach-remove")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1729,7 +1749,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

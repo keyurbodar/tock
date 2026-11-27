@@ -1,5 +1,5 @@
 import { TextMorph } from "@tock/ui/text-morph"
-import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onCleanup, onSettled, Show, untrack } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from "@ui-sdk/solid/menu"
 import { Editor, type JSONContent } from "@tiptap/core"
@@ -204,6 +204,9 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const [glide, setGlide] = createSignal({ top: 0, height: 0 })
   let picker!: HTMLInputElement
   let wrap!: HTMLDivElement
+  const reserve = new ResizeObserver(([entry]) => wrap.parentElement?.style.setProperty("--composer-reserve", `${Math.ceil(entry!.borderBoxSize[0]!.blockSize)}px`))
+  onSettled(() => reserve.observe(wrap))
+  onCleanup(() => reserve.disconnect())
   let list: HTMLDivElement | undefined
   let editorEl: HTMLDivElement | undefined
   let tray: HTMLDivElement | undefined
