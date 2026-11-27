@@ -5,7 +5,7 @@ import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { animate, morphFrom, watchLayout } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
-import { pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
+import { app, pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
 import { takeFlight, unpin } from "./thread-menu"
 import { createSignal } from "solid-js"
 
@@ -15,11 +15,19 @@ export const [dropping, setDropping] = createSignal<"" | "over" | "near">("")
 
 const ms = tokens.motion.duration
 
+/** The strip's last height, so a reload reserves it while chats load and the rows below never jump when pins arrive. */
+const PINS_HEIGHT = "tock.pins.height"
+const reserved = () => Number(localStorage.getItem(PINS_HEIGHT)) || 0
+
 /** The pins wrap into as many columns as the sidebar fits; when pins come, go or the columns change, every tile glides from where it was. */
 function flow(box: HTMLElement) {
   const layout = watchLayout(box, ".tds-pin")
   const columns = new ResizeObserver(() => {
-    if (!box.isConnected) return columns.disconnect()
+    if (!box.isConnected) {
+      if (app.sessionsLoaded && pinnedSessions().length === 0) localStorage.removeItem(PINS_HEIGHT)
+      return columns.disconnect()
+    }
+    if (box.querySelector(".tds-pin")) localStorage.setItem(PINS_HEIGHT, String(box.offsetHeight))
     box.style.setProperty("--pin-cols", String(Math.max(1, Math.floor(box.clientWidth / tokens.size["pin-slot-min"]))))
     layout.move()
   })
@@ -84,6 +92,10 @@ export function Pins(props: { show: boolean }) {
     animate(el, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.6)" }], { duration: ms.exit, easing: tokens.motion.curve.in, fill: "forwards" }).onfinish = () => unpin(session)
   }
   return (
+    <>
+    <Show when={props.show && !app.sessionsLoaded && pinnedSessions().length === 0 && reserved() > 0}>
+      <div class="tds-pins" aria-busy="true" aria-label="Loading pinned chats" style={{ height: reserved() + "px" }} />
+    </Show>
     <Show when={props.show && (pinnedSessions().length > 0 || dropping() !== "")}>
       <Menu
         controller={pinMenu}
@@ -130,5 +142,6 @@ export function Pins(props: { show: boolean }) {
         </MenuContent>
       </Menu>
     </Show>
+    </>
   )
 }

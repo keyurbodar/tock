@@ -323,16 +323,21 @@ function jankOf(name: string, events: TraceEvent[], intervals: number[]): Omit<J
   }
 }
 
+/** A fresh browser (after ab("close")) has no session cookie: on a deployed Tock, POST TOCK_KEY again before loading the app. */
+function unlock() {
+  const key = process.env.TOCK_KEY
+  if (!key) return
+  const status = ab("eval", `fetch("/api/auth", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: ${JSON.stringify(key)} }) }).then((r) => r.status)`)
+  check(status.trim() === "200", `TOCK_KEY was refused by ${BASE}/api/auth (status ${status.trim()})`)
+}
+
 const journeys: Record<string, () => void | Promise<void>> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
     ab("open", BASE, "--args", "--no-sandbox")
     ab("set", "viewport", "1440", "900")
     const key = process.env.TOCK_KEY
-    if (key) {
-      const status = ab("eval", `fetch("/api/auth", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: ${JSON.stringify(key)} }) }).then((r) => r.status)`)
-      check(status.trim() === "200", `TOCK_KEY was refused by ${BASE}/api/auth (status ${status.trim()})`)
-    }
+    unlock()
     ab("errors", "--clear")
     ab("console", "--clear")
     ab("open", BASE)
@@ -2447,6 +2452,8 @@ const journeys: Record<string, () => void | Promise<void>> = {
     } finally {
       ab("close")
       ab("open", BASE)
+      unlock()
+
       ab("set", "viewport", "1440", "900")
     }
   },
@@ -3088,6 +3095,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     writeFileSync(probe, SLOW_PROBE)
     ab("close")
     ab("open", `${BASE}/brand/toast-mascot-36.svg`, "--init-script", probe, "--args", "--no-sandbox")
+    unlock()
     ab("set", "viewport", "1440", "900")
     type Box = { x: number; y: number; w: number; h: number }
     const pass = (forget: string) => {
@@ -3100,12 +3108,15 @@ const journeys: Record<string, () => void | Promise<void>> = {
       return Object.fromEntries(Object.entries(probed.last).filter(([name]) => probed.skel[name]).map(([name, box]) => [name, Math.max(...(["x", "y", "w", "h"] as const).map((m) => Math.abs(box[m] - probed.skel[name]![m])))]))
     }
     const cold = pass("localStorage.clear()")
-    for (const name of ["row", "column", "composer"]) check(cold[name] !== undefined && cold[name]! < 1, `first visit: ${name} moved ${cold[name]}px from its skeleton (sample rows and column must sit where loaded ones do) ${JSON.stringify(cold)}`)
+    const coldKeys = exists(".tds-pin") ? ["column", "composer"] : ["row", "column", "composer"]
+    for (const name of coldKeys) check(cold[name] !== undefined && cold[name]! < 1, `first visit: ${name} moved ${cold[name]}px from its skeleton (sample rows and column must sit where loaded ones do) ${JSON.stringify(cold)}`)
     const warm = pass("0")
     shot("skeleton")
     for (const name of ["row", "me", "act", "pill", "title", "column", "composer"]) check(warm[name] !== undefined && warm[name]! < 1, `reload: ${name} moved ${warm[name]}px between first paint and loaded data ${JSON.stringify(warm)}`)
     ab("close")
     ab("open", BASE, "--args", "--no-sandbox")
+    unlock()
+
     ab("set", "viewport", "1440", "900")
   },
   heic() {
