@@ -1,8 +1,7 @@
 import { createSignal, For, onCleanup, Show, untrack } from "solid-js"
-import { TextMorph } from "@tock/ui/text-morph"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { animate } from "@tock/motion"
+import { animate, prefersReducedMotion } from "@tock/motion"
 import { fileUrl, formatSize } from "./attachments"
 import { toast } from "../shell/toasts"
 
@@ -27,18 +26,33 @@ export function openLightbox(items: readonly LightboxItem[], index: number, from
 
 const d = tokens.motion.duration
 const ease = tokens.motion.curve
+const limit = tokens.limit
 const px = (value: number) => value + "px"
 const flip = (from: DOMRect, to: DOMRect) => "translate(" + (from.x - to.x) + "px, " + (from.y - to.y) + "px) scale(" + from.width / to.width + ", " + from.height / to.height + ")"
 const slide = (dir: number) => "translateX(" + dir * tokens.size["lightbox-slide"] + "px) scale(" + tokens.motion.press + ")"
+const clamp = (value: number, max: number) => Math.min(max, Math.max(-max, value))
+
+/** Warms the browser cache so the next arrow press lands on a decoded picture (as T3Code preloads neighbours). */
+function preload(item: LightboxItem | undefined) {
+  if (!item) return
+  const img = new Image()
+  img.src = fileUrl(item.id)
+  void img.decode().catch(() => undefined)
+}
 
 function Viewer(props: { opening: Opening }) {
   const { items, from, index: start } = untrack(() => props.opening)
+  const returnFocusVisible = from.matches(":focus-visible")
   const [index, setIndex] = createSignal(start)
   const [ready, setReady] = createSignal(false)
   const [closing, setClosing] = createSignal(false)
+  const [zoom, setZoom] = createSignal(1)
+  const [failed, setFailed] = createSignal<Record<string, true>>({})
   const [sizes, setSizes] = createSignal<Record<string, number>>({})
   let root!: HTMLDivElement
   let stage!: HTMLDivElement
+  let pan = { x: 0, y: 0 }
+  let drag: { id: number; x: number; y: number; panX: number; panY: number; touch: boolean; moved: boolean } | undefined
 
   for (const item of items)
     void fetch(fileUrl(item.id))
@@ -46,11 +60,41 @@ function Viewer(props: { opening: Opening }) {
       .then((blob) => setSizes((all) => ({ ...all, [item.id]: blob.size })))
       .catch(() => undefined)
 
+  const current = () => stage.lastElementChild as HTMLImageElement | null
+
+  const apply = (instant = false) => {
+    const img = current()
+    if (!img) return
+    const z = untrack(zoom)
+    const w = (img.offsetWidth * (z - 1)) / 2
+    const h = (img.offsetHeight * (z - 1)) / 2
+    pan = { x: clamp(pan.x, w), y: clamp(pan.y, h) }
+    img.style.transition = instant || prefersReducedMotion() ? "none" : ""
+    img.style.transform = z === 1 && pan.x === 0 ? "" : "translate(" + pan.x + "px, " + pan.y + "px) scale(" + z + ")"
+  }
+
+  /** Zooms around a viewport point, so what is under the pointer stays under it. */
+  const zoomTo = (next: number, at?: { x: number; y: number }) => {
+    const img = current()
+    if (!img) return
+    const z = untrack(zoom)
+    const clamped = Math.min(limit["zoom-max"], Math.max(1, next))
+    if (clamped === z) return
+    const box = stage.getBoundingClientRect()
+    const px0 = at ? at.x - (box.x + box.width / 2) : 0
+    const py0 = at ? at.y - (box.y + box.height / 2) : 0
+    pan = clamped === 1 ? { x: 0, y: 0 } : { x: px0 - ((px0 - pan.x) * clamped) / z, y: py0 - ((py0 - pan.y) * clamped) / z }
+    setZoom(clamped)
+    apply()
+  }
+
   const picture = (item: LightboxItem) => {
     const img = document.createElement("img")
     img.src = fileUrl(item.id)
     img.alt = item.name
     img.draggable = false
+    img.className = "tds-lightbox-picture"
+    img.onerror = () => setFailed((all) => ({ ...all, [item.id]: true }))
     return img
   }
 
@@ -61,12 +105,15 @@ function Viewer(props: { opening: Opening }) {
       return
     }
     if (next === untrack(index)) return
-    const old = stage.lastElementChild as HTMLElement | null
+    const old = current()
     const img = picture(items[next]!)
+    pan = { x: 0, y: 0 }
+    setZoom(1)
     setIndex(next)
+    preload(items[next + dir])
     if (old) {
       old.style.position = "absolute"
-      animate(old, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: slide(-dir) }], { duration: d.layout, easing: ease.std }).onfinish = () => old.remove()
+      animate(old, [{ opacity: 1, transform: old.style.transform || "none" }, { opacity: 0, transform: slide(-dir) }], { duration: d.layout, easing: ease.std }).onfinish = () => old.remove()
     }
     stage.append(img)
     animate(img, [{ opacity: 0, transform: slide(dir) }, { opacity: 1, transform: "none" }], { duration: d.swap, easing: ease.std })
@@ -75,41 +122,119 @@ function Viewer(props: { opening: Opening }) {
   const close = () => {
     if (untrack(closing)) return
     setClosing(true)
-    const img = stage.lastElementChild as HTMLElement
+    const img = current()
     const done = () => {
       from.style.visibility = ""
       setOpening(undefined)
+      if (from.isConnected) from.focus({ preventScroll: true, focusVisible: returnFocusVisible } as FocusOptions)
     }
     animate(root, [{ backgroundColor: "var(--tds-overlay-lightbox)" }, { backgroundColor: "transparent" }], { duration: d["lightbox-fade"], fill: "forwards" })
     if (!img) return done()
+    const settled = img.style.transform
+    img.style.transform = ""
     if (!from.isConnected || untrack(index) !== start) {
-      animate(img, [{ opacity: 1 }, { opacity: 0, transform: "scale(" + tokens.motion.press + ")" }], { duration: d.exit, easing: ease.in, fill: "forwards" }).onfinish = done
+      animate(img, [{ opacity: 1, transform: settled || "none" }, { opacity: 0, transform: "scale(" + tokens.motion.press + ")" }], { duration: d.exit, easing: ease.in, fill: "forwards" }).onfinish = done
       return
     }
-    animate(img, [{ transform: "none", transformOrigin: "0 0" }, { transform: flip(from.getBoundingClientRect(), img.getBoundingClientRect()), transformOrigin: "0 0", borderRadius: px(tokens.radius["lightbox-from"]) }], { duration: d["lightbox-close"], easing: ease.sheet, fill: "forwards" }).onfinish = done
+    animate(img, [{ transform: settled || "none", transformOrigin: "50% 50%" }, { transform: flip(from.getBoundingClientRect(), img.getBoundingClientRect()), transformOrigin: "0 0", borderRadius: px(tokens.radius["lightbox-from"]) }], { duration: d["lightbox-close"], easing: ease.sheet, fill: "forwards" }).onfinish = done
+  }
+
+  const trap = (event: KeyboardEvent) => {
+    const stops = [...root.querySelectorAll<HTMLElement>("button")]
+    if (!stops.length) return
+    const at = stops.indexOf(document.activeElement as HTMLElement)
+    const next = event.shiftKey ? (at <= 0 ? stops.length - 1 : at - 1) : (at + 1) % stops.length
+    stops[next]!.focus()
   }
 
   const onKey = (event: KeyboardEvent) => {
-    if (event.key !== "Escape" && event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+    const key = event.key
+    const zoomed = untrack(zoom) > 1
+    const step = limit["lightbox-pan"]
+    const handled = (() => {
+      if (key === "Escape") return close(), true
+      if (key === "Tab") return trap(event), true
+      if (key === "+" || key === "=") return zoomTo(untrack(zoom) * limit["zoom-step"]), true
+      if (key === "-") return zoomTo(untrack(zoom) / limit["zoom-step"]), true
+      if (key === "0") return zoomTo(1), true
+      if (!key.startsWith("Arrow")) return false
+      if (zoomed) {
+        pan = { x: pan.x + (key === "ArrowLeft" ? step : key === "ArrowRight" ? -step : 0), y: pan.y + (key === "ArrowUp" ? step : key === "ArrowDown" ? -step : 0) }
+        return apply(), true
+      }
+      if (key !== "ArrowLeft" && key !== "ArrowRight") return false
+      const dir = key === "ArrowLeft" ? -1 : 1
+      return show(untrack(index) + dir, dir), true
+    })()
+    if (!handled) return
     event.preventDefault()
     event.stopImmediatePropagation()
-    if (event.key === "Escape") return close()
-    const dir = event.key === "ArrowLeft" ? -1 : 1
-    show(untrack(index) + dir, dir)
   }
   window.addEventListener("keydown", onKey, true)
   onCleanup(() => window.removeEventListener("keydown", onKey, true))
+
+  const onWheel = (event: WheelEvent) => {
+    if (event.ctrlKey) {
+      event.preventDefault()
+      return zoomTo(untrack(zoom) * Math.exp(-event.deltaY * limit["zoom-wheel"]), { x: event.clientX, y: event.clientY })
+    }
+    if (untrack(zoom) === 1) return
+    event.preventDefault()
+    pan = { x: pan.x - event.deltaX, y: pan.y - event.deltaY }
+    apply(true)
+  }
+
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0 || !(event.target as HTMLElement).closest(".tds-lightbox-picture")) return
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y, touch: event.pointerType !== "mouse", moved: false }
+    stage.setPointerCapture(event.pointerId)
+  }
+  const onPointerMove = (event: PointerEvent) => {
+    if (!drag || drag.id !== event.pointerId) return
+    const dx = event.clientX - drag.x
+    const dy = event.clientY - drag.y
+    if (!drag.moved && Math.hypot(dx, dy) < limit["lightbox-drag-slop"]) return
+    drag.moved = true
+    stage.dataset.dragging = ""
+    if (untrack(zoom) > 1) {
+      pan = { x: drag.panX + dx, y: drag.panY + dy }
+      return apply(true)
+    }
+    if (drag.touch) {
+      const img = current()
+      if (img) img.style.transform = "translateX(" + dx * limit["lightbox-follow"] + "px)"
+    }
+  }
+  const onPointerUp = (event: PointerEvent) => {
+    if (!drag || drag.id !== event.pointerId) return
+    const dx = event.clientX - drag.x
+    const swiped = drag.touch && drag.moved && untrack(zoom) === 1
+    if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId)
+    delete stage.dataset.dragging
+    if (swiped) {
+      const img = current()
+      if (img) img.style.transform = ""
+      if (Math.abs(dx) > limit["lightbox-swipe"]) show(untrack(index) + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1)
+    }
+    setTimeout(() => (drag = undefined))
+  }
+  const onStageClick = (event: MouseEvent) => {
+    if (!drag || drag.moved) return
+    zoomTo(untrack(zoom) > 1 ? 1 : limit["zoom-toggle"], { x: event.clientX, y: event.clientY })
+  }
 
   const mount = (el: HTMLDivElement) => {
     root = el
     requestAnimationFrame(async () => {
       const img = picture(items[start]!)
       stage.append(img)
+      preload(items[start + 1])
+      preload(items[start - 1])
       await img.decode().catch(() => undefined)
       from.style.visibility = "hidden"
       animate(root, [{ backgroundColor: "transparent" }, { backgroundColor: "var(--tds-overlay-lightbox)" }], { duration: d.swap, fill: "forwards" })
       animate(img, [{ transform: flip(from.getBoundingClientRect(), img.getBoundingClientRect()), transformOrigin: "0 0", borderRadius: px(tokens.radius["lightbox-from"]) }, { transform: "none", transformOrigin: "0 0", borderRadius: px(tokens.radius.lightbox) }], { duration: d["lightbox-open"], easing: ease.sheet })
-      setTimeout(() => setReady(true), d.menu)
+      setTimeout(() => setReady(true), prefersReducedMotion() ? 0 : d.menu)
       root.focus({ preventScroll: true })
     })
   }
@@ -144,17 +269,21 @@ function Viewer(props: { opening: Opening }) {
       aria-modal="true"
       aria-label={item().name}
       data-ready={ready() && !closing() ? "" : undefined}
+      data-zoomed={zoom() > 1 ? "" : undefined}
       onClick={(event) => {
-        if (!(event.target as HTMLElement).closest("button, .tds-lightbox-stage > *")) close()
+        if (!(event.target as HTMLElement).closest("button, .tds-lightbox-stage")) close()
       }}
     >
       <div class="tds-lightbox-bar">
         <b>{item().name}</b>
-        <em class="num">
+        <em class="num" aria-live="polite" aria-atomic="true">
           <Show when={items.length > 1}>
-            <span class="tds-lightbox-count"><TextMorph value={index() + 1 + " of " + items.length} /></span>
+            <span class="tds-lightbox-count">{index() + 1 + " of " + items.length}</span>
           </Show>
-          <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} /></span>}</Show>
+          <Show when={sizes()[item().id]}>{(bytes) => <span>{formatSize(bytes())}</span>}</Show>
+          <Show when={zoom() > 1}>
+            <span class="tds-lightbox-zoom">{Math.round(zoom() * 100) + "%"}</span>
+          </Show>
         </em>
         <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />
@@ -168,7 +297,21 @@ function Viewer(props: { opening: Opening }) {
           <Icon name="x" size="menu" />
         </button>
       </div>
-      <div ref={(el) => (stage = el)} class="tds-lightbox-stage" />
+      <div
+        ref={(el) => {
+          stage = el
+          el.addEventListener("wheel", onWheel, { passive: false })
+        }}
+        class="tds-lightbox-stage"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onClick={onStageClick}
+      />
+      <Show when={failed()[item().id]}>
+        <p class="tds-lightbox-failed" role="alert">Image unavailable. The file may have been moved or deleted.</p>
+      </Show>
       <Show when={items.length > 1}>
         <button type="button" class="tds-lightbox-nav tds-over" data-dir="prev" aria-label="Previous image" onClick={() => show(untrack(index) - 1, -1)}>
           <Icon name="caret-left" size="lightbox-nav" />
@@ -179,7 +322,7 @@ function Viewer(props: { opening: Opening }) {
         <div class="tds-lightbox-film tds-over">
           <For each={items} keyed={(entry) => entry.id}>
             {(entry, i) => (
-              <button type="button" data-on={i() === index() ? "" : undefined} aria-label={entry().name} onClick={() => show(untrack(i), untrack(i) > untrack(index) ? 1 : -1)}>
+              <button type="button" data-on={i() === index() ? "" : undefined} aria-label={entry().name} aria-current={i() === index() ? "true" : undefined} onClick={() => show(untrack(i), untrack(i) > untrack(index) ? 1 : -1)}>
                 <img src={fileUrl(entry().id)} alt="" draggable={false} />
               </button>
             )}

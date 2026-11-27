@@ -7,7 +7,7 @@ Sent image rows of 1, 2 or 3 (240×170, 170×150, 130×130) with 18px outer and 
 Attach two or three images in the composer and send; click one. For the dot: send a message, open another chat with the pencil before the reply ends.
 
 ## Driving it with agent-browser
-`bun scripts/verify.ts lightbox finished`. lightbox asserts the row's sizes and corner radii, the hidden source thumbnail, the count across ArrowRight, the end bounce, the prev button and filmstrip, and that Escape restores the thumbnail. finished asserts the toast, a `.tds-flight-dot[data-chat]`, and the unread dot on chat A's row.
+`bun scripts/verify.ts lightbox finished`. lightbox asserts the row's sizes and corner radii, the hidden source thumbnail, the count across ArrowRight, the end bounce, the prev button and filmstrip, click-to-zoom to 200% with drag to pan (the click after a drag keeps the zoom), 0 to fit, a Tab trap inside the viewer, and that Escape restores the thumbnail and returns focus to it. Also ported from T3Code but not asserted: neighbour preloading, Ctrl/pinch-wheel zoom around the pointer, +/- keys, arrow keys panning while zoomed, touch swipe between images, and a failure line when a picture won't load. finished asserts the toast, a `.tds-flight-dot[data-chat]`, and the unread dot on chat A's row.
 
 ## Gotchas
 The lightbox is fixed over everything (z lightbox 60) and listens for keys in the capture phase so the app's own Escape and arrow shortcuts don't fire under it. The dot is skipped (row marked unread at once) when the toast is hovered or the row is scrolled out of the list.
