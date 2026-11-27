@@ -1,6 +1,8 @@
 import { accessCookie, accessKeyDigest, authenticateRequest, constantTimeEqual } from "./core/auth.js";
 import { parseJsonBody, validators } from "./core/schemas.js";
 import type { Env } from "./types.js";
+import { handleLink } from "./core/links.js";
+import { fixtureFetch } from "./dev/links.js";
 
 export { TockDO } from "./do.js";
 
@@ -111,6 +113,11 @@ export default {
     }
     if (!auth.ok) {
       return Response.json({ ok: false, error: auth.reason }, { status: 401 });
+    }
+
+    if ((url.pathname === "/api/link" || url.pathname === "/api/link/icon") && request.method === "GET") {
+      const fixture = env.DEV_ALLOW_ANON === "1" && /(?:^|;\s*)tock-link-fixture=1(?:;|$)/.test(request.headers.get("cookie") ?? "");
+      return handleLink(url, fixture ? fixtureFetch : (input, init) => fetch(input, init), fixture ? null : caches.default);
     }
 
     const stub = env.TOCK_DO.get(env.TOCK_DO.idFromName(auth.owner));
