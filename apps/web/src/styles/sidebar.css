@@ -5,7 +5,8 @@
     transition: opacity var(--tds-dur-layout) var(--tds-ease-std), clip-path var(--tds-dur-layout) var(--tds-ease-std);
     @starting-style { opacity: 0; clip-path: inset(0 0 100% 0) }
   }
-  .tds-row { user-select: none; -webkit-user-drag: none; will-change: transform }
+  .tds-row { user-select: none; -webkit-user-drag: none }
+  .tds-row-wrap[data-swiping] .tds-row { will-change: transform }
   @media (hover: hover) and (pointer: fine) {
     .tds-row-wrap:hover :is(.tds-row-time, .tds-row-mark) { opacity: 0 }
   }
@@ -127,7 +128,7 @@
     position: fixed; z-index: var(--tds-z-lay); width: var(--tds-size-peek); padding: var(--tds-space-14); border-radius: var(--tds-radius-peek);
     display: flex; flex-direction: column; gap: var(--tds-space-10); transform-origin: 0 var(--tds-space-32); cursor: default;
     animation: tds-peek-in var(--tds-dur-layout) var(--tds-ease-out);
-    transition: top var(--tds-dur-exit) var(--tds-ease-out);
+    transition: translate var(--tds-dur-exit) var(--tds-ease-out);
   }
   .tds-peek-head { display: flex; align-items: center; gap: var(--tds-space-10) }
   .tds-peek-head b { flex: 1; min-width: 0; font-size: var(--tds-type-row-size); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }

@@ -2,6 +2,7 @@
   .tds-header-pill { font-size: var(--tds-type-header-title-size); font-weight: var(--tds-type-header-title-weight); letter-spacing: var(--tds-type-header-title-tracking) }
   .tds-header-pill { max-width: var(--tds-size-header-title) }
   .tds-header-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .tds-header-title > .tds-morph-text { display: block; overflow: hidden; text-overflow: ellipsis }
   .tds-header-status {
     display: flex; align-items: center; gap: var(--tds-space-6); margin-left: calc(var(--tds-space-8) * -1);
     font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-regular); letter-spacing: var(--tds-type-secondary-tracking); color: var(--tds-text-muted);

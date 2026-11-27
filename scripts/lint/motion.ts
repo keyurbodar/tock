@@ -18,11 +18,9 @@ const KNOWN: { file: RegExp; line: string; why: string }[] = [
   { file: /chat-extras\.css$/, line: "transition: max-height var(--tds-dur-panel)", why: "code collapse (TOCK-5): routed, measured height via clamp.ts" },
   { file: /chat-surface\.css$/, line: "transition: margin var(--tds-dur-swap)", why: "header status pill width morph (TOCK-3): routed" },
   { file: /sidebar\.css$/, line: "transition: min-width var(--tds-dur-menu)", why: "swipe actions (TOCK-3): routed" },
-  { file: /sidebar\.css$/, line: "transition: top var(--tds-dur-exit)", why: "peek follows its row (TOCK-3): routed, use translate" },
   { file: /motion\.css$/, line: "width var(--tds-dur-glide)", why: "fluid hover (TOCK-3): absolutely positioned, routed" },
   { file: /scroll\.css$/, line: "transition-property: opacity, filter, margin", why: "work-log fold (TOCK-5): routed" },
   { file: /composer\.css$/, line: "left var(--tds-dur-hover) var(--tds-ease-out)", why: "mention popover follows the caret: routed, position with translate" },
-  { file: /shell\/sidebar\.tsx$/, line: "{ top: g.style.top }", why: "sidebar ghost (TOCK-3): routed, use translate" },
   { file: /chat\/composer\.tsx$/, line: "marginRight", why: "attachment card closes its gap from a measured width" },
 ]
 const UNGUARDED_ROUTED: RegExp[] = []

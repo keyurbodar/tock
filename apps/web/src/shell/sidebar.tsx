@@ -223,7 +223,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
       g.remove()
       return act("pin-drop")
     }
-    animate(g, [{ top: g.style.top }, { top: `${row.getBoundingClientRect().top}px` }], { duration: D.layout, easing: curve.sheet }).onfinish = () => g.remove()
+    animate(g, [{ translate: "0 0" }, { translate: `0 ${row.getBoundingClientRect().top - parseFloat(g.style.top)}px` }], { duration: D.layout, easing: curve.sheet, fill: "forwards" }).onfinish = () => g.remove()
   }
 
   return (

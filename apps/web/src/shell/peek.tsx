@@ -120,7 +120,7 @@ export function Peek() {
             class="tds-peek tds-over"
             role="dialog"
             aria-label={`Peek at ${titleOf(peek().session)}`}
-            style={{ left: `${peek().left}px`, top: `${peek().top}px` }}
+            style={{ left: `${peek().left}px`, top: "0px", translate: `0 ${peek().top}px` }}
             onPointerEnter={() => ((apex = undefined), clearTimeout(leaveTimer))}
             onPointerLeave={() => peekLeave()}
             onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${peek().session.id}`), hidePeek())}
