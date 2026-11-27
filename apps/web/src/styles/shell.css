@@ -599,7 +599,7 @@
   .tds-centre-sec { padding: var(--tds-space-6) var(--tds-space-8) 0; font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
   .tds-centre-empty { margin: 0; padding: var(--tds-space-24) var(--tds-space-12); text-align: center; font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-lh); color: var(--tds-text-muted); text-wrap: balance }
 
-  .tds-note-group { position: relative; cursor: pointer; transition: padding var(--tds-dur-layout) var(--tds-ease-sheet); &[data-stacked] { padding-bottom: var(--tds-space-12) } &[data-open] { padding-bottom: 0 } }
+  .tds-note-group { position: relative; cursor: pointer; &[data-stacked] { padding-bottom: var(--tds-space-12) } }
   .tds-note {
     position: relative; z-index: 2; display: flex; align-items: flex-start; gap: var(--tds-space-10); padding: var(--tds-space-11); border-radius: var(--tds-radius-note);
     background: var(--tds-surface-note); transition: background-color var(--tds-dur-press) var(--tds-ease-out), opacity var(--tds-dur-menu) var(--tds-ease-out) calc(var(--i) * var(--tds-dur-note-stagger));
@@ -615,8 +615,8 @@
   .tds-note > i { font-style: normal; font-size: var(--tds-type-micro-size); color: var(--tds-text-faint); white-space: nowrap }
   .tds-note-more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--tds-dur-layout) var(--tds-ease-sheet); & > div { overflow: hidden; min-height: 0 } & .tds-note { margin-top: var(--tds-space-6) } }
   .tds-note-group[data-open] .tds-note-more { grid-template-rows: 1fr }
-  .tds-note-under { position: absolute; left: var(--tds-space-8); right: var(--tds-space-8); bottom: var(--tds-space-6); z-index: 1; height: var(--tds-size-note-under); border-radius: var(--tds-radius-note-under); background: var(--tds-surface-note-under); transition: opacity var(--tds-dur-menu) var(--tds-ease-out) }
+  .tds-note-under { position: absolute; left: var(--tds-space-8); right: var(--tds-space-8); bottom: var(--tds-space-6); z-index: 1; height: var(--tds-size-note-under); border-radius: var(--tds-radius-note-under); background: var(--tds-surface-note-under); transition: opacity var(--tds-dur-menu) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-sheet) }
   .tds-note-under[data-back] { left: var(--tds-space-16); right: var(--tds-space-16); bottom: 0; z-index: 0; background: var(--tds-surface-note-under-2) }
-  .tds-note-group[data-open] .tds-note-under { opacity: 0 }
+  .tds-note-group[data-open] .tds-note-under { opacity: 0; translate: 0 calc(var(--tds-space-12) * -1) }
 }
 

@@ -45,8 +45,8 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
     el.style.pointerEvents = "none"
     animate(el,
       [
-        { width: `${el.offsetWidth}px`, marginRight: "0px", opacity: 1, scale: "1" },
-        { width: "0px", marginRight: `-${tokens.space[8]}px`, opacity: 0, scale: String(tokens.motion["press-tight"]) },
+        { opacity: 1, scale: "1", filter: "blur(0px)" },
+        { opacity: 0, scale: String(tokens.motion["press-tight"]), filter: `blur(${tokens.motion.blur.exit})` },
       ],
       { duration: tokens.motion.duration.layout, easing: tokens.motion.curve.std, fill: "forwards" },
     ).onfinish = () => props.onRemove()
@@ -633,7 +633,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   return (
     <div ref={wrap} class="tds-composer-wrap">
       <Show when={trigger() && suggestions().length > 0}>
-        <div ref={list} class="tds-menu tds-suggest tds-over" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: `${caret().left}px`, bottom: `${caret().bottom}px` }}>
+        <div ref={list} class="tds-menu tds-suggest tds-over" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: "0px", transform: `translateX(${caret().left}px)`, bottom: `${caret().bottom}px` }}>
           <span class="tds-suggest-glide" aria-hidden="true" style={{ translate: `0 ${glide().top}px`, height: `${glide().height}px` }} />
           <span class="tds-menu-label">{trigger()?.char === "@" ? "Chats" : "Commands"}</span>
           <For each={suggestions()} keyed={(item) => item.key}>

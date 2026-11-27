@@ -176,6 +176,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
         {(call) => <AskButtons sessionId={props.sessionId} ask={askOf(call())} />}
       </Show>
       <div class="tds-ws-fold" data-open={open() ? "" : undefined}>
+      <div class="tds-ws-clip">
       <Show when={seen() || open() ? body() : undefined}>
         {(shown) => (
           <div class="tds-ws-body">
@@ -204,6 +205,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
           </div>
         )}
       </Show>
+      </div>
       </div>
     </div>
   )

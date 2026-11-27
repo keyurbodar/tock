@@ -130,7 +130,7 @@ function Finder(props: { onClose: () => void }) {
 /** Slides under the header when the socket drops, then turns green with "Back online" for a moment (px4 setOffline). */
 function OfflineBanner() {
   const [shown, setShown] = createSignal<"off" | "on" | "ok">("off")
-  let seen = app.connection === "open"
+  let seen = untrack(() => app.connection) === "open"
   let timer: ReturnType<typeof setTimeout> | undefined
   const dropped = () => {
     clearTimeout(timer)

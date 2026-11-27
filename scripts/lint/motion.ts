@@ -13,13 +13,6 @@ const LAYOUT = /^(?:margin(?:-\w+)?|padding(?:-\w+)?|top|left|right|bottom|inset
 const WAAPI_LAYOUT = /\{\s*(?:top|left|right|bottom|width|margin\w*|padding\w*)\s*:/
 
 /** Existing layout-property motion, each routed to its owner by the TOCK-8 motion audit. Anything new fails. */
-const KNOWN: { file: RegExp; line: string; why: string }[] = [
-  { file: /shell\.css$/, line: "transition: padding var(--tds-dur-layout) var(--tds-ease-sheet)", why: "notification stack: routed, translate the under-cards instead of the group's padding" },
-  { file: /chat-extras\.css$/, line: "transition: max-height var(--tds-dur-panel)", why: "code collapse (TOCK-5): routed, measured height via clamp.ts" },
-  { file: /scroll\.css$/, line: "transition-property: opacity, filter, margin", why: "work-log fold (TOCK-5): routed" },
-  { file: /composer\.css$/, line: "left var(--tds-dur-hover) var(--tds-ease-out)", why: "mention popover follows the caret: routed, position with translate" },
-  { file: /chat\/composer\.tsx$/, line: "marginRight", why: "attachment card closes its gap from a measured width" },
-]
 const UNGUARDED_ROUTED: RegExp[] = []
 
 export const check: FileCheck = (file, text) => {
@@ -31,13 +24,12 @@ export const check: FileCheck = (file, text) => {
   text.split("\n").forEach((line, i) => {
     const at = i + 1
     if (line.includes("lint-tokens-ignore")) return
-    const known = KNOWN.some((k) => k.file.test(file) && line.includes(k.line))
     if (/--tds-ease-in\b(?!-)|\bcurve\.in\b/.test(line) && !/exit|leav|clos/.test(line))
       hits.push({ line: at, name: "ease-in-not-exit", found: "ease-in", why: "The TDS in-curve is for leaving only, 120-200ms. Pair it with an exit duration on the same line, or use the out-curve." })
     if (css) {
       for (const m of line.matchAll(/transition(?:-property)?\s*:\s*([^;}]+)/g)) {
         const bad = m[1]!.split(",").map((part) => part.trim().split(/\s+/)[0]!).filter((p) => LAYOUT.test(p))
-        if (bad.length && !known) hits.push({ line: at, name: "layout-transition", found: bad.join(","), why: "Animating layout properties re-runs layout every frame (animation-performance). Animate translate/scale/opacity, or a measured height." })
+        if (bad.length) hits.push({ line: at, name: "layout-transition", found: bad.join(","), why: "Animating layout properties re-runs layout every frame (animation-performance). Animate translate/scale/opacity, or a measured height." })
       }
       if (/@media[^{]*\(hover:\s*hover\)/.test(line) && hoverDepth < 0) hoverDepth = depth
       const gated = hoverDepth >= 0 || /\(hover:\s*hover\)/.test(line)
@@ -48,7 +40,7 @@ export const check: FileCheck = (file, text) => {
       return
     }
     if (!/\.animate\(/.test(line)) return
-    if (WAAPI_LAYOUT.test(line) && !known) hits.push({ line: at, name: "layout-transition", found: ".animate(layout)", why: "WAAPI on top/left/width/margin re-runs layout every frame. Animate translate or transform." })
+    if (WAAPI_LAYOUT.test(line)) hits.push({ line: at, name: "layout-transition", found: ".animate(layout)", why: "WAAPI on top/left/width/margin re-runs layout every frame. Animate translate or transform." })
     if (/\b(?:translate|transform)\s*:/.test(line) && !guarded && !UNGUARDED_ROUTED.some((f) => f.test(file)))
       hits.push({ line: at, name: "waapi-reduced-motion", found: ".animate(translate)", why: "The CSS reduced-motion reset never reaches element.animate(). Branch on prefersReducedMotion() from @tock/ui/motion and keep only opacity." })
   })
