@@ -564,6 +564,8 @@
     box-shadow: 0 0 0 2px var(--tds-surface-rail); transition: scale var(--tds-dur-layout) var(--tds-ease-out), opacity var(--tds-dur-menu) var(--tds-ease-out);
     &[data-zero] { scale: .4; opacity: 0 }
   }
+  /* the rolling count keeps its ink room inside the pill, so a 99+ at 200% text never overflows the badge box */
+  .tds-badge > .tds-morph-text { display: grid; place-items: center; height: 100%; overflow: hidden; line-height: 1 }
 
   .tds-centre {
     position: absolute; top: 0; bottom: 0; left: var(--tds-size-rail); z-index: var(--tds-z-centre); display: flex; flex-direction: column; gap: var(--tds-space-10);
