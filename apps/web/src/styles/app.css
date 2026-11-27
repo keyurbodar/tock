@@ -16,6 +16,7 @@
 @import "./motion.css";
 @import "./composer.css";
 @import "./files.css";
+@import "./skills-mobile.css";
 
 @layer base {
   html {

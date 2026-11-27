@@ -1,0 +1,15 @@
+/* ek mobile-native: the platform layer that makes the chat feel installed on a phone */
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; overscroll-behavior: none }
+  body { overscroll-behavior: none }
+  button, a, [role="button"], [role="menuitem"], [role="tab"], [role="option"] { touch-action: manipulation }
+  button, [role="button"], [role="menuitem"], [role="tab"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none }
+}
+
+@layer components {
+  .tds-composer-wrap { padding-bottom: calc(var(--tds-space-20) + env(safe-area-inset-bottom, 0px)) }
+  .tds-header-stack { top: calc(var(--tds-space-16) + env(safe-area-inset-top, 0px)) }
+  @media (pointer: coarse) {
+    :root :is(input, textarea, select, .tds-input) { font-size: var(--tds-type-input-touch-size) }
+  }
+}

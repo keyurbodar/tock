@@ -436,7 +436,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           editor.commands.insertContent(value, { contentType: "markdown" })
           return true
         },
-        attributes: { class: "tds-input", role: "textbox", "aria-multiline": "true", "aria-label": "Message toast" },
+        attributes: { class: "tds-input", role: "textbox", "aria-multiline": "true", "aria-label": "Message toast", enterkeyhint: "send" },
         handleKeyDown: (view, event) => {
           const list = untrack(suggestions)
           if (untrack(trigger) && list.length > 0) {

@@ -14,7 +14,7 @@ const rules: { name: string; test: RegExp; why: string }[] = [
 const allow = /icons\.gen\.ts$/
 
 export type LineRule = { name: string; test: RegExp; why: string; files?: RegExp }
-export type FileCheck = (file: string, text: string) => { line: number; name: string; found: string; why: string }[]
+export type FileCheck = (file: string, text: string) => { line: number; name: string; found: string; why: string; file?: string }[]
 const skills: { rules?: LineRule[]; check?: FileCheck }[] = []
 for (const entry of (await readdir("scripts/lint")).filter((name) => name.endsWith(".ts")).sort()) skills.push(await import(`./lint/${entry}`))
 const skillRules = skills.flatMap((mod) => mod.rules ?? [])
@@ -88,7 +88,7 @@ for (const file of sources) {
   for (const check of skillChecks) {
     for (const hit of check(file, text)) {
       failures++
-      console.error(`${file}:${hit.line}  ${hit.name}  ${hit.found}  ${hit.why}`)
+      console.error(`${hit.file ?? file}:${hit.line}  ${hit.name}  ${hit.found}  ${hit.why}`)
     }
   }
 }

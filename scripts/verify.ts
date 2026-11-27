@@ -1434,6 +1434,26 @@ const journeys: Record<string, () => void> = {
     wait(500)
     check(!exists(".tds-column .tds-worklog"), "the activity line should fold the card away")
   },
+  mobile() {
+    ab("set", "device", "iPhone 16 Pro")
+    try {
+      fresh()
+      const m = js<Record<string, string | boolean | null>>(`const s = (q) => getComputedStyle(document.querySelector(q)); return { coarse: matchMedia("(pointer: coarse)").matches, input: s(".tds-input").fontSize, key: document.querySelector(".ProseMirror")?.getAttribute("enterkeyhint") ?? null, tap: s("html").webkitTapHighlightColor, over: s("body").overscrollBehaviorY, touch: s(".tds-send").touchAction, select: s(".tds-send").userSelect, meta: document.querySelector("meta[name=viewport]")?.content ?? "" }`)
+      check(m.coarse === true, "the phone emulation should report a coarse pointer")
+      check(parseFloat(String(m.input)) >= 16, `composer text under 16px zooms iOS on focus, got ${m.input}`)
+      check(m.key === "send", `the return key should say send, got ${m.key}`)
+      check(transparent(String(m.tap)), `tap highlight should be transparent, got ${m.tap}`)
+      check(m.over === "none", `page overscroll should be none, got ${m.over}`)
+      check(m.touch === "manipulation", `buttons need touch-action: manipulation, got ${m.touch}`)
+      check(m.select === "none", `button labels should not be selectable, got ${m.select}`)
+      check(/viewport-fit=cover/.test(String(m.meta)) && !/user-scalable=no|maximum-scale/.test(String(m.meta)), `viewport meta: ${m.meta}`)
+      shot("mobile")
+    } finally {
+      ab("close")
+      ab("open", BASE)
+      ab("set", "viewport", "1440", "900")
+    }
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1443,7 +1463,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
