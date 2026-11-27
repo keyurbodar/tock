@@ -91,7 +91,7 @@
   .tds-bubble-rich {
     white-space: normal;
     & > * { margin-block: 0 !important }
-    & > * + * { margin-top: var(--tds-space-6) !important }
+    & > :not(:first-child) { margin-top: var(--tds-space-6) !important }
     & > .tds-bubble { max-width: none; padding: 0; border-radius: 0; background: none; box-shadow: none; color: inherit; &::before, &::after { display: none } }
     & ul, & ol { margin: 0; padding-left: var(--tds-space-20) }
   }

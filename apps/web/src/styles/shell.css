@@ -190,7 +190,7 @@
 @layer components {
   .tds-inline-code { padding: 0 var(--tds-space-4); border-radius: var(--tds-radius-kbd); background: var(--tds-code-inline); font-family: var(--tds-font-mono); font-size: .92em }
   .tds-bubble[data-heading] { font-weight: var(--tds-weight-semibold) }
-  .tds-list { margin: 0; padding-left: var(--tds-space-18); white-space: normal; & li + li { margin-top: var(--tds-space-3) } }
+  .tds-list { margin: 0; padding-left: var(--tds-space-18); white-space: normal; & > li:not(:first-child) { margin-top: var(--tds-space-3) } }
   .tds-list:not([data-ordered]) { list-style: disc } .tds-list[data-ordered] { list-style: decimal }
   .tds-code + .tds-bubble, .tds-bubble + .tds-code { margin-top: var(--tds-space-6) }
 }

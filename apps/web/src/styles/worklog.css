@@ -16,6 +16,6 @@
   .tds-worklog .tds-ws-clip > .tds-ws-group { max-height: none; overflow: visible; margin: 0 }
   .tds-worklog .tds-ws-thought { max-height: none; overflow: visible; margin-left: var(--tds-space-4); padding: var(--tds-space-2) 0 var(--tds-space-2) var(--tds-space-14); background: none; color: var(--tds-text-muted) }
   .tds-worklog .tds-ws-thought p { margin: 0 }
-  .tds-worklog .tds-ws-thought p + p { margin-top: var(--tds-space-8) }
+  .tds-worklog .tds-ws-thought p:not(:first-child) { margin-top: var(--tds-space-8) }
   .tds-worklog .tds-ws[data-status="failed"] .tds-ws-label { color: var(--tds-status-failed) }
 }
