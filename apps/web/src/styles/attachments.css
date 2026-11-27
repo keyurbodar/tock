@@ -22,15 +22,6 @@
   }
   .tds-doc-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-caption-size); line-height: var(--tds-type-caption-lh); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out) }
 
-  .tds-media[data-layout="single"] .tds-media-tile { border-radius: var(--tds-radius-bubble) }
-  .tds-media[data-layout="row"] .tds-media-tile {
-    &:first-child { border-top-left-radius: var(--tds-radius-bubble); border-bottom-left-radius: var(--tds-radius-bubble) }
-    &:last-child { border-top-right-radius: var(--tds-radius-bubble); border-bottom-right-radius: var(--tds-radius-bubble) }
-  }
-  .tds-media[data-layout="grid"] .tds-media-tile {
-    &:nth-child(1) { border-top-left-radius: var(--tds-radius-bubble) } &:nth-child(2) { border-top-right-radius: var(--tds-radius-bubble) }
-    &:nth-child(3) { border-bottom-left-radius: var(--tds-radius-bubble) } &:nth-child(4) { border-bottom-right-radius: var(--tds-radius-bubble) }
-  }
   .tds-media-tile { box-shadow: none; transition: translate var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out), filter var(--tds-dur-swap) var(--tds-ease-out) }
   .tds-media-tile img, .tds-media-tile video { transition: filter var(--tds-dur-hover) var(--tds-ease-out) }
   @media (hover: hover) and (pointer: fine) {
