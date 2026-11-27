@@ -28,6 +28,9 @@ Use it for an element appearing or leaving in place.
 ## Spring
 `spring(el, frames, "snappy" | "soft" | "text" | "press" | "glide")` runs a token spring as a `linear()` easing on the compositor. `springEasing(name)` returns `{ easing, duration }` for your own `animate` call. Use springs for movement and scale; use `curve.out` with a duration for colour and opacity.
 
+## Drive: one progress, interruptible
+Use it when one expand/collapse moves several things at once (a sheet, its content, the backdrop) or when a gesture can hand off to a spring. `drive(el, { preset: "expressive" })` writes a 0..1 `--p` on the element from a real spring that keeps its velocity. `to(1, "pop-open")` opens, `to(0, "pop-close")` closes, and calling `to` mid-flight turns around without a jump. During a drag, call `set(p)`; on release, call `to(open ? 1 : 0, preset, velocity)`. Key the CSS off `--p`: `scale: calc(.96 + var(--p) * .04); filter: blur(calc((1 - var(--p)) * var(--tds-blur-enter)))`. Presets come from `motion.spring.{expressive,pop-open,pop-close,highlight,…}` (expandable-bottom-tabs values; see renders/TOCK-3/motion-research.md).
+
 ## Glide: fluid hover
 Use it for one highlight that glides between the items of a list and takes on their size. Add a lane in `fluid.ts`:
 `{ item: ".tds-x-row", scope: ".tds-x-list", follow: "pointer" }`, or `follow: "highlighted"` for keyboard-driven lists such as menus and listboxes. Shading comes from `--tds-raise-sheen-hover` and `--tds-raise-shadow-hover`. Give the item no hover background of its own.

@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import { tokens } from "@tock/tokens"
-import { backdrop, growFrom, MorphIcon, raise, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
+import { backdrop, drive, growFrom, MorphIcon, raise, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
 
 /** Dev-only catalogue of the motion primitives (route /__motion). Each card is the smallest working use of one primitive. */
 export default function MotionDemo() {
@@ -44,8 +44,15 @@ export default function MotionDemo() {
         </div>
       </section>
       <section class="tds-raise-1">
-        <h2>Gesture</h2>
-        <div class="tds-motion-track" ref={(el) => scrub(el, { axis: "x", distance: 160, onProgress: (p) => el.style.setProperty("--p", String(p)), onRelease: (on) => el.style.setProperty("--p", on ? "1" : "0") })}>
+        <h2>Gesture + Drive (drag, wheel, or double-click mid-flight)</h2>
+        <div
+          class="tds-motion-track"
+          ref={(el) => {
+            const p = drive(el)
+            scrub(el, { axis: "x", distance: tokens.size.pin * 3, from: () => p.value, onProgress: (v) => p.set(v), onRelease: (on, v) => p.to(on ? 1 : 0, on ? "pop-open" : "pop-close", v) })
+            el.addEventListener("dblclick", () => p.to(p.value > 0.5 ? 0 : 1))
+          }}
+        >
           <i class="tds-motion-knob tds-raise-3" />
         </div>
       </section>
