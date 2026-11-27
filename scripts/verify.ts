@@ -2238,7 +2238,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   empty() {
     ab("open", BASE)
     until(() => exists(".tds-empty img[src*='toast-hi']"), Boolean, "the home empty state")
-    check(js<string>("return document.querySelector('.tds-empty b')?.textContent") === "Say hi to toast", "home empty title")
+    check(js<string>("return document.querySelector('#main .tds-empty b')?.textContent") === "Say hi to toast", "home empty title")
     shot("empty-home")
     ab("click", ".tds-empty-button")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a new thread url")
