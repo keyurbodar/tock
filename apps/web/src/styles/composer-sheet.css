@@ -7,8 +7,9 @@
     & .tds-editor { max-height: none }
     & .tds-mic { align-self: flex-end }
   }
+  .tds-composer-row { position: relative }
   .tds-sheet-grip {
-    position: absolute; z-index: 1; top: 0; left: 50%; translate: -50% 0; display: grid; place-items: center;
+    position: absolute; z-index: 2; top: calc(var(--tds-size-sheet-grip-hit) / -2); left: 50%; translate: -50% 0; display: grid; place-items: center;
     width: calc(var(--tds-size-sheet-grip) + var(--tds-space-24)); height: var(--tds-size-sheet-grip-hit);
     cursor: ns-resize; touch-action: none; opacity: 0; transition: opacity var(--tds-dur-hover) var(--tds-ease-out);
     &::before {
@@ -17,7 +18,7 @@
     }
     &:active::before { scale: var(--tds-press-tight) }
   }
-  .tds-field[data-tall] .tds-sheet-grip, .tds-field[data-sheet] .tds-sheet-grip, .tds-sheet-grip:focus-visible { opacity: 1 }
-  @media (hover: hover) and (pointer: fine) { .tds-field:hover .tds-sheet-grip { opacity: 1 } }
+  .tds-composer-row:has(> .tds-field:is([data-tall], [data-sheet])) > .tds-sheet-grip, .tds-sheet-grip:focus-visible { opacity: 1 }
+  @media (hover: hover) and (pointer: fine) { .tds-composer-row:has(> .tds-field:hover) > .tds-sheet-grip, .tds-sheet-grip:hover { opacity: 1 } }
   @media (hover: hover) and (pointer: fine) { .tds-sheet-grip:hover::before { background: var(--tds-overlay-fill-20) } }
 }

@@ -728,8 +728,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </MenuSub>
           </MenuContent>
         </Menu>
+        <button ref={grip} type="button" class="tds-sheet-grip" aria-label={sheet() ? "Collapse composer" : "Expand composer"} aria-expanded={sheet() ? "true" : "false"} onClick={() => expand(!untrack(sheet))} />
         <div ref={mountField} class="tds-field tds-raise-2" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
-          <button ref={grip} type="button" class="tds-sheet-grip" aria-label={sheet() ? "Collapse composer" : "Expand composer"} aria-expanded={sheet() ? "true" : "false"} onClick={() => expand(!untrack(sheet))} />
           <Show when={props.attachments.items().length > 0}>
             <div ref={(el) => ((tray = el), watchLayout(el, ".tds-attach", (card) => card.dataset.key ?? ""))} class="tds-attach-tray tds-scroll">
               <For each={props.attachments.items()} keyed={(item) => item.key}>
