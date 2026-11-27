@@ -22,7 +22,6 @@ export const sources: readonly Source[] = [
   { surface: ".tds-palette", trigger: () => document.querySelector(".tds-search"), ghost: true, backdrop: true },
   { surface: ".tds-peek", trigger: () => document.querySelector(".tds-row-wrap:hover"), ghost: true },
   { surface: ".tds-worklog", trigger: () => document.querySelector('.tds-act-button[aria-expanded="true"]'), ghost: true },
-  { surface: ".tds-centre", trigger: () => document.querySelector(".tds-rail-button[data-bell]"), ghost: true, backdrop: true },
   { surface: ".tds-keys", trigger: () => document.querySelector('.tds-rail-button[aria-label="Keyboard shortcuts"]'), ghost: true, backdrop: true },
 ]
 
@@ -63,6 +62,25 @@ export function backdrop(on: boolean) {
   depth = Math.max(0, depth + (on ? 1 : -1))
   if (depth) document.documentElement.dataset.backdrop = ""
   else delete document.documentElement.dataset.backdrop
+}
+
+/**
+ * Backdrop by amount: a surface that rides a Progress recedes the app in step with it, 0..1, instead of toggling.
+ * Holders stack; the deepest one wins, and the boolean backdrop() still overrides at full depth.
+ */
+const amounts = new Map<string, number>()
+export function backdropTo(holder: string, amount: number) {
+  if (amount > 0.001) amounts.set(holder, Math.min(1, amount))
+  else amounts.delete(holder)
+  const root = document.documentElement
+  const deepest = Math.max(0, ...amounts.values())
+  if (deepest <= 0.001) {
+    delete root.dataset.backdropP
+    root.style.removeProperty("--backdrop-p")
+    return
+  }
+  root.dataset.backdropP = ""
+  root.style.setProperty("--backdrop-p", deepest.toFixed(4))
 }
 
 /** The reverse of growFrom for a surface that already left the DOM: a frozen copy at its last box shrinks back into the trigger. */

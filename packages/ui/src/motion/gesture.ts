@@ -62,7 +62,7 @@ export function scrub(el: HTMLElement, opts: ScrubOptions) {
     const was = start
     start = undefined
     if (!locked) return
-    release(was.p + (along(e) - was.a) / opts.distance, last.v)
+    release(was.p + (along(e) - was.a) / opts.distance, e.timeStamp - last.t > tokens.motion.duration.press ? 0 : last.v)
   }
   const wheel = (e: WheelEvent) => {
     const delta = (opts.axis === "x" ? e.deltaX : e.deltaY) * -dir

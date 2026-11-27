@@ -604,9 +604,8 @@
     position: absolute; top: 0; bottom: 0; left: var(--tds-size-rail); z-index: var(--tds-z-centre); display: flex; flex-direction: column; gap: var(--tds-space-10);
     width: var(--tds-size-centre); padding: var(--tds-space-18) var(--tds-space-14); border-radius: var(--tds-radius-centre);
     background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow);
-    translate: calc(-100% - var(--tds-size-rail) - var(--tds-space-24)) 0; visibility: hidden;
-    transition: translate var(--tds-dur-panel) var(--tds-ease-sheet), visibility 0s linear var(--tds-dur-panel);
-    &[data-open] { translate: 0 0; visibility: visible; transition: translate var(--tds-dur-panel) var(--tds-ease-sheet) }
+    translate: calc((var(--p, 0) - 1) * (100% + var(--tds-size-rail) + var(--tds-space-24))) 0; visibility: hidden; touch-action: pan-y;
+    &[data-moving], &[data-open] { visibility: visible }
   }
   .tds-centre-head { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--tds-space-4) var(--tds-space-4) var(--tds-space-8); & b { font-size: var(--tds-type-centre-size); letter-spacing: var(--tds-type-centre-tracking); font-weight: var(--tds-type-centre-weight); color: var(--tds-text-tx) } }
   .tds-centre-read {

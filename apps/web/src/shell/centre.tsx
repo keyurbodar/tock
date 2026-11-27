@@ -1,4 +1,5 @@
-import { createSignal, For, onCleanup, Show } from "solid-js"
+import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid-js"
+import { backdropTo, drive, scrub } from "@tock/ui/motion"
 import { TextMorph } from "@tock/ui/text-morph"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { useNavigate } from "@solidjs/router"
@@ -6,6 +7,7 @@ import { Icon, type IconName } from "@tock/ui/icon"
 import { groups, markAllRead, notes, readChat, unreadNotes, type Group, type Note, type Tone } from "../state/notes"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
+import { tokens } from "@tock/tokens"
 
 const [open, setOpen] = createSignal(false)
 export { open as centreOpen, setOpen as setCentreOpen }
@@ -54,6 +56,31 @@ function Stack(props: { group: Group; start: number; onOpen: (note: Note) => voi
 export function Centre() {
   const navigate = useNavigate()
   let panel!: HTMLElement
+  let sheet: ReturnType<typeof drive> | undefined
+  createEffect(open, (next) => sheet?.to(next ? 1 : 0))
+  let unbind = () => {}
+  onCleanup(() => (unbind(), sheet?.stop(), backdropTo("centre", 0)))
+  const bind = (el: HTMLElement) => {
+    panel = el
+    const moved = drive(el, {
+      preset: "glide",
+      onFrame: (p) => {
+        el.toggleAttribute("data-moving", p > 0.001)
+        backdropTo("centre", Math.min(1, Math.max(0, p)))
+      },
+    })
+    sheet = moved
+    unbind = scrub(el, {
+      axis: "x",
+      distance: el.offsetWidth || tokens.size.centre,
+      from: () => moved.value,
+      onProgress: (p) => moved.set(p),
+      onRelease: (keep, velocity) => {
+        if (!keep && untrack(open)) setOpen(false)
+        moved.to(keep ? 1 : 0, undefined, (velocity * 1000) / (el.offsetWidth || tokens.size.centre))
+      },
+    })
+  }
   const go = (note: Note) => {
     setOpen(false)
     if (note.chat) {
@@ -74,7 +101,7 @@ export function Centre() {
   const sections = () => groups()
   const offset = (list: readonly Group[], at: number) => list.slice(0, at).reduce((sum, group) => sum + group.notes.length, 0)
   return (
-    <aside ref={panel} class="tds-centre tds-over" data-open={open() ? "" : undefined} aria-label="Notifications" aria-hidden={open() ? undefined : "true"} inert={!open()}>
+    <aside ref={bind} class="tds-centre tds-over" data-open={open() ? "" : undefined} aria-label="Notifications" aria-hidden={open() ? undefined : "true"} inert={!open()}>
       <div class="tds-centre-head">
         <b>Notifications</b>
         <button type="button" class="tds-centre-read" disabled={unreadNotes() === 0} onClick={markAllRead}>

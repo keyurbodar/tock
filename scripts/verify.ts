@@ -354,6 +354,14 @@ const journeys: Record<string, () => void> = {
     probe("work log expand", ".tds-worklog", () => (ab("click", ".tds-worklog .tds-ws-line:not(:disabled)"), wait(600)))
     probe("work log collapse", ".tds-worklog", () => (ab("click", ".tds-worklog .tds-ws[data-open] .tds-ws-line"), wait(600)))
     ab("press", "Escape")
+    const drag = (from: number, to: number, y = 420) => {
+      ab("mouse", "move", String(from), String(y))
+      ab("mouse", "down")
+      for (let k = 1; k <= 6; k++) ab("mouse", "move", String(Math.round(from + ((to - from) * k) / 6)), String(y))
+      ab("mouse", "up")
+    }
+    probe("centre scrub back", ".tds-centre", () => (ab("click", ".tds-rail-button[data-bell]"), wait(600), drag(300, 180), wait(700), drag(300, 40)), 900)
+    probe("centre retarget", ".tds-centre", () => (ab("click", ".tds-rail-button[data-bell]"), wait(90), ab("click", ".tds-rail-button[data-bell]"), wait(90), ab("click", ".tds-rail-button[data-bell]"), wait(700), ab("press", "Escape")), 900)
     for (const line of problems) console.log("  jank  " + line)
     check(problems.length === 0, `${problems.length} motion jumps`)
   },
@@ -638,6 +646,45 @@ const journeys: Record<string, () => void> = {
     until(unread, (now) => now === 0, "Mark All Read to clear the badge")
     ab("press", "Escape")
     until(() => exists(".tds-centre[data-open]"), (open) => !open, "Escape to close the centre")
+  },
+  sheet() {
+    const bell = ".tds-rail-button[data-bell]"
+    const x = () => js<number>("return document.querySelector('.tds-centre').getBoundingClientRect().x")
+    const receding = () => js<string>("const m = document.querySelector('main[data-backdrop-layer]'); return m && document.documentElement.hasAttribute('data-backdrop-p') ? getComputedStyle(m).filter : ''")
+    const drag = (from: number, to: number, y = 420) => {
+      ab("mouse", "move", String(from), String(y))
+      ab("mouse", "down")
+      for (let k = 1; k <= 6; k++) ab("mouse", "move", String(Math.round(from + ((to - from) * k) / 6)), String(y))
+      ab("mouse", "up")
+    }
+    ab("click", bell)
+    until(() => exists(".tds-centre[data-open]"), Boolean, "the centre to open")
+    wait(600)
+    const rest = x()
+    check(receding().includes("blur"), `the chat recedes behind the open centre (${receding()})`)
+    shot("sheet-open")
+    ab("mouse", "move", "300", "420")
+    ab("mouse", "down")
+    ab("mouse", "move", "260", "420")
+    ab("mouse", "move", "200", "420")
+    wait(100)
+    const held = x()
+    check(held < rest - 60, `the sheet follows the pointer while scrubbing (${rest} → ${held})`)
+    shot("sheet-scrub")
+    ab("mouse", "up")
+    until(x, (now) => Math.abs(now - rest) < 1, "a short drag to spring back open")
+    check(exists(".tds-centre[data-open]"), "a short drag keeps the centre open")
+    drag(300, 40)
+    until(() => exists(".tds-centre[data-open]"), (open) => !open, "a long drag to close the centre")
+    until(receding, (r) => r === "", "the chat to come back when the centre closes")
+    ab("click", bell)
+    wait(80)
+    ab("click", bell)
+    wait(80)
+    ab("click", bell)
+    until(x, (now) => Math.abs(now - rest) < 1, "a third bell click mid-flight to land the centre open")
+    ab("press", "Escape")
+    until(() => js<string>("return getComputedStyle(document.querySelector('.tds-centre')).visibility"), (v) => v === "hidden", "Escape to slide the centre away")
   },
   palette() {
     ab("press", "Control+k")
@@ -1749,7 +1796,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

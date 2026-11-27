@@ -40,5 +40,10 @@
 @layer components {
   [data-backdrop-layer] { transition: scale var(--tds-dur-panel) var(--tds-ease-sheet), filter var(--tds-dur-panel) var(--tds-ease-out), opacity var(--tds-dur-panel) var(--tds-ease-out) }
   :root[data-backdrop] [data-backdrop-layer] { scale: var(--tds-backdrop-scale); filter: blur(var(--tds-backdrop-blur)) brightness(var(--tds-backdrop-dim)) }
+  :root[data-backdrop-p]:not([data-backdrop]) [data-backdrop-layer] {
+    transition: none;
+    scale: calc(1 - (1 - var(--tds-backdrop-scale)) * var(--backdrop-p));
+    filter: blur(calc(var(--tds-backdrop-blur) * var(--backdrop-p))) brightness(calc(1 - (1 - var(--tds-backdrop-dim)) * var(--backdrop-p)));
+  }
   @media (prefers-reduced-motion: reduce) { :root[data-backdrop] [data-backdrop-layer] { scale: none; filter: brightness(var(--tds-backdrop-dim)) } }
 }

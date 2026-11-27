@@ -45,6 +45,8 @@ Pointer drag and trackpad wheel both drive progress. It locks the gesture to one
 ## Backdrop
 `backdrop(true | false)` (reference counted) makes every `[data-backdrop-layer]` element (the main column and the sidebar) scale to `--tds-backdrop-scale`, blur by `--tds-backdrop-blur` and dim to `--tds-backdrop-dim`. Morph sources with `backdrop: true` call it for you.
 
+`backdropTo(holder, amount)` is the same recede keyed off a 0..1 progress, for surfaces that ride `drive()` or a gesture: the layers follow the surface frame by frame and reverse with it. Holders stack and the deepest wins. The notification centre uses `drive` + `scrub` + `backdropTo`.
+
 ## Text and icon morphs
 - `<TextMorph value={n} numbers />` morphs titles, statuses and counters (torph). In journeys, read the value through `[torph-sr]`.
 - `<MorphIcon name={busy ? "stop" : "arrow-up"} />` morphs line shapes stroke by stroke, and uses a blur and scale swap otherwise. Add new line shapes to `shapes` in morph-icon.tsx.
