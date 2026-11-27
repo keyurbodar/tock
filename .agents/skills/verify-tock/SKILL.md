@@ -19,6 +19,10 @@ cd apps/web && ./node_modules/.bin/vite --port 5199 --strictPort   # proxies /ap
 Ready means `curl -sf localhost:8787/api/health` returns `{"ok":true,"service":"tock"}` and `curl -sf localhost:5199/` returns 200.
 The first `agent-browser open` in a container needs `--args --no-sandbox`.
 
+## Against another deployment
+
+`TOCK_URL=https://… TOCK_KEY=<access key> bun scripts/verify.ts [journeys]`. The doctor POSTs `TOCK_KEY` to `/api/auth` from inside the page, so the session cookie lands in agent-browser's profile, then fails fast if the Unlock dialog is still up. Without `TOCK_KEY` it fails with that hint instead of letting every journey stall behind the dialog. Locally `DEV_ALLOW_ANON=1` in `apps/server/.dev.vars` makes the key unnecessary. The doctor launches Chrome with `--no-sandbox`, which containers need; the flag only applies when agent-browser starts a new browser.
+
 ## Doctor
 
 `bun scripts/verify.ts doctor` checks both ports, opens the app at 1440×900 and clears the console and error buffers. Run it first whenever anything looks off.

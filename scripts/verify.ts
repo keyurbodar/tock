@@ -125,16 +125,23 @@ function ensureRows(n: number) {
 const journeys: Record<string, () => void> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
-    ab("open", BASE)
+    ab("open", BASE, "--args", "--no-sandbox")
     ab("set", "viewport", "1440", "900")
+    const key = process.env.TOCK_KEY
+    if (key) {
+      const status = ab("eval", `fetch("/api/auth", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: ${JSON.stringify(key)} }) }).then((r) => r.status)`)
+      check(status.trim() === "200", `TOCK_KEY was refused by ${BASE}/api/auth (status ${status.trim()})`)
+    }
     ab("errors", "--clear")
     ab("console", "--clear")
     ab("open", BASE)
+    const locked = () => exists("input[autocomplete='current-password']")
     try {
-      until(() => exists(".tds-row, .tds-sidebar .tds-empty"), Boolean, "the app to render", 12000)
+      until(() => locked() || exists(".tds-row, .tds-sidebar .tds-empty"), Boolean, "the app to render", 12000)
     } catch {
       throw new Error(`the app did not render; restart Vite with --force if this is a stale module after a rebase:\n${ab("errors").slice(0, 400)}`)
     }
+    if (locked()) throw new Error(key ? "still locked after POST /api/auth with TOCK_KEY" : `${BASE} asks for an access key: set TOCK_KEY to it (or DEV_ALLOW_ANON=1 in apps/server/.dev.vars locally)`)
   },
   shell() {
     ab("eval", "localStorage.removeItem('tock.sidebar.width')")
@@ -918,7 +925,7 @@ const journeys: Record<string, () => void> = {
     void title
   },
   toaststack() {
-    const titles = () => js<string>("return [...document.querySelectorAll('.tds-toast:not([data-gone]) .tds-toast-title [torph-sr]')].map((e) => e.textContent).join('|')")
+    const titles = () => js<string>("return [...document.querySelectorAll('.tds-toast:not([data-gone]) .tds-toast-title')].map((e) => { const c = e.cloneNode(true); c.querySelectorAll('[aria-hidden=true]').forEach((x) => x.remove()); return c.textContent.trim() }).join('|')")
     const live = () => js<number>("return document.querySelectorAll('.tds-toast:not([data-gone])').length")
     until(live, (n) => n === 0, "earlier toasts to clear", 12000)
     const rows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
@@ -1081,7 +1088,7 @@ const journeys: Record<string, () => void> = {
     until(() => js<boolean>("const imgs = [...document.querySelectorAll('.tds-media[data-count=\"3\"] .tds-media-tile img')]; return imgs.length === 3 && imgs.every((i) => i.complete && i.naturalWidth > 0)"), Boolean, "a row of three loaded images")
     wait(400)
     const row = js<{ w: number; h: number; first: string; inner: string; last: string }>("const t = [...document.querySelectorAll('.tds-media[data-count=\"3\"] .tds-media-tile')]; const s = (e) => getComputedStyle(e); const r = t[0].getBoundingClientRect(); return { w: r.width, h: r.height, first: s(t[0]).borderTopLeftRadius + ' ' + s(t[0]).borderTopRightRadius, inner: s(t[1]).borderTopLeftRadius, last: s(t[2]).borderBottomRightRadius }")
-    check(row.w === 130 && row.h === 130 && row.first === "18px 6px" && row.inner === "6px" && row.last === "18px", `image row of three: ${JSON.stringify(row)}`)
+    check(row.w === 130 && row.h === 130 && row.first === "20px 6px" && row.inner === "6px" && row.last === "20px", `image row of three: ${JSON.stringify(row)}`)
     shot("media-row-3")
     ab("click", ".tds-media[data-count='3'] .tds-media-tile:nth-child(2)")
     until(() => exists(".tds-lightbox[data-ready]"), Boolean, "the lightbox to open")
@@ -1639,8 +1646,8 @@ const journeys: Record<string, () => void> = {
     check(js<boolean>("const f = document.querySelector(\".tds-files[data-side='me']\"); const b = f?.nextElementSibling; return !!b && b.matches('.tds-bubble') && f.getBoundingClientRect().right > b.getBoundingClientRect().right - 2"), "the user's files sit above the bubble, right-aligned")
     until(() => js<boolean>("return [...document.querySelectorAll('.tds-bubble')].some((b) => b.textContent.includes('another pass'))"), Boolean, "the agent's reply to finish", 30000)
     until(() => exists(".tds-files[data-side='agent'] .tds-doc"), Boolean, "the agent's file card", 20000)
-    until(() => js<string>("return document.querySelector(\".tds-files[data-side='agent'] .tds-doc-meta [torph-sr]\")?.textContent ?? ''"), (t) => /^Markdown · [\d.]+ [KM]?B · \d+ lines?$/.test(t), "the agent card type, size and lines")
-    check(js<boolean>("const m = document.querySelector(\".tds-files[data-side='agent'] .tds-doc-meta .tds-morph-text\"); return [...m.querySelectorAll('[torph-item]')].map((e) => e.textContent).join('').replaceAll(String.fromCharCode(160), ' ') === m.querySelector('[torph-sr]').textContent && m.querySelectorAll('[torph-sr]').length === 1"), "the card meta is drawn once")
+    const metaText = "const m = document.querySelector(\".tds-files[data-side='agent'] .tds-doc-meta\")?.cloneNode(true); m?.querySelectorAll('[aria-hidden=true]').forEach((e) => e.remove()); return m?.textContent.trim() ?? ''"
+    until(() => js<string>(metaText), (t) => /^Markdown · [\d.]+ [KM]?B · \d+ lines?$/.test(t), "the agent card type, size and lines, drawn once")
     const card = ".tds-files[data-side='agent'] .tds-doc"
     check(!js<string>("return document.querySelector(\"" + card + "\").textContent").includes("Open"), "the doc card has no Open text, the whole card is the target")
     check(js<number>("const c = document.querySelector(\"" + card + "\"); return parseFloat(getComputedStyle(c).borderRadius) - parseFloat(getComputedStyle(c).paddingLeft) - parseFloat(getComputedStyle(c.querySelector('.tds-doc-glyph')).borderRadius)") === 0, "the glyph radius nests inside the card (inner = outer - padding)")
