@@ -3,7 +3,7 @@ import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Swap } from "@tock/ui/swap"
 import { TextMorph } from "@tock/ui/text-morph"
-import { dur, enter, exit, prefersReducedMotion, animate } from "@tock/ui/motion"
+import { dur, enter, exit, prefersReducedMotion, animate, lockAxis, velocityTracker } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 
 export type Tone = "done" | "mono" | "failed" | "working" | "needs" | "rose"
@@ -29,7 +29,6 @@ interface Clock {
   left: number
   at: number
   timer?: ReturnType<typeof setTimeout>
-  bar?: HTMLElement
   card?: HTMLElement
 }
 
@@ -48,7 +47,8 @@ export interface ToastOptions {
 }
 
 const [items, setItems] = createSignal<Item[]>([])
-const [hovered, setHovered] = createSignal(false)
+const [expanded, setExpanded] = createSignal(false)
+const held = { over: false, hidden: false }
 const [heights, setHeights] = createSignal<Record<string, number>>({})
 const clocks = new Map<string, Clock>()
 let serial = 0
@@ -66,11 +66,29 @@ function arm(id: string, full?: number) {
   if (!clock || !item) return
   clearTimeout(clock.timer)
   if (full !== undefined) clock.full = clock.left = full
+  clock.timer = undefined
   clock.at = Date.now()
-  clock.bar?.getAnimations().forEach((a) => a.cancel())
-  if (untrack(hovered) || item.hold) return
+  if (held.over || held.hidden || item.hold) return
   clock.timer = setTimeout(() => dismissToast(id), clock.left)
-  animate(clock.bar, [{ scale: `${clock.left / clock.full} 1` }, { scale: "0 1" }], { duration: clock.left, easing: "linear", fill: "forwards", essential: true })
+}
+
+function hold(reason: keyof typeof held, on: boolean) {
+  if (held[reason] === on) return
+  const wasHeld = held.over || held.hidden
+  held[reason] = on
+  if (reason === "over") setExpanded(on)
+  const isHeld = held.over || held.hidden
+  if (wasHeld === isHeld) return
+  for (const [id, clock] of clocks) {
+    if (!isHeld) {
+      arm(id)
+      continue
+    }
+    if (clock.timer === undefined) continue
+    clearTimeout(clock.timer)
+    clock.timer = undefined
+    clock.left = Math.max(tokens.motion.duration.confirm, clock.left - (Date.now() - clock.at))
+  }
 }
 
 export const isToastOpen = (id: string) => alive().some((item) => item.id === id)
@@ -137,21 +155,21 @@ export function updateToast(id: string, title: string, options: Omit<ToastOption
   return id
 }
 
-function hover(on: boolean) {
-  setHovered(on)
-  for (const [id, clock] of clocks) {
-    if (on) {
-      clearTimeout(clock.timer)
-      clock.left = Math.max(tokens.motion.duration.confirm, clock.left - (Date.now() - clock.at))
-      clock.bar?.getAnimations().forEach((a) => a.pause())
-    } else arm(id)
-  }
-}
-
 function Card(props: { item: Item; index: number; offset: number }) {
   let card!: HTMLDivElement
-  let start: number | undefined
+  let start: { x: number; y: number } | undefined
+  let axis: "x" | "y" | undefined
+  const flick = velocityTracker()
   const [dx, setDx] = createSignal(0)
+  const [dragging, setDragging] = createSignal(false)
+  const release = () => {
+    if (!start) return
+    start = undefined
+    setDragging(false)
+    const moved = untrack(dx)
+    if (axis === "x" && moved > 0 && (moved > tokens.size.swipe || flick.get() > tokens.motion.gesture["toast-flick"])) dismissToast(untrack(() => props.item.id), true)
+    else setDx(0)
+  }
   const observer = new ResizeObserver(() => setHeights((all) => ({ ...all, [props.item.id]: card.offsetHeight })))
   onCleanup(() => observer.disconnect())
   const mount = (el: HTMLDivElement) => {
@@ -160,10 +178,6 @@ function Card(props: { item: Item; index: number; offset: number }) {
     if (clock) clock.card = el
     observer.observe(el)
     queueMicrotask(() => enter.toast(el))
-  }
-  const bar = (el: HTMLElement) => {
-    const clock = clocks.get(untrack(() => props.item.id))
-    if (clock) clock.bar = el
   }
   const act = () => {
     const id = props.item.id
@@ -181,40 +195,39 @@ function Card(props: { item: Item; index: number; offset: number }) {
       data-back={props.index > 0 ? "" : undefined}
       data-hidden={props.index > 2 ? "" : undefined}
       data-gone={props.item.gone}
-      data-swiping={start !== undefined && dx() !== 0 ? "" : undefined}
+      data-swiping={dragging() ? "" : undefined}
       style={{ "--toast-index": props.index, "--toast-offset": `${props.offset}px`, "--toast-swipe-x": `${dx()}px`, opacity: dx() > 0 ? Math.max(0.2, 1 - dx() / (tokens.size.swipe * 4)) : undefined }}
       onPointerDown={(e) => {
-        if ((e.target as Element).closest("button")) return
-        start = e.clientX
-        e.currentTarget.setPointerCapture(e.pointerId)
+        if (e.button !== 0 || (e.target as Element).closest("button")) return
+        start = { x: e.clientX, y: e.clientY }
+        axis = undefined
+        flick.reset()
+        flick.push(e.clientX, e.timeStamp)
       }}
       onPointerMove={(e) => {
-        if (start === undefined) return
-        const moved = e.clientX - start
-        setDx(moved > 0 ? moved : moved * 0.2)
+        if (!start) return
+        const moved = e.clientX - start.x
+        axis ??= lockAxis(moved, e.clientY - start.y)
+        if (axis !== "x") return
+        if (!untrack(dragging)) (e.currentTarget.setPointerCapture(e.pointerId), setDragging(true))
+        flick.push(e.clientX, e.timeStamp)
+        setDx(moved > 0 ? moved : moved * tokens.motion.gesture.rubber)
       }}
-      onPointerUp={() => {
-        if (start === undefined) return
-        start = undefined
-        if (untrack(dx) > tokens.size.swipe) dismissToast(props.item.id, true)
-        else setDx(0)
-      }}
-      onPointerCancel={() => ((start = undefined), setDx(0))}
+      onPointerUp={() => release()}
+      onPointerCancel={() => ((axis = undefined), release())}
     >
-      <span class={`tds-tint tds-tint-${props.item.tone} size-toast-icon tds-toast-glyph`}>
-        <Swap on={props.item.icon !== "spin"} a={<span class="tds-spinner" />} b={<MorphIcon name={props.item.icon === "spin" ? "check" : props.item.icon} size="toast" />} />
+      <span class={`tds-tint tds-tint-${props.item.tone} tds-toast-glyph`}>
+        <Swap on={props.item.icon !== "spin"} a={<span class="tds-spinner" />} b={<MorphIcon name={props.item.icon === "spin" ? "check" : props.item.icon} size="toast-glyph" />} />
       </span>
       <span class="tds-toast-body">
-        <b class="tds-toast-head">
-          <span class="tds-toast-title">
-            <TextMorph value={props.item.title} mode="calm" />
-          </span>
-          <Show when={props.item.count > 1 && !props.item.plural}>
-            <span class="tds-toast-count num">
-              <TextMorph value={props.item.count} mode="roll" />
-            </span>
-          </Show>
+        <b class="tds-toast-title">
+          <TextMorph value={props.item.title} mode="calm" />
         </b>
+        <Show when={props.item.count > 1 && !props.item.plural}>
+          <span class="tds-toast-count num">
+            ×<TextMorph value={props.item.count} mode="roll" />
+          </span>
+        </Show>
         <Show when={props.item.description}>
           <span class="tds-toast-line">{props.item.description}</span>
         </Show>
@@ -227,11 +240,6 @@ function Card(props: { item: Item; index: number; offset: number }) {
       <button type="button" class="tds-toast-close" aria-label="Close" onClick={() => dismissToast(props.item.id)}>
         <Icon name="x" size="chip" />
       </button>
-      <Show when={!props.item.hold}>
-        <span class="tds-toast-progress">
-          <i ref={bar} />
-        </span>
-      </Show>
     </div>
   )
 }
@@ -261,19 +269,21 @@ export function Toasts() {
     const newest = alive()[0]
     if (newest) dismissToast(newest.id)
   }
+  const onVisibility = () => hold("hidden", document.hidden)
   document.addEventListener("keydown", onKey)
-  onCleanup(() => document.removeEventListener("keydown", onKey))
+  document.addEventListener("visibilitychange", onVisibility)
+  onCleanup(() => (document.removeEventListener("keydown", onKey), document.removeEventListener("visibilitychange", onVisibility)))
   return (
     <section
       class="tds-toasts"
       aria-live="polite"
       aria-label="Notifications"
-      data-expanded={hovered() ? "" : undefined}
+      data-expanded={expanded() ? "" : undefined}
       style={{ "--toast-count": layout().count, "--toast-stack-height": `${layout().stack}px`, "--toast-front-height": `${layout().front}px`, "--toast-peek": Math.min(Math.max(layout().count - 1, 0), 2) }}
-      onMouseEnter={() => hover(true)}
-      onMouseLeave={() => hover(false)}
-      onFocusIn={() => hover(true)}
-      onFocusOut={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && hover(false)}
+      onMouseEnter={() => hold("over", true)}
+      onMouseLeave={(e) => !e.currentTarget.contains(document.activeElement) && hold("over", false)}
+      onFocusIn={() => hold("over", true)}
+      onFocusOut={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && !e.currentTarget.matches(":hover") && hold("over", false)}
     >
       <For each={items()} keyed={(item) => item.key}>
         {(item) => <Card item={item()} index={layout().placed.get(item().id)?.index ?? 0} offset={layout().placed.get(item().id)?.offset ?? 0} />}

@@ -1,48 +1,46 @@
 @layer components {
   .tds-toasts {
     position: fixed; top: var(--tds-size-toast-top); right: var(--tds-space-20); z-index: var(--tds-z-toasts); width: var(--tds-size-toast);
-    height: calc(var(--toast-front-height) + var(--toast-peek) * var(--tds-space-10)); transition: height var(--tds-dur-panel) var(--tds-ease-sheet);
+    height: calc(var(--toast-front-height) + var(--toast-peek) * var(--tds-space-8)); transition: height var(--tds-dur-panel) var(--tds-ease-sheet);
   }
   .tds-toasts[data-expanded] { height: calc(var(--toast-stack-height) + (var(--toast-count) - 1) * var(--tds-space-8)) }
   .tds-toast {
-    --y: calc(var(--toast-index) * var(--tds-space-10));
-    position: absolute; inset-inline: 0; top: 0; z-index: calc(var(--tds-z-toasts) - var(--toast-index)); display: flex; align-items: center; gap: var(--tds-space-12);
-    min-height: var(--tds-size-toast-min); padding: var(--tds-space-10) var(--tds-space-10) var(--tds-space-10) var(--tds-space-12); border-radius: var(--tds-radius-toast);
-    translate: var(--toast-swipe-x, 0px) var(--y); scale: calc(1 - var(--toast-index) * 0.05); transform-origin: 50% 0; user-select: none; touch-action: pan-y;
+    --y: calc(var(--toast-index) * var(--tds-space-8));
+    position: absolute; inset-inline: 0; top: 0; z-index: calc(var(--tds-z-toasts) - var(--toast-index)); display: flex; align-items: center; gap: var(--tds-space-10);
+    min-height: var(--tds-size-toast-min); padding: var(--tds-space-8) var(--tds-space-10) var(--tds-space-8) var(--tds-space-14); border-radius: var(--tds-radius-toast);
+    translate: var(--toast-swipe-x, 0px) var(--y); scale: calc(1 - var(--toast-index) * 0.04); transform-origin: 50% 0; user-select: none; touch-action: pan-y;
     transition: translate var(--tds-dur-toast) var(--tds-ease-sheet), scale var(--tds-dur-toast) var(--tds-ease-sheet), opacity var(--tds-dur-layout) var(--tds-ease-out);
   }
-  .tds-toast[data-back] :is(.tds-toast-body, .tds-toast-action, .tds-toast-glyph) { opacity: 0 }
+  .tds-toast[data-back] :is(.tds-toast-body, .tds-toast-action, .tds-toast-glyph, .tds-toast-close) { opacity: 0 }
   .tds-toasts[data-expanded] .tds-toast { --y: calc(var(--toast-offset) + var(--toast-index) * var(--tds-space-8)); scale: 1; & :is(.tds-toast-body, .tds-toast-action, .tds-toast-glyph) { opacity: 1 } }
   .tds-toasts:not([data-expanded]) .tds-toast[data-hidden] { opacity: 0; pointer-events: none }
   .tds-toast[data-gone] { pointer-events: none; z-index: calc(var(--tds-z-toasts) + 1) }
   .tds-toast[data-swiping] { transition: none }
-  .tds-toast-glyph { transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), background-color var(--tds-dur-swap) var(--tds-ease-out), color var(--tds-dur-swap) var(--tds-ease-out) }
-  .tds-toast-body { display: flex; flex: 1; flex-direction: column; gap: var(--tds-space-1); min-width: 0; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out) }
-  .tds-toast-head { display: flex; align-items: center; gap: var(--tds-space-6); min-width: 0 }
-  .tds-toast-title { font-size: var(--tds-type-toast-title-size); line-height: var(--tds-type-toast-title-lh); font-weight: var(--tds-type-toast-title-weight); letter-spacing: var(--tds-type-toast-title-tracking); color: var(--tds-text-tx) }
-  .tds-toast-count {
-    display: inline-grid; place-items: center; min-width: var(--tds-space-20); height: var(--tds-space-18); padding: 0 var(--tds-space-5); border-radius: var(--tds-radius-pill);
-    background: var(--tds-overlay-fill-12); font-size: var(--tds-type-badge-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx2); overflow: hidden;
+  .tds-toast-glyph.tds-tint { width: var(--tds-icon-toast-glyph); height: var(--tds-icon-toast-glyph); background: none; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-swap) var(--tds-ease-out) }
+  .tds-toast-glyph.tds-tint-mono { color: var(--tds-text-muted) }
+  .tds-toast-body {
+    display: flex; flex: 1; align-items: baseline; gap: var(--tds-space-6); min-width: 0; white-space: nowrap;
+    font-size: var(--tds-type-toast-title-size); line-height: var(--tds-type-toast-title-lh); letter-spacing: var(--tds-type-toast-title-tracking); transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out);
   }
-  .tds-toast-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tds-type-secondary-size); color: var(--tds-text-muted) }
+  .tds-toast-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--tds-type-toast-title-weight); color: var(--tds-text-tx) }
+  .tds-toast-count { flex: none; font-weight: var(--tds-weight-medium); color: var(--tds-text-muted) }
+  .tds-toast-line { flex: 0 1000 auto; min-width: var(--tds-space-24); overflow: hidden; text-overflow: ellipsis; font-weight: var(--tds-weight-regular); color: var(--tds-text-muted) }
   .tds-toast-action {
-    flex: none; height: var(--tds-size-toast-action); padding: 0 var(--tds-space-12); border-radius: var(--tds-radius-pill); background: var(--tds-overlay-fill-10);
-    font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx); transition: background-color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out), opacity var(--tds-dur-tooltip) var(--tds-ease-out);
+    flex: none; height: var(--tds-size-toast-action); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-pill); background: var(--tds-overlay-fill-10);
+    font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx); transition: background-color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-tooltip) var(--tds-ease-out);
   }
   @media (hover: hover) and (pointer: fine) { .tds-toast-action:hover { background: var(--tds-overlay-fill-12) } }
   .tds-toast-close {
-    --pad: calc((var(--tds-size-hit-min) - var(--tds-size-toast-close)) / 2);
-    position: absolute; left: calc(var(--tds-space-7) * -1 - var(--pad)); top: calc(var(--tds-space-7) * -1 - var(--pad)); isolation: isolate; display: grid; place-items: center;
-    width: var(--tds-size-hit-min); height: var(--tds-size-hit-min); border-radius: var(--tds-radius-pill); color: var(--tds-text-tx2); opacity: 0; --shrink: .6;
-    &::before { content: ""; position: absolute; inset: var(--pad); z-index: -1; border-radius: var(--tds-radius-pill); background: var(--tds-surface-badge-ring); box-shadow: var(--tds-lift-fan) }
-    &::before, & > * { scale: var(--shrink); transition: scale var(--tds-dur-tooltip) var(--tds-ease-out) }
-    transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-tooltip) var(--tds-ease-out);
+    flex: none; display: grid; place-items: center; width: var(--tds-size-hit-min); height: var(--tds-size-hit-min); margin-inline-start: calc(var(--tds-space-4) * -1);
+    border-radius: var(--tds-radius-pill); color: var(--tds-text-muted); opacity: 0;
+    transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-toast-close:focus-visible { opacity: 1; --shrink: 1 }
-  @media (hover: hover) and (pointer: fine) { .tds-toast:hover .tds-toast-close { opacity: 1; --shrink: 1 } }
-  @media (hover: none) { .tds-toast-close { opacity: 1; --shrink: 1 } }
-  .tds-toast-progress { position: absolute; left: var(--tds-space-16); right: var(--tds-space-16); bottom: 0; height: var(--tds-space-2); border-radius: var(--tds-radius-pill); overflow: hidden; opacity: 0; transition: opacity var(--tds-dur-layout) var(--tds-ease-out) }
-  .tds-toasts[data-expanded] .tds-toast-progress { opacity: 1 }
-  .tds-toast-progress i { display: block; height: 100%; background: var(--tds-overlay-fill-20); transform-origin: 0 0 }
+  .tds-toast:focus-within .tds-toast-close, .tds-toast-close:focus-visible { opacity: 1 }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-toast:hover .tds-toast-close { opacity: 1 }
+    .tds-toast-close:hover { color: var(--tds-text-tx); background: var(--tds-overlay-fill-10) }
+  }
+  @media (hover: none) { .tds-toast-close { opacity: 1 } }
+  .tds-toast-glyph .tds-spinner { width: var(--tds-icon-toast-glyph); height: var(--tds-icon-toast-glyph) }
   .tds-spinner { width: var(--tds-icon-toast); height: var(--tds-icon-toast); border-radius: var(--tds-radius-pill); border: var(--tds-space-2) solid color-mix(in oklab, currentColor 25%, transparent); border-top-color: currentColor; animation: tds-spin var(--tds-dur-spin) linear infinite }
 }

@@ -359,6 +359,80 @@ function unlock() {
   check(status.trim() === "200", `TOCK_KEY was refused by ${BASE}/api/auth (status ${status.trim()})`)
 }
 
+/** Close, swipe and stacking of the toasts. Runs in a browser launched with a fine, hovering pointer: headless Chrome reports hover: none, where the close always shows. */
+function toastClose() {
+  const live = () => js<number>("return document.querySelectorAll('.tds-toast:not([data-gone])').length")
+  const copy = () => (openRow(), choose("Copy Link"), until(live, (n) => n === 1, "the Link copied toast"), wait(500))
+  until(live, (n) => n === 0, "earlier toasts to clear", 12000)
+  ensureRows(2)
+  copy()
+  ab("mouse", "move", "700", "500")
+  wait(300)
+  check(style(".tds-toast[data-front] .tds-toast-close", "opacity") === "0", "the close hides while the toast is not hovered")
+  const card = rect(".tds-toast[data-front]")!
+  const idle = rect(".tds-toast[data-front] .tds-toast-close")!
+  check(idle.w === 24 && idle.h === 24, `the close is a 24×24 hit area (got ${idle.w}×${idle.h})`)
+  check(card.x + card.w - (idle.x + idle.w) <= 12 && Math.abs(idle.y + idle.h / 2 - (card.y + card.h / 2)) < 1, "the close sits on the trailing edge, centred on the line")
+  ab("hover", ".tds-toast[data-front] .tds-toast-close")
+  wait(300)
+  const hot = rect(".tds-toast[data-front] .tds-toast-close")!
+  check(style(".tds-toast[data-front] .tds-toast-close", "opacity") === "1", "the close shows on hover")
+  check(hot.w === 24 && hot.h === 24 && hot.x === idle.x && style(".tds-toast[data-front] .tds-toast-close", "scale") === "none", "the close never scales or moves on hover")
+  shot("toastclose-hover")
+  wait(5600)
+  check(live() === 1, "a hovered toast outlives its 5s timer")
+  ab("click", ".tds-toast[data-front] .tds-toast-close")
+  until(live, (n) => n === 0, "the close to dismiss the toast")
+  ab("mouse", "move", "700", "500")
+  copy()
+  ab("eval", "document.querySelector('.tds-toast[data-front] .tds-toast-close').focus({ focusVisible: true })")
+  wait(300)
+  check(style(".tds-toast[data-front] .tds-toast-close", "opacity") === "1", "the close shows on keyboard focus")
+  ab("mouse", "move", "700", "500")
+  wait(5600)
+  check(live() === 1, "a toast with focus inside outlives its 5s timer")
+  ab("press", "Enter")
+  until(live, (n) => n === 0, "Enter on the focused close to dismiss")
+  copy()
+  const box = rect(".tds-toast[data-front]")!
+  const mid = String(box.y + box.h / 2)
+  ab("mouse", "move", String(box.x + 60), mid)
+  ab("mouse", "down")
+  for (const dx of [10, 20, 30, 40]) (ab("mouse", "move", String(box.x + 60 + dx), mid), wait(200))
+  ab("mouse", "up")
+  wait(500)
+  check(live() === 1 && Math.abs(rect(".tds-toast[data-front]")!.x - box.x) < 1, "a slow 40px drag springs back")
+  ab("mouse", "move", String(box.x + 60), mid)
+  ab("mouse", "down")
+  for (const dx of [14, 28, 42]) ab("mouse", "move", String(box.x + 60 + dx), mid)
+  ab("mouse", "up")
+  until(live, (n) => n === 0, "a 42px flick to dismiss on velocity")
+  const rows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
+  while (rows() < 3) journeys.send!()
+  const before = rows()
+  ab("mouse", "move", "700", "500")
+  openRow()
+  choose("Archive")
+  until(live, (n) => n === 1, "the Archived toast")
+  wait(400)
+  openRow()
+  choose("Copy Link")
+  until(live, (n) => n === 2, "two stacked toasts")
+  ab("mouse", "move", "700", "500")
+  wait(500)
+  const back = js<{ dy: number; scale: number; body: string; close: string }>("const [f, b] = document.querySelectorAll('.tds-toast:not([data-gone])'); return { dy: b.getBoundingClientRect().bottom - f.getBoundingClientRect().bottom, scale: b.getBoundingClientRect().width / f.getBoundingClientRect().width, body: getComputedStyle(b.querySelector('.tds-toast-body')).opacity, close: getComputedStyle(b.querySelector('.tds-toast-close')).opacity }")
+  check(back.dy > 0 && back.dy <= 10 && back.scale < 1 && back.body === "0" && back.close === "0", `the older toast peeks under the newest, smaller and quiet (${JSON.stringify(back)})`)
+  shot("toastclose-stack")
+  ab("hover", ".tds-toast[data-front]")
+  until(() => exists(".tds-toasts[data-expanded]"), Boolean, "the stack to expand on hover")
+  wait(500)
+  const open = js<{ top: number; bottom: number; w: number }[]>("return [...document.querySelectorAll('.tds-toast:not([data-gone])')].map((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, w: r.width } })")
+  check(open[1]!.top >= open[0]!.bottom && open[0]!.w === open[1]!.w, "expanded toasts sit apart at full size")
+  shot("toastclose-expanded")
+  js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
+  until(rows, (n) => n === before, "Undo to restore the row")
+}
+
 const journeys: Record<string, () => void | Promise<void>> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
@@ -1598,7 +1672,8 @@ const journeys: Record<string, () => void | Promise<void>> = {
     wait(450)
     shot("toast-archived")
     const type = js<{ size: string; weight: string; line: string }>("const t = getComputedStyle(document.querySelector('.tds-toast[data-front] .tds-toast-title')); const l = document.querySelector('.tds-toast[data-front] .tds-toast-line'); return { size: t.fontSize, weight: t.fontWeight, line: l ? getComputedStyle(l).fontSize : '' }")
-    check(type.size === "14px" && type.weight === "600" && type.line === "12.5px", `toast title 14/600 and line 12.5 (got ${JSON.stringify(type)})`)
+    check(type.size === "14px" && type.weight === "500" && type.line === "14px", `toast title 14/500 with its line on the same row at 14 (got ${JSON.stringify(type)})`)
+    check(js<number>("return document.querySelector('.tds-toast[data-front]').offsetHeight") === 44, "the toast is one 44px line")
     check(exists(".tds-toast-action"), "the toast offers Undo")
     js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
     until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Restored"), "Undo to restore")
@@ -1610,7 +1685,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const live = () => js<number>("return document.querySelectorAll('.tds-toast:not([data-gone])').length")
     until(live, (n) => n === 0, "earlier toasts to clear", 12000)
     const rows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
-    while (rows() < 2) journeys.send!()
+    while (rows() < 3) journeys.send!()
     const before = rows()
     openRow()
     choose("Archive")
@@ -1633,9 +1708,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     wait(500)
     const fanned = js<{ top: number; bottom: number }[]>("return [...document.querySelectorAll('.tds-toast:not([data-gone])')].map((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom } })")
     check(fanned[1]!.top >= fanned[0]!.bottom, "fanned toasts do not overlap")
-    check(style(".tds-toast-progress", "opacity") === "1", "the progress line shows while hovered")
-    const paused = js<string[]>("return [...document.querySelectorAll('.tds-toast-progress i')].flatMap((e) => e.getAnimations().map((a) => a.playState))")
-    check(paused.every((s) => s === "paused"), `timers pause on hover (${paused.join(",")})`)
+    check(style(".tds-toast[data-front] .tds-toast-close", "opacity") === "1", "the hovered toast shows its close")
     shot("toaststack-fanned")
     js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
     until(titles, (t) => t.includes("Restored 2 chats"), "Undo to restore both chats")
@@ -1654,6 +1727,16 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("mouse", "move", String(box.x + 140), String(box.y + box.h / 2))
     ab("mouse", "up")
     until(live, (n) => n === 0, "swipe right to dismiss")
+  },
+  toastclose() {
+    const relaunch = (...args: string[]) => (ab("close"), ab("open", BASE, "--args", ["--no-sandbox", ...args].join(",")), ab("set", "viewport", "1440", "900"), unlock(), ab("open", BASE), reset())
+    relaunch("--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4")
+    try {
+      check(js<boolean>("return matchMedia('(hover: hover) and (pointer: fine)').matches"), "the browser reports a fine pointer that hovers")
+      toastClose()
+    } finally {
+      relaunch()
+    }
   },
   fluid() {
     ab("hover", ".tds-row-wrap")
@@ -4095,7 +4178,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
