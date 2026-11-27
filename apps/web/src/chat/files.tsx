@@ -5,6 +5,8 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { extension, fileUrl, formatSize, isImage } from "./attachments"
 import { fileChip } from "./chip"
 import { openLightbox, type LightboxItem } from "./lightbox-state"
+import { pdfThumb } from "../lib/pdf"
+import { tokens } from "@tock/tokens"
 
 export interface SentFile {
   readonly id: string
@@ -14,6 +16,9 @@ export interface SentFile {
 export type FileKind = "image" | "video" | "text" | "doc"
 
 const TEXTUAL = /\.(md|markdown|mdx|txt|csv|log|m?[jt]sx?|json|css|html?|py|rs|go|rb|swift|sh|ya?ml|toml|sql|xml)$/i
+export const isPdf = (name: string) => /\.pdf$/i.test(name)
+/** Text and PDFs open in the lightbox; anything else opens in a new tab. */
+const opensInViewer = (name: string) => kindOf(name) === "text" || isPdf(name)
 export const kindOf = (name: string): FileKind => (isImage(name) ? "image" : /\.(mp4|mov|webm|m4v)$/i.test(name) ? "video" : TEXTUAL.test(name) ? "text" : "doc")
 
 interface Meta {
@@ -87,6 +92,8 @@ function MediaTile(props: { file: SentFile; more: number; onOpen: (el: HTMLEleme
 function DocCard(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
   const meta = () => fileMeta(props.file.id, props.file.name)
   const chip = () => fileChip(props.file.name)
+  const [thumb, setThumb] = createSignal<string | null>(null)
+  if (isPdf(props.file.name)) void pdfThumb(fileUrl(props.file.id), tokens.size["file-tile"]).then(setThumb)
   const line = () => (meta()?.state === "missing" ? "Unavailable" : [typeName(props.file.name), meta()?.state === "ready" ? describe(meta()) : ""].filter(Boolean).join(" · "))
   return (
     <a
@@ -98,13 +105,15 @@ function DocCard(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
       data-state={meta()?.state ?? "loading"}
       style={{ "--tds-chip-accent": `var(--tds-chip-${chip().kind})` }}
       onClick={(event) => {
-        if (kindOf(props.file.name) !== "text" || event.metaKey || event.ctrlKey) return
+        if (!opensInViewer(props.file.name) || event.metaKey || event.ctrlKey) return
         event.preventDefault()
         props.onOpen(event.currentTarget)
       }}
     >
-      <span class="tds-doc-glyph">
-        <Icon name={chip().icon} size="menu" />
+      <span class="tds-doc-glyph" data-thumb={thumb() ? "" : undefined}>
+        <Show when={thumb()} fallback={<Icon name={chip().icon} size="menu" />}>
+          {(src) => <img src={src()} alt="" draggable={false} />}
+        </Show>
       </span>
       <span class="tds-doc-text">
         <b>{props.file.name}</b>
@@ -136,7 +145,7 @@ export function Attachments(props: { files: readonly SentFile[]; side: "me" | "a
         <div class="tds-docs" data-side={props.side}>
           <For each={docs()} keyed={(file) => file.id}>
             {(file) => {
-              const text = () => docs().filter((entry) => kindOf(entry.name) === "text")
+              const text = () => docs().filter((entry) => opensInViewer(entry.name))
               const onOpen = (el: HTMLElement) => open(text(), text().indexOf(file()), el)
               return (
                 <DocCard file={file()} onOpen={onOpen} />

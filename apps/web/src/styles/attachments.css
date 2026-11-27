@@ -76,4 +76,8 @@
 
   .tds-lightbox-bar .tds-lightbox-count { position: static; translate: none; height: auto; font: inherit; color: inherit; opacity: 1 }
   .tds-lightbox-bar b { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
+
+  .tds-doc-glyph[data-thumb] { overflow: hidden; background: var(--tds-surface-white); & img { width: 100%; height: 100%; object-fit: cover; object-position: top } }
+  .tds-lightbox-pdf[data-edge-fade] { flex-direction: column; align-items: center; gap: var(--tds-space-12); padding: var(--tds-space-16); overflow-y: auto; overscroll-behavior: contain; background: var(--tds-surface-backdrop) }
+  .tds-lightbox-page { display: block; flex: none; max-width: 100%; height: auto !important; border-radius: var(--tds-radius-hairline); background: var(--tds-surface-white); box-shadow: var(--tds-lift-media) }
 }

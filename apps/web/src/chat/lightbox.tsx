@@ -10,6 +10,7 @@ import { CodeBlock } from "./code"
 import { Markdown } from "./markdown"
 import { toast } from "../shell/toasts"
 import { opening, setOpening, type LightboxItem, type Opening } from "./lightbox-state"
+import { openPdf, renderPage } from "../lib/pdf"
 
 const d = tokens.motion.duration
 const ease = tokens.motion.curve
@@ -37,6 +38,7 @@ function Viewer(props: { opening: Opening }) {
   const [zoom, setZoom] = createSignal(1)
   const [failed, setFailed] = createSignal<Record<string, true>>({})
   const [sizes, setSizes] = createSignal<Record<string, number>>({})
+  const [pages, setPages] = createSignal<Record<string, number>>({})
   let root!: HTMLDivElement
   let stage!: HTMLDivElement
   let pan = { x: 0, y: 0 }
@@ -87,6 +89,23 @@ function Viewer(props: { opening: Opening }) {
       video.className = "tds-lightbox-picture tds-lightbox-video"
       video.onerror = () => setFailed((all) => ({ ...all, [item.id]: true }))
       return video
+    }
+    if (/\.pdf$/i.test(item.name)) {
+      const doc = document.createElement("div")
+      doc.className = "tds-lightbox-doc tds-lightbox-pdf tds-scroll"
+      doc.dataset.edgeFade = "y"
+      void openPdf(fileUrl(item.id))
+        .then(async (pdf) => {
+          setPages((all) => ({ ...all, [item.id]: pdf.numPages }))
+          for (let n = 1; n <= Math.min(pdf.numPages, limit["pdf-pages"]) && doc.isConnected !== false; n++) {
+            const page = await renderPage(pdf, n, tokens.size["lightbox-doc"])
+            page.className = "tds-lightbox-page"
+            page.dataset.page = String(n)
+            doc.append(page)
+          }
+        })
+        .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
+      return doc
     }
     if (!isImage(item.name)) {
       const doc = document.createElement("div")
@@ -307,6 +326,7 @@ function Viewer(props: { opening: Opening }) {
             </span>
           </Show>
           <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} mode="calm" /></span>}</Show>
+          <Show when={pages()[item().id]}>{(count) => <span>{count() === 1 ? "1 page" : count() + " pages"}</span>}</Show>
         </em>
         <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />

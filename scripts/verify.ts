@@ -2628,6 +2628,25 @@ const journeys: Record<string, () => void> = {
     shot("heic")
     js<boolean>("document.querySelectorAll('.tds-attach-remove').forEach((b) => b.click()); return true")
   },
+  pdf() {
+    fresh()
+    const pdf = join(FIXTURES, "verify-pages.pdf")
+    check(existsSync(pdf), "needs ~/.capy/work/verify-pages.pdf (two pages)")
+    ab("upload", ".tds-composer-wrap input[type=file]", pdf)
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done", "the PDF to upload")
+    check(/2 pages$/.test(js<string>("return document.querySelector('.tds-attach-line')?.textContent ?? ''")), "the tray card counts the pages")
+    say("Here is the PDF")
+    until(() => js<boolean>("const i = document.querySelector(\".tds-files[data-side='me'] .tds-doc-glyph[data-thumb] img\"); return !!i && i.complete && i.naturalWidth > 0"), Boolean, "the doc card to show the first page as its thumbnail", 15000)
+    wait(300)
+    shot("pdf-card")
+    ab("click", ".tds-files[data-side='me'] .tds-doc")
+    until(() => js<number>("return document.querySelectorAll('.tds-lightbox-pdf canvas.tds-lightbox-page').length"), (n) => n === 2, "the lightbox to draw both pages", 15000)
+    until(() => js<string>("return document.querySelector('.tds-lightbox-bar em')?.textContent ?? ''"), (t) => t.includes("2 pages"), "the bar to say 2 pages")
+    wait(300)
+    shot("pdf-lightbox")
+    ab("press", "Escape")
+    until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
