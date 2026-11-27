@@ -93,9 +93,10 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   }
   const onScroll = () => {
     if (scroller.scrollTop < tokens.limit["transcript-edge"] && untrack(depth) < untrack(items).length) {
-      const fromEnd = scroller.scrollHeight - scroller.scrollTop
-      setDepth((now) => now + tokens.limit["transcript-window"])
-      requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight - fromEnd))
+      const pinnedTop = scroller.scrollTop < 1
+      const fromEnd = pinnedTop ? scroller.scrollHeight : 0
+      setDepth((now) => now + tokens.limit["transcript-step"])
+      if (pinnedTop) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight - fromEnd))
     }
     const next = { top: scroller.scrollTop, height: scroller.scrollHeight }
     const upward = next.height >= baseline.height && next.top < baseline.top - 1
@@ -126,6 +127,21 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     () => props.sessionId,
     () => void setDepth(tokens.limit["transcript-window"]),
   )
+  /** The rest of a long chat mounts above the fold in idle slices right after it opens, so scrolling back later never waits on a mount. */
+  let idle = 0
+  const fill = () => {
+    cancelIdleCallback(idle)
+    if (untrack(depth) >= untrack(items).length) return
+    idle = requestIdleCallback(() => {
+      setDepth((now) => now + tokens.limit["transcript-step"])
+      fill()
+    })
+  }
+  createEffect(
+    () => [props.sessionId, items().length] as const,
+    () => fill(),
+  )
+  onCleanup(() => cancelIdleCallback(idle))
   const all = () => setDepth(Number.POSITIVE_INFINITY)
   addEventListener("tds-transcript-all", all)
   onCleanup(() => removeEventListener("tds-transcript-all", all))

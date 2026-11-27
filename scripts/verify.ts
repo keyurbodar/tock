@@ -2087,10 +2087,8 @@ const journeys: Record<string, () => void> = {
     check(m.render < 1000, "mounting a 500+ message chat stays under 1000ms of main thread, took " + m.render + "ms")
     check(m.nodes < 4000, "only the newest window is in the DOM, got " + m.nodes + " nodes")
     until(() => js<number>("const s = document.querySelector('.tds-transcript'); return Math.round(s.scrollHeight - s.scrollTop - s.clientHeight)"), (g) => g <= 140, "the long chat to open at the end")
-    const before = m.bubbles
-    ab("eval", "{ const s = document.querySelector('.tds-transcript'); s.scrollTop = 0 }")
-    until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n > before, "older messages to mount when scrolling up")
-    check(js<number>("return document.querySelector('.tds-transcript').scrollTop") > 0, "mounting older messages keeps the reader's place instead of jumping to the very top")
+    until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n >= 600, "the rest of the chat to mount in idle slices after it opens", 10000)
+    check(js<number>("const s = document.querySelector('.tds-transcript'); return Math.round(s.scrollHeight - s.scrollTop - s.clientHeight)") <= 140, "mounting older messages in the background keeps the chat pinned at its end")
     ab("click", "button[aria-label='Search in chat']")
     until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n >= 500, "find to mount the whole chat so it can search every message")
     ab("press", "Escape")

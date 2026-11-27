@@ -374,7 +374,7 @@ export const plainText = (text: string) => {
 export const titleOf = (session: Session | undefined) => session?.meta?.title || plainText(session?.title ?? "").replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
 
 /** Dev-only: repeats a thread's real entries `copies` times in place, so the perf journey can load a transcript of hundreds of messages without a server round trip per message. */
-if (import.meta.env.DEV)
+if (import.meta.env.DEV || import.meta.env.VITE_TOCK_SEED)
   Object.assign(window, {
     __tockSeed: (sessionId: string, copies: number) =>
       thread(sessionId, (state) => {
