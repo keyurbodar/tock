@@ -20,10 +20,12 @@ const list: readonly (readonly [string, readonly string[]])[] = [
 const typing = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA")
 
+const [open, setOpen] = createSignal(false)
+export const setShortcutsOpen = setOpen
+
 export function Shortcuts() {
   const navigate = useNavigate()
   const params = useParams<{ id?: string }>()
-  const [open, setOpen] = createSignal(false)
 
   const step = (delta: number) => {
     const rows = app.sessions.filter((session) => !session.meta.archived)

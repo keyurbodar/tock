@@ -54,6 +54,23 @@ function upload(file: File, onProgress: (fraction: number) => void): Promise<Fil
   })
 }
 
+/** As T3Code's prepareImageForAttachment: big photos shrink to the longest edge we need before they upload; anything that fails stays as it was. */
+async function prepare(file: File): Promise<File> {
+  if (!/^image\/(png|jpe?g|webp|heic|heif)$/.test(file.type) || file.size <= tokens.limit["compress-kb"] * 1024) return file
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, tokens.limit["image-edge"] / Math.max(bitmap.width, bitmap.height))
+    const canvas = new OffscreenCanvas(Math.round(bitmap.width * scale), Math.round(bitmap.height * scale))
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await canvas.convertToBlob({ type: "image/webp", quality: tokens.limit["image-quality"] })
+    if (blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" })
+  } catch {
+    return file
+  }
+}
+
 export function createAttachments() {
   const [list, setList] = createStore<{ items: Attachment[] }>({ items: [] })
   const sources = new Map<string, File>()
@@ -90,7 +107,13 @@ export function createAttachments() {
           fileId: null,
         }),
       )
-      if (!tooLarge) start(key)
+      if (!tooLarge)
+        void prepare(file).then((ready) => {
+          if (!sources.has(key)) return
+          sources.set(key, ready)
+          if (ready !== file) patch(key, { name: ready.name, size: ready.size, mime: ready.type })
+          start(key)
+        })
     }
   }
 

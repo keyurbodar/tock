@@ -190,15 +190,6 @@ export function Sidebar() {
   const working = createMemo(() => app.sessions.find((s) => s.busy))
   const startChat = () => navigate(`/t/${newThreadId()}`)
 
-  const onKey = (event: KeyboardEvent) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault()
-      search.focus()
-      search.select()
-    }
-  }
-  addEventListener("keydown", onKey)
-  onCleanup(() => removeEventListener("keydown", onKey))
 
   return (
     <aside class="tds-sidebar" style={{ width: `${width()}px` }} aria-label="Chats">

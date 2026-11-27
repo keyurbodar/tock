@@ -239,7 +239,7 @@ export const isThreadId = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{
 const FILE_LINK = /\[([^\]\n]+)\]\(tock-file:[\w-]+\)/g
 
 export const plainText = (text: string) => {
-  const words = text.replace(FILE_LINK, "").replace(/\[[^\]\n]*(\]\(tock-file:[\w-]*)?…?$/, "").replace(/\s+/g, " ").trim()
+  const words = text.replace(FILE_LINK, "").replace(/\[([^\]\n]+)\]\(tock-thread:[\w-]+\)/g, "$1").replace(/\[(@[^\]\n]*)(\]\([^)\s]*)?…?$/, "$1").replace(/\[[^\]\n]*(\]\(tock-file:[\w-]*)?…?$/, "").replace(/\s+/g, " ").trim()
   return words || [...text.matchAll(FILE_LINK)].map((match) => match[1]).join(", ")
 }
 

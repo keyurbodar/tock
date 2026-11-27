@@ -14,10 +14,10 @@ const regular = [
   "list-checks", "clock", "calendar-check", "sparkle", "arrow-clockwise", "camera", "clipboard-text", "github-logo", "notion-logo",
   "google-drive-logo", "hash", "at", "command", "eye", "eye-slash", "info", "question", "play", "pause", "broom", "drop", "palette",
   "house", "briefcase", "airplane-tilt", "megaphone-simple", "link-break", "shield-check", "database", "graph", "flow-arrow",
-  "chart-line-up", "currency-dollar",
+  "chart-line-up", "currency-dollar", "file-doc", "file-xls", "file-ppt", "chats-circle",
 ]
 const fill = ["chat-circle", "bell", "push-pin", "folder-simple", "check-circle", "warning-circle", "hand", "circle", "star", "sparkle", "lightning", "stop", "play", "pause", "arrow-up"]
-const duotone = ["chat-circle", "bell", "folder-simple", "file", "file-pdf", "file-text", "file-code", "file-audio", "file-video", "file-zip", "globe", "terminal-window", "brain", "key", "plug", "list-checks", "browser", "desktop", "lightning", "sparkle", "image", "text-align-left", "magnifying-glass", "clock"]
+const duotone = ["chat-circle", "file-doc", "file-xls", "file-ppt", "bell", "folder-simple", "file", "file-pdf", "file-text", "file-code", "file-audio", "file-video", "file-zip", "globe", "terminal-window", "brain", "key", "plug", "list-checks", "browser", "desktop", "lightning", "sparkle", "image", "text-align-left", "magnifying-glass", "clock"]
 
 const symbols: string[] = []
 const names: string[] = []

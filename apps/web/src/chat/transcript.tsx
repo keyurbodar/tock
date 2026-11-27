@@ -4,9 +4,39 @@ import { tokens } from "@tock/tokens"
 import { buildItems, type Item } from "./items"
 import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
-import { extension, fileUrl, isImage, splitFiles } from "./attachments"
-import { LinkCards } from "./link-card"
+import { fileUrl, isImage, splitFiles } from "./attachments"
+import { FileCard, ThreadChip } from "./chip"
+import { ExternalLink, LinkMenu, openLinkMenu, shortUrl, webHost } from "./link"
+import { toast } from "../shell/toasts"
 import type { ThreadState } from "../state/app"
+
+const SPANS = /\[([^\]\n]+)\]\(tock-thread:([\w-]+)\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]/g
+
+/** A sent message stays plain text, except thread mentions become chips and bare URLs become links. */
+function Prose(props: { text: string }) {
+  const parts = createMemo(() => {
+    const out: ({ kind: "text"; value: string } | { kind: "thread"; id: string; label: string } | { kind: "link"; href: string })[] = []
+    let at = 0
+    for (const match of props.text.matchAll(SPANS)) {
+      if (match.index > at) out.push({ kind: "text", value: props.text.slice(at, match.index) })
+      out.push(match[2] ? { kind: "thread", id: match[2], label: match[1]!.replace(/^@/, "") } : { kind: "link", href: match[0] })
+      at = match.index + match[0].length
+    }
+    if (at < props.text.length) out.push({ kind: "text", value: props.text.slice(at) })
+    return out
+  })
+  return (
+    <For each={parts()} keyed={false}>
+      {(part) => (
+        <Switch>
+          <Match when={part().kind === "thread" && (part() as { id: string; label: string })}>{(thread) => <ThreadChip id={thread().id} label={thread().label} />}</Match>
+          <Match when={part().kind === "link" && (part() as { href: string })}>{(link) => <ExternalLink href={link().href} host={webHost(link().href) ?? ""} text={shortUrl(link().href)} />}</Match>
+          <Match when={part().kind === "text"}>{(part() as { value: string }).value}</Match>
+        </Switch>
+      )}
+    </For>
+  )
+}
 
 function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
   const mine = () => props.item.kind === "user"
@@ -27,22 +57,11 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
         </div>
       </Show>
       <For each={docs()} keyed={(file) => file.id}>
-        {(file) => (
-          <a href={fileUrl(file().id)} target="_blank" rel="noreferrer" class="tds-file-card" data-side={mine() ? "me" : "agent"}>
-            <span class="tds-attach-glyph">
-              <Icon name="file-text" size="menu" />
-              <b>{extension(file().name)}</b>
-            </span>
-            <span class="tds-attach-meta">
-              <b>{file().name}</b>
-              <span>Open</span>
-            </span>
-          </a>
-        )}
+        {(file) => <FileCard id={file().id} name={file().name} side={mine() ? "me" : "agent"} />}
       </For>
       <Show when={parts().text}>
         <div class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
-          {parts().text}
+          <Prose text={parts().text} />
         </div>
       </Show>
     </>
@@ -63,7 +82,7 @@ export function Transcript(props: { state: ThreadState | undefined }) {
   )
   return (
     <>
-    <div ref={scroller} class="tds-transcript tds-scroll" onScroll={() => (pinned = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < tokens.size["column-bottom"])}>
+    <div ref={scroller} class="tds-transcript tds-scroll" onContextMenu={openLinkMenu} onScroll={() => (pinned = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < tokens.size["column-bottom"])}>
       <div class="tds-column">
         <For each={items()} keyed={(item) => item.key}>
           {(item) => (
@@ -97,7 +116,7 @@ export function Transcript(props: { state: ThreadState | undefined }) {
         </Show>
       </div>
     </div>
-    <LinkCards root={() => scroller?.parentElement ?? undefined} />
+    <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
     <Show when={open()}>
       {(current) => <WorkLog work={items().find((item): item is Work => item.kind === "work" && item.key === current().key)} anchor={current().anchor} onClose={() => setOpen(undefined)} />}
     </Show>

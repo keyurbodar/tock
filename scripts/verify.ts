@@ -150,7 +150,7 @@ const journeys: Record<string, () => void> = {
     ab("press", "Enter")
   },
   dialog() {
-    const count = js<number>("return document.querySelectorAll('.tds-row-wrap').length")
+    const count = js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
     openRow()
     choose("Delete")
     until(() => exists(".tds-dialog"), Boolean, "the delete dialog")
@@ -158,7 +158,7 @@ const journeys: Record<string, () => void> = {
     shot("delete-dialog")
     choose("Cancel")
     until(() => exists(".tds-dialog"), (open) => !open, "the dialog to close")
-    check(js<number>("return document.querySelectorAll('.tds-row-wrap').length") === count, "Cancel must not delete")
+    check(js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length") === count, "Cancel must not delete")
   },
   shortcuts() {
     ab("eval", "document.activeElement?.blur()")
@@ -169,10 +169,117 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
     until(() => exists(".tds-keys"), (open) => !open, "the shortcuts dialog to close")
   },
-  search() {
+  palette() {
     ab("press", "Control+k")
-    check(js<boolean>("return document.activeElement?.getAttribute('aria-label') === 'Search chats'"), "Ctrl+K should focus search")
+    until(() => exists(".tds-palette"), Boolean, "the palette on Ctrl+K")
+    check(js<boolean>("return document.activeElement?.getAttribute('aria-label') === 'Search chats and actions'"), "the palette input should take focus")
+    const chats = js<number>("return document.querySelectorAll('.tds-palette-list .tds-menu-item').length")
+    check(chats >= 3, `palette should list actions and chats, got ${chats}`)
+    wait(250)
+    shot("palette")
+    ab("keyboard", "type", "keyboard short")
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-palette-list .tds-menu-item:not([hidden])')].map((e) => e.textContent.trim())"), (items) => items.length === 1 && items[0]!.startsWith("Keyboard Shortcuts"), "filtering to Keyboard Shortcuts")
+    ab("press", "Enter")
+    until(() => exists(".tds-keys"), Boolean, "Enter to run the action")
+    until(() => exists(".tds-palette"), (open) => !open, "the palette to close when an action runs")
     ab("press", "Escape")
+    until(() => exists(".tds-keys"), (open) => !open, "the shortcuts dialog to close")
+    ab("press", "Control+k")
+    until(() => exists(".tds-palette"), Boolean, "the palette again")
+    ab("press", "Escape")
+    until(() => exists(".tds-palette"), (open) => !open, "Escape to close the palette")
+  },
+  links() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a new chat")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "see https://github.com/keyurbodar/tock ")
+    until(() => exists(".tds-input .tds-chip[data-kind='link']"), Boolean, "a typed URL plus space to become a link chip")
+    check(js<string>("return document.querySelector('.tds-input .tds-chip[data-kind=link]').textContent") === "github.com/keyurbodar/tock", "the link chip reads host and path")
+    shot("links-typed")
+    ab("keyboard", "type", "for the repo")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me'] a.tds-link[data-link='web']"), Boolean, "the sent link")
+    const link = ".tds-bubble[data-side='me'] a.tds-link[data-link='web']"
+    check(exists(`${link} .tds-link-fav`), "the link leads with the site's mark")
+    check(js<string>(`return document.querySelector(${JSON.stringify(link)}).textContent`) === "github.com/keyurbodar/tock", "the link reads host and path")
+    check(js<string>(`return document.querySelector(${JSON.stringify(link)}).getAttribute('href')`) === "https://github.com/keyurbodar/tock", "the link keeps the full URL")
+    ab("hover", link)
+    wait(700)
+    check(!exists(".tds-hover-card, .tds-thread-card"), "plain links get no hover card")
+    shot("links-hover")
+    const at = rect(link)!
+    ab("mouse", "move", String(at.x + at.w / 2), String(at.y + at.h / 2))
+    ab("mouse", "down", "right")
+    ab("mouse", "up", "right")
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())"), (items) => items.includes("Open Link") && items.includes("Copy Link"), "the link context menu")
+    shot("links-menu")
+    choose("Copy Link")
+    until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Link copied"), "the Link copied toast")
+    wait(450)
+    shot("links-toast")
+  },
+  mention() {
+    const target = js<string>("return document.querySelector('.tds-row .tds-row-title, .tds-row b')?.textContent?.trim() ?? ''")
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a new chat")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "ask @")
+    until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ menu")
+    const query = js<string>("return document.querySelector('.tds-suggest .tds-menu-item .tds-suggest-label').textContent").split(" ")[0]!.slice(0, 4)
+    ab("keyboard", "type", query)
+    const first = until(() => js<string>("return document.querySelector('.tds-suggest [data-highlighted] .tds-suggest-label')?.textContent ?? ''"), (t) => t.toLowerCase().includes(query.toLowerCase()), "the filtered mention")
+    shot("mention-menu")
+    ab("press", "Enter")
+    until(() => exists(".tds-input .tds-chip[data-kind='thread']"), Boolean, "the thread token")
+    check(!exists(".tds-suggest"), "the menu closes after choosing")
+    ab("press", "Backspace")
+    ab("press", "Backspace")
+    check(exists(".tds-input .tds-chip.ProseMirror-selectednode"), "the first Backspace after the space selects the token")
+    ab("press", "Backspace")
+    check(!exists(".tds-input .tds-chip[data-kind='thread']"), "the second Backspace deletes it")
+    ab("keyboard", "type", `@${query}`)
+    until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ menu again")
+    ab("press", "Tab")
+    ab("keyboard", "type", "to check")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me'] .tds-chip[data-kind='thread']"), Boolean, "the sent thread chip")
+    check(js<string>("return document.querySelector('.tds-bubble[data-side=me] .tds-chip[data-kind=thread]').textContent") === first, "the chip shows the chat title")
+    ab("hover", ".tds-bubble[data-side='me'] .tds-chip[data-kind='thread']")
+    check(!exists(".tds-thread-card"), "the thread card waits for hover intent")
+    until(() => exists(".tds-thread-card"), Boolean, "the thread card", 2500)
+    wait(250)
+    shot("mention-card")
+    ab("mouse", "move", "5", "5")
+    until(() => exists(".tds-thread-card"), (open) => !open, "the thread card to leave", 2500)
+    void target
+  },
+  command() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "/sho")
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-suggest .tds-suggest-label')].map((e) => e.textContent)"), (items) => items.length === 1 && items[0] === "/shortcuts", "the / menu filtered to /shortcuts")
+    shot("command-menu")
+    ab("press", "Enter")
+    until(() => exists(".tds-keys"), Boolean, "the command to run")
+    check(js<string>("return document.querySelector('.ProseMirror').textContent") === "", "the command text is cleared")
+    ab("press", "Escape")
+    until(() => exists(".tds-keys"), (open) => !open, "the shortcuts dialog to close")
+  },
+  toasts() {
+    const title = js<string>("return document.querySelector('.tds-row-wrap .tds-row')?.getAttribute('aria-label') ?? document.querySelector('.tds-row-wrap')?.textContent ?? ''")
+    const before = js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
+    openRow()
+    choose("Archive")
+    until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Archived"), "the Archived toast")
+    wait(450)
+    shot("toast-archived")
+    check(exists(".tds-toast-action"), "the toast offers Undo")
+    js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
+    until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Restored"), "Undo to restore")
+    until(() => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length"), (n) => n === before, "the row back in the list")
+    void title
   },
   plus() {
     ab("click", "button[aria-label='New chat']")
@@ -194,29 +301,13 @@ const journeys: Record<string, () => void> = {
     ab("click", ".ProseMirror")
     ab("keyboard", "type", "Here are two files")
     ab("press", "Enter")
-    until(() => exists(".tds-sent-image img") && exists(".tds-file-card"), Boolean, "the sent image and file card")
+    until(() => exists(".tds-sent-image img") && exists(".tds-file-card[data-side='me'] .tds-attach-glyph[data-kind='code']"), Boolean, "the sent image and file card")
     check(!exists(".tds-attach"), "the tray should clear after sending")
     until(() => js<boolean>("const img = document.querySelector('.tds-sent-image img'); return !!img && img.complete && img.naturalWidth > 0"), Boolean, "the sent image to load")
     check(!js<string>("return document.querySelector('.tds-bubble[data-side=me]:last-of-type')?.textContent ?? ''").includes("tock-file:"), "raw file links must not show in the bubble")
     check(!js<string>("return document.querySelector('.tds-header-pill')?.textContent ?? ''").includes(".png"), "the title should not list file names when there is text")
     until(() => rect(".tds-field")?.h, (h) => h === 38, "the composer to shrink back after sending")
     shot("attach-sent")
-  },
-  hovercard() {
-    until(() => exists(".tds-bubble[data-side='agent']") && !exists(".tds-send[data-stop]"), Boolean, "a finished agent reply", 15000)
-    wait(1000)
-    ab("eval", "const b = [...document.querySelectorAll('.tds-bubble[data-side=agent]')].at(-1); const a = document.createElement('a'); a.className = 'tds-link'; a.id = 'verify-link'; a.href = 'https://github.com/keyurbodar/tock'; a.textContent = ' github.com/keyurbodar/tock'; b.append(a)")
-    ab("hover", "#verify-link")
-    check(!exists(".tds-hover-card"), "the card must wait for hover intent")
-    until(() => exists(".tds-hover-card"), Boolean, "the link card after hover intent", 2000)
-    check(js<string>("return document.querySelector('.tds-hover-card b').textContent") === "/keyurbodar/tock", "card shows the path")
-    wait(250)
-    shot("hover-card")
-    ab("hover", ".tds-hover-card .tds-hover-button")
-    wait(300)
-    check(exists(".tds-hover-card"), "the card stays while the pointer is on it")
-    ab("mouse", "move", "5", "5")
-    until(() => exists(".tds-hover-card"), (open) => !open, "the card to leave", 2000)
   },
   diagnostics() {
     const logs = ab("console")
@@ -227,7 +318,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "search", "plus", "attach", "hovercard", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "plus", "attach", "links", "mention", "command", "toasts", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

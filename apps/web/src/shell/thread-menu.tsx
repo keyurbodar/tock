@@ -12,6 +12,7 @@ import { useNavigate, useParams } from "@solidjs/router"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { deleteThread, titleOf, updateThread, type Session } from "../state/app"
+import { toast, updateToast } from "./toasts"
 
 export const threadMenu = createMenuController<Session>()
 
@@ -38,16 +39,35 @@ export function ThreadMenu() {
     const session = threadMenu.getPayload()
     if (!session) return
     if (action === "rename") setRenaming(session.id)
-    if (action === "pin") void updateThread(session.id, { pinned: !session.meta.pinned })
+    const title = titleOf(session)
+    if (action === "pin") {
+      void updateThread(session.id, { pinned: !session.meta.pinned })
+      toast(session.meta.pinned ? "Unpinned" : "Pinned", { description: title, tone: "rose", icon: session.meta.pinned ? "push-pin-slash" : "push-pin" })
+    }
     if (action === "unread") void updateThread(session.id, { unread: !session.meta.unread })
-    if (action === "archive") void updateThread(session.id, { archived: !session.meta.archived })
-    if (action === "link") void navigator.clipboard.writeText(`${location.origin}/t/${session.id}`)
+    if (action === "archive") {
+      const archived = !session.meta.archived
+      if (archived && params.id === session.id) navigate("/")
+      void updateThread(session.id, { archived })
+      const id = toast(archived ? "Archived" : "Restored", {
+        description: title,
+        tone: archived ? "mono" : "done",
+        icon: archived ? "archive" : "arrow-counter-clockwise",
+        duration: tokens.motion.toast.undo,
+        action: archived ? { label: "Undo", run: () => (void updateThread(session.id, { archived: false }), updateToast(id, "Restored", { description: title, icon: "arrow-counter-clockwise" })) } : undefined,
+      })
+    }
+    if (action === "link") {
+      const url = `${location.origin}/t/${session.id}`
+      void navigator.clipboard.writeText(url).then(() => toast("Link copied", { description: url.replace(/^https?:\/\//, ""), id: "copy", duration: tokens.motion.toast.copy }))
+    }
     if (action === "delete") setDoomed(session)
   }
 
   const confirmDelete = (session: Session) => {
     if (params.id === session.id) navigate("/")
     void deleteThread(session.id)
+    toast("Deleted forever", { description: titleOf(session), tone: "failed", icon: "trash" })
   }
 
   return (

@@ -11,3 +11,14 @@ Press the + left of the composer, or drop files on the chat.
 
 ## Gotchas
 Files ride in the message as `[name](tock-file:id)` links so the model can `file_read` them; every place that shows message text as a title or preview goes through `plainText`. Drag-and-drop is not driven by the script.
+
+## Processing (T3Code)
+
+- Send while files upload holds the send (`.tds-held`, send button `data-held`) and fires when the uploads finish; editing or Esc cancels. Failed files block the send with a "Fix or remove" toast.
+- Images over `limit.compress-kb` shrink to `limit.image-edge` as WebP before upload.
+- A paste longer than `limit.paste-lines` lines becomes `pasted.txt` with a toast.
+- Over `limit.prompt-chars` the field turns red and an alert explains it; send is disabled.
+- `@` opens a chat list at the caret (`.tds-suggest`); Enter or Tab inserts a thread token serialised as `[@Title](tock-thread:id)`. `/` at the start of the draft lists commands (new, files, paste, shortcuts).
+- A typed URL followed by a space becomes a link token.
+
+Journeys: `mention`, `command`.

@@ -6,6 +6,8 @@ import { Rail } from "./shell/rail"
 import { Sidebar } from "./shell/sidebar"
 import { Gate } from "./shell/gate"
 import { Shortcuts } from "./shell/shortcuts"
+import { Toasts } from "./shell/toasts"
+import { Palette } from "./shell/palette"
 import { Router } from "./router"
 
 function Shell(props: { children?: JSX.Element }) {
@@ -15,6 +17,8 @@ function Shell(props: { children?: JSX.Element }) {
       <Sidebar />
       {props.children}
       <Shortcuts />
+      <Toasts />
+      <Palette />
       <Show when={app.connection === "unauthorized"}>
         <Gate />
       </Show>

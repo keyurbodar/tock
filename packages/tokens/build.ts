@@ -28,6 +28,7 @@ for (const [k, val] of Object.entries(t.color.swipe)) { v(`swipe-${k}`, val); co
 for (const [k, val] of Object.entries(t.color.overlay)) { v(`overlay-${k}`, val); color(k, `overlay-${k}`) }
 for (const [k, val] of Object.entries(t.color.code)) { v(`code-${k}`, val); color(`code-${k}`, `code-${k}`) }
 for (const [k, val] of Object.entries(t.color.hue)) { v(`hue-${k}`, val); color(`hue-${k}`, `hue-${k}`) }
+for (const [k, val] of Object.entries(t.color.chip)) { v(`chip-${k}`, val); color(`chip-${k}`, `chip-${k}`) }
 th("color-transparent", "transparent")
 th("color-current", "currentColor")
 

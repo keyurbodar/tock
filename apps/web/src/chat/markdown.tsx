@@ -4,6 +4,8 @@ import { Lexer, type Token, type Tokens } from "marked"
 import { highlight } from "sugar-high"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
+import { FileChip, ThreadChip } from "./chip"
+import { ExternalLink, shortUrl, webHost } from "./link"
 
 function inline(tokens: readonly Token[] | undefined): JSX.Element[] {
   return (tokens ?? []).map((token): JSX.Element => {
@@ -19,17 +21,27 @@ function inline(tokens: readonly Token[] | undefined): JSX.Element[] {
       case "br":
         return <br />
       case "link":
-        return (
-          <a class="tds-link" href={token.href} target="_blank" rel="noreferrer noopener">
-            {inline(token.tokens)}
-          </a>
-        )
+        return <Reference href={token.href} text={token.text} raw={token.raw}>{inline(token.tokens)}</Reference>
       case "text":
         return "tokens" in token && token.tokens ? inline(token.tokens) : decode(token.text)
       default:
         return "text" in token ? decode(String(token.text)) : token.raw
     }
   })
+}
+
+const plainLabel = (text: string) => decode(text.replace(/[*_`~]/g, ""))
+
+/** One place decides what a link becomes, as T3Code's MarkdownAnchor: a file chip, a thread chip, a web link with its favicon, or plain text. */
+export function Reference(props: { href: string; text: string; raw: string; children: JSX.Element }) {
+  const file = /^tock-file:([\w-]+)$/.exec(props.href)
+  if (file) return <FileChip id={file[1]!} name={plainLabel(props.text)} />
+  const thread = /^tock-thread:([\w-]+)$/.exec(props.href)
+  if (thread) return <ThreadChip id={thread[1]!} label={plainLabel(props.text).replace(/^@/, "")} />
+  const host = webHost(props.href)
+  if (!host) return <span>{props.children}</span>
+  const autolink = props.raw === props.href || props.raw === `<${props.href}>`
+  return <ExternalLink href={props.href} host={host} text={autolink ? shortUrl(props.href) : !/[*_`~]/.test(props.raw) ? plainLabel(props.text) : null}>{props.children}</ExternalLink>
 }
 
 const entities: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }
