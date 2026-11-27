@@ -6,6 +6,7 @@ import { Rail } from "./shell/rail"
 import { Centre } from "./shell/centre"
 import { loadNotes } from "./state/notes"
 import { Sidebar } from "./shell/sidebar"
+import { narrow } from "./shell/narrow"
 import { Gate } from "./shell/gate"
 import { Shortcuts } from "./shell/shortcuts"
 import { Toasts } from "./shell/toasts"
@@ -15,7 +16,7 @@ import { Router } from "./router"
 
 function Shell(props: { children?: JSX.Element }) {
   return (
-    <div class="relative flex h-full overflow-hidden bg-main">
+    <div class="relative flex h-full overflow-hidden bg-main" data-narrow={narrow() ? "" : undefined}>
       <a class="tds-skip" href="#main" onClick={(e) => (e.preventDefault(), document.getElementById("main")?.focus())}>
         Skip to chat
       </a>

@@ -1,4 +1,6 @@
-import { For, Show } from "solid-js"
+import { For, Show, untrack } from "solid-js"
+import { useNavigate } from "@solidjs/router"
+import { narrow } from "./narrow"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/text-morph"
@@ -39,8 +41,9 @@ const unreadChats = () => app.sessions.filter((session) => session.meta.unread &
 
 /** TDS px4 mount: Chats, Files, Bell, then Keyboard and Settings at the foot. */
 export function Rail() {
+  const navigate = useNavigate()
   const top: () => { icon: IconName; label: string; on?: boolean; count?: number; bell?: boolean; onClick?: () => void }[] = () => [
-    { icon: "chat-circle", label: "Chats", on: !centreOpen(), count: unreadChats(), onClick: () => setCentreOpen(false) },
+    { icon: "chat-circle", label: "Chats", on: !centreOpen(), count: unreadChats(), onClick: () => (setCentreOpen(false), untrack(narrow) && navigate("/")) },
     { icon: "folder-simple", label: "Files" },
     { icon: "bell", label: "Notifications", on: centreOpen(), count: unreadNotes(), bell: true, onClick: () => setCentreOpen((value) => !value) },
   ]

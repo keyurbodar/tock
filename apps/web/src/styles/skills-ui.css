@@ -1,0 +1,6 @@
+@layer utilities {
+  [data-narrow] [data-pane="home"], [data-narrow] .tds-sidebar:has(~ [data-pane="thread"]), [data-narrow] .tds-sidebar-handle { display: none }
+  [data-narrow] .tds-sidebar:has(~ [data-pane="home"]) { flex: 1; min-width: 0; width: auto !important }
+  [data-narrow] :is(.tds-column, .tds-composer-wrap) { padding-inline: var(--tds-space-12) }
+  [data-narrow] .tds-header-stack, [data-narrow] .tds-header-pill { max-width: 100% }
+}

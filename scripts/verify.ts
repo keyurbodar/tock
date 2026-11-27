@@ -1561,6 +1561,21 @@ const journeys: Record<string, () => void> = {
     const small = js<string[]>("return [...document.querySelectorAll('button, [role=button], a[href]:not(.tds-link)')].filter((e) => { const r = e.getBoundingClientRect(); return r.width && (r.width < 24 || r.height < 24) && !e.classList.contains('tds-sidebar-handle') }).map((e) => e.className.split(' ')[0] + ' ' + (e.getAttribute('aria-label') ?? ''))")
     check(!small.length, `every control is at least 24×24 (WCAG 2.5.8); small: ${small.join(", ")}`)
     shot("ui")
+    ab("set", "viewport", "320", "700")
+    try {
+      reset()
+      check(js<boolean>("return !!document.querySelector('[data-narrow]') && !document.querySelector('[data-pane=home]')?.offsetWidth"), "at 320px home shows the chat list alone")
+      ab("click", ".tds-row-wrap .tds-row")
+      until(() => exists("[data-pane=thread] .tds-composer-row"), Boolean, "the thread at 320px")
+      const out = js<string[]>("return ['.tds-header-pill', '.tds-composer-row', '.tds-send', '.tds-column'].filter((q) => { const r = document.querySelector(q)?.getBoundingClientRect(); return !r || r.left < 0 || r.right > innerWidth + 0.5 })")
+      check(!out.length, `at 320px the header, composer and column stay on screen; clipped: ${out.join(", ")}`)
+      check(rect(".tds-field")!.w >= 120, `the composer field keeps room to type at 320px, got ${rect(".tds-field")?.w}`)
+      shot("ui-320-thread")
+      ab("click", "button[aria-label^='Chats']")
+      until(() => js<string>("return location.pathname"), (path) => path === "/", "Chats to lead back to the list at 320px")
+    } finally {
+      ab("set", "viewport", "1440", "900")
+    }
   },
   motion() {
     seeded()

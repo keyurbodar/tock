@@ -46,6 +46,7 @@ export function Thread() {
       id="main"
       tabindex="-1"
       class="relative flex min-w-0 flex-1 flex-col bg-main"
+      data-pane="thread"
       onDragEnter={(e) => hasFiles(e) && enter(e)}
       onDragOver={(e) => hasFiles(e) && e.preventDefault()}
       onDragLeave={(e) => hasFiles(e) && --depth <= 0 && ((depth = 0), setDragging(false))}
@@ -84,7 +85,7 @@ export function Home() {
     () => void (document.title = "Tock"),
   )
   return (
-    <main id="main" tabindex="-1" class="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-main">
+    <main id="main" tabindex="-1" class="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-main" data-pane="home">
       <h1 class="sr-only">Tock</h1>
       <Empty art="hi" action={{ label: "New thread", run: () => navigate(`/t/${newThreadId()}`) }} />
     </main>

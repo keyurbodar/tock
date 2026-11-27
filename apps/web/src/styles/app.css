@@ -19,6 +19,7 @@
 @import "./skills-mobile.css";
 @import "./skills-type.css";
 @import "./skills-a11y.css";
+@import "./skills-ui.css";
 
 @layer base {
   html {
