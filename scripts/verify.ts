@@ -491,7 +491,7 @@ const journeys: Record<string, () => void> = {
     check(style(".tds-header-pill", "fontSize") === "14px", "header title is 14px")
     check(rect(".tds-header .size-header-avatar")?.w === 50, "header avatar is 50")
     ab("click", "button[aria-label='Share']")
-    until(() => js<string>("return document.body.innerText"), (t) => t.includes("Link copied"), "the link copied toast")
+    until(() => js<boolean>("return document.body.innerText.includes('Link copied')"), Boolean, "the link copied toast")
     ab("click", "button[aria-label='Search in chat']")
     until(() => exists(".tds-find input"), Boolean, "the find bar")
     const word = js<string>("return (document.querySelector('.tds-bubble[data-side=agent]')?.textContent ?? '').trim().split(/\\s+/).find((w) => /^[a-z]{5,}$/i.test(w)) ?? ''")
