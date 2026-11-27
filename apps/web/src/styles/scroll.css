@@ -4,7 +4,7 @@
     position: absolute; left: 50%; bottom: var(--tds-size-column-bottom); z-index: 1;
     display: inline-flex; align-items: center; gap: var(--tds-space-6);
     height: var(--tds-size-jump-pill); padding: 0 var(--tds-space-12) 0 var(--tds-space-10); border-radius: var(--tds-radius-pill);
-    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow); backdrop-filter: blur(var(--tds-pill-blur));
+    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow);
     color: var(--tds-text-tx2); font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium); white-space: nowrap;
     translate: -50% var(--tds-space-8); scale: .96; opacity: 0; filter: blur(var(--tds-blur-exit)); pointer-events: none;
     transition: opacity var(--tds-dur-exit-small) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-out), scale var(--tds-dur-layout) var(--tds-ease-out), filter var(--tds-dur-exit-small) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);

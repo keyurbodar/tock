@@ -181,7 +181,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
         </For>
       </div>
     </div>
-    <button type="button" class="tds-jump" data-on={away() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} onClick={() => toEnd(true)}>
+    <button type="button" class="tds-jump tds-glass" data-on={away() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} onClick={() => toEnd(true)}>
       <Icon name="arrow-down" size="chip" />
       Scroll to end
     </button>
