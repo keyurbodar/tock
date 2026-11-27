@@ -49,6 +49,12 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    if (url.pathname.startsWith("/assets/") && env.ASSETS) {
+      const asset = await env.ASSETS.fetch(request);
+      if (!asset.headers.get("content-type")?.startsWith("text/html")) return asset;
+      return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
+    }
+
     if (url.pathname === "/api/health") {
       return Response.json({ ok: true, service: "tock" });
     }
