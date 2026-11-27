@@ -1878,6 +1878,10 @@ const journeys: Record<string, () => void> = {
     ab("click", ".tds-row-wrap .tds-row")
     until(() => exists(".tds-act-button"), Boolean, "a thread with a work log", 10000)
     wait(600)
+    ab("click", ".tds-act-button")
+    wait(700)
+    ab("press", "Escape")
+    wait(500)
     const line = rect(".tds-act-button")!
     ab("eval", "(() => { const f = []; window.__g = f; let on = true; window.__gstop = () => (on = false); const tick = () => { const el = document.querySelector('.tds-worklog'); if (el) { const r = el.getBoundingClientRect(); f.push([r.x, r.y, r.width, r.height, +getComputedStyle(el).opacity]) } if (on) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()")
     ab("click", ".tds-act-button")
