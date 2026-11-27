@@ -236,6 +236,13 @@ export const newThreadId = (): string => crypto.randomUUID()
 
 export const isThreadId = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)
 
-export const titleOf = (session: Session | undefined) => session?.meta?.title || session?.title.replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
+const FILE_LINK = /\[([^\]\n]+)\]\(tock-file:[\w-]+\)/g
+
+export const plainText = (text: string) => {
+  const words = text.replace(FILE_LINK, "").replace(/\[[^\]\n]*(\]\(tock-file:[\w-]*)?…?$/, "").replace(/\s+/g, " ").trim()
+  return words || [...text.matchAll(FILE_LINK)].map((match) => match[1]).join(", ")
+}
+
+export const titleOf = (session: Session | undefined) => session?.meta?.title || plainText(session?.title ?? "").replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
 
 export const isWorking = (state: ThreadState | undefined) => state !== undefined && (state.live?.run !== undefined || state.pending.length > 0)

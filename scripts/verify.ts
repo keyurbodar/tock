@@ -174,6 +174,34 @@ const journeys: Record<string, () => void> = {
     check(js<boolean>("return document.activeElement?.getAttribute('aria-label') === 'Search chats'"), "Ctrl+K should focus search")
     ab("press", "Escape")
   },
+  plus() {
+    ab("click", "button[aria-label='New chat']")
+    ab("click", ".tds-composer-plus")
+    until(() => exists(".tds-menu"), Boolean, "the plus menu")
+    const items = js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())")
+    check(items.some((t) => t.startsWith("Photos and Files")) && items.includes("Paste from Clipboard"), `plus menu items: ${items.join(", ")}`)
+    shot("plus-menu")
+    ab("press", "Escape")
+    until(() => exists(".tds-menu"), (open) => !open, "the plus menu to close")
+  },
+  attach() {
+    const work = join(homedir(), ".capy/work")
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"), join(work, "verify-pixel.png"))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "done"), "both uploads to finish", 15000)
+    shot("attach-tray")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Here are two files")
+    ab("press", "Enter")
+    until(() => exists(".tds-sent-image img") && exists(".tds-file-card"), Boolean, "the sent image and file card")
+    check(!exists(".tds-attach"), "the tray should clear after sending")
+    until(() => js<boolean>("const img = document.querySelector('.tds-sent-image img'); return !!img && img.complete && img.naturalWidth > 0"), Boolean, "the sent image to load")
+    check(!js<string>("return document.querySelector('.tds-bubble[data-side=me]:last-of-type')?.textContent ?? ''").includes("tock-file:"), "raw file links must not show in the bubble")
+    check(!js<string>("return document.querySelector('.tds-header-pill')?.textContent ?? ''").includes(".png"), "the title should not list file names when there is text")
+    until(() => rect(".tds-field")?.h, (h) => h === 38, "the composer to shrink back after sending")
+    shot("attach-sent")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -183,7 +211,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "search", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "search", "plus", "attach", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

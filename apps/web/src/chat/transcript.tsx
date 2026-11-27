@@ -4,14 +4,47 @@ import { tokens } from "@tock/tokens"
 import { buildItems, type Item } from "./items"
 import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
+import { extension, fileUrl, isImage, splitFiles } from "./attachments"
 import type { ThreadState } from "../state/app"
 
 function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
   const mine = () => props.item.kind === "user"
+  const parts = createMemo(() => splitFiles(props.item.text))
+  const images = () => parts().files.filter((file) => isImage(file.name))
+  const docs = () => parts().files.filter((file) => !isImage(file.name))
   return (
-    <div class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
-      {props.item.text}
-    </div>
+    <>
+      <Show when={images().length > 0}>
+        <div class="tds-sent-images" data-count={Math.min(images().length, 3)} data-queued={props.queued ? "" : undefined}>
+          <For each={images()} keyed={(file) => file.id}>
+            {(file) => (
+              <a href={fileUrl(file().id)} target="_blank" rel="noreferrer" class="tds-sent-image">
+                <img src={fileUrl(file().id)} alt={file().name} loading="lazy" draggable={false} />
+              </a>
+            )}
+          </For>
+        </div>
+      </Show>
+      <For each={docs()} keyed={(file) => file.id}>
+        {(file) => (
+          <a href={fileUrl(file().id)} target="_blank" rel="noreferrer" class="tds-file-card" data-side={mine() ? "me" : "agent"}>
+            <span class="tds-attach-glyph">
+              <Icon name="file-text" size="menu" />
+              <b>{extension(file().name)}</b>
+            </span>
+            <span class="tds-attach-meta">
+              <b>{file().name}</b>
+              <span>Open</span>
+            </span>
+          </a>
+        )}
+      </For>
+      <Show when={parts().text}>
+        <div class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
+          {parts().text}
+        </div>
+      </Show>
+    </>
   )
 }
 

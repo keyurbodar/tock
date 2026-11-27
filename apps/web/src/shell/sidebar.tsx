@@ -9,7 +9,7 @@ import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
-import { app, newThreadId, titleOf, updateThread, type Session } from "../state/app"
+import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
 import { renaming, setRenaming, threadMenu, ThreadMenu } from "./thread-menu"
@@ -96,7 +96,7 @@ function Row(props: { session: Session; selected: boolean; query: string }) {
           </Show>
         </span>
         <span class="tds-row-time num">{shortTime(props.session.updatedAt, now())}</span>
-        <span class="tds-row-preview">{props.session.preview || " "}</span>
+        <span class="tds-row-preview">{plainText(props.session.preview) || " "}</span>
         <span class="tds-row-mark">
           <Show when={props.session.busy} fallback={<Show when={props.session.meta.unread}><i class="tds-unread" /></Show>}>
             <Orb status="working" surface={props.selected ? "sel" : "side"} />
