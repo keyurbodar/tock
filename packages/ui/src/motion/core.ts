@@ -41,6 +41,27 @@ export function afterLayout(el: Element, fn: () => void) {
   return () => once.disconnect()
 }
 
+const reads: (() => void)[] = []
+const writes: (() => void)[] = []
+let flushing = false
+/**
+ * Measure batch: layout reads queued this frame all run in one requestAnimationFrame, then all their writes, so any
+ * number of callers costs at most one layout and never interleaves a read after a write (no forced reflow).
+ */
+export function measure<T>(read: () => T, write: (value: T) => void) {
+  reads.push(() => {
+    const value = read()
+    writes.push(() => write(value))
+  })
+  if (flushing) return
+  flushing = true
+  requestAnimationFrame(() => {
+    flushing = false
+    for (const run of reads.splice(0)) run()
+    for (const run of writes.splice(0)) run()
+  })
+}
+
 type Options = KeyframeAnimationOptions & { /** Not decoration (a timer bar, a measured height): keep it under reduced motion. */ essential?: boolean }
 
 /** Presence: the one WAAPI entry point. Defaults to the out-curve and, under reduced motion, keeps only the opacity. */

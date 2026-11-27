@@ -1,13 +1,14 @@
 /* Reactions (TOCK-4): the hover rail beside a message, the glass quick-react bar and picker, and the pills on a bubble's edge. */
 @layer components {
   .tds-msg { position: relative; display: flex; flex-direction: column; anchor-scope: --tds-msg }
-  .tds-msg > :nth-last-child(1 of :not(.tds-msg-rail, .tds-react-pills)) { anchor-name: --tds-msg }
+  .tds-msg > :nth-last-child(1 of :not(.tds-msg-rail, .tds-react-pills, .tds-react-room)) { anchor-name: --tds-msg }
   .tds-msg[data-side="me"] + .tds-msg[data-side="agent"] > :first-child,
   .tds-msg[data-side="agent"] + .tds-msg[data-side="me"] > :first-child,
   .tds-work + .tds-msg > :first-child, .tds-msg + .tds-work { margin-top: var(--tds-space-14) }
   .tds-act + .tds-msg > :first-child { margin-top: var(--tds-space-10) }
   .tds-msg[data-side="me"]:has(+ .tds-msg[data-side="me"]) > .tds-bubble:nth-last-child(1 of .tds-bubble) { border-bottom-right-radius: var(--tds-radius-tail) }
-  .tds-msg:has(> .tds-react-pills) { padding-bottom: calc(var(--tds-size-react-pill) - var(--tds-size-react-pill-overlap)) }
+  .tds-react-room { flex: none; height: 0; margin: 0 }
+  .tds-react-room[data-on] { height: calc(var(--tds-size-react-pill) - var(--tds-size-react-pill-overlap)) }
 
   .tds-msg-rail {
     position: absolute; position-anchor: --tds-msg; top: anchor(center); translate: 0 -50%;
@@ -78,5 +79,17 @@
     &::placeholder { color: var(--tds-text-faint) }
   }
   .tds-react-grid { display: grid; gap: var(--tds-space-2) }
+  .tds-react-label { margin: 0; padding: var(--tds-space-2) var(--tds-space-4) var(--tds-space-4); font-size: var(--tds-type-micro-size); color: var(--tds-text-faint) }
+  .tds-react-recent { margin-bottom: var(--tds-space-8) }
   .tds-react-none { margin: 0; padding: var(--tds-space-8) var(--tds-space-4); font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
+
+  /* No CSS anchor positioning (Firefox): Message measures its last bubble into --a-l/t/w/h and these place the rail and pills. */
+  [data-anchorless] {
+    & .tds-msg > .tds-msg-rail { top: calc(var(--a-t, 0px) + var(--a-h, 0px) / 2) }
+    & .tds-msg[data-side="agent"] > .tds-msg-rail { left: calc(var(--a-l, 0px) + var(--a-w, 0px)) }
+    & .tds-msg[data-side="me"] > .tds-msg-rail { left: var(--a-l, 0px); right: auto; translate: -100% -50% }
+    & .tds-msg > .tds-react-pills { top: calc(var(--a-t, 0px) + var(--a-h, 0px) - var(--tds-size-react-pill-overlap)) }
+    & .tds-msg[data-side="agent"] > .tds-react-pills { left: calc(var(--a-l, 0px) + var(--a-w, 0px) + var(--tds-space-4)); right: auto; translate: -100% 0 }
+    & .tds-msg[data-side="me"] > .tds-react-pills { left: calc(var(--a-l, 0px) - var(--tds-space-4)) }
+  }
 }

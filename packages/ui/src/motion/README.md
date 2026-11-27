@@ -119,6 +119,9 @@ scrub(grip, { axis: "y", direction: -1, area: field, distance: () => travel(), f
 | dev/motion-demo.tsx | place label; one counter per mode | morph; all four |
 - `<MorphIcon name={busy ? "stop" : "arrow-up"} />` morphs line shapes stroke by stroke, and uses a blur and scale swap otherwise. Add new line shapes to `shapes` in morph-icon.tsx.
 
+## Measure: batched layout reads
+Use it when something must be placed from measured geometry (a JS fallback for CSS anchor positioning, a popover beside its trigger). measure(read, write) queues the read; every read queued in a frame runs in one requestAnimationFrame, then every write, so N callers cost one layout and never force a reflow. The reactions rail and pills use it where anchor-name is unsupported.
+
 ## Edge fade: scroll boxes
 Every box that scrolls fades the edges its content continues past, and only those: at the top of a list there is no top fade. The `edge-fade` lint (scripts/lint/edge.ts) fails on any apps/web CSS rule that sets `overflow(-x|-y): auto|scroll` unless its selector carries `[data-edge-fade]`.
 ```tsx

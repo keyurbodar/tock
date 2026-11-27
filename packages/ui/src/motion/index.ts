@@ -6,6 +6,7 @@
  * Presence   enter.*, exit.*, collapse, expandTo, animate     enter/exit presets, reduced-motion aware
  * Glide      installFluidHover + lanes                       one highlight that glides between items
  * Gesture    scrub, swipe model (lockAxis, swipeDecision, inertiaTail), rubber           drag / wheel scrubbing with rubber band + velocity commit
+ * Measure    measure                                         batched layout reads then writes in one rAF (JS placement, no forced reflow)
  * Spring     spring, springEasing                            presets from tokens.motion.spring
  * Drive      drive, recede                                   one velocity-keeping 0..1 progress (--p), retargetable; recede one element by it
  * Backdrop   backdrop, backdropTo                            dim / scale / blur behind an expanded surface (on/off or by progress)

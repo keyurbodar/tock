@@ -1,7 +1,7 @@
-import { createSignal, For, onCleanup, onSettled, Show, untrack } from "solid-js"
+import { createEffect, createMemo, createSignal, For, onCleanup, onSettled, Show, untrack } from "solid-js"
 import { Portal, type JSX } from "@solidjs/web"
 import { Icon } from "@tock/ui/icon"
-import { growFrom, spring, TextMorph, watchLayout } from "@tock/ui/motion"
+import { expandTo, growFrom, measure, spring, TextMorph, watchLayout } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { toast } from "../shell/toasts"
 import { pillsOf, reacted, settledSince, setReaction } from "../state/reactions"
@@ -32,6 +32,28 @@ export interface ReplyTarget {
  * the message it points at. Until it is set the rail shows only React and the time.
  */
 export const [replyHandler, setReplyHandler] = createSignal<((target: ReplyTarget) => void) | undefined>()
+
+/**
+ * Where CSS anchor positioning is missing (Firefox), the rail and pills are placed from JS: each message measures its last
+ * bubble in the motion library's measure batch and hands the box to CSS as --a-l/t/w/h. Dev builds can force the path
+ * with localStorage["tock.anchorless"] = "1" so a journey can prove it in Chrome.
+ */
+const anchorless = (import.meta.env.DEV && localStorage.getItem("tock.anchorless") === "1") || !CSS.supports("anchor-name: --a")
+if (anchorless) document.documentElement.setAttribute("data-anchorless", "")
+
+const RECENT = "tock.recentReactions"
+
+/** Emojis you reacted with, newest first, one picker row at most. */
+export function recentReactions(): string[] {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(RECENT) ?? "[]")
+    return Array.isArray(saved) ? saved.filter((item): item is string => typeof item === "string").slice(0, tokens.limit["react-cols"]) : []
+  } catch {
+    return []
+  }
+}
+
+const remember = (emoji: string) => localStorage.setItem(RECENT, JSON.stringify([emoji, ...recentReactions().filter((item) => item !== emoji)].slice(0, tokens.limit["react-cols"])))
 
 const timeOf = (at: number) => new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
 
@@ -64,7 +86,37 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
     const sessionId = untrack(() => props.sessionId)
     const on = !reacted(sessionId, ref, emoji)
     void setReaction(sessionId, ref, emoji, on)
+    if (on) remember(emoji)
     if (!on) toast("Reaction removed", { description: emoji, id: `reaction:${ref}`, action: { label: "Undo", run: () => void setReaction(sessionId, ref, emoji, true) } })
+  }
+  const has = createMemo(() => pillsOf(props.sessionId, props.target).length > 0)
+  let room!: HTMLDivElement
+  let roomy = false
+  /** The pill row needs room under the bubble; it grows in on the layout curve so a bottom-stuck chat glides up instead of jumping. */
+  createEffect(has, (on) => {
+    if (on === roomy) return
+    roomy = on
+    place()
+    const reserve = tokens.size["react-pill"] - tokens.size["react-pill-overlap"]
+    if (settledSince(untrack(() => props.sessionId))) expandTo(room, on ? 0 : reserve, on ? reserve : 0)
+  })
+  const place = () => {
+    if (!anchorless) return
+    measure(
+      () => {
+        const last = [...root.children].findLast((el): el is HTMLElement => el instanceof HTMLElement && !el.matches(".tds-msg-rail, .tds-react-pills, .tds-react-room"))
+        return last && { l: last.offsetLeft, t: last.offsetTop, w: last.offsetWidth, h: last.offsetHeight }
+      },
+      (box) => {
+        if (!box) return
+        for (const [key, value] of Object.entries(box)) root.style.setProperty(`--a-${key}`, `${value}px`)
+      },
+    )
+  }
+  if (anchorless) {
+    const resized = new ResizeObserver(place)
+    onSettled(() => resized.observe(root))
+    onCleanup(() => resized.disconnect())
   }
   const pop = (el: HTMLElement) => {
     if (!settledSince(untrack(() => props.sessionId))) return
@@ -81,6 +133,8 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
       onPointerCancel={cancel}
       onPointerMove={cancel}
       onContextMenu={(event) => held() && event.preventDefault()}
+      onPointerEnter={place}
+      onFocusIn={place}
     >
       {props.children}
       <Show when={props.target}>
@@ -135,6 +189,7 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
           </For>
         </div>
       </Show>
+      <div ref={room} class="tds-react-room" data-on={has() ? "" : undefined} aria-hidden="true" />
       <Show when={open()}>
         {(anchor) => <ReactBar anchor={anchor()} side={props.side} isOn={(emoji) => reacted(props.sessionId, props.target ?? "", emoji)} onPick={(emoji) => (toggle(emoji), close(false))} onClose={close} />}
       </Show>
@@ -154,6 +209,15 @@ function ReactBar(props: { anchor: HTMLElement; side: "me" | "agent"; isOn: (emo
     return words ? EMOJIS.filter(([emoji, name]) => name.includes(words) || emoji === words) : EMOJIS
   }
   const items = () => [...surface.querySelectorAll<HTMLElement>("[data-pick]")]
+  const recent = recentReactions()
+  const columns = { "grid-template-columns": `repeat(${tokens.limit["react-cols"]}, var(--tds-size-react-cell))` }
+  /** Up and Down go to the nearest cell in the row above or below, so the short Recently Used row and the grid share one keyboard model. */
+  const vertical = (list: HTMLElement[], from: HTMLElement, dir: 1 | -1) => {
+    const a = from.getBoundingClientRect()
+    const rows = list.map((el) => ({ el, box: el.getBoundingClientRect() })).filter(({ box }) => (dir > 0 ? box.top >= a.bottom - 1 : box.bottom <= a.top + 1))
+    const row = dir > 0 ? Math.min(...rows.map(({ box }) => box.top)) : Math.max(...rows.map(({ box }) => box.top))
+    return rows.filter(({ box }) => box.top === row).sort((x, y) => Math.abs(x.box.left - a.left) - Math.abs(y.box.left - a.left))[0]?.el
+  }
   const measure = () => {
     const box = props.anchor.getBoundingClientRect()
     const gap = tokens.space[6] ?? 0
@@ -178,7 +242,6 @@ function ReactBar(props: { anchor: HTMLElement; side: "me" | "agent"; isOn: (emo
     requestAnimationFrame(() => {
       measure()
       growFrom(surface, from, "popover")
-      search?.focus()
     })
   }
   const keys = (event: KeyboardEvent) => {
@@ -189,8 +252,7 @@ function ReactBar(props: { anchor: HTMLElement; side: "me" | "agent"; isOn: (emo
     }
     const list = items()
     const at = list.indexOf(document.activeElement as HTMLElement)
-    const cols = untrack(mode) === "quick" ? list.length : tokens.limit["react-cols"]
-    const step: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }
+    const step: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 }
     if (document.activeElement === search) {
       if (event.key === "ArrowDown" || event.key === "Enter") {
         event.preventDefault()
@@ -203,13 +265,17 @@ function ReactBar(props: { anchor: HTMLElement; side: "me" | "agent"; isOn: (emo
       event.preventDefault()
       return list[event.key === "Home" ? 0 : list.length - 1]?.focus()
     }
+    if (at < 0) return
     const by = step[event.key]
-    if (by === undefined || at < 0) return
+    if (by !== undefined) {
+      event.preventDefault()
+      return list[(at + by + list.length) % list.length]?.focus()
+    }
+    if (untrack(mode) === "quick" || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return
     event.preventDefault()
-    if (untrack(mode) === "quick") return list[(at + by + list.length) % list.length]?.focus()
-    const next = at + by
-    if (next < 0) return search?.focus()
-    list[Math.min(next, list.length - 1)]?.focus()
+    const next = vertical(list, list[at]!, event.key === "ArrowDown" ? 1 : -1)
+    if (next) next.focus()
+    else if (event.key === "ArrowUp") search?.focus()
   }
   return (
     <Portal>
@@ -241,9 +307,21 @@ function ReactBar(props: { anchor: HTMLElement; side: "me" | "agent"; isOn: (emo
             </div>
           }
         >
-          <input ref={search} class="tds-react-search" type="search" aria-label="Search Emoji" placeholder="Search emoji" autocomplete="off" value={query()} onInput={(event) => setQuery(event.currentTarget.value)} />
+          <input ref={(el) => ((search = el), queueMicrotask(() => el.focus()))} class="tds-react-search" type="search" aria-label="Search Emoji" placeholder="Search emoji" autocomplete="off" value={query()} onInput={(event) => setQuery(event.currentTarget.value)} />
+          <Show when={!query().trim() && recent.length > 0}>
+            <p class="tds-react-label">Recently Used</p>
+            <div class="tds-react-grid tds-react-recent" role="group" aria-label="Recently Used" style={columns}>
+              <For each={recent} keyed={false}>
+                {(emoji) => (
+                  <button type="button" class="tds-react-emoji tds-press" data-pick={emoji()} data-on={props.isOn(emoji()) ? "" : undefined} aria-label={emoji()} onClick={() => props.onPick(emoji())}>
+                    {emoji()}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
           <Show when={found().length > 0} fallback={<p class="tds-react-none">No emoji matches “{query().trim()}”</p>}>
-            <div class="tds-react-grid" role="group" aria-label="Emoji" style={{ "grid-template-columns": `repeat(${tokens.limit["react-cols"]}, var(--tds-size-react-cell))` }}>
+            <div class="tds-react-grid" role="group" aria-label="Emoji" style={columns}>
               <For each={found()} keyed={(entry) => entry[0]}>
                 {(entry) => (
                   <button type="button" class="tds-react-emoji tds-press" data-pick={entry()[0]} data-on={props.isOn(entry()[0]) ? "" : undefined} aria-label={entry()[1].split(" ")[0]} title={entry()[1].split(" ")[0]} onClick={() => props.onPick(entry()[0])}>

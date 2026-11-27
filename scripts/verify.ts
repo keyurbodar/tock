@@ -2435,6 +2435,109 @@ const journeys: Record<string, () => void | Promise<void>> = {
     shot("react-persist")
   },
   /** The agent reacts on cue: toast's pill lands on my message, mine joins it with a rolling count, the row reads "toast reacted …", and a reaction in another chat leaves a note in the centre. */
+  /** The pill row's room grows in on the layout curve: a chat stuck to the bottom glides up by the reserve with no single-frame jump, and stays at the bottom. */
+  reactsmooth() {
+    seeded()
+    const agent = ".tds-msg[data-side='agent']:has(.tds-msg-rail)"
+    steady(agent)
+    ab("eval", `window.__rs = []; const sc = document.querySelector('main .tds-transcript'); const tick = () => { const all = document.querySelectorAll(".tds-msg[data-side='agent'] .tds-bubble"); const b = all[all.length - 1]; const room = document.querySelector("${agent} .tds-react-room"); window.__rs.push({ top: sc.scrollTop, y: b ? b.getBoundingClientRect().y : 0, room: room ? room.getBoundingClientRect().height : 0, gap: sc.scrollHeight - sc.scrollTop - sc.clientHeight }); if (window.__rs.length < 90) requestAnimationFrame(tick) }; requestAnimationFrame(tick); true`)
+    openReact(agent)
+    ab("click", ".tds-react-bar [data-pick='👍']")
+    until(() => js<number>("return window.__rs.length"), (n) => n >= 90, "90 sampled frames", 6000)
+    const frames = js<{ top: number; y: number; room: number; gap: number }[]>("return window.__rs")
+    const reserve = js<number>("return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tds-size-react-pill')) - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tds-size-react-pill-overlap'))")
+    const steps = frames.slice(1).map((f, i) => Math.abs(f.y - frames[i]!.y))
+    const biggest = Math.max(...steps)
+    const moved = frames[0]!.y - frames.at(-1)!.y
+    const growing = frames.filter((f) => f.room > 0.5 && f.room < reserve - 0.5).length
+    console.log(`      reactsmooth: reserve ${reserve}px, bubble moved ${moved.toFixed(1)}px, biggest frame step ${biggest.toFixed(2)}px, ${growing} frames mid-growth, end gap ${frames.at(-1)!.gap.toFixed(1)}`)
+    check(Math.abs(moved - reserve) < 1.5, `the chat lifts by the room it makes (${moved.toFixed(1)} vs ${reserve})`)
+    check(growing >= 3, `the room grows over several frames, not one (${growing} mid-growth frames)`)
+    check(biggest < reserve / 2, `no single-frame jump: the biggest per-frame move is ${biggest.toFixed(2)}px of ${reserve}`)
+    check(frames.at(-1)!.gap <= 1, "the transcript is still stuck to the bottom")
+  },
+  /** Without CSS anchor positioning (forced in dev with localStorage tock.anchorless) the rail and pills are placed from JS beside the last bubble. */
+  reactanchorless() {
+    const id = seeded()
+    ab("eval", "localStorage.setItem('tock.anchorless', '1'); true")
+    try {
+      ab("open", `${BASE}/t/${id}`)
+      const agent = ".tds-msg[data-side='agent']:has(.tds-msg-rail)"
+      until(() => exists(agent), Boolean, "the chat after a reload", 12000)
+      check(js<boolean>("return document.documentElement.hasAttribute('data-anchorless')"), "the fallback path is on")
+      steady(agent)
+      openReact(agent)
+      wait(300)
+      const bubble = rect(`${agent} .tds-bubble:nth-last-child(1 of .tds-bubble)`)!
+      const rail = rect(`${agent} .tds-msg-action[aria-label='React']`)!
+      check(rail.x >= bubble.x + bubble.w && rail.x - (bubble.x + bubble.w) < 24, `the React button sits just right of the bubble without anchors (bubble ends ${bubble.x + bubble.w}, button at ${rail.x})`)
+      check(Math.abs(rail.y + rail.h / 2 - (bubble.y + bubble.h / 2)) < 4, "the rail is centred on the bubble without anchors")
+      ab("click", ".tds-react-bar [data-pick='❤️']")
+      const pill = `${agent} .tds-react-pill[data-id='❤️']`
+      until(() => exists(pill), Boolean, "the heart pill")
+      wait(500)
+      const b = rect(`${agent} .tds-bubble:nth-last-child(1 of .tds-bubble)`)!
+      const p = rect(pill)!
+      check(p.y < b.y + b.h && p.y + p.h > b.y + b.h && Math.abs(p.x + p.w - (b.x + b.w)) < 12, `the pill overlaps the bubble's bottom-right without anchors (pill ${JSON.stringify(p)}, bubble ${JSON.stringify(b)})`)
+      const me = ".tds-msg[data-side='me']:has(.tds-msg-rail)"
+      ab("eval", `document.querySelector("${me} .tds-msg-action").focus(); true`)
+      wait(300)
+      const mine = rect(`${me} .tds-bubble:nth-last-child(1 of .tds-bubble)`)!
+      const mrail = rect(`${me} .tds-msg-action[aria-label='React']`)!
+      check(mrail.x + mrail.w <= mine.x && mine.x - (mrail.x + mrail.w) < 24, "my rail sits just left of my bubble without anchors")
+      shot("react-anchorless")
+    } finally {
+      ab("eval", "localStorage.removeItem('tock.anchorless'); true")
+    }
+  },
+  /** The picker remembers what you reacted with: a Recently Used row, newest first, one row at most, that survives a reload and joins the grid's keyboard model. */
+  reactrecent() {
+    const saved = js<string | null>("return localStorage.getItem('tock.recentReactions')")
+    ab("eval", "localStorage.removeItem('tock.recentReactions'); true")
+    try {
+      const id = seeded()
+      const agent = ".tds-msg[data-side='agent']:has(.tds-msg-rail)"
+      steady(agent)
+      const pick = (word: string, emoji: string) => {
+        openReact(agent)
+        ab("click", ".tds-react-more")
+        until(() => js<boolean>("return document.activeElement?.classList.contains('tds-react-search') ?? false"), Boolean, "the search field to take focus")
+        ab("keyboard", "type", word)
+        until(() => js<number>("return document.querySelectorAll('.tds-react-grid:not(.tds-react-recent) .tds-react-emoji').length"), (n) => n === 1, `search to narrow to ${word}`)
+        ab("press", "Enter")
+        until(() => exists(`${agent} .tds-react-pill[data-id='${emoji}']`), Boolean, `the ${emoji} pill`)
+      }
+      openReact(agent)
+      ab("click", ".tds-react-more")
+      until(() => exists(".tds-react-search"), Boolean, "the picker")
+      check(!exists(".tds-react-recent"), "no Recently Used row before any reaction")
+      ab("press", "Escape")
+      pick("rocket", "🚀")
+      pick("party", "🎉")
+      ab("open", `${BASE}/t/${id}`)
+      until(() => exists(agent), Boolean, "the chat after a reload", 12000)
+      steady(agent)
+      openReact(agent)
+      ab("click", ".tds-react-more")
+      until(() => exists(".tds-react-recent"), Boolean, "the Recently Used row after a reload")
+      const row = js<string[]>("return [...document.querySelectorAll('.tds-react-recent [data-pick]')].map((e) => e.dataset.pick)")
+      check(row.length === 2 && row[0] === "🎉" && row[1] === "🚀", `Recently Used reads newest first: ${row.join(" ")}`)
+      ab("press", "ArrowDown")
+      check(js<string>("return document.activeElement?.dataset.pick ?? ''") === "🎉", "ArrowDown from search lands on the newest recent emoji")
+      ab("press", "ArrowDown")
+      check(js<boolean>("return !document.activeElement?.closest('.tds-react-recent') && !!document.activeElement?.closest('.tds-react-grid')"), "ArrowDown again moves into the grid")
+      shot("react-recent")
+      ab("press", "Escape")
+      ab("eval", "localStorage.setItem('tock.recentReactions', JSON.stringify(['1','2','3','4','5','6','7','8','9','10'])); true")
+      openReact(agent)
+      ab("click", ".tds-react-more")
+      until(() => exists(".tds-react-recent"), Boolean, "the recent row")
+      check(js<number>("return document.querySelectorAll('.tds-react-recent [data-pick]').length") === 8, "the recent row caps at one row")
+      ab("press", "Escape")
+    } finally {
+      ab("eval", `${saved === null ? "localStorage.removeItem('tock.recentReactions')" : `localStorage.setItem('tock.recentReactions', ${JSON.stringify(saved)})`}; true`)
+    }
+  },
   reactagent() {
     const id = fresh()
     say("react with 👍")
@@ -4944,13 +5047,14 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "previews", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "replyrail", "quoteselect", "quoteheader", "quoteesc", "quotesidebar", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "previews", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "reactsmooth", "reactanchorless", "reactrecent", "replyrail", "quoteselect", "quoteheader", "quoteesc", "quotesidebar", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
  */
 const requires: Record<string, { mode: "dev" | "build" | "preview"; why: string }> = {
   newdivider: { mode: "dev", why: "imports /src/chat/items.ts to build its fixtures" },
+  reactanchorless: { mode: "dev", why: "forces the anchor-positioning fallback with the dev-only localStorage tock.anchorless switch" },
   tabhide: { mode: "dev", why: "freezes the dev socket module (/src/lib/socket.ts) while the tab is emulated hidden" },
   faults: { mode: "dev", why: "uses the dev-only sessionStorage tock.fault switch" },
   orb: { mode: "dev", why: "reads the Orb card on the dev-only /__motion route" },
