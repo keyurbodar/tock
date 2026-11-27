@@ -30,6 +30,8 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
   const [typed, setTyped] = createSignal(false)
   const [key, setKey] = createSignal<string>()
   const [chips, setChips] = createSignal<readonly Chip[]>([])
+  /** "swap" while a set morphs in, "rest" once the chips show their final labels: the end signal tests wait on. */
+  const [phase, setPhase] = createSignal<"swap" | "rest">("rest")
   let row: HTMLDivElement | undefined
   const drafted = () => (document.querySelector(".tds-composer-wrap .ProseMirror")?.textContent ?? "").trim().length > 0
   const onInput = (event: Event) => {
@@ -43,6 +45,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
   )
   const wanted = () => (props.set && !props.working && !typed() && !gone().has(props.set.key) ? props.set : undefined)
   let frame = 0
+  let leaving = false
   let run = 0
   onCleanup(() => cancelAnimationFrame(frame))
   /** A reply has settled once its words have finished revealing, so the chips never come up under a sentence still being written. */
@@ -60,9 +63,10 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
   const morph = (next: Set, before: readonly Followup[], from: readonly number[]) => {
     const id = ++run
     setKey(next.key)
+    setPhase("swap")
     setChips(next.items.map((cur, i) => ({ cur, prev: before[i] })))
     queueMicrotask(() => {
-      if (id !== run || !row) return
+      if (id !== run || !row) return void (id === run && setPhase("rest"))
       const now = [...row.querySelectorAll<HTMLElement>(".tds-followup:not(.tds-followup-x)")]
       row.setAttribute("data-measure", "")
       const to = now.map((el) => el.getBoundingClientRect().width)
@@ -79,13 +83,18 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
       ).then(() => {
         if (id !== run) return
         setChips(next.items.map((cur) => ({ cur })))
-        queueMicrotask(() => now.forEach((el) => el.getAnimations().forEach((animation) => animation.cancel())))
+        queueMicrotask(() => {
+          now.forEach((el) => el.getAnimations().forEach((animation) => animation.cancel()))
+          setPhase("rest")
+        })
         remember()
       })
     })
   }
   const show = (next: Set) => {
     run++
+    leaving = false
+    setPhase("rest")
     setKey(next.key)
     setChips(next.items.map((cur) => ({ cur })))
     remember()
@@ -96,18 +105,35 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
       chat = untrack(() => props.chat)
       if (untrack(key) && row) handoff = { items: untrack(chips).map((chip) => chip.cur), widths: widths(), at: performance.now() }
       run++
+      leaving = false
       cancelAnimationFrame(frame)
       setKey(undefined)
       setChips([])
+      setPhase("rest")
     }
     const now = untrack(key)
-    if (now === next?.key) return cancelAnimationFrame(frame)
+    if (now === next?.key) {
+      cancelAnimationFrame(frame)
+      if (next && leaving) {
+        leaving = false
+        run++
+        row?.getAnimations().forEach((animation) => animation.cancel())
+      }
+      return
+    }
     if (!next) {
       cancelAnimationFrame(frame)
       if (!row || !now) return
       const id = ++run
+      leaving = true
       void exit.followup(row)?.finished.then(
-        () => id === run && (setKey(undefined), setChips([])),
+        () => {
+          if (id !== run) return
+          leaving = false
+          setKey(undefined)
+          setChips([])
+          setPhase("rest")
+        },
         () => {},
       )
       return
@@ -137,7 +163,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
   return (
     <Show when={key()}>
       {(current) => (
-        <div ref={(el) => (row = el)} class="tds-followups" onPointerOver={mouse} onPointerOut={mouse} role="group" aria-label="Suggested next steps" data-key={current()}>
+        <div ref={(el) => (row = el)} class="tds-followups" onPointerOver={mouse} onPointerOut={mouse} role="group" aria-label="Suggested next steps" data-key={current()} data-phase={phase()}>
           <For each={chips()} keyed={false}>
             {(chip, index) => (
               <button
