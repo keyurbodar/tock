@@ -41,7 +41,20 @@ const scripted: FauxResponseFactory = (context) => {
   const lastUser = context.messages.findLastIndex((m) => m.role === "user")
   const asked = textOf(context.messages[lastUser]).trim()
   const done = new Set(context.messages.slice(lastUser + 1).flatMap((m) => (m.role === "toolResult" ? [m.toolName] : [])))
+  const answered = context.messages.slice(lastUser + 1).find((m) => m.role === "toolResult" && m.toolName === "ask_owner")
   const plans = context.messages.slice(lastUser + 1).filter((m) => m.role === "toolResult" && m.toolName === "update_plan").length
+  const approval = /approve/i.test(asked)
+  const question = /question|choose/i.test(asked)
+  if (!done.size && (approval || question))
+    return fauxAssistantMessage([
+      fauxThinking(approval ? "This touches production, so I want the owner's go-ahead before I run anything." : "There are two reasonable ways to do this; the owner should pick."),
+      fauxToolCall("update_plan", { steps: PLAN, current: 0 }),
+      approval
+        ? fauxToolCall("ask_owner", { kind: "approval", question: "Deploy the fix to production?", summary: "Ships fix/login-loop to the tock worker; takes about a minute and can be rolled back." })
+        : fauxToolCall("ask_owner", { kind: "question", question: "Which branch should I base the fix on?", options: ["main", "release/2.4", "fix/login-loop"] }),
+    ], { stopReason: "toolUse" })
+  if (answered && /"answer":"Deny"/.test(JSON.stringify(answered.content)))
+    return fauxAssistantMessage(fauxText("Understood, I won't deploy. The branch stays as it is, ready whenever you want to ship it."))
   if (!done.size) {
     if (asked.startsWith("Show a long code block")) return fauxAssistantMessage(fauxText(LONG))
     if (asked.length < 12) return fauxAssistantMessage(fauxText(`On it. Tell me a little more about ${asked ? `"${asked}"` : "what you need"} and I'll start.`))

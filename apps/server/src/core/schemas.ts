@@ -143,6 +143,12 @@ const clientFrameSchema = union([
     sessionId: opt(str({ minLength: 1 })),
     operationId: opt(str({ minLength: 1 })),
   }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("ask.answer"),
+    sessionId: opt(str({ minLength: 1 })),
+    answer: str({ minLength: 1, maxLength: 500 }),
+  }),
   obj({ id: str({ minLength: 1 }), type: lit("session.list") }),
   obj({ id: str({ minLength: 1 }), type: lit("session.create"), title: opt(str()) }),
   obj({

@@ -5,7 +5,7 @@ import { PiHarness, ROOT_SESSION } from "agents/harness/pi";
 import { isThreadId, ThreadIds } from "./core/threads.js";
 import { summarizeEntries } from "./core/summary.js";
 import { MCPClientManager } from "agents/mcp/client";
-import { createRegistry, Harness, type ConversationWatch } from "@earendil-works/pi-durable";
+import { createRegistry, Harness, type ConversationWatch, type TaskId } from "@earendil-works/pi-durable";
 import {
   getSupportedThinkingLevels,
   type CredentialStore,
@@ -28,7 +28,7 @@ import { SkillStore } from "./core/skills.js";
 import { constantTimeEqual } from "./core/auth.js";
 import { parseClientFrame } from "./core/schemas.js";
 import { buildModels, parseModelSpec, resolveModel } from "./core/models.js";
-import { createTockExtension } from "./core/tools.js";
+import { createTockExtension, OwnerAnswer, type OwnerAsk } from "./core/tools.js";
 import { DEMO_MODEL } from "./core/demo.js";
 import { DjsRuntime, type DjsRunResult } from "./dev/djs.js";
 import type {
@@ -63,6 +63,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly runningSessions = new Set<string>();
   private readonly lastUserQuery = new Map<string, string>();
   private readonly backgroundSessions = new Set<string>();
+  private readonly pendingAsks = new Map<string, { taskId: TaskId; ask: OwnerAsk }>();
   private readonly threads: ThreadIds;
 
   readonly mcpManager = new MCPClientManager("tock", "0.1.0");
@@ -100,6 +101,7 @@ export class TockDO extends DurableObject<Env> {
         isBackgroundSession: (convId) => this.backgroundSessions.has(convId),
         notifyOwner: (title, body, urgency) => this.notifyOwner(title, body, urgency),
         scheduleFollowup: (delay, note, sid) => this.scheduleFollowup(delay, note, sid),
+        onAsk: (sessionId, taskId, ask) => this.trackAsk(sessionId, taskId, ask),
       });
       registry.install(ext);
       return Harness.open(storage, { models: this.models, registry, onWake }, context);
@@ -356,8 +358,11 @@ export class TockDO extends DurableObject<Env> {
           replayed,
           cursor: this.latestEventSeq(),
           messages: await this.harness.session(sessionId).messages(),
+          ask: this.pendingAsks.get(sessionId)?.ask,
         };
       }
+      case "ask.answer":
+        return await this.answerAsk(frame.sessionId ?? ROOT_SESSION, frame.answer);
       case "session.configure":
         return await this.configureSession(frame.sessionId ?? ROOT_SESSION, {
           model: frame.model,
@@ -1065,6 +1070,20 @@ export class TockDO extends DurableObject<Env> {
       });
     }
     return rows.length;
+  }
+
+  private trackAsk(sessionId: string, taskId: TaskId, ask: OwnerAsk | null): void {
+    if (ask) this.pendingAsks.set(sessionId, { taskId, ask });
+    else this.pendingAsks.delete(sessionId);
+    this.broadcastSession(sessionId, ask ? "ask.pending" : "ask.settled", { sessionId, ask }, false);
+  }
+
+  async answerAsk(sessionId: string, answer: string): Promise<{ answered: boolean }> {
+    const pending = this.pendingAsks.get(sessionId);
+    if (!pending) throw new Error("no_pending_ask");
+    const pi = await this.harness.pi();
+    const result = await pi.signal(pending.taskId, OwnerAnswer, "answer", { answer }, BACKGROUND_CONTEXT);
+    return { answered: result === "delivered" || result === "duplicate" };
   }
 
   private sendWs(ws: WebSocket, frame: ServerFrame): void {

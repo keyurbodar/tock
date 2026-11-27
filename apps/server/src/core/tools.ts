@@ -1,11 +1,13 @@
 import {
   defineExtension,
+  defineSignal,
   defineTool,
   hook,
   section,
   SubmissionSettled,
   ToolTask,
   type Extension,
+  type TaskId,
   type ToolRegistration,
 } from "@earendil-works/pi-durable";
 import { arr, bool, lit, map, num, obj, opt, str, union, unknown } from "@earendil-works/pi-schema";
@@ -37,7 +39,17 @@ export interface TockToolsDeps {
   isBackgroundSession: (conversationId: string) => boolean;
   notifyOwner: (title: string, body: string, urgency?: NotificationUrgency) => Promise<NotifyResult>;
   scheduleFollowup: (delaySeconds: number, note: string, sessionId?: string) => Promise<string>;
+  onAsk: (sessionId: string, taskId: TaskId, ask: OwnerAsk | null) => void;
 }
+
+export interface OwnerAsk {
+  kind: "approval" | "question";
+  question: string;
+  summary?: string;
+  options: string[];
+}
+
+export const OwnerAnswer = defineSignal({ name: "tock.owner-answer", version: 1, schema: obj({ answer: str() }) });
 
 const MemorySearchParams = obj({ query: str(), limit: opt(num()) });
 const MemorySaveParams = obj({
@@ -85,6 +97,12 @@ const FileReadParams = obj({ id: str() });
 const FileWriteParams = obj({ name: str(), content: str(), mime: opt(str()) });
 const SkillReadParams = obj({ name: str(), file: opt(str()) });
 const UpdatePlanParams = obj({ steps: arr(str()), current: num() });
+const AskOwnerParams = obj({
+  question: str(),
+  kind: opt(union([lit("approval"), lit("question")])),
+  summary: opt(str()),
+  options: opt(arr(str())),
+});
 
 export function createTockExtension(deps: TockToolsDeps): Extension {
   const memorySearchTool = defineTool({
@@ -310,6 +328,25 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     },
   });
 
+  const askOwnerTool = defineTool({
+    name: "ask_owner",
+    description:
+      "Pause and ask the owner before you continue. Use kind \"approval\" with a one-line summary for anything risky or irreversible (the owner answers Approve or Deny), or kind \"question\" with 2 to 4 short options when you need them to choose. The run resumes with their answer as this tool's result.",
+    parameters: AskOwnerParams,
+    async execute(args, api, context) {
+      const sessionId = String(api.conversationId);
+      const state = await api.readSignal(OwnerAnswer, "answer", context);
+      if (state?.kind === "value") {
+        deps.onAsk(sessionId, api.taskId, null);
+        return { output: [{ type: "text", text: JSON.stringify({ answer: state.value.answer }) }] };
+      }
+      const kind = args.kind ?? (args.options?.length ? "question" : "approval");
+      const options = kind === "approval" ? ["Approve", "Deny"] : (args.options ?? []).slice(0, 4);
+      deps.onAsk(sessionId, api.taskId, { kind, question: args.question, summary: args.summary, options });
+      return { kind: "sleep", signals: [OwnerAnswer.key("answer")] };
+    },
+  });
+
   const notifyOwnerTool = defineTool({
     name: "notify_owner",
     description: "Send a proactive alert to the owner (live WebSocket + Web Push / webhook). Respects quiet hours: low/normal alerts queue for morning digest while urgent breaks through immediately.",
@@ -458,6 +495,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     routineListTool as unknown as ToolRegistration,
     routineDeleteTool as unknown as ToolRegistration,
     updatePlanTool as unknown as ToolRegistration,
+    askOwnerTool as unknown as ToolRegistration,
     notifyOwnerTool as unknown as ToolRegistration,
     mcpListTool as unknown as ToolRegistration,
     mcpCallTool as unknown as ToolRegistration,

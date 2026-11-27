@@ -181,6 +181,7 @@ export type ClientFrame =
     }
   | { id: string; type: "chat.subscribe"; sessionId?: string; cursor?: number }
   | { id: string; type: "chat.abort"; sessionId?: string; operationId?: string }
+  | { id: string; type: "ask.answer"; sessionId?: string; answer: string }
   | { id: string; type: "session.list" }
   | { id: string; type: "session.create"; title?: string }
   | { id: string; type: "thread.update"; threadId: string; title?: string | null; pinned?: boolean; archived?: boolean; unread?: boolean }
