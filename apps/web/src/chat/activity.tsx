@@ -1,4 +1,5 @@
 import { createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
+import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
@@ -127,7 +128,7 @@ function StepRow(props: { step: Step; live: boolean }) {
       <button type="button" class="tds-ws-line" disabled={!body()} aria-expanded={body() ? (open() ? "true" : "false") : undefined} onClick={() => setOpen((value) => !value)}>
         <span class="tds-ws-slot" style={{ color: status() === "failed" ? undefined : kind().hue }}>
           <Show when={status() !== "failed"} fallback={<Orb status="failed" surface="main" size="orb-row" />}>
-            <Icon name={kind().icon} size="menu" class="tds-ws-kind" />
+            <MorphIcon name={kind().icon} size="menu" class="tds-ws-kind" />
           </Show>
         </span>
         <span class="tds-ws-text">

@@ -9,6 +9,8 @@
 @import "./chat-extras.css";
 @import "./media.css";
 @import "./chat-surface.css";
+@import "./toasts.css";
+@import "./motion.css";
 
 @layer base {
   html {

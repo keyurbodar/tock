@@ -1,4 +1,5 @@
 import { createSignal, Show } from "solid-js"
+import { MorphIcon } from "@tock/ui/morph-icon"
 import { createMenuController, Menu, MenuContent, MenuItem, MenuItemIcon, MenuSeparator } from "@ui-sdk/solid/menu"
 import {
   AlertDialog,
@@ -12,7 +13,9 @@ import { useNavigate, useParams } from "@solidjs/router"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { deleteThread, titleOf, updateThread, type Session } from "../state/app"
-import { toast, updateToast } from "./toasts"
+import { isToastOpen, toast, updateToast } from "./toasts"
+
+const archivedBatch = new Set<string>()
 
 export const threadMenu = createMenuController<Session>()
 
@@ -23,7 +26,7 @@ function Item(props: { value: string; icon: IconName; label: string; danger?: bo
   return (
     <MenuItem value={props.value} class="tds-menu-item" data-danger={props.danger ? "" : undefined}>
       <MenuItemIcon class="tds-menu-icon">
-        <Icon name={props.icon} size="menu" />
+        <MorphIcon name={props.icon} size="menu" />
       </MenuItemIcon>
       {props.label}
     </MenuItem>
@@ -43,12 +46,29 @@ export function threadAction(action: string, session: Session, current: string |
     const archived = !session.meta.archived
     if (archived && current === session.id) navigate("/")
     void updateThread(session.id, { archived })
-    const id = toast(archived ? "Archived" : "Restored", {
-      description: title,
-      tone: archived ? "mono" : "done",
-      icon: archived ? "archive" : "arrow-counter-clockwise",
+    if (!archived) {
+      toast("Restored", { description: title, icon: "arrow-counter-clockwise" })
+      return
+    }
+    if (!isToastOpen("archive")) archivedBatch.clear()
+    archivedBatch.add(session.id)
+    toast("Archived", {
+      id: "archive",
+      group: "archive",
+      plural: (count) => `Archived ${count} chats`,
+      description: archivedBatch.size > 1 ? "Undo brings them all back" : title,
+      tone: "mono",
+      icon: "archive",
       duration: tokens.motion.toast.undo,
-      action: archived ? { label: "Undo", run: () => (void updateThread(session.id, { archived: false }), updateToast(id, "Restored", { description: title, icon: "arrow-counter-clockwise" })) } : undefined,
+      action: {
+        label: "Undo",
+        run: () => {
+          const ids = [...archivedBatch]
+          archivedBatch.clear()
+          ids.forEach((id) => void updateThread(id, { archived: false }))
+          updateToast("archive", ids.length > 1 ? `Restored ${ids.length} chats` : "Restored", { description: ids.length > 1 ? undefined : title, icon: "arrow-counter-clockwise" })
+        },
+      },
     })
   }
   if (action === "link") {
@@ -71,8 +91,11 @@ export function ThreadMenu() {
 
   const confirmDelete = (session: Session) => {
     if (params.id === session.id) navigate("/")
-    void deleteThread(session.id)
-    toast("Deleted forever", { description: titleOf(session), tone: "failed", icon: "trash" })
+    const id = toast("Deleting", { description: titleOf(session), tone: "failed", icon: "spin", hold: true })
+    void Promise.resolve(deleteThread(session.id)).then(
+      () => updateToast(id, "Deleted forever", { description: titleOf(session), tone: "failed", icon: "trash" }),
+      () => updateToast(id, "Couldn’t delete", { description: titleOf(session), tone: "failed", icon: "warning-circle", duration: tokens.motion.toast.error }),
+    )
   }
 
   return (

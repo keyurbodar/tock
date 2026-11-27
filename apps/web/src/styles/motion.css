@@ -1,0 +1,12 @@
+@layer components {
+  :where(button):not(:disabled, [data-disabled]):active { scale: var(--tds-press) }
+
+  .tds-stagger > * { animation: tds-stagger-in var(--tds-dur-layout) var(--tds-ease-out) both; animation-delay: calc(var(--i, 0) * var(--tds-stagger)) }
+  @keyframes tds-stagger-in { from { opacity: 0; translate: 0 var(--tds-space-4) } }
+
+  .tds-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--tds-dur-layout) var(--tds-ease-std), opacity var(--tds-dur-tooltip) var(--tds-ease-out) }
+  .tds-collapse[data-open] { grid-template-rows: 1fr; opacity: 1 }
+  .tds-collapse > * { min-height: 0; overflow: hidden }
+
+  skullet-reveal { --skullet-duration: var(--tds-dur-loop); --skullet-reveal-duration: var(--tds-dur-layout) }
+}

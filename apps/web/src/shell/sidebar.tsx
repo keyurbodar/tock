@@ -1,5 +1,6 @@
 import { Empty } from "../chat/empty"
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+import { MorphIcon } from "@tock/ui/morph-icon"
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
 import { useNavigate, useParams } from "@solidjs/router"
@@ -89,7 +90,7 @@ function Row(props: { session: Session; selected: boolean; query: string }) {
         aria-current={props.selected ? "page" : undefined}
       >
         <span class={`tds-row-icon ${glyph().hue}`}>
-          <Icon name={glyph().icon} size="row" />
+          <MorphIcon name={glyph().icon} size="row" />
         </span>
         <span class="tds-row-title">
           <Show when={renaming() === props.session.id} fallback={<Highlight text={titleOf(props.session)} query={props.query} />}>
@@ -233,7 +234,7 @@ export function Sidebar() {
                 <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>
                   <Icon name="archive" size="chip" />
                   <span>Archive</span>
-                  <span class="tds-archive-count num">{entry.count}</span>
+                  <span class="tds-archive-count num"><TextMorph value={entry.count} /></span>
                   <Icon name="caret-down" size="chip" class="tds-archive-caret" />
                 </button>
               ) : (

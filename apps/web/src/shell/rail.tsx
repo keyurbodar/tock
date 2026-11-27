@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js"
+import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/text-morph"
 import { app } from "../state/app"
@@ -26,7 +27,7 @@ function RailButton(props: { icon: IconName; label: string; on?: boolean; count?
       data-bell={props.bell ? "" : undefined}
       onClick={() => props.onClick?.()}
     >
-      <Icon name={props.on ? (`${props.icon}:fill` as IconName) : props.icon} size="rail" />
+      <MorphIcon name={props.on ? (`${props.icon}:fill` as IconName) : props.icon} size="rail" />
       <Show when={props.count !== undefined}>
         <Badge count={props.count!} />
       </Show>

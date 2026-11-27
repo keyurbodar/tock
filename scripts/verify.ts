@@ -377,6 +377,72 @@ const journeys: Record<string, () => void> = {
     until(() => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length"), (n) => n === before, "the row back in the list")
     void title
   },
+  toaststack() {
+    const titles = () => js<string>("return [...document.querySelectorAll('.tds-toast:not([data-gone]) .tds-toast-title [torph-sr]')].map((e) => e.textContent).join('|')")
+    const live = () => js<number>("return document.querySelectorAll('.tds-toast:not([data-gone])').length")
+    until(live, (n) => n === 0, "earlier toasts to clear", 12000)
+    const rows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
+    while (rows() < 2) journeys.send!()
+    const before = rows()
+    openRow()
+    choose("Archive")
+    until(titles, (t) => t === "Archived", "the first Archived toast")
+    openRow()
+    choose("Archive")
+    until(titles, (t) => t === "Archived 2 chats", "the archive toasts to merge with a rolling count")
+    check(live() === 1, "merged into one toast")
+    openRow()
+    choose("Pin")
+    until(live, (n) => n === 2, "a second toast to stack")
+    wait(500)
+    const rest = js<number[]>("return [...document.querySelectorAll('.tds-toast:not([data-gone])')].map((e) => e.getBoundingClientRect().top)")
+    check(rest[1]! - rest[0]! > 0 && rest[1]! - rest[0]! < 20, `stacked 10px apart at rest (${rest.join(", ")})`)
+    shot("toaststack-rest")
+    ab("hover", ".tds-toast[data-front]")
+    until(() => exists(".tds-toasts[data-expanded]"), Boolean, "the stack to fan on hover")
+    wait(500)
+    const fanned = js<{ top: number; bottom: number }[]>("return [...document.querySelectorAll('.tds-toast:not([data-gone])')].map((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom } })")
+    check(fanned[1]!.top >= fanned[0]!.bottom, "fanned toasts do not overlap")
+    check(style(".tds-toast-progress", "opacity") === "1", "the progress line shows while hovered")
+    const paused = js<string[]>("return [...document.querySelectorAll('.tds-toast-progress i')].flatMap((e) => e.getAnimations().map((a) => a.playState))")
+    check(paused.every((s) => s === "paused"), `timers pause on hover (${paused.join(",")})`)
+    shot("toaststack-fanned")
+    js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
+    until(titles, (t) => t.includes("Restored 2 chats"), "Undo to restore both chats")
+    until(() => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length"), (n) => n === before, "both rows back")
+    ab("mouse", "move", "700", "500")
+    ab("press", "Escape")
+    until(live, (n) => n === 1, "Esc to dismiss the newest toast")
+    ab("press", "Escape")
+    until(live, (n) => n === 0, "Esc to dismiss the next toast")
+    openRow()
+    choose("Unpin")
+    until(live, (n) => n === 1, "the Unpinned toast")
+    const box = rect(".tds-toast[data-front]")!
+    ab("mouse", "move", String(box.x + 40), String(box.y + box.h / 2))
+    ab("mouse", "down")
+    ab("mouse", "move", String(box.x + 140), String(box.y + box.h / 2))
+    ab("mouse", "up")
+    until(live, (n) => n === 0, "swipe right to dismiss")
+  },
+  morph() {
+    ab("click", "button[aria-label='New chat']")
+    ab("click", ".tds-composer-plus")
+    until(() => exists(".tds-menu"), Boolean, "the plus menu")
+    wait(400)
+    check(style(".tds-composer-plus svg.tds-morph", "rotate") === "45deg", "plus rotates 45deg into x")
+    shot("morph-plus-x")
+    ab("press", "Escape")
+    until(() => style(".tds-composer-plus svg.tds-morph", "rotate"), (r) => r === "0deg", "x rotates back to plus")
+    ab("click", ".tds-rail-button[data-bell]")
+    const layers = js<string[]>("return [...document.querySelectorAll('.tds-rail-button[data-bell] .tds-glyph-layer')].map((e) => e.dataset.phase)")
+    check(layers.includes("out") && layers.includes("in"), `the bell swaps with a blur-scale morph (${layers.join(",")})`)
+    until(() => js<string>("return document.querySelector('.tds-rail-button[data-bell] .tds-glyph').dataset.glyph"), (g) => g === "bell:fill", "the filled bell")
+    until(() => js<number>("return document.querySelectorAll('.tds-rail-button[data-bell] .tds-glyph-layer').length"), (n) => n === 1, "the old bell to leave")
+    shot("morph-bell")
+    ab("click", ".tds-rail-button[data-bell]")
+    until(() => js<string>("return document.querySelector('.tds-rail-button[data-bell] .tds-glyph').dataset.glyph"), (g) => g === "bell", "the outline bell")
+  },
   plus() {
     ab("click", "button[aria-label='New chat']")
     ab("click", ".tds-composer-plus")
@@ -532,7 +598,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

@@ -1,4 +1,5 @@
 import { createSignal, For, onCleanup, Show } from "solid-js"
+import { MorphIcon } from "@tock/ui/morph-icon"
 import { useNavigate } from "@solidjs/router"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { groups, markAllRead, notes, readChat, unreadNotes, type Group, type Note, type Tone } from "../state/notes"
@@ -14,7 +15,7 @@ function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void
   return (
     <div class="tds-note" data-read={props.note.read ? "" : undefined} style={{ "--i": props.index }} onClick={props.onOpen}>
       <span class="tds-note-tint" data-tone={props.tone}>
-        <Icon name={glyph[props.tone]} size="chip" />
+        <MorphIcon name={glyph[props.tone]} size="chip" />
       </span>
       <span class="tds-note-text">
         <b>{props.note.title}</b>

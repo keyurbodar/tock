@@ -516,37 +516,6 @@
   .tds-thread-card-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--tds-text-tx2) }
   .tds-thread-card-line { color: var(--tds-text-faint) }
 
-  .tds-toasts { position: fixed; top: var(--tds-size-toast-top); right: var(--tds-space-20); z-index: var(--tds-z-toasts); width: var(--tds-size-toast); height: var(--toast-front-height); transition: height var(--tds-dur-panel) var(--tds-ease-sheet) }
-  .tds-toasts[data-expanded] { height: calc(var(--toast-stack-height) + (var(--toast-count) - 1) * var(--tds-space-8)) }
-  .tds-toast {
-    --y: calc(var(--toast-index) * var(--tds-space-10));
-    position: absolute; inset-inline: 0; top: 0; z-index: calc(50 - var(--toast-index)); display: flex; align-items: center; gap: var(--tds-space-12);
-    min-height: var(--tds-size-toast-min); height: var(--toast-height); padding: var(--tds-space-10) var(--tds-space-10) var(--tds-space-10) var(--tds-space-12); border-radius: var(--tds-radius-toast);
-    translate: var(--toast-swipe-x, 0px) calc(var(--y) + var(--toast-swipe-y, 0px)); scale: calc(1 - var(--toast-index) * 0.05); transform-origin: 50% 0; user-select: none; touch-action: pan-y;
-    transition: translate var(--tds-dur-toast) var(--tds-ease-sheet), scale var(--tds-dur-toast) var(--tds-ease-sheet), opacity var(--tds-dur-layout) var(--tds-ease-out), filter var(--tds-dur-layout) var(--tds-ease-out), height var(--tds-dur-toast) var(--tds-ease-sheet);
-  }
-  .tds-toast:not([data-front], [data-expanded]) { height: var(--toast-front-height); & .tds-toast-action, & .tds-toast-body { opacity: 0 } }
-  .tds-toast[data-expanded] { --y: calc(var(--toast-offset) + var(--toast-index) * var(--tds-space-8)); scale: 1 }
-  .tds-toast:nth-child(n + 4):not([data-expanded]) { opacity: 0; pointer-events: none }
-  .tds-toast[data-starting-style] { opacity: 0; --y: calc(var(--tds-space-14) * -1); scale: var(--tds-press); filter: blur(var(--tds-blur-enter)) }
-  .tds-toast[data-ending-style] { opacity: 0; --y: calc(var(--tds-space-6) * -1); filter: blur(var(--tds-blur-exit)) }
-  .tds-toast[data-swiping] { transition: none }
-  .tds-toast[data-ending-style][data-swipe-direction] { --toast-swipe-x: 120%; filter: none }
-  .tds-toast-body { display: flex; flex: 1; flex-direction: column; gap: var(--tds-space-1); min-width: 0; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out) }
-  .tds-toast-title { font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
-  .tds-toast-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
-  .tds-toast-action {
-    flex: none; height: var(--tds-size-toast-action); padding: 0 var(--tds-space-12); border-radius: var(--tds-radius-pill); background: var(--tds-overlay-fill-10);
-    font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx); transition: background-color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out), opacity var(--tds-dur-tooltip) var(--tds-ease-out);
-  }
-  .tds-toast-action:hover { background: var(--tds-overlay-fill-12) }
-  .tds-toast-close {
-    position: absolute; left: calc(var(--tds-space-7) * -1); top: calc(var(--tds-space-7) * -1); display: grid; place-items: center; width: var(--tds-size-toast-close); height: var(--tds-size-toast-close);
-    border-radius: var(--tds-radius-pill); background: var(--tds-surface-badge-ring); color: var(--tds-text-tx2); box-shadow: var(--tds-lift-fan); opacity: 0; scale: .6;
-    transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-tooltip) var(--tds-ease-out);
-  }
-  .tds-toast:hover .tds-toast-close, .tds-toast-close:focus-visible { opacity: 1; scale: 1 }
-  .tds-spinner { width: var(--tds-icon-toast); height: var(--tds-icon-toast); border-radius: var(--tds-radius-pill); border: var(--tds-space-2) solid color-mix(in oklab, currentColor 25%, transparent); border-top-color: currentColor; animation: tds-spin var(--tds-dur-spin) linear infinite }
 }
 
 @layer components {

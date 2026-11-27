@@ -12,7 +12,7 @@ export function finishedElsewhere(chat: string, title: string, body: string, mar
   const id = "finished:" + chat
   toast(title, { description: body, id, duration: d["finished-hold"] })
   setTimeout(() => {
-    const from = [...document.querySelectorAll<HTMLElement>(".tds-toast")].find((el) => el.querySelector(".tds-toast-title")?.textContent === title)
+    const from = document.querySelector<HTMLElement>(`.tds-toast[data-toast-id="${CSS.escape(id)}"]:not([data-gone])`)
     const mark = rowMark(chat)
     if (!from || !mark || from.matches(":hover")) return markUnread()
     const a = from.getBoundingClientRect()

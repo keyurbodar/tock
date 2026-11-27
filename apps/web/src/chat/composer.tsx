@@ -1,3 +1,4 @@
+import { TextMorph } from "@tock/ui/text-morph"
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuTrigger } from "@ui-sdk/solid/menu"
@@ -372,7 +373,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       <Show when={held() && pending().length > 0}>
         <div class="tds-held" role="status" aria-live="polite">
           <span class="tds-spinner" />
-          <b>{heldLabel()}</b>
+          <b><TextMorph value={heldLabel()} /></b>
           <span>Edit or press Esc to cancel</span>
           <button type="button" class="tds-held-cancel tds-press" onMouseDown={(e) => e.preventDefault()} onClick={() => setHeld(false)}>
             Cancel
@@ -381,7 +382,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       </Show>
       <Show when={tooLong()}>
         <p class="tds-composer-alert" role="alert">
-          {(length() - tokens.limit["prompt-chars"]).toLocaleString()} characters over the limit. Attach long text as a file instead.
+          <TextMorph value={(length() - tokens.limit["prompt-chars"]).toLocaleString()} /> characters over the limit. Attach long text as a file instead.
         </p>
       </Show>
       <form class="flex items-end gap-8" onSubmit={(e) => (e.preventDefault(), submit())}>

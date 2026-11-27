@@ -27,6 +27,13 @@
     transition-timing-function: var(--tds-ease-sheet);
   }
 
+  .tds-glyph { display: inline-grid; place-items: center; flex: none }
+  .tds-glyph-layer { grid-area: 1 / 1; display: inline-grid; place-items: center }
+  .tds-glyph-layer[data-phase="in"] { animation: tds-glyph-in var(--tds-dur-swap) var(--tds-ease-out) both }
+  .tds-glyph-layer[data-phase="out"] { animation: tds-glyph-out var(--tds-dur-swap) var(--tds-ease-out) both; pointer-events: none }
+  @keyframes tds-glyph-in { from { opacity: 0; scale: .25; filter: blur(var(--tds-blur-swap)) } }
+  @keyframes tds-glyph-out { to { opacity: 0; scale: .25; filter: blur(var(--tds-blur-swap)) } }
+
   .tds-swap { display: inline-grid; place-items: center }
   .tds-swap > * {
     grid-area: 1 / 1;
