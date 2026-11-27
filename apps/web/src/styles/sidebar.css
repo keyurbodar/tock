@@ -21,21 +21,21 @@
 
   .tds-swipe { position: absolute; inset: 0; display: flex; justify-content: space-between; border-radius: var(--tds-radius-row); opacity: 0 }
   .tds-row-wrap[data-swiping] .tds-swipe { opacity: 1 }
-  .tds-swipe-side { display: flex; height: 100%; width: 0; overflow: hidden }
-  .tds-swipe-side[data-side="right"] { justify-content: flex-end }
+  .tds-swipe-side { position: relative; height: 100%; width: 0; overflow: hidden }
   .tds-swipe-act {
-    flex: 1 0 auto; min-width: var(--tds-size-swipe); height: 100%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--tds-space-4);
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; clip-path: var(--clip);
     font-size: var(--tds-type-micro-size); font-weight: var(--tds-weight-medium); letter-spacing: 0; color: var(--tds-surface-white);
-    transition: min-width var(--tds-dur-menu) var(--tds-ease-std), flex-grow var(--tds-dur-menu) var(--tds-ease-std);
   }
-  .tds-swipe-act[data-act="pin"] { background: var(--tds-swipe-pin) }
-  .tds-swipe-act[data-act="unread"] { background: var(--tds-swipe-unread) }
-  .tds-swipe-act[data-act="archive"] { background: var(--tds-swipe-archive) }
-  .tds-swipe-act[data-act="delete"] { background: var(--tds-swipe-delete) }
-  .tds-swipe-side[data-side="left"] .tds-swipe-act[data-act="unread"] { order: -1 }
-  .tds-row-wrap[data-go="left"] [data-act="pin"], .tds-row-wrap[data-go="right"] [data-act="archive"] { flex-grow: 1 }
-  .tds-row-wrap[data-go="left"] [data-act="unread"], .tds-row-wrap[data-go="right"] [data-act="delete"] { min-width: 0; flex: 0 0 0; overflow: hidden }
+  .tds-swipe-body { display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-4); white-space: nowrap; translate: var(--shift) 0 }
+  .tds-row-wrap[data-going] .tds-swipe-act { transition: clip-path var(--tds-dur-menu) var(--tds-ease-std) }
+  .tds-row-wrap[data-going] .tds-swipe-body { transition: translate var(--tds-dur-menu) var(--tds-ease-std) }
+  .tds-swipe-act[data-act="pin"] { background: var(--tds-swipe-pin); --clip: inset(0 0 0 calc(var(--s) * 100%)); --shift: calc(var(--w) * var(--s) / 2) }
+  .tds-swipe-act[data-act="unread"] { background: var(--tds-swipe-unread); --clip: inset(0 calc((1 - var(--s)) * 100%) 0 0); --shift: calc(var(--w) * (1 - var(--s)) / -2) }
+  .tds-swipe-act[data-act="archive"] { background: var(--tds-swipe-archive); --clip: inset(0 calc(var(--s) * 100%) 0 0); --shift: calc(var(--w) * var(--s) / -2) }
+  .tds-swipe-act[data-act="delete"] { background: var(--tds-swipe-delete); --clip: inset(0 0 0 calc((1 - var(--s)) * 100%)); --shift: calc(var(--w) * (1 - var(--s)) / 2) }
+  .tds-row-wrap[data-go="left"] [data-act="pin"], .tds-row-wrap[data-go="right"] [data-act="archive"] { z-index: 1; --clip: inset(0); --shift: 0px }
+  .tds-row-wrap[data-go="left"] [data-act="unread"] { --clip: inset(0 100% 0 0); --shift: calc(var(--w) / -2) }
+  .tds-row-wrap[data-go="right"] [data-act="delete"] { --clip: inset(0 0 0 100%); --shift: calc(var(--w) / 2) }
 
   .tds-pins {
     --pin-cols: 4; position: relative; display: flex; flex-wrap: wrap; justify-content: center; row-gap: var(--tds-space-4);

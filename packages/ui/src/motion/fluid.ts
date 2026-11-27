@@ -1,3 +1,4 @@
+import { animate, springEasing } from "./core"
 /**
  * Fluid hover, after fluid-functionalism: one highlight per list that glides to the hovered item and takes its size,
  * on a critically damped spring. Lists opt in by being listed in `lanes`; nothing else has to render anything.
@@ -63,14 +64,29 @@ function layoutOffset(item: HTMLElement, scope: HTMLElement) {
   return { x, y }
 }
 
+/** Where the glow is drawn right now (mid-glide included), in the same layout space as translate. */
+function drawn(glow: HTMLElement) {
+  const style = getComputedStyle(glow)
+  const [x = "0", y = "0"] = style.translate === "none" ? [] : style.translate.split(" ")
+  const [sx = "1", sy = sx] = style.scale === "none" ? [] : style.scale.split(" ")
+  return { x: parseFloat(x) || 0, y: parseFloat(y) || 0, w: glow.offsetWidth * parseFloat(sx), h: glow.offsetHeight * parseFloat(sy) }
+}
+
 function show(scope: HTMLElement, item: HTMLElement) {
   const glow = glowFor(scope)
   const at = layoutOffset(item, scope)
   const fresh = !glow.hasAttribute("data-on")
   if (fresh) glow.setAttribute("data-instant", "")
-  glow.style.width = `${item.offsetWidth}px`
-  glow.style.height = `${item.offsetHeight}px`
+  const was = fresh ? undefined : drawn(glow)
+  const w = item.offsetWidth
+  const h = item.offsetHeight
+  glow.getAnimations().forEach((a) => a.id === "tds-glide" && a.cancel())
+  glow.style.width = `${w}px`
+  glow.style.height = `${h}px`
   glow.style.translate = `${at.x}px ${at.y}px`
+  if (was && (was.x !== at.x || was.y !== at.y || was.w !== w || was.h !== h)) {
+    animate(glow, [{ translate: `${was.x}px ${was.y}px`, scale: `${was.w / w} ${was.h / h}` }, { translate: `${at.x}px ${at.y}px`, scale: "1 1" }], { ...springEasing("glide"), id: "tds-glide" })
+  }
   glow.style.borderRadius = getComputedStyle(item).borderRadius
   if (fresh) {
     void glow.offsetWidth

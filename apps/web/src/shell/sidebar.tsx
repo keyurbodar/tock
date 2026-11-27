@@ -115,12 +115,17 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
     row.style.transform = next ? `translateX(${next}px)` : ""
     left.style.width = `${Math.max(0, next)}px`
     right.style.width = `${Math.max(0, -next)}px`
+    for (const [side, w] of [[left, Math.max(0, next)], [right, Math.max(0, -next)]] as const) {
+      side.style.setProperty("--w", `${w}px`)
+      side.style.setProperty("--s", String(Math.min(1, Math.max(0, (w - tokens.size.swipe) / tokens.size.swipe)) / 2))
+    }
     wrap.toggleAttribute("data-swiping", next !== 0)
   }
   const close = () => {
     setX(0, true)
     if (closeOpenSwipe === close) closeOpenSwipe = undefined
   }
+  let going: ReturnType<typeof setTimeout> | undefined
   const drag = (dx: number) => {
     const width = row.offsetWidth
     let next = Math.abs(dx) > L["swipe-max"] ? Math.sign(dx) * (L["swipe-max"] + (Math.abs(dx) - L["swipe-max"]) * L["swipe-rubber"]) : dx
@@ -129,6 +134,9 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
     const commit = Math.abs(next) > width * L["swipe-commit"]
     if (commit !== go) {
       go = commit
+      wrap.dataset.going = ""
+      clearTimeout(going)
+      going = setTimeout(() => delete wrap.dataset.going, D.menu)
       wrap.dataset.go = commit ? (next > 0 ? "left" : "right") : ""
     }
   }
@@ -243,22 +251,30 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
       <div class="tds-swipe" aria-hidden="true">
         <div class="tds-swipe-side" data-side="left" ref={left}>
           <button type="button" tabindex="-1" class="tds-swipe-act" data-act="pin" onClick={() => act("pin")}>
-            <Icon name="push-pin" size="code-action" />
-            Pin
+            <span class="tds-swipe-body">
+              <Icon name="push-pin" size="code-action" />
+              Pin
+            </span>
           </button>
           <button type="button" tabindex="-1" class="tds-swipe-act" data-act="unread" onClick={() => act("unread")}>
-            <Icon name="circle" size="code-action" />
-            {props.session.meta.unread ? "Read" : "Unread"}
+            <span class="tds-swipe-body">
+              <Icon name="circle" size="code-action" />
+              {props.session.meta.unread ? "Read" : "Unread"}
+            </span>
           </button>
         </div>
         <div class="tds-swipe-side" data-side="right" ref={right}>
           <button type="button" tabindex="-1" class="tds-swipe-act" data-act="archive" onClick={() => act("archive")}>
-            <Icon name="archive" size="code-action" />
-            Archive
+            <span class="tds-swipe-body">
+              <Icon name="archive" size="code-action" />
+              Archive
+            </span>
           </button>
           <button type="button" tabindex="-1" class="tds-swipe-act" data-act="delete" onClick={() => act("delete")}>
-            <Icon name="trash" size="code-action" />
-            Delete
+            <span class="tds-swipe-body">
+              <Icon name="trash" size="code-action" />
+              Delete
+            </span>
           </button>
         </div>
       </div>

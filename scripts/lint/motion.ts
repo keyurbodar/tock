@@ -16,9 +16,6 @@ const WAAPI_LAYOUT = /\{\s*(?:top|left|right|bottom|width|margin\w*|padding\w*)\
 const KNOWN: { file: RegExp; line: string; why: string }[] = [
   { file: /shell\.css$/, line: "transition: padding var(--tds-dur-layout) var(--tds-ease-sheet)", why: "notification stack: routed, translate the under-cards instead of the group's padding" },
   { file: /chat-extras\.css$/, line: "transition: max-height var(--tds-dur-panel)", why: "code collapse (TOCK-5): routed, measured height via clamp.ts" },
-  { file: /chat-surface\.css$/, line: "transition: margin var(--tds-dur-swap)", why: "header status pill width morph (TOCK-3): routed" },
-  { file: /sidebar\.css$/, line: "transition: min-width var(--tds-dur-menu)", why: "swipe actions (TOCK-3): routed" },
-  { file: /motion\.css$/, line: "width var(--tds-dur-glide)", why: "fluid hover (TOCK-3): absolutely positioned, routed" },
   { file: /scroll\.css$/, line: "transition-property: opacity, filter, margin", why: "work-log fold (TOCK-5): routed" },
   { file: /composer\.css$/, line: "left var(--tds-dur-hover) var(--tds-ease-out)", why: "mention popover follows the caret: routed, position with translate" },
   { file: /chat\/composer\.tsx$/, line: "marginRight", why: "attachment card closes its gap from a measured width" },

@@ -31,8 +31,10 @@
   }
   @media (hover: hover) and (pointer: fine) { .tds-toast-action:hover { background: var(--tds-overlay-fill-12) } }
   .tds-toast-close {
-    position: absolute; left: calc(var(--tds-space-7) * -1); top: calc(var(--tds-space-7) * -1); display: grid; place-items: center; width: var(--tds-size-toast-close); height: var(--tds-size-toast-close);
-    border-radius: var(--tds-radius-pill); background: var(--tds-surface-badge-ring); color: var(--tds-text-tx2); box-shadow: var(--tds-lift-fan); opacity: 0; scale: .6;
+    --pad: calc((var(--tds-size-hit-min) - var(--tds-size-toast-close)) / 2);
+    position: absolute; left: calc(var(--tds-space-7) * -1 - var(--pad)); top: calc(var(--tds-space-7) * -1 - var(--pad)); isolation: isolate; display: grid; place-items: center;
+    width: var(--tds-size-hit-min); height: var(--tds-size-hit-min); border-radius: var(--tds-radius-pill); color: var(--tds-text-tx2); opacity: 0; scale: .6;
+    &::before { content: ""; position: absolute; inset: var(--pad); z-index: -1; border-radius: var(--tds-radius-pill); background: var(--tds-surface-badge-ring); box-shadow: var(--tds-lift-fan) }
     transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-tooltip) var(--tds-ease-out);
   }
   .tds-toast-close:focus-visible { opacity: 1; scale: 1 }

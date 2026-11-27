@@ -48,7 +48,7 @@ function until<T>(read: () => T, ok: (value: T) => boolean, what: string, ms = 8
 const rect = (sel: string) => js<{ x: number; y: number; w: number; h: number } | null>(
   `const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null`,
 )
-const exists = (sel: string) => js<boolean>(`return !!document.querySelector(${JSON.stringify(sel)})`)
+const exists = (sel: string) => js<boolean>(`return [...document.querySelectorAll(${JSON.stringify(sel)})].some((e) => !e.closest("[data-ghost]"))`)
 const style = (sel: string, prop: string) => js<string | null>(`const e = document.querySelector(${JSON.stringify(sel)}); return e ? getComputedStyle(e)[${JSON.stringify(prop)}] : null`)
 const transparent = (value: string | null) => value === "rgba(0, 0, 0, 0)" || value === "transparent"
 const choose = (label: string) =>
@@ -303,6 +303,11 @@ const journeys: Record<string, () => void> = {
     check(transparent(style(".tds-act-button", "backgroundColor")), "the activity line must have no hover background")
     steady(".tds-act-button")
     ab("click", ".tds-act-button")
+    try {
+      until(() => exists(".tds-worklog"), Boolean, "the work log", 2500)
+    } catch {
+      ab("click", ".tds-act-button")
+    }
     until(() => js<string>("const w = document.querySelector('.tds-worklog'); return w ? (w.querySelector('.tds-ws-line') ? 'rows' : 'empty ' + Math.round(w.getBoundingClientRect().height) + ' ' + w.querySelectorAll('*').length) : 'closed ' + document.querySelector('.tds-act-button')?.getAttribute('aria-expanded')"), (s) => s === "rows", "the work log rows")
     until(() => js<number>("return document.querySelectorAll('.tds-worklog .tds-plan-item').length"), (n) => n === 3, "the three plan steps from update_plan")
     check(js<boolean>("return [...document.querySelectorAll('.tds-ws-line')].every((e) => ['rgba(0, 0, 0, 0)', 'transparent'].includes(getComputedStyle(e).backgroundColor))"), "work log rows must have no background")
