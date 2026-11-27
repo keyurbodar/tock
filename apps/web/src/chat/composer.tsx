@@ -21,6 +21,10 @@ import { extension, formatSize, readingLabel, withFiles, type Attachment, type c
 import { fileChip } from "./chip"
 import { openLightbox } from "./lightbox-state"
 import { CodeHighlight } from "./code-highlight"
+import { STATUS_LABEL, statusOf } from "../lib/status"
+
+const plural = new Intl.PluralRules("en")
+const messageCount = (n: number) => `${n} ${plural.select(n) === "one" ? "message" : "messages"}`
 
 type Attachments = ReturnType<typeof createAttachments>
 
@@ -370,7 +374,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       .map((session) => ({
         key: session.id,
         label: titleOf(session),
-        hint: session.busy ? "Working" : `${session.messageCount} messages`,
+        hint: statusOf(session) === "idle" ? messageCount(session.messageCount) : STATUS_LABEL[statusOf(session)],
         icon: glyphFor(session.id).icon,
         hue: glyphFor(session.id).hue,
         run: () => insertToken({ kind: "thread", id: session.id, label: titleOf(session) }),

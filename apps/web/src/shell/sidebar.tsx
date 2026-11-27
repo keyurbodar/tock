@@ -10,6 +10,7 @@ import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
+import { statusOf } from "../lib/status"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
@@ -38,7 +39,7 @@ const WIDTH_KEY = "tock.sidebar.width"
 const clampWidth = (value: number) => Math.min(tokens.size["sidebar-max"], Math.max(tokens.size["sidebar-min"], Math.round(value)))
 const savedWidth = () => {
   const saved = Number(localStorage.getItem(WIDTH_KEY))
-  return Number.isFinite(saved) && saved > 0 ? clampWidth(saved) : tokens.size["sidebar-panel"]
+  return Number.isFinite(saved) && saved > 0 ? clampWidth(saved) : tokens.size.sidebar
 }
 
 function Highlight(props: { text: string; query: string }) {
@@ -87,6 +88,18 @@ let closeOpenSwipe: (() => void) | undefined
 let suppressClick = false
 const swallowClick = () => ((suppressClick = true), requestAnimationFrame(() => requestAnimationFrame(() => (suppressClick = false))))
 
+
+/** A chat waiting on you shows its question; when your own message is newest the row reads "you: …", as WorklogLive. */
+const previewOf = (session: Session) => {
+  const text = plainText(session.preview)
+  if (statusOf(session) === "needs") return `needs you: ${plainText(session.needs ?? "") || text}`
+  if (!text) return "No messages yet"
+  return session.mine ? `you: ${text}` : text
+}
+const orbOf = (session: Session) => {
+  const status = statusOf(session)
+  return status === "working" || status === "needs" ? status : undefined
+}
 
 function Row(props: { session: Session; selected: boolean; multi: boolean; query: string; current: string | undefined; navigate: (to: string) => void }) {
   const glyph = () => glyphFor(props.session.id)
@@ -287,7 +300,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
         draggable={false}
         data-selected={props.selected ? "" : undefined}
         data-multi={props.multi ? "" : undefined}
-        data-status={props.session.busy ? "working" : app.threads[props.session.id]?.error ? "failed" : undefined}
+        data-status={statusOf(props.session) === "idle" ? undefined : statusOf(props.session)}
         data-unread={props.session.meta.unread ? "" : undefined}
         aria-current={props.selected ? "page" : undefined}
         onPointerEnter={(e) => peekEnter(untrack(() => props.session), e.currentTarget)}
@@ -365,11 +378,11 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
         </span>
         <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, now())} mode="calm" /></span>
         <span class="tds-row-preview">
-          <Highlight text={plainText(props.session.preview) || "No messages yet"} query={props.query} />
+          <Highlight text={previewOf(props.session)} query={props.query} />
         </span>
         <span class="tds-row-mark" skullet-ignore="">
-          <Show when={props.session.busy} fallback={<Show when={props.session.meta.unread}><i class="tds-unread" /></Show>}>
-            <Orb status="working" surface={props.selected ? "sel" : "side"} />
+          <Show when={orbOf(props.session)} fallback={<Show when={props.session.meta.unread}><i class="tds-unread" /></Show>}>
+            {(status) => <Orb status={status()} surface={props.selected ? "sel" : "side"} />}
           </Show>
         </span>
       </a>
@@ -419,7 +432,7 @@ function ResizeHandle(props: { width: number; onWidth: (width: number) => void }
       }}
       onPointerUp={end}
       onPointerCancel={end}
-      onDblClick={() => (set(tokens.size["sidebar-panel"]), save())}
+      onDblClick={() => (set(tokens.size.sidebar), save())}
       onKeyDown={(e) => {
         const step = tokens.size["sidebar-step"] * (e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0)
         if (!step) return
@@ -477,7 +490,7 @@ export function Sidebar() {
         <label class="tds-search tds-raise-1" data-filled={query() ? "" : undefined}>
           <Icon name="magnifying-glass" size="menu" class="tds-search-glyph" />
           <input ref={search} value={query()} onInput={(e) => setQuery(e.currentTarget.value)} placeholder="Search" aria-label="Search chats" onKeyDown={(e) => e.key === "Escape" && (setQuery(""), e.currentTarget.blur())} />
-          <kbd class="tds-search-hint">⌘K</kbd>
+          <span class="tds-search-hint" aria-hidden="true"><kbd>⌘</kbd><kbd>K</kbd></span>
         </label>
         <button type="button" class="tds-press grid size-new-chat flex-none place-items-center rounded-pill bg-glass text-tx2 tds-raise-1" aria-label="New chat" onClick={startChat}>
           <Icon name="note-pencil" size="menu" />

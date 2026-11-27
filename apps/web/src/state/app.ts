@@ -2,7 +2,7 @@ import { createStore, reconcile, snapshot } from "solid-js"
 import type { ConversationView, EntryRecord, LiveState, SessionSummary, ThreadMeta } from "@tock/protocol"
 import { idb } from "../lib/idb"
 import { RequestError, socket, type ConnectionState } from "../lib/socket"
-import { addNote } from "./notes"
+import { addNote, needsNote } from "./notes"
 import { finishedElsewhere } from "../shell/finished"
 import { tokens } from "@tock/tokens"
 
@@ -107,6 +107,15 @@ socket.onEvent(({ event, payload }) => {
     if (live?.run === undefined) void refreshSessions()
     return
   }
+  if (event === "session.needs") {
+    const needs = typeof payload.needs === "string" ? payload.needs : null
+    setApp((s) => {
+      const known = s.sessions.find((session) => session.id === sessionId)
+      if (known) Object.assign(known, { needs })
+    })
+    needsNote(sessionId, titleOf(app.sessions.find((session) => session.id === sessionId)), needs)
+    return
+  }
   if (event === "session.status" && typeof payload.busy === "boolean") {
     const busy = payload.busy
     setApp((s) => {
@@ -139,6 +148,7 @@ export async function refreshSessions() {
       reconcile(sessions, "id")(s.sessions)
       s.sessionsLoaded = true
     })
+    for (const session of sessions) needsNote(session.id, titleOf(session), session.needs)
     void idb.put("sessions", "list", sessions)
   } catch {
     return

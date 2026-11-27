@@ -33,6 +33,10 @@ export interface SessionSummary {
   readonly preview: string
   readonly messageCount: number
   readonly updatedAt: number | null
+  /** The preview is the owner's own message (the row reads "you: …"). */
+  readonly mine?: boolean
+  /** The question toast is waiting on you for, while an ask is pending. */
+  readonly needs?: string | null
 }
 
 export interface TextBlock {

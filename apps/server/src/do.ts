@@ -522,6 +522,7 @@ export class TockDO extends DurableObject<Env> {
           parent: session.parent === undefined ? undefined : this.threads.thread(String(session.parent)),
           meta,
           ...summarizeEntries(await this.harness.session(session.id).messages()),
+          needs: this.pendingAsks.get(String(session.id))?.ask.question ?? null,
         };
       }),
     );
@@ -1076,6 +1077,7 @@ export class TockDO extends DurableObject<Env> {
     if (ask) this.pendingAsks.set(sessionId, { taskId, ask });
     else this.pendingAsks.delete(sessionId);
     this.broadcastSession(sessionId, ask ? "ask.pending" : "ask.settled", { sessionId, ask }, false);
+    this.broadcast("session.needs", { sessionId, needs: ask?.question ?? null }, false);
   }
 
   async answerAsk(sessionId: string, answer: string): Promise<{ answered: boolean }> {

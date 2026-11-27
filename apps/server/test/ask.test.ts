@@ -47,12 +47,19 @@ describe("ask_owner", () => {
 
     const pending = await until(() => frames.find((f) => f.event === "ask.pending"), "ask.pending");
     expect(pending.payload).toMatchObject({ ask: { kind: "approval", question: "Deploy?", options: ["Approve", "Deny"] } });
+    const needs = await until(() => frames.find((f) => f.event === "session.needs" && (f.payload as { needs?: unknown }).needs), "session.needs");
+    expect(needs.payload).toEqual({ sessionId, needs: "Deploy?" });
+    const listed = (await request("session.list")).data as Array<{ id: string; needs?: string | null }>;
+    expect(listed.find((s) => s.id === sessionId)?.needs).toBe("Deploy?");
     const sub = await request("chat.subscribe", { sessionId });
     expect((sub.data as { ask?: unknown }).ask).toMatchObject({ question: "Deploy?" });
     expect(JSON.stringify((sub.data as { messages: unknown }).messages)).not.toContain("pi.tool-result");
 
     expect((await request("ask.answer", { sessionId, answer: "Approve" })).data).toEqual({ answered: true });
     await until(() => frames.find((f) => f.event === "ask.settled"), "ask.settled");
+    await until(() => frames.find((f) => f.event === "session.needs" && (f.payload as { needs?: unknown }).needs === null), "session.needs cleared");
+    const after = (await request("session.list")).data as Array<{ id: string; needs?: string | null }>;
+    expect(after.find((s) => s.id === sessionId)?.needs).toBeNull();
     const done = await (async () => {
       for (let t = 0; t < 250; t++) {
         const r = await request("session.messages", { sessionId });

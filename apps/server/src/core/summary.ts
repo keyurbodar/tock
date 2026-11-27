@@ -3,6 +3,7 @@ export interface SessionSummary {
   preview: string;
   messageCount: number;
   updatedAt: number | null;
+  mine: boolean;
 }
 
 interface SummaryEntry {
@@ -45,6 +46,7 @@ export function summarizeEntries(entries: readonly SummaryEntry[]): SessionSumma
   let preview = "";
   let messageCount = 0;
   let updatedAt: number | null = null;
+  let mine = false;
   for (const entry of entries) {
     for (const message of entry.model ?? []) {
       if (message.role !== "user" && message.role !== "assistant") continue;
@@ -53,8 +55,9 @@ export function summarizeEntries(entries: readonly SummaryEntry[]): SessionSumma
       messageCount++;
       if (message.role === "user" && !title) title = clip(text, TITLE_MAX);
       preview = clip(text, PREVIEW_MAX);
+      mine = message.role === "user";
       if (typeof message.timestamp === "number") updatedAt = message.timestamp;
     }
   }
-  return { title, preview, messageCount, updatedAt };
+  return { title, preview, messageCount, updatedAt, mine };
 }

@@ -5,9 +5,10 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { Skeleton } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app } from "../state/app"
+import { STATUS_LABEL } from "../lib/status"
 import { toast } from "../shell/toasts"
 
-const LABEL: Record<OrbStatus, string> = { working: "working", needs: "needs you", failed: "failed", done: "done" }
+const LABEL: Record<OrbStatus, string> = STATUS_LABEL
 
 export function Header(props: { title: string; status: OrbStatus | undefined; loading?: boolean; shape?: string }) {
   const [finding, setFinding] = createSignal(false)

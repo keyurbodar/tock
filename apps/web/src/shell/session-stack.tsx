@@ -6,15 +6,14 @@ import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
+import { STATUS_LABEL, statusOf, type ChatStatus } from "../lib/status"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
 import { app, titleOf, type Session } from "../state/app"
 import { hidePeek } from "./peek"
 
-type Status = "working" | "needs" | "failed" | "idle"
-
-const statusOf = (session: Session): Status => (session.busy ? "working" : app.threads[session.id]?.error ? "failed" : "idle")
-const statusName: Record<Status, string> = { working: "Working", needs: "Needs you", failed: "Failed", idle: "Idle" }
+type Status = ChatStatus
+const statusName = STATUS_LABEL
 const gap = tokens.size["session-gap"]
 const edge = tokens.size["edge-fade"]
 
@@ -131,7 +130,7 @@ export function ToastRow(props: { show: boolean }) {
               <TextMorph value={line()} mode="calm" />
             </span>
           </span>
-          <span class="tds-toast-hint">Hold</span>
+          <span class="tds-toast-hint">Hold for all chats</span>
           <Icon name="caret-down" size="menu" class="text-faint" />
         </button>
       </Show>

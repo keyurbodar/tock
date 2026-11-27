@@ -31,6 +31,18 @@ export function addNote(note: Omit<Note, "id" | "at" | "read">) {
   save()
 }
 
+/** A chat waiting on you keeps exactly one Needs you note, replaced when the question changes and gone once answered. */
+export function needsNote(chat: string, title: string, question: string | null | undefined) {
+  const current = notes.list.find((note) => note.chat === chat && note.tone === "needs")
+  if (question && current?.body === question) return
+  if (!question && !current) return
+  setNotes((s) => {
+    s.list = s.list.filter((note) => !(note.chat === chat && note.tone === "needs"))
+    if (question) s.list.unshift({ id: crypto.randomUUID(), chat, tone: "needs", title, body: question, at: Date.now(), read: false })
+  })
+  save()
+}
+
 export function markAllRead() {
   setNotes((s) => s.list.forEach((note) => ((note as { read: boolean }).read = true)))
   save()

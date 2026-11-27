@@ -65,13 +65,12 @@
   .tds-pin > * { position: relative }
   .tds-pin-circle {
     flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); display: grid; place-items: center;
-    background: var(--tds-raise-sheen-2), color-mix(in oklab, currentColor var(--tds-raise-tint), var(--tds-surface-side)); box-shadow: var(--tds-raise-shadow-2);
+    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow);
     transition: scale var(--tds-dur-tooltip) var(--tds-ease-out);
   }
   .tds-pin:active .tds-pin-circle { scale: var(--tds-press-tight) }
   .tds-pin-label {
-    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
-    width: 100%; text-align: center; overflow-wrap: anywhere;
+    max-width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .tds-pin-rename {
     all: unset; box-sizing: border-box; width: var(--tds-size-pin-slot); padding: 0 var(--tds-space-4); text-align: center;

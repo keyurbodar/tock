@@ -191,7 +191,7 @@ const journeys: Record<string, () => void> = {
     ab("eval", "localStorage.removeItem('tock.sidebar.width')")
     ab("open", BASE)
     until(() => exists(".tds-row"), Boolean, "sidebar rows")
-    check(rect(".tds-sidebar")?.w === 320, `sidebar should start at 320px, got ${rect(".tds-sidebar")?.w}`)
+    check(rect(".tds-sidebar")?.w === 340, `sidebar should start at 340px, got ${rect(".tds-sidebar")?.w}`)
     shot("shell")
   },
   resize() {
@@ -205,17 +205,17 @@ const journeys: Record<string, () => void> = {
     ab("mouse", "down")
     ab("mouse", "move", String(x + 60), String(y), "--steps", "8")
     ab("mouse", "up")
-    check(rect(".tds-sidebar")?.w === 380, `drag +60 should give 380px, got ${rect(".tds-sidebar")?.w}`)
+    check(rect(".tds-sidebar")?.w === 400, `drag +60 should give 400px, got ${rect(".tds-sidebar")?.w}`)
     ab("mouse", "move", String(x + 400), String(y))
     ab("open", BASE)
-    until(() => rect(".tds-sidebar")?.w, (w) => w === 380, "the saved width after reload")
+    until(() => rect(".tds-sidebar")?.w, (w) => w === 400, "the saved width after reload")
     ab("dblclick", ".tds-sidebar-handle")
-    check(rect(".tds-sidebar")?.w === 320, "double-click should reset to 320px")
+    check(rect(".tds-sidebar")?.w === 340, "double-click should reset to 340px")
     ab("open", BASE)
-    until(() => rect(".tds-sidebar")?.w, (w) => w === 320, "the reset width after reload")
+    until(() => rect(".tds-sidebar")?.w, (w) => w === 340, "the reset width after reload")
     ab("focus", ".tds-sidebar-handle")
     ab("press", "ArrowRight")
-    check(rect(".tds-sidebar")?.w === 336, `ArrowRight should widen by 16px, got ${rect(".tds-sidebar")?.w}`)
+    check(rect(".tds-sidebar")?.w === 356, `ArrowRight should widen by 16px, got ${rect(".tds-sidebar")?.w}`)
     ab("press", "ArrowLeft")
     shot("resize")
   },
@@ -708,6 +708,8 @@ const journeys: Record<string, () => void> = {
     until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), Boolean, "Undo to restore the row")
   },
   swipeintent() {
+    ab("eval", "localStorage.removeItem('tock.sidebar.width')")
+    ab("open", BASE)
     ensureRows(1)
     ab("mouse", "move", "5", "5")
     const sel = ".tds-row-wrap:not([data-archived]) .tds-row"
@@ -948,6 +950,13 @@ const journeys: Record<string, () => void> = {
     check(style(`${row} .tds-row-title`, "fontSize") === "14.5px", "row titles are 14.5")
     check(style(`${row} .tds-row-preview`, "fontSize") === "13px", "row previews are 13")
     check(js<boolean>(`const t = document.querySelector('${row} .tds-row-title'); return t.scrollHeight <= t.clientHeight`), "row titles do not crop descenders")
+    check(style(".tds-row-time", "fontSize") === "12.5px", "row times are 12.5 (TG-17)")
+    check(style(".tds-search input", "fontSize") === "14px", "the search field is 14 (TG-15)")
+    check(js<number>("return document.querySelectorAll('.tds-search-hint kbd').length") === 2, "the search hint is two keycaps, ⌘ and K (TG-15)")
+    check(style(".tds-toast-row b", "fontSize") === "15px", "the toast row name is 15 (TG-16)")
+    check(js<string>("return document.querySelector('.tds-toast-hint')?.textContent ?? ''") === "Hold for all chats", "the toast row hint reads Hold for all chats (TG-16)")
+    if (exists(".tds-pin-circle")) check(style(".tds-pin-circle", "backgroundColor") === "rgba(255, 255, 255, 0.067)", "pin circles are plain glass (TG-14)")
+    if (exists(".tds-pin-label")) check(style(".tds-pin-label", "whiteSpace") === "nowrap", "pin labels are one line (TG-14)")
     shot("typography")
     ab("mouse", "move", "900", "450")
   },
@@ -1473,6 +1482,28 @@ const journeys: Record<string, () => void> = {
     }
     until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "back online", 15000)
     shot("offline-back")
+  },
+  needsrow() {
+    ab("click", "button[aria-label='New chat']")
+    const path = until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID chat url")
+    const id = path.slice(3)
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "please approve the deploy")
+    ab("press", "Enter")
+    until(() => exists(".tds-ask .tds-key[data-option='Approve']"), Boolean, "the approval card", 15000)
+    const row = `.tds-row-wrap[data-id="${id}"] .tds-row`
+    until(() => js<string>(`return document.querySelector('${row}')?.dataset.status ?? ''`), (s) => s === "needs", "the row in needs state")
+    check(exists(`${row} .tds-row-mark img[src*='needs']`), "the row carries the amber needs orb")
+    check(js<string>(`return document.querySelector('${row} .tds-row-preview').textContent`).startsWith("needs you: "), "the preview reads needs you: <question>")
+    until(() => js<string>("return document.querySelector('.tds-toast-status [torph-sr]')?.textContent ?? document.querySelector('.tds-toast-status')?.textContent ?? ''"), (t) => t.includes("needs you"), "the toast row counts the chat as needs you")
+    check(js<string>("return document.querySelector('.tds-header-status')?.textContent ?? ''").includes("Needs you"), "the header label reads Needs you")
+    ab("click", ".tds-rail-button[data-bell]")
+    until(() => js<string>("return document.querySelector('.tds-centre')?.textContent ?? ''"), (t) => /Needs you/.test(t) && t.includes("Deploy"), "a Needs you note in the centre", 4000)
+    shot("needs-row")
+    ab("click", ".tds-rail-button[data-bell]")
+    until(() => exists(".tds-centre[data-open]"), (open) => !open, "the centre to close")
+    ab("click", ".tds-ask .tds-key[data-option='Approve']")
+    until(() => js<string>(`return document.querySelector('${row}')?.dataset.status ?? ''`), (s) => s !== "needs", "the row to leave needs once answered", 8000)
   },
   ask() {
     ab("click", "button[aria-label='New chat']")
@@ -2480,7 +2511,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
