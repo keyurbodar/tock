@@ -1,11 +1,14 @@
 import { createSignal, For, onCleanup, Show } from "solid-js"
 import { useNavigate } from "@solidjs/router"
-import { Command, CommandEmpty, CommandGroup, CommandGroupLabel, CommandInput, CommandItem, CommandItemIcon, CommandList } from "@ui-sdk/solid/command"
+import { Command, CommandEmpty, CommandGroup, CommandGroupLabel, CommandInput, CommandItem, CommandList } from "@ui-sdk/solid/command"
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from "@ui-sdk/solid/dialog"
 import { Icon, type IconName } from "@tock/ui/icon"
+import { Orb } from "@tock/ui/orb"
+import { tokens } from "@tock/tokens"
 import { app, newThreadId, plainText, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
 import { shortTime } from "../lib/time"
+import { now } from "../lib/clock"
 import { setShortcutsOpen } from "./shortcuts"
 
 const [open, setOpen] = createSignal(false)
@@ -16,14 +19,30 @@ const actions: readonly { value: string; label: string; icon: IconName; keys: re
   { value: "action:shortcuts", label: "Keyboard Shortcuts", icon: "keyboard", keys: ["?"] },
 ]
 
-/** ⌘K: one searchable list of what you can do and every chat, as T3Code's CommandPalette (actions first, then threads by recency). */
+function Keys(props: { keys: readonly string[] }) {
+  return (
+    <span class="tds-kbds">
+      <For each={props.keys} keyed={false}>{(key) => <kbd>{key()}</kbd>}</For>
+    </span>
+  )
+}
+
+/**
+ * ⌘K, TDS SysPalette: one glass sheet, 560 wide, that appears at once because people open it all day. Type to filter,
+ * arrows to move, Return opens (the row flashes rose), esc closes. Groups are separated by space, never rules.
+ */
 export function Palette() {
   const navigate = useNavigate()
+  const [hit, setHit] = createSignal<string>()
   const run = (value: string) => {
-    setOpen(false)
-    if (value === "action:new") return navigate(`/t/${newThreadId()}`)
-    if (value === "action:shortcuts") return setShortcutsOpen(true)
-    navigate(`/t/${value.slice("chat:".length)}`)
+    setHit(value)
+    setTimeout(() => {
+      setHit(undefined)
+      setOpen(false)
+      if (value === "action:new") return navigate(`/t/${newThreadId()}`)
+      if (value === "action:shortcuts") return setShortcutsOpen(true)
+      navigate(`/t/${value.slice("chat:".length)}`)
+    }, tokens.motion.duration["palette-hit"])
   }
   const onKey = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -33,51 +52,72 @@ export function Palette() {
   }
   addEventListener("keydown", onKey)
   onCleanup(() => removeEventListener("keydown", onKey))
+  const sessions = () => app.sessions.filter((session) => !session.meta.archived)
   return (
     <Dialog open={open()} onOpenChange={(next) => setOpen(next)}>
-      <DialogBackdrop class="tds-scrim" />
+      <DialogBackdrop class="tds-palette-scrim" />
       <DialogContent class="tds-palette tds-over">
-        <DialogTitle class="sr-only">Search chats and actions</DialogTitle>
+        <DialogTitle class="sr-only">Search or run a command</DialogTitle>
         <Command onAction={(value) => run(String(value))}>
           <div class="tds-palette-search">
             <Icon name="magnifying-glass" size="menu" />
-            <CommandInput aria-label="Search chats and actions" placeholder="Search chats and actions" />
+            <CommandInput aria-label="Search or run a command" placeholder="Search or run a command" />
           </div>
           <CommandList class="tds-palette-list tds-scroll">
-            <CommandEmpty class="tds-palette-empty">No chats or actions match</CommandEmpty>
+            <CommandEmpty class="tds-palette-empty">No matches. Try a chat name or a command.</CommandEmpty>
             <CommandGroup>
-              <CommandGroupLabel class="tds-menu-label">Actions</CommandGroupLabel>
+              <CommandGroupLabel class="tds-palette-label">Actions</CommandGroupLabel>
               <For each={actions} keyed={false}>
                 {(action) => (
-                  <CommandItem value={action().value} class="tds-menu-item">
-                    <CommandItemIcon class="tds-menu-icon">
+                  <CommandItem value={action().value} class="tds-palette-item" data-hit={hit() === action().value ? "" : undefined}>
+                    <span class="tds-palette-icon">
                       <Icon name={action().icon} size="menu" />
-                    </CommandItemIcon>
-                    {action().label}
-                    <span class="tds-menu-keys">
-                      <For each={action().keys} keyed={false}>{(key) => <kbd class="tds-kbd">{key()}</kbd>}</For>
+                    </span>
+                    <span class="tds-palette-title">{action().label}</span>
+                    <span class="tds-palette-trail">
+                      <Keys keys={action().keys} />
                     </span>
                   </CommandItem>
                 )}
               </For>
             </CommandGroup>
-            <Show when={app.sessions.length > 0}>
+            <Show when={sessions().length > 0}>
               <CommandGroup>
-                <CommandGroupLabel class="tds-menu-label">Chats</CommandGroupLabel>
-                <For each={app.sessions} keyed={(session) => session.id}>
+                <CommandGroupLabel class="tds-palette-label">Chats</CommandGroupLabel>
+                <For each={sessions()} keyed={(session) => session.id}>
                   {(session) => (
-                    <CommandItem value={`chat:${session().id}`} keywords={[plainText(session().preview)]} class="tds-menu-item">
-                      <CommandItemIcon class={`tds-menu-icon ${glyphFor(session().id).hue}`}>
+                    <CommandItem
+                      value={`chat:${session().id}`}
+                      keywords={[plainText(session().preview)]}
+                      class="tds-palette-item"
+                      data-hit={hit() === `chat:${session().id}` ? "" : undefined}
+                    >
+                      <span class={`tds-palette-icon ${glyphFor(session().id).hue}`}>
                         <Icon name={glyphFor(session().id).icon} size="menu" />
-                      </CommandItemIcon>
-                      <span class="tds-suggest-label">{titleOf(session())}</span>
-                      <span class="tds-suggest-hint">{session().meta.archived ? "Archived" : shortTime(session().updatedAt)}</span>
+                      </span>
+                      <span class="tds-palette-title">{titleOf(session())}</span>
+                      <span class="tds-palette-trail num">
+                        <Show when={session().busy} fallback={shortTime(session().updatedAt, now())}>
+                          <Orb status="working" surface="side" size="orb-sm" />
+                        </Show>
+                      </span>
                     </CommandItem>
                   )}
                 </For>
               </CommandGroup>
             </Show>
           </CommandList>
+          <div class="tds-palette-foot" aria-hidden="true">
+            <span>
+              <Keys keys={["↑", "↓"]} /> Move
+            </span>
+            <span>
+              <Keys keys={["↵"]} /> Open
+            </span>
+            <span>
+              <Keys keys={["esc"]} /> Close
+            </span>
+          </div>
         </Command>
       </DialogContent>
     </Dialog>

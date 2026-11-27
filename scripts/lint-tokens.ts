@@ -36,6 +36,25 @@ for (const root of roots) {
     })
   }
 }
+const defined = new Set<string>()
+const sources: string[] = []
+for (const root of [...roots, "packages/tokens/dist"]) {
+  for await (const file of walk(root)) {
+    const text = await readFile(file, "utf8")
+    for (const match of text.matchAll(/(--tds-[\w-]+)\s*:/g)) defined.add(match[1]!)
+    if (root !== "packages/tokens/dist") sources.push(file)
+  }
+}
+for (const file of sources) {
+  const lines = (await readFile(file, "utf8")).split("\n")
+  lines.forEach((line, i) => {
+    for (const match of line.matchAll(/var\((--tds-[\w-]+)\s*[,)]/g)) {
+      if (defined.has(match[1]!) || /var\(--tds-size-\$\{/.test(line)) continue
+      failures++
+      console.error(`${file}:${i + 1}  undefined-token  ${match[1]}  Nothing defines it, so it resolves to nothing. Add it to tokens.json or fix the name.`)
+    }
+  })
+}
 if (failures) {
   console.error(`\n${failures} token violation(s)`)
   process.exit(1)

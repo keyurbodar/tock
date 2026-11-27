@@ -386,11 +386,14 @@
   .tds-button:hover { background: var(--tds-overlay-fill-12) }
   .tds-button[data-danger] { background: var(--tds-wash-failed-16); color: var(--tds-status-failed) }
   .tds-button[data-danger]:hover { background: var(--tds-wash-failed-ring) }
-  .tds-keys { width: var(--tds-size-dialog-keys); padding: var(--tds-space-18) var(--tds-space-20) var(--tds-space-14); border-radius: var(--tds-radius-dialog-keys) }
-  .tds-keys-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--tds-space-8) }
+  .tds-keys {
+    top: var(--tds-size-palette-top); translate: -50% 0; width: min(var(--tds-size-dialog-keys), calc(100vw - var(--tds-space-32))); padding: var(--tds-space-16); border-radius: var(--tds-radius-dialog-keys);
+    background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow); backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
+  }
+  .tds-keys-head { display: flex; align-items: center; justify-content: space-between; padding: var(--tds-space-2) var(--tds-space-6) var(--tds-space-12); & .tds-dialog-title { font-size: var(--tds-type-title-size) } }
   .tds-keys-row {
-    display: flex; align-items: center; justify-content: space-between; height: var(--tds-size-shortcut-row); padding-left: var(--tds-space-4);
-    font-size: var(--tds-type-body-size); color: var(--tds-text-tx2);
+    display: flex; align-items: center; justify-content: space-between; height: var(--tds-size-shortcut-row); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-menu-item);
+    font-size: var(--tds-type-menu-size); color: var(--tds-text-tx2);
   }
   .tds-keys-combo { display: flex; gap: var(--tds-space-3) }
   .tds-kbd {
@@ -585,22 +588,37 @@
 
 
 @layer components {
+  .tds-palette-scrim { position: fixed; inset: 0; z-index: var(--tds-z-centre) }
   .tds-palette {
-    position: fixed; top: var(--tds-size-menu-dialog-top); left: 50%; z-index: var(--tds-z-centre); width: var(--tds-size-menu-dialog); translate: -50% 0; padding: var(--tds-space-6);
-    border-radius: var(--tds-radius-card); transform-origin: 50% 0;
-    transition: opacity var(--tds-dur-menu) var(--tds-ease-out), scale var(--tds-dur-menu) var(--tds-ease-out);
-    &[data-starting-style], &[data-ending-style] { opacity: 0; scale: var(--tds-press) }
+    position: fixed; top: var(--tds-size-palette-top); left: 50%; z-index: var(--tds-z-centre); width: min(var(--tds-size-palette), calc(100vw - var(--tds-space-32))); translate: -50% 0;
+    padding: var(--tds-space-6); border-radius: var(--tds-radius-palette); outline: none;
   }
   .tds-palette-search {
-    display: flex; align-items: center; gap: var(--tds-space-8); height: var(--tds-size-menu-search); padding: 0 var(--tds-space-10); margin-bottom: var(--tds-space-4);
-    border-bottom: var(--tds-size-focus-width) solid var(--tds-overlay-hairline); color: var(--tds-text-muted);
-    & input { all: unset; flex: 1; min-width: 0; font-size: var(--tds-type-body-size); color: var(--tds-text-tx) }
-    & input::placeholder { color: var(--tds-text-placeholder) }
+    display: flex; align-items: center; gap: var(--tds-space-8); height: var(--tds-size-menu-search); padding: 0 var(--tds-space-14) 0 var(--tds-space-13); margin-bottom: var(--tds-space-4);
+    border-radius: var(--tds-radius-palette-search); color: var(--tds-text-muted);
+    & input { all: unset; flex: 1; min-width: 0; font-size: var(--tds-type-palette-size); color: var(--tds-text-tx) }
+    & input::placeholder { color: var(--tds-text-muted) }
   }
-  .tds-palette-list { max-height: var(--tds-size-menu-list); overflow-y: auto; & [data-slot="command-group"] + [data-slot="command-group"] { margin-top: var(--tds-space-4) } }
-  .tds-palette-list .tds-menu-item { cursor: pointer }
+  .tds-palette-list { max-height: var(--tds-size-palette-list); overflow-y: auto; overscroll-behavior: contain }
+  .tds-palette-label { padding: var(--tds-space-10) var(--tds-space-8) var(--tds-space-4); font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
+  .tds-palette-item {
+    display: grid; grid-template-columns: var(--tds-size-palette-icon) minmax(0, 1fr) auto; align-items: center; gap: var(--tds-space-10);
+    min-height: var(--tds-size-palette-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8); border-radius: var(--tds-radius-palette-row);
+    font-size: var(--tds-type-menu-size); color: var(--tds-text-tx2); white-space: nowrap; cursor: pointer; outline: none;
+    transition: background-color var(--tds-dur-press) var(--tds-ease-out);
+  }
+  .tds-palette-item[data-highlighted] { background: var(--tds-overlay-palette-on); color: var(--tds-text-tx); & .tds-palette-icon:not([class*="text-hue"]) { color: var(--tds-text-tx2) } }
+  .tds-palette-item[data-hit] { background: var(--tds-wash-rose-18) }
+  .tds-palette-icon { display: flex; justify-self: center; color: var(--tds-text-muted) }
+  .tds-palette-title { overflow: hidden; text-overflow: ellipsis }
+  .tds-palette-trail { display: flex; align-items: center; gap: var(--tds-space-4); font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
   .tds-palette-empty:empty { display: none }
   .tds-palette-empty { padding: var(--tds-space-16) var(--tds-space-10); text-align: center; font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
+  .tds-palette-foot { display: flex; gap: var(--tds-space-14); padding: var(--tds-space-10) var(--tds-space-12) var(--tds-space-6); font-size: var(--tds-type-micro-size); color: var(--tds-text-faint); & > span { display: flex; align-items: center; gap: var(--tds-space-5) } }
+  .tds-kbds {
+    display: inline-flex; align-items: center; gap: var(--tds-space-2); font-variant-numeric: tabular-nums;
+    & kbd { display: inline-grid; place-items: center; min-width: var(--tds-size-key); height: var(--tds-size-key); padding: 0 var(--tds-space-5); border-radius: var(--tds-radius-key); background: var(--tds-surface-key); box-shadow: var(--tds-lift-key); font: inherit; font-size: var(--tds-type-kbd-size); color: var(--tds-text-tx2) }
+  }
   .tds-code pre { max-width: 100%; overflow-x: auto }
   .tds-code { min-width: 0; max-width: 100% }
 }

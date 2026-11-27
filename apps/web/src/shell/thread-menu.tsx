@@ -30,6 +30,33 @@ function Item(props: { value: string; icon: IconName; label: string; danger?: bo
   )
 }
 
+/** Rename, pin, unread, archive and copy link: shared by the row menu and the keyboard shortcuts. */
+export function threadAction(action: string, session: Session, current: string | undefined, navigate: (to: string) => void) {
+  if (action === "rename") setRenaming(session.id)
+  const title = titleOf(session)
+  if (action === "pin") {
+    void updateThread(session.id, { pinned: !session.meta.pinned })
+    toast(session.meta.pinned ? "Unpinned" : "Pinned", { description: title, tone: "rose", icon: session.meta.pinned ? "push-pin-slash" : "push-pin" })
+  }
+  if (action === "unread") void updateThread(session.id, { unread: !session.meta.unread })
+  if (action === "archive") {
+    const archived = !session.meta.archived
+    if (archived && current === session.id) navigate("/")
+    void updateThread(session.id, { archived })
+    const id = toast(archived ? "Archived" : "Restored", {
+      description: title,
+      tone: archived ? "mono" : "done",
+      icon: archived ? "archive" : "arrow-counter-clockwise",
+      duration: tokens.motion.toast.undo,
+      action: archived ? { label: "Undo", run: () => (void updateThread(session.id, { archived: false }), updateToast(id, "Restored", { description: title, icon: "arrow-counter-clockwise" })) } : undefined,
+    })
+  }
+  if (action === "link") {
+    const url = `${location.origin}/t/${session.id}`
+    void navigator.clipboard.writeText(url).then(() => toast("Link copied", { description: url.replace(/^https?:\/\//, ""), id: "copy", duration: tokens.motion.toast.copy }))
+  }
+}
+
 export function ThreadMenu() {
   const navigate = useNavigate()
   const params = useParams<{ id?: string }>()
@@ -38,29 +65,7 @@ export function ThreadMenu() {
   const run = (action: string) => {
     const session = threadMenu.getPayload()
     if (!session) return
-    if (action === "rename") setRenaming(session.id)
-    const title = titleOf(session)
-    if (action === "pin") {
-      void updateThread(session.id, { pinned: !session.meta.pinned })
-      toast(session.meta.pinned ? "Unpinned" : "Pinned", { description: title, tone: "rose", icon: session.meta.pinned ? "push-pin-slash" : "push-pin" })
-    }
-    if (action === "unread") void updateThread(session.id, { unread: !session.meta.unread })
-    if (action === "archive") {
-      const archived = !session.meta.archived
-      if (archived && params.id === session.id) navigate("/")
-      void updateThread(session.id, { archived })
-      const id = toast(archived ? "Archived" : "Restored", {
-        description: title,
-        tone: archived ? "mono" : "done",
-        icon: archived ? "archive" : "arrow-counter-clockwise",
-        duration: tokens.motion.toast.undo,
-        action: archived ? { label: "Undo", run: () => (void updateThread(session.id, { archived: false }), updateToast(id, "Restored", { description: title, icon: "arrow-counter-clockwise" })) } : undefined,
-      })
-    }
-    if (action === "link") {
-      const url = `${location.origin}/t/${session.id}`
-      void navigator.clipboard.writeText(url).then(() => toast("Link copied", { description: url.replace(/^https?:\/\//, ""), id: "copy", duration: tokens.motion.toast.copy }))
-    }
+    threadAction(action, session, params.id, navigate)
     if (action === "delete") setDoomed(session)
   }
 
