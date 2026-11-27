@@ -374,16 +374,18 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
           <MorphIcon name={glyph().icon} size="row" />
         </span>
         <span class="tds-row-title">
-          <Show when={renaming() === props.session.id} fallback={<Highlight text={titleOf(props.session)} query={props.query} />}>
+          <Show when={renaming() === props.session.id} fallback={<Show when={props.query.trim()} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}><Highlight text={titleOf(props.session)} query={props.query} /></Show>}>
             <RenameField session={props.session} />
           </Show>
         </span>
         <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, minute())} mode="calm" /></span>
         <span class="tds-row-preview">
-          <Highlight text={previewOf(props.session)} query={props.query} />
+          <Show when={props.query.trim()} fallback={<TextMorph value={previewOf(props.session)} mode="calm" />}>
+            <Highlight text={previewOf(props.session)} query={props.query} />
+          </Show>
         </span>
         <span class="tds-row-mark" skullet-ignore="">
-          <Show when={orbOf(props.session)} fallback={<Show when={props.session.meta.unread}><i class="tds-unread" /></Show>}>
+          <Show when={orbOf(props.session)}>
             {(status) => <Orb status={status()} surface={props.selected ? "sel" : "side"} />}
           </Show>
         </span>

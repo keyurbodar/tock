@@ -90,6 +90,9 @@ export function ToastRow(props: { show: boolean }) {
     if (pick) navigate(`/t/${pick}`)
   }
   onCleanup(() => open() && backdrop(false))
+  const unpress = () => !hold && !open() && setPressed(false)
+  addEventListener("resize", unpress)
+  onCleanup(() => removeEventListener("resize", unpress))
 
   return (
     <>
@@ -122,6 +125,7 @@ export function ToastRow(props: { show: boolean }) {
             if (dragging) (dragging = false), close(hot())
           }}
           onPointerCancel={() => (setPressed(false), clearTimeout(hold), (hold = undefined), cancelAnimationFrame(frame))}
+          onPointerLeave={() => unpress()}
         >
           <img src="/brand/toast-mascot-36.svg" alt="" class="size-mascot flex-none rounded-small" draggable={false} />
           <span class="min-w-0 flex-1 pl-6 text-left">

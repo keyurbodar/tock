@@ -1,3 +1,5 @@
+import { plainMarkdown } from "./plain.js";
+
 export interface SessionSummary {
   title: string;
   preview: string;
@@ -50,7 +52,7 @@ export function summarizeEntries(entries: readonly SummaryEntry[]): SessionSumma
   for (const entry of entries) {
     for (const message of entry.model ?? []) {
       if (message.role !== "user" && message.role !== "assistant") continue;
-      const text = messageText(message.content);
+      const text = plainMarkdown(messageText(message.content));
       if (!text.trim()) continue;
       messageCount++;
       if (message.role === "user" && !title) title = clip(text, TITLE_MAX);

@@ -4,16 +4,21 @@ import { useNavigate } from "@solidjs/router"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
-import { morphFrom } from "@tock/ui/motion"
+import { animate, morphFrom } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
 import { shortTime } from "../lib/time"
 import { minute } from "../lib/clock"
 import { peekLines, titleOf, type PeekLine, type Session } from "../state/app"
 
+/** side: beside the sidebar, level with a roster row. below: under a pin, over the roster, as kat's pinned grid. */
+type Place = "side" | "below"
+
 interface Shown {
   readonly session: Session
   readonly top: number
   readonly left: number
+  readonly width: number | undefined
+  readonly place: Place
   readonly lines: readonly PeekLine[]
 }
 
@@ -23,23 +28,36 @@ let leaveTimer: ReturnType<typeof setTimeout> | undefined
 let coolTimer: ReturnType<typeof setTimeout> | undefined
 let warm = false
 let pending = 0
-let hovered: { session: Session; row: HTMLElement } | undefined
+let hovered: { session: Session; row: HTMLElement; place: Place } | undefined
 
 const intent = tokens.motion["hover-intent"]
 
-async function show(session: Session, row: HTMLElement) {
+async function show(session: Session, row: HTMLElement, place: Place = "side") {
   clearTimeout(leaveTimer)
   const box = row.getBoundingClientRect()
   const side = row.closest(".tds-sidebar")?.getBoundingClientRect()
-  const left = (side?.right ?? box.right) + tokens.space[14]!
-  const top = Math.max(tokens.size["menu-dialog-top"] / 2, Math.min(box.top - tokens.space[14]!, innerHeight - tokens.size.peek * 2 / 3))
+  const gap = tokens.space[14]!
+  const inset = tokens.space[12]!
+  const below = place === "below" && side !== undefined
+  const left = below ? side.left + inset : (side?.right ?? box.right) + gap
+  const width = below ? Math.min(tokens.size.peek, side.width - inset * 2) : undefined
+  const top = below
+    ? Math.min(box.bottom + tokens.space[6]!, innerHeight - tokens.size.peek * 2 / 3)
+    : Math.max(tokens.size["menu-dialog-top"] / 2, Math.min(box.top - gap, innerHeight - tokens.size.peek * 2 / 3))
   const ticket = ++pending
   const lines = await peekLines(session.id)
   if (ticket !== pending) return
   if (hovered?.session.id !== session.id && shown() === undefined && !keyed) return
   keyed = false
   warm = true
-  setShown({ session, top, left, lines })
+  const from = shown()
+  setShown({ session, top, left, width, place, lines })
+  if (from && from.session.id !== session.id) swap()
+}
+
+/** The card stays up between chats: it glides to the new spot and its content cross-fades, never closing and reopening. */
+function swap() {
+  queueMicrotask(() => animate(document.querySelector(".tds-peek-body"), [{ opacity: 0.35, filter: `blur(${tokens.motion.blur.swap})` }, { opacity: 1, filter: "blur(0px)" }], { duration: tokens.motion.duration.swap }))
 }
 let keyed = false
 
@@ -53,8 +71,9 @@ const cross = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x:
 function aiming() {
   const card = document.querySelector(".tds-peek")?.getBoundingClientRect()
   if (!card || !apex) return false
+  const below = shown()?.place === "below"
   const top = { x: card.left, y: card.top }
-  const bottom = { x: card.left, y: card.bottom }
+  const bottom = below ? { x: card.right, y: card.top } : { x: card.left, y: card.bottom }
   const d1 = cross(apex, top, pointer)
   const d2 = cross(top, bottom, pointer)
   const d3 = cross(bottom, apex, pointer)
@@ -69,15 +88,26 @@ function holdOrHide(since: number) {
   hidePeek()
 }
 
-/** Resting on a row shows the peek; once one is open, moving to the next row swaps it at once, as TDS px2 Peek. */
-export function peekEnter(session: Session, row: HTMLElement) {
-  if (shown() && shown()?.session.id !== session.id && aiming()) return
-  hovered = { session, row }
+/**
+ * Resting on a row shows the peek; once one is open, moving to the next row (or pin) swaps it in place, as TDS px2
+ * Peek and kat. Entering a row while heading for the card (inside the safe triangle and still moving) defers the swap
+ * instead of dropping it, so a pointer that stops on the new row always gets that row's chat.
+ */
+export function peekEnter(session: Session, row: HTMLElement, place: Place = "side") {
+  hovered = { session, row, place }
   clearTimeout(restTimer)
   clearTimeout(leaveTimer)
-  apex = undefined
-  if (shown()?.session.id === session.id) return
-  restTimer = setTimeout(() => void show(session, row), warm ? 0 : intent["peek-rest"])
+  if (shown()?.session.id === session.id) return void (apex = undefined)
+  let last = { ...pointer }
+  const go = () => {
+    if (hovered?.session.id !== session.id) return
+    const moving = Math.hypot(pointer.x - last.x, pointer.y - last.y) > 1
+    last = { ...pointer }
+    if (shown() && shown()?.place === place && moving && aiming()) return void (restTimer = setTimeout(go, intent.leave))
+    apex = undefined
+    void show(session, row, place)
+  }
+  restTimer = setTimeout(go, warm || shown() ? intent.leave / 2 : intent["peek-rest"])
 }
 
 export function peekLeave() {
@@ -105,7 +135,7 @@ export function peekToggle(fallback: { session: Session; row: HTMLElement } | un
   const target = hovered ?? fallback
   if (!target) return
   keyed = true
-  void show(target.session, target.row)
+  void show(target.session, target.row, hovered?.place ?? "side")
 }
 
 export const peeking = () => shown() !== undefined
@@ -120,11 +150,14 @@ export function Peek() {
             class="tds-peek tds-over"
             role="dialog"
             aria-label={`Peek at ${titleOf(peek().session)}`}
-            style={{ left: `${peek().left}px`, top: "0px", translate: `0 ${peek().top}px` }}
+            data-place={peek().place}
+            data-id={peek().session.id}
+            style={{ left: "0px", top: "0px", translate: `${peek().left}px ${peek().top}px`, width: peek().width === undefined ? undefined : `${peek().width}px` }}
             onPointerEnter={() => ((apex = undefined), clearTimeout(leaveTimer))}
             onPointerLeave={() => peekLeave()}
             onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${peek().session.id}`), hidePeek())}
           >
+            <div class="tds-peek-body">
             <div class="tds-peek-head">
               <span class={glyphFor(peek().session.id).hue}>
                 <Icon name={glyphFor(peek().session.id).icon} size="toast" />
@@ -156,6 +189,7 @@ export function Peek() {
                 In the cloud
               </span>
               <i>Click to open</i>
+            </div>
             </div>
           </div>
         )}

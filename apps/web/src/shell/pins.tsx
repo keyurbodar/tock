@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js"
+import { For, Show, untrack } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { createMenuController, Menu, MenuContent, MenuContextTrigger, MenuItem, MenuItemIcon } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
@@ -7,6 +7,14 @@ import { animate, morphFrom, watchLayout } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
 import { app, pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
 import { takeFlight, unpin } from "./thread-menu"
+import { hidePeek, peekEnter, peekLeave } from "./peek"
+import { Orb } from "@tock/ui/orb"
+import { statusOf } from "../lib/status"
+
+const pinStatus = (session: Session) => {
+  const status = statusOf(session)
+  return status === "working" || status === "needs" ? status : undefined
+}
 import { createSignal } from "solid-js"
 
 const pinMenu = createMenuController<Session>()
@@ -113,14 +121,12 @@ export function Pins(props: { show: boolean }) {
           <For each={pinnedSessions()} keyed={(session) => session.id}>
             {(session) => (
               <MenuContextTrigger payload={session()} class="tds-pin-slot">
-                <button type="button" class="tds-pin" data-id={session().id} data-active={params.id === session().id ? "" : undefined} aria-current={params.id === session().id ? "page" : undefined} aria-label={titleOf(session())} onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${session().id}`))}>
+                <button type="button" class="tds-pin" onPointerEnter={(e) => peekEnter(untrack(session), e.currentTarget, "below")} onPointerLeave={() => peekLeave()} onPointerDown={() => hidePeek()} data-id={session().id} data-active={params.id === session().id ? "" : undefined} data-unread={session().meta.unread ? "" : undefined} aria-current={params.id === session().id ? "page" : undefined} aria-label={titleOf(session())} onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${session().id}`))}>
                   <i class={`tds-pin-circle ${glyphFor(session().id).hue}`} ref={(el) => land(el, session().id)}>
                     <Icon name={glyphFor(session().id).icon} size="pin" />
+                    <Show when={pinStatus(session())}>{(status) => <Orb status={status()} surface="side" size="orb-sm" class="tds-pin-status" />}</Show>
                   </i>
                   <PinLabel session={session()} />
-                  <Show when={session().meta.unread}>
-                    <b class="tds-pin-dot" />
-                  </Show>
                 </button>
               </MenuContextTrigger>
             )}

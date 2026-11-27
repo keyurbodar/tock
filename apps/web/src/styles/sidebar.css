@@ -9,6 +9,10 @@
     @starting-style { opacity: 0; clip-path: inset(0 0 100% 0) }
   }
   .tds-row { user-select: none; -webkit-user-drag: none }
+  /* rows are see-through so the shared glide highlight (fluid.ts lane) shades the whole row, title and preview included; a swiped row turns solid over its actions */
+  .tds-row:not([data-selected]) { background: transparent }
+  .tds-row-wrap[data-swiping] .tds-row:not([data-selected]) { background: var(--tds-surface-side) }
+  .tds-row-title > .tds-morph-text, .tds-row-preview > .tds-morph-text, :is(.tds-row-title, .tds-row-preview) > .tds-morph-text > span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
   .tds-row-wrap[data-swiping] .tds-row { will-change: transform }
   @media (hover: hover) and (pointer: fine) {
     .tds-row-wrap:hover :is(.tds-row-time, .tds-row-mark) { opacity: 0 }
@@ -64,11 +68,12 @@
   .tds-pin[data-active]::before { opacity: 1; scale: 1 }
   .tds-pin > * { position: relative }
   .tds-pin-circle {
-    flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); display: grid; place-items: center;
-    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow);
+    position: relative; flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-small); display: grid; place-items: center;
+    background: color-mix(in oklab, currentColor var(--tds-raise-tint), var(--tds-surface-side)); box-shadow: var(--tds-glass-shadow);
     transition: scale var(--tds-dur-tooltip) var(--tds-ease-out);
   }
   .tds-pin:active .tds-pin-circle { scale: var(--tds-press-tight) }
+  .tds-pin-status { position: absolute; right: calc(var(--tds-space-4) * -1); bottom: calc(var(--tds-space-4) * -1) }
   .tds-pin-label {
     max-width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
@@ -76,15 +81,15 @@
     all: unset; box-sizing: border-box; width: var(--tds-size-pin-slot); padding: 0 var(--tds-space-4); text-align: center;
     border-radius: var(--tds-radius-kbd); background: var(--tds-surface-field); box-shadow: inset 0 0 0 1px var(--tds-accent-rose-45); color: var(--tds-text-tx);
   }
-  .tds-pin-dot {
-    position: absolute; top: var(--tds-space-4); left: calc(50% + var(--tds-size-pin) / 2 - var(--tds-size-dot-pin)); width: var(--tds-size-dot-pin); height: var(--tds-size-dot-pin);
-    border-radius: var(--tds-radius-pill); background: var(--tds-accent-rose); box-shadow: 0 0 0 2px var(--tds-surface-side);
-  }
   .tds-pin-ghost { position: fixed; z-index: var(--tds-z-flight); display: grid; place-items: center; pointer-events: none; color: var(--tds-hue-rose) }
 
   .tds-toast-row { touch-action: none }
   .tds-toast-row[data-press] { scale: var(--tds-press-row); background: var(--tds-overlay-press) }
   .tds-toast-status { font-size: var(--tds-type-preview-size); line-height: var(--tds-type-preview-lh) }
+  .tds-toast-status > .tds-morph-text, .tds-toast-status > .tds-morph-text > span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis }
+  .tds-pin[data-unread] .tds-pin-label { color: var(--tds-text-tx); font-weight: var(--tds-weight-semibold) }
+  .tds-sidebar { container: sidebar / inline-size }
+  @container sidebar (max-width: 330px) { .tds-toast-hint { display: none } }
   .tds-toast-hint { font-size: var(--tds-type-label-size); color: var(--tds-text-faint); opacity: 0; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out) }
   @media (hover: hover) and (pointer: fine) { .tds-toast-row:hover .tds-toast-hint { opacity: 1 } }
 
@@ -147,8 +152,9 @@
   .tds-peek {
     position: fixed; z-index: var(--tds-z-lay); width: var(--tds-size-peek); padding: var(--tds-space-14); border-radius: var(--tds-radius-peek);
     display: flex; flex-direction: column; gap: var(--tds-space-10); transform-origin: 0 var(--tds-space-32); cursor: default;
-    transition: translate var(--tds-dur-exit) var(--tds-ease-out);
+    transition: translate var(--tds-dur-swap) var(--tds-ease-sheet);
   }
+  .tds-peek-body { display: flex; flex-direction: column; gap: var(--tds-space-10) }
   .tds-peek-head { display: flex; align-items: center; gap: var(--tds-space-10) }
   .tds-peek-head b { flex: 1; min-width: 0; font-size: var(--tds-type-row-size); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
   .tds-peek-head em { font-style: normal; font-size: var(--tds-type-label-size); color: var(--tds-text-muted) }

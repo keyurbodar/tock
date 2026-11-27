@@ -28,7 +28,7 @@ export const sources: readonly Source[] = [
   { surface: ".tds-plus-menu", trigger: () => document.querySelector(".tds-composer-plus") },
   { surface: ".tds-menu", trigger: opener },
   { surface: ".tds-palette", trigger: () => document.querySelector(".tds-search"), ghost: true, backdrop: true, kind: "popover" },
-  { surface: ".tds-peek", trigger: () => document.querySelector(".tds-row-wrap:hover"), ghost: true, kind: "popover" },
+  { surface: ".tds-peek", trigger: () => document.querySelector(".tds-row-wrap:hover, .tds-pin:hover"), ghost: true, kind: "popover" },
   { surface: ".tds-attach-preview", trigger: () => document.querySelector(".tds-attach:hover"), kind: "popover" },
   { surface: ".tds-worklog", trigger: () => document.querySelector('.tds-act-button[aria-expanded="true"]'), ghost: true },
   { surface: ".tds-keys", trigger: () => document.querySelector('.tds-rail-button[aria-label="Keyboard shortcuts"]'), ghost: true, backdrop: true, kind: "dialog" },

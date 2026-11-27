@@ -865,9 +865,9 @@ const journeys: Record<string, () => void | Promise<void>> = {
     wait(350)
     ab("mouse", "move", String(at.x + at.w - 60), y)
     ab("mouse", "down")
-    ab("mouse", "move", String(at.x + 10), y, "--steps", "12")
+    ab("mouse", "move", String(at.x + at.w - 60 - 185), y, "--steps", "12")
     ab("mouse", "up")
-    until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), (still) => !still, "a full swipe to archive the row")
+    until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), (still) => !still, "a long-enough swipe (past the near threshold, short of the far one) to archive the row")
     until(() => exists(".tds-toast-action"), Boolean, "the Undo toast")
     js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
     until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), Boolean, "Undo to restore the row")
@@ -970,7 +970,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(!exists(".tds-peek"), "the peek waits for the pointer to rest")
     until(() => exists(".tds-peek"), Boolean, "the peek card", 3000)
     check(js<number>("return document.querySelector('.tds-peek').offsetWidth") === 330, "the peek is 330 wide")
-    check(js<number>("return document.querySelector('.tds-peek').offsetLeft") === rect(".tds-sidebar")!.x + rect(".tds-sidebar")!.w + 14, "the peek sits 14 beside the sidebar")
+    check(js<number>("return parseFloat(document.querySelector('.tds-peek').style.translate)") === rect(".tds-sidebar")!.x + rect(".tds-sidebar")!.w + 14, "the peek sits 14 beside the sidebar")
     wait(400)
     shot("peek")
     ab("mouse", "move", "900", "450")
@@ -985,6 +985,40 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "Escape")
     until(() => exists(".tds-peek"), (open) => !open, "Escape to hide the peek")
     ab("mouse", "move", "900", "450")
+  },
+  peekcontinuous() {
+    ensureRows(3)
+    ab("mouse", "move", "900", "450")
+    const rows = js<{ x: number; y: number }[]>("return [...document.querySelectorAll('.tds-row-wrap:not([data-archived]) .tds-row')].slice(0, 3).map((e) => { const r = e.getBoundingClientRect(); return { x: r.x + 60, y: r.y + r.height / 2 } })")
+    const label = () => js<string>("return document.querySelector('.tds-peek:not([data-ghost])')?.dataset.id ?? ''")
+    const glide = (points: { x: number; y: number }[], what: string) => {
+      ab("mouse", "move", String(points[0]!.x), String(points[0]!.y))
+      until(() => exists(".tds-peek"), Boolean, `the peek on the first ${what}`, 3000)
+      ab("eval", "document.querySelector('.tds-peek').__same = 1")
+      const seen = new Set([label()])
+      for (const p of points.slice(1)) {
+        ab("mouse", "move", String(p.x), String(p.y), "--steps", "6")
+        for (const end = Date.now() + 500; Date.now() < end; wait(40)) check(exists(".tds-peek:not([data-ghost])"), `the peek stays up while moving between ${what}s`)
+        seen.add(label())
+      }
+      check(js<number>("return document.querySelector('.tds-peek:not([data-ghost])')?.__same ?? 0") === 1, `one card morphs between ${what}s instead of closing and reopening`)
+      check(seen.size === points.length, `the card shows each ${what}'s chat (${[...seen].join(" / ")})`)
+    }
+    glide(rows, "row")
+    check(js<string>("return document.querySelector('.tds-peek').dataset.place") === "side", "rows peek beside the sidebar")
+    shot("peek-rows")
+    ab("mouse", "move", "900", "450")
+    until(() => exists(".tds-peek:not([data-ghost])"), (open) => !open, "a short grace after leaving the list closes the peek", 2000)
+    const pins = js<{ x: number; y: number }[]>("return [...document.querySelectorAll('.tds-pin')].slice(0, 3).map((e) => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + 24 } })")
+    if (pins.length >= 2) {
+      wait(600)
+      glide(pins, "pin")
+      check(js<string>("return document.querySelector('.tds-peek').dataset.place") === "below", "pins peek below the pin, over the roster")
+      check(rect(".tds-peek")!.y >= rect(".tds-pin")!.y + rect(".tds-pin")!.h - 2, "the pin peek sits under the pins")
+      shot("peek-pins")
+      ab("mouse", "move", "900", "450")
+      until(() => exists(".tds-peek:not([data-ghost])"), (open) => !open, "the pin peek closes after the grace", 2000)
+    }
   },
   snooze() {
     ensureRows(1)
@@ -1120,7 +1154,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(js<number>("return document.querySelectorAll('.tds-search-hint kbd').length") === 2, "the search hint is two keycaps, ⌘ and K (TG-15)")
     check(style(".tds-toast-row b", "fontSize") === "15px", "the toast row name is 15 (TG-16)")
     check(js<string>("return document.querySelector('.tds-toast-hint')?.textContent ?? ''") === "Hold for all chats", "the toast row hint reads Hold for all chats (TG-16)")
-    if (exists(".tds-pin-circle")) check(style(".tds-pin-circle", "backgroundColor") === "rgba(255, 255, 255, 0.067)", "pin circles are plain glass (TG-14)")
+    if (exists(".tds-pin-circle")) check(style(".tds-pin-circle", "borderRadius") === "10px", "pins are rounded-square tiles (fb-1610)")
     if (exists(".tds-pin-label")) check(style(".tds-pin-label", "whiteSpace") === "nowrap", "pin labels are one line (TG-14)")
     shot("typography")
     ab("mouse", "move", "900", "450")
@@ -1613,10 +1647,11 @@ const journeys: Record<string, () => void | Promise<void>> = {
     js<boolean>(`window.__flew = false; new MutationObserver((_, o) => { if (document.querySelector('.tds-flight-dot[data-chat="${chat}"]')) { window.__flew = true; o.disconnect() } }).observe(document.body, { childList: true }); return true`)
     const title = until(() => js<string>(`return [...document.querySelectorAll('.tds-toast .tds-toast-title')].map((t) => t.textContent).join('|')`), (t) => t.includes("history of toast"), "chat A's finished toast")
     shot("finished-toast")
-    until(() => js<boolean>("return window.__flew"), Boolean, "the dot to fly home", 10000)
-    if (exists(".tds-flight-dot")) shot("finished-flight")
-    until(() => exists(`.tds-flight-dot`), (flying) => !flying, "the dot to land", 3000)
-    until(() => exists(`.tds-row[href="/t/${chat}"][data-unread] .tds-unread`), Boolean, "chat A's row to show unread")
+    until(() => exists(`.tds-row[href="/t/${chat}"][data-unread]`), Boolean, "chat A's row to turn unread")
+    wait(800)
+    check(!js<boolean>("return window.__flew"), "no dot flies home (fb-1600: not our style)")
+    check(!exists(`.tds-row[href="/t/${chat}"] .tds-unread`), "unread is the bold title alone, no dot")
+    check(style(`.tds-row[href="/t/${chat}"] .tds-row-title`, "fontWeight") === "600", "an unread chat's title is bold")
     shot("finished-landed")
     void title
   },
@@ -3451,7 +3486,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
