@@ -68,7 +68,7 @@
   .tds-pin[data-active]::before { opacity: 1; scale: 1 }
   .tds-pin > * { position: relative }
   .tds-pin-circle {
-    position: relative; flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-small); display: grid; place-items: center;
+    position: relative; flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pin-glyph); display: grid; place-items: center;
     background: color-mix(in oklab, currentColor var(--tds-raise-tint), var(--tds-surface-side)); box-shadow: var(--tds-glass-shadow);
     transition: scale var(--tds-dur-tooltip) var(--tds-ease-out);
   }
@@ -113,7 +113,7 @@
   .tds-stack-track { position: relative }
   .tds-stack-pill {
     position: absolute; left: 0; display: flex; align-items: center; gap: var(--tds-space-12); height: var(--tds-size-session-pill); max-width: var(--tds-size-stack-pill-max);
-    padding: 0 var(--tds-space-18) 0 var(--tds-space-12); border-radius: var(--tds-radius-pill); white-space: nowrap; text-align: left;
+    padding: 0 var(--tds-space-18) 0 var(--tds-space-12); border-radius: var(--tds-radius-stack-pill); white-space: nowrap; text-align: left;
     background: var(--tds-surface-card); box-shadow: var(--tds-over-shadow);
     opacity: 0; translate: 0 calc(var(--tds-space-10) * -1); scale: .92; filter: blur(var(--tds-blur-enter)); transform-origin: var(--tds-space-20) 50%;
     --stack-delay: calc(var(--tds-stagger) * var(--stack-i, 0));

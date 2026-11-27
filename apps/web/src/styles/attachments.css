@@ -13,7 +13,7 @@
   }
   @media (hover: hover) and (pointer: fine) { .tds-doc:hover { --raise-sheen: var(--tds-raise-sheen-2); --raise-shadow: var(--tds-raise-shadow-2); background-color: var(--tds-surface-raise) } }
   .tds-doc-glyph {
-    display: grid; place-items: center; flex: none; width: var(--tds-size-file-tile); height: var(--tds-size-file-tile); border-radius: var(--tds-radius-glyph);
+    display: grid; place-items: center; flex: none; width: var(--tds-size-file-tile); height: var(--tds-size-file-tile); border-radius: var(--tds-radius-card-glyph);
     background: color-mix(in oklab, var(--tds-chip-accent) 16%, var(--tds-surface-attach-doc)); color: color-mix(in oklab, var(--tds-chip-accent) 80%, var(--tds-text-tx));
   }
   .tds-doc-text {

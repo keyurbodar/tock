@@ -15,7 +15,7 @@
     & > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
   }
   .tds-code-actions { display: flex; align-items: center; gap: var(--tds-space-2) }
-  .tds-code-action { display: grid; place-items: center; width: var(--tds-size-action); height: var(--tds-size-action); border-radius: var(--tds-radius-small); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out) }
+  .tds-code-action { display: grid; place-items: center; width: var(--tds-size-action); height: var(--tds-size-action); border-radius: var(--tds-radius-button-sm); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out) }
   @media (hover: hover) and (pointer: fine) { .tds-code-action:hover { color: var(--tds-text-tx2); background: var(--tds-overlay-hover) } }
   .tds-code-action[aria-pressed="true"] { color: var(--tds-text-tx2); background: var(--tds-overlay-hover) }
   .tds-code-copy[data-glyph="check"] { color: var(--tds-status-done) }

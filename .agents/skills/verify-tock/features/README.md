@@ -41,3 +41,4 @@
 | Health | diagnostics | no Solid diagnostics or page errors across the run |
 - [media.md](media.md): image rows, doc cards, lightbox, finished-elsewhere dot (`lightbox`, `finished`)
 - [ui.md](ui.md): interface/layout rules from the jk and ek skills (`ui`)
+| Radius scale (fb-1610) | radii, menu, typography | rows, row wraps and the agent row take radius.row; rail buttons radius.rail-button; pin tiles, the menu and the palette nest their inner radius (inner = outer - padding), all read from tokens.json; the composer stays 22 and circular icon buttons stay pill |

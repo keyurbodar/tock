@@ -110,7 +110,7 @@
 
   .tds-key {
     display: inline-flex; align-items: center; justify-content: center; gap: var(--tds-space-7);
-    height: var(--tds-size-key); padding: 0 var(--tds-space-14); border-radius: var(--tds-radius-field);
+    height: var(--tds-size-key); padding: 0 var(--tds-space-14); border-radius: var(--tds-radius-button);
     font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-medium); letter-spacing: var(--tds-type-menu-tracking);
     background: var(--tds-key-fill); color: var(--tds-text-tx); box-shadow: var(--tds-key-shadow);
     transition: scale var(--tds-dur-press) var(--tds-ease-out), filter var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out);

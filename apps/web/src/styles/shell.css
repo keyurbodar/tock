@@ -356,7 +356,7 @@
   .tds-dialog-text { margin: 0; font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-lh); color: var(--tds-text-muted); text-wrap: pretty }
   .tds-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--tds-space-8); width: 100%; margin-top: var(--tds-space-14) }
   .tds-button {
-    height: var(--tds-size-header-button); border-radius: var(--tds-radius-field); background: var(--tds-overlay-fill-8);
+    height: var(--tds-size-header-button); border-radius: var(--tds-radius-button); background: var(--tds-overlay-fill-8);
     font-size: var(--tds-type-body-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx);
     transition: background-color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
   }

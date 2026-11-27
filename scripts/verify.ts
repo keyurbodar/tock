@@ -546,7 +546,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const items = js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())")
     check(["Rename…", "Pin", "Mark as ", "Snooze", "Move to…", "Copy Link", "Archive", "Delete"].every((item) => items.some((text) => text.startsWith(item))) && items.some((text) => /^Mark as (Read|Unread)/.test(text)), `menu items: ${items.join(", ")}`)
     const geometry = js<{ w: number; h: number; r: string; f: string }>("const m = document.querySelector('.tds-menu'); const i = m.querySelector('.tds-menu-item'); const s = getComputedStyle(i); return { w: m.getBoundingClientRect().width, h: i.getBoundingClientRect().height, r: s.borderRadius, f: s.fontSize }")
-    check(geometry.w >= 220 && geometry.h === 32 && geometry.r === "9px" && geometry.f === "13.5px", `SPEC §8 menu: 220 min, 32 items, r9, 13.5 text (got ${JSON.stringify(geometry)})`)
+    check(geometry.w >= 220 && geometry.h === 32 && geometry.r === `${tokens.radius["menu-item"]}px` && geometry.f === "13.5px", `SPEC §8 menu: 220 min, 32 items, r${tokens.radius["menu-item"]}, 13.5 text (got ${JSON.stringify(geometry)})`)
     shot("menu")
     ab("press", "Escape")
     until(() => exists(".tds-menu"), (open) => !open, "the menu to close")
@@ -1229,7 +1229,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(js<number>("return document.querySelectorAll('.tds-search-hint kbd').length") === 2, "the search hint is two keycaps, ⌘ and K (TG-15)")
     check(style(".tds-toast-row b", "fontSize") === "15px", "the toast row name is 15 (TG-16)")
     check(js<string>("return document.querySelector('.tds-toast-hint')?.textContent ?? ''") === "Hold for all chats", "the toast row hint reads Hold for all chats (TG-16)")
-    if (exists(".tds-pin-circle")) check(style(".tds-pin-circle", "borderRadius") === "10px", "pins are rounded-square tiles (fb-1610)")
+    if (exists(".tds-pin-circle")) check(style(".tds-pin-circle", "borderRadius") === `${tokens.radius["pin-glyph"]}px`, "pins are rounded-square tiles (fb-1610)")
     if (exists(".tds-pin-label")) check(style(".tds-pin-label", "whiteSpace") === "nowrap", "pin labels are one line (TG-14)")
     shot("typography")
     ab("mouse", "move", "900", "450")
@@ -1374,6 +1374,42 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(x, (now) => Math.abs(now - rest) < 1, "a third bell click mid-flight to land the centre open")
     ab("press", "Escape")
     until(() => js<string>("return getComputedStyle(document.querySelector('.tds-centre')).visibility"), (v) => v === "hidden", "Escape to slide the centre away")
+  },
+  radii() {
+    ensureRows(2)
+    const r = tokens.radius
+    const px = (n: number) => n + "px"
+    ab("mouse", "move", "5", "5")
+    const at = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
+    ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2))
+    check(style(".tds-row", "borderTopLeftRadius") === px(r.row) && style(".tds-row-wrap", "borderTopLeftRadius") === px(r.row), "rows and their wraps take radius.row (" + r.row + ")")
+    check(style(".tds-toast-row", "borderTopLeftRadius") === px(r.row), "the agent row takes radius.row")
+    check(style(".tds-rail-button", "borderTopLeftRadius") === px(r["rail-button"]), "rail buttons take radius.rail-button (" + r["rail-button"] + ")")
+    if (exists(".tds-pin")) {
+      const pin = js<{ tile: number; pad: number; glyph: number }>("const p = document.querySelector('.tds-pin'); const s = getComputedStyle(p); return { tile: parseFloat(s.borderTopLeftRadius), pad: parseFloat(s.paddingTop), glyph: parseFloat(getComputedStyle(p.querySelector('.tds-pin-circle')).borderTopLeftRadius) }")
+      check(pin.tile === r.card && pin.tile - pin.pad === pin.glyph, "pin tiles nest their glyph (inner = outer - padding): " + JSON.stringify(pin))
+    }
+    wait(300)
+    shot("radii-rows")
+    ab("mouse", "move", "5", "5")
+    openRow()
+    const menu = js<{ outer: number; pad: number; inner: number }>("const m = document.querySelector('.tds-menu'); const s = getComputedStyle(m); return { outer: parseFloat(s.borderTopLeftRadius), pad: parseFloat(s.paddingTop), inner: parseFloat(getComputedStyle(m.querySelector('.tds-menu-item')).borderTopLeftRadius) }")
+    check(menu.outer === r.menu && menu.outer - menu.pad === menu.inner, "menu items nest in the menu (inner = outer - padding): " + JSON.stringify(menu))
+    shot("radii-menu")
+    ab("press", "Escape")
+    until(() => exists(".tds-menu"), (open) => !open, "the menu to close")
+    ab("press", "Control+k")
+    until(() => exists(".tds-palette .tds-palette-item"), Boolean, "the palette")
+    const pal = js<{ outer: number; pad: number; inner: number; search: string }>("const p = document.querySelector('.tds-palette'); const s = getComputedStyle(p); const q = getComputedStyle(p.querySelector('.tds-palette-search')); return { outer: parseFloat(s.borderTopLeftRadius), pad: parseFloat(s.paddingTop), inner: parseFloat(getComputedStyle(p.querySelector('.tds-palette-item')).borderTopLeftRadius), search: q.borderTopLeftRadius + ' ' + q.borderBottomLeftRadius }")
+    check(pal.outer === r.palette && pal.outer - pal.pad === pal.inner && pal.search.startsWith(px(pal.inner)), "palette rows and search nest in the palette: " + JSON.stringify(pal))
+    wait(250)
+    shot("radii-palette")
+    ab("press", "Escape")
+    until(() => exists(".tds-palette"), (open) => !open, "the palette to close")
+    fresh()
+    until(() => exists(".tds-field"), Boolean, "the composer")
+    check(style(".tds-field", "borderTopLeftRadius") === "22px", "the composer keeps its radius 22")
+    check([".tds-composer-plus", ".tds-send", ".tds-header-button"].every((sel) => style(sel, "borderTopLeftRadius") === "9999px"), "circular icon buttons (plus, send, header) stay pill")
   },
   palette() {
     ab("press", "Control+k")
@@ -4059,7 +4095,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
