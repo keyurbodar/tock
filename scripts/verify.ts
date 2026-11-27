@@ -7,6 +7,7 @@
 import { mkdirSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { tokens } from "../packages/tokens/dist/tokens"
 
 const BASE = process.env.TOCK_URL ?? "http://localhost:5199"
 const OUT = process.env.TOCK_VERIFY_OUT ?? join(homedir(), ".capy/work/verify", new Date().toISOString().replace(/[:.]/g, "-"))
@@ -260,7 +261,7 @@ const journeys: Record<string, () => void> = {
     choose("Pin")
     until(() => js<boolean>(`return !!document.querySelector('.tds-pin[data-id="${id}"]')`), Boolean, "the chat to land in the pins")
     until(() => exists(`.tds-row-wrap[data-id="${id}"]`), (still) => !still, "the pinned chat to leave the list")
-    check(pins() === Math.min(4, before + 1), `pins should grow by one, got ${pins()}`)
+    check(pins() === Math.min(12, before + 1), `pins should grow by one, got ${pins()}`)
     check(rect(`.tds-pin[data-id="${id}"] .tds-pin-circle`)?.w === 48, "pin circles are 48")
     check(js<number>("return Math.max(...[...document.querySelectorAll('.tds-pin')].map((e) => e.getBoundingClientRect().width))") <= 76, "pin slots are at most 76")
     check(style(".tds-pin-label", "fontSize") === "12px", "pin labels are 12px")
@@ -276,6 +277,59 @@ const journeys: Record<string, () => void> = {
     choose("Unpin")
     until(() => exists(`.tds-row-wrap[data-id="${id}"]`), Boolean, "the row to come back")
     check(!exists(`.tds-pin[data-id="${id}"]`), "the pin should be gone")
+  },
+  pingrid() {
+    const pins = () => js<number>("return document.querySelectorAll('.tds-pin').length")
+    const added: string[] = []
+    ensureRows(Math.max(1, 6 - pins()))
+    while (pins() < 6) {
+      const id = js<string>("return document.querySelector('.tds-row-wrap')?.dataset.id ?? ''")
+      ab("eval", "document.querySelector('.tds-row-wrap')?.scrollIntoView({ block: 'center' })")
+      openRow()
+      choose("Pin")
+      until(() => js<boolean>(`return !!document.querySelector('.tds-pin[data-id="${id}"]')`), Boolean, "the chat to land in the pins")
+      added.push(id)
+      if (liveRows() === 0) ensureRows(1)
+    }
+    const layout = () =>
+      js<{ visible: number; overlap: boolean; rows: number; cols: number; clamp: boolean }>(`
+        const side = document.querySelector('.tds-sidebar').getBoundingClientRect()
+        const tiles = [...document.querySelectorAll('.tds-pin')].map((e) => e.getBoundingClientRect())
+        const labels = [...document.querySelectorAll('.tds-pin-label')].map((e) => e.getBoundingClientRect())
+        const visible = tiles.filter((r) => r.width > 0 && r.left >= side.left - 1 && r.right <= side.right + 1).length
+        const overlap = labels.some((a, i) => labels.some((b, j) => i !== j && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1))
+        const tops = [...new Set(tiles.map((r) => Math.round(r.top)))]
+        const lh = parseFloat(getComputedStyle(document.querySelector('.tds-pin-label')).lineHeight)
+        return { visible, overlap, rows: tops.length, cols: Math.max(...tops.map((t) => tiles.filter((r) => Math.round(r.top) === t).length)), clamp: labels.every((r) => r.height <= lh * 2 + 1) }`)
+    const at = (width: number) => {
+      ab("eval", `localStorage.setItem("tock.sidebar.width", "${width}")`)
+      ab("open", BASE)
+      until(pins, (n) => n >= 6, "the pins after reload")
+      wait(700)
+      return layout()
+    }
+    const wide = at(296)
+    check(wide.visible === pins(), `every pin is visible at 296, got ${wide.visible} of ${pins()}`)
+    check(!wide.overlap, "pin labels never run into each other at 296")
+    check(wide.clamp, "pin labels clamp to two lines")
+    shot("pingrid-296")
+    const narrow = at(tokens.size["sidebar-min"])
+    check(narrow.visible === pins(), `every pin is visible at the narrowest sidebar, got ${narrow.visible} of ${pins()}`)
+    check(!narrow.overlap, "pin labels never run into each other at the narrowest sidebar")
+    check(narrow.cols < wide.cols && narrow.rows === Math.ceil(pins() / narrow.cols) && wide.rows === Math.ceil(pins() / wide.cols), `pins reflow into fewer columns when the sidebar narrows (${wide.cols}x${wide.rows} → ${narrow.cols}x${narrow.rows})`)
+    shot("pingrid-narrow")
+    ab("eval", 'localStorage.removeItem("tock.sidebar.width")')
+    ab("open", BASE)
+    for (const id of added) {
+      until(() => exists(`.tds-pin[data-id="${id}"]`), Boolean, "the pin to unpin")
+      const box = rect(`.tds-pin[data-id="${id}"]`)!
+      ab("mouse", "move", String(box.x + box.w / 2), String(box.y + box.h / 2))
+      ab("mouse", "down", "right")
+      ab("mouse", "up", "right")
+      until(() => exists(".tds-menu"), Boolean, "the pin menu")
+      choose("Unpin")
+      until(() => exists(`.tds-pin[data-id="${id}"]`), (still) => !still, "the pin to leave")
+    }
   },
   swipe() {
     ensureRows(1)
@@ -1389,7 +1443,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

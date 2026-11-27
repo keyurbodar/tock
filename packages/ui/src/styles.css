@@ -98,3 +98,14 @@
   .tds-scroll { scrollbar-width: none }
   .tds-scroll::-webkit-scrollbar { display: none }
 }
+
+/* Raise: the shaded depth layer (soft top highlight, a gradient sheen, small plus large shadows). Every raised surface takes one of these;
+   a component state that adds a ring sets --tds-raise-ring instead of box-shadow so the depth stays. */
+@layer utilities {
+  .tds-raise-1, .tds-raise-2, .tds-raise-3 { box-shadow: var(--tds-raise-ring, 0 0 transparent), var(--raise-shadow); background-image: var(--raise-sheen) }
+  .tds-raise-1 { --raise-sheen: var(--tds-raise-sheen-1); --raise-shadow: var(--tds-raise-shadow-1) }
+  .tds-raise-2 { --raise-sheen: var(--tds-raise-sheen-2); --raise-shadow: var(--tds-raise-shadow-2) }
+  .tds-raise-3 { --raise-sheen: var(--tds-raise-sheen-3); --raise-shadow: var(--tds-raise-shadow-3) }
+  .tds-shade { background-image: var(--tds-raise-sheen-hover); box-shadow: var(--tds-raise-shadow-hover) }
+  .tds-over { background-image: var(--tds-raise-sheen-2) }
+}

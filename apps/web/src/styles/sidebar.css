@@ -37,29 +37,34 @@
   .tds-row-wrap[data-go="left"] [data-act="unread"], .tds-row-wrap[data-go="right"] [data-act="delete"] { min-width: 0; flex: 0 0 0; overflow: hidden }
 
   .tds-pins {
-    display: flex; gap: var(--tds-space-4); min-height: var(--tds-size-pins); padding: var(--tds-space-14) 0 var(--tds-space-2);
+    --pin-cols: 4; position: relative; display: flex; flex-wrap: wrap; justify-content: center; row-gap: var(--tds-space-4);
+    min-height: var(--tds-size-pins); padding: var(--tds-space-14) 0 var(--tds-space-2);
     border-radius: var(--tds-radius-card); transition: background-color var(--tds-dur-menu) var(--tds-ease-out), box-shadow var(--tds-dur-menu) var(--tds-ease-out);
   }
   .tds-pins[data-drop] { background: var(--tds-accent-rose-6); box-shadow: inset 0 0 0 1px var(--tds-accent-rose-28) }
   .tds-pin-slot { display: contents }
   .tds-pin {
-    position: relative; flex: 0 1 var(--tds-size-pin-slot); min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-7);
-    padding: var(--tds-space-4) 0; border-radius: var(--tds-radius-row); color: var(--tds-text-muted);
+    position: relative; flex: 0 0 calc(100% / var(--pin-cols)); max-width: var(--tds-size-pin-slot); min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-7);
+    padding: var(--tds-space-6) var(--tds-space-4) var(--tds-space-8); border-radius: var(--tds-radius-card); color: var(--tds-text-muted);
     font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-leading); letter-spacing: 0; transition: color var(--tds-dur-hover) var(--tds-ease-out);
   }
   .tds-pin:hover { color: var(--tds-text-tx2) }
   .tds-pin-circle {
-    width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); display: grid; place-items: center;
-    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow); transition: scale var(--tds-dur-tooltip) var(--tds-ease-out);
+    flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); display: grid; place-items: center;
+    background: var(--tds-raise-sheen-2), color-mix(in oklab, currentColor var(--tds-raise-tint), var(--tds-surface-side)); box-shadow: var(--tds-raise-shadow-2);
+    transition: scale var(--tds-dur-tooltip) var(--tds-ease-out);
   }
   .tds-pin:active .tds-pin-circle { scale: var(--tds-press-tight) }
-  .tds-pin-label { max-width: calc(var(--tds-size-pin-slot) - var(--tds-space-4)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .tds-pin-label {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+    width: 100%; text-align: center; overflow-wrap: anywhere;
+  }
   .tds-pin-rename {
     all: unset; box-sizing: border-box; width: var(--tds-size-pin-slot); padding: 0 var(--tds-space-4); text-align: center;
     border-radius: var(--tds-radius-kbd); background: var(--tds-surface-field); box-shadow: inset 0 0 0 1px var(--tds-accent-rose-45); color: var(--tds-text-tx);
   }
   .tds-pin-dot {
-    position: absolute; top: var(--tds-space-2); right: var(--tds-space-12); width: var(--tds-size-dot-pin); height: var(--tds-size-dot-pin);
+    position: absolute; top: var(--tds-space-4); left: calc(50% + var(--tds-size-pin) / 2 - var(--tds-size-dot-pin)); width: var(--tds-size-dot-pin); height: var(--tds-size-dot-pin);
     border-radius: var(--tds-radius-pill); background: var(--tds-accent-rose); box-shadow: 0 0 0 2px var(--tds-surface-side);
   }
   .tds-pin-ghost { position: fixed; z-index: var(--tds-z-flight); display: grid; place-items: center; pointer-events: none; color: var(--tds-hue-rose) }

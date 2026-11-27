@@ -15,7 +15,7 @@ export const lanes: readonly Lane[] = [
   { item: ".tds-row-wrap", scope: "grandparent", follow: "pointer" },
   { item: ".tds-rail-button", scope: "parent", follow: "pointer" },
   { item: ".tds-header-button", scope: "parent", follow: "pointer" },
-  { item: ".tds-pin", scope: "parent", follow: "pointer" },
+  { item: ".tds-pin", scope: ".tds-pins", follow: "pointer" },
 ]
 
 const glows = new WeakMap<Element, HTMLElement>()

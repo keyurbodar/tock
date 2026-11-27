@@ -167,7 +167,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
                 <div class="tds-divider" role="separator"><span class="tds-divider-rule" /><span class="tds-divider-text">{(item() as Extract<Item, { kind: "divider" }>).text}</span><span class="tds-divider-rule" /></div>
               </Match>
               <Match when={item().kind === "error"}>
-                <div class="tds-alert" role="status">
+                <div class="tds-alert tds-raise-1" role="status">
                   <span class="tds-tint tds-tint-failed size-toast-icon"><Icon name="warning-circle" size="toast" /></span>
                   <span class="min-w-0">
                     <b class="block text-body">{(item() as Extract<Item, { kind: "error" }>).title}</b>

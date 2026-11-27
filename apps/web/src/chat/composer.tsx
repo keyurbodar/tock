@@ -55,7 +55,7 @@ function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => vo
   return (
     <div
       ref={el}
-      class="tds-attach"
+      class="tds-attach tds-raise-1"
       data-kind={props.item.preview ? "image" : "doc"}
       data-status={props.item.status}
       data-key={props.item.key}
@@ -609,7 +609,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       <form class="tds-composer-row" onSubmit={(e) => (e.preventDefault(), submit())}>
         <input ref={picker} type="file" multiple hidden onChange={(e) => (add([...(e.currentTarget.files ?? [])]), (e.currentTarget.value = ""))} />
         <Menu open={plusOpen()} onOpenChange={(next) => setPlusOpen(next)} onAction={(value) => void plus(String(value))}>
-          <MenuTrigger class="tds-press tds-composer-plus" aria-label="Add">
+          <MenuTrigger class="tds-press tds-composer-plus tds-raise-1" aria-label="Add">
             <Icon name="plus" size="composer" class="tds-plus-glyph" />
           </MenuTrigger>
           <MenuContent class="tds-menu tds-plus-menu tds-over" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
@@ -662,7 +662,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </MenuSub>
           </MenuContent>
         </Menu>
-        <div class="tds-field" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
+        <div class="tds-field tds-raise-2" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
           <Show when={props.attachments.items().length > 0}>
             <div ref={tray} class="tds-attach-tray tds-scroll">
               <For each={props.attachments.items()} keyed={(item) => item.key}>
@@ -685,7 +685,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </button>
           </div>
         </div>
-        <button type="submit" class="tds-press tds-send" data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
+        <button type="submit" class="tds-press tds-send tds-raise-2" data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
           <MorphIcon name={stop() ? "stop" : "arrow-up"} class={stop() ? "" : "tds-optical-up"} weight={tokens.icon["stroke-send"]} />
         </button>
       </form>

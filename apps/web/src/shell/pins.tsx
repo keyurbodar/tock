@@ -12,8 +12,39 @@ const pinMenu = createMenuController<Session>()
 const [renamingPin, setRenamingPin] = createSignal<string>()
 export const [dropping, setDropping] = createSignal<"" | "over" | "near">("")
 
-const label = (session: Session) => titleOf(session).split(/\s+/).slice(0, 2).join(" ")
 const ms = tokens.motion.duration
+
+/** The pins wrap into as many columns as the sidebar fits; when pins come, go or the columns change, every tile glides from where it was (FLIP). */
+function flow(box: HTMLElement) {
+  let cols = 0
+  const at = new Map<string, { x: number; y: number }>()
+  const tiles = () => [...box.querySelectorAll<HTMLElement>(".tds-pin")]
+  const read = () => {
+    at.clear()
+    for (const el of tiles()) at.set(el.dataset.id ?? "", { x: el.offsetLeft, y: el.offsetTop })
+  }
+  const move = () => {
+    for (const el of tiles()) {
+      const was = at.get(el.dataset.id ?? "")
+      if (!was) continue
+      const dx = was.x - el.offsetLeft
+      const dy = was.y - el.offsetTop
+      if (dx || dy) el.animate([{ translate: `${dx}px ${dy}px` }, { translate: "0 0" }], { duration: ms.layout, easing: tokens.motion.curve.sheet })
+    }
+    read()
+  }
+  const resize = new ResizeObserver(() => {
+    if (!box.isConnected) return (resize.disconnect(), added.disconnect())
+    const next = Math.max(1, Math.floor(box.clientWidth / tokens.size["pin-slot-min"]))
+    if (next === cols) return read()
+    cols = next
+    box.style.setProperty("--pin-cols", String(next))
+    move()
+  })
+  const added = new MutationObserver(move)
+  resize.observe(box)
+  added.observe(box, { childList: true })
+}
 
 /** The glyph leaves the row and lands in its circle on the sheet curve, then the circle settles .8 → 1.08 → 1, as TDS px2 pin(). */
 function land(circle: HTMLElement, id: string) {
@@ -47,7 +78,7 @@ function PinLabel(props: { session: Session }) {
     if (title && title !== titleOf(props.session)) void updateThread(props.session.id, { title })
   }
   return (
-    <Show when={renamingPin() === props.session.id} fallback={<span class="tds-pin-label">{label(props.session)}</span>}>
+    <Show when={renamingPin() === props.session.id} fallback={<span class="tds-pin-label">{titleOf(props.session)}</span>}>
       <input
         ref={(el) => queueMicrotask(() => (el.focus(), el.select()))}
         class="tds-pin-rename"
@@ -65,7 +96,7 @@ function PinLabel(props: { session: Session }) {
   )
 }
 
-/** Up to four pinned chats above the list, TDS px2 renderPins: 76 slots, 48 glass circles, a 12 label, a 9 rose dot when unread. */
+/** Pinned chats above the list, after TDS px2 renderPins (48 shaded circles, a 12 label, a 9 rose dot when unread) in a wrapping grid that reflows with the sidebar. */
 export function Pins(props: { show: boolean }) {
   const navigate = useNavigate()
   const out = (session: Session, el: HTMLElement) => {
@@ -85,7 +116,7 @@ export function Pins(props: { show: boolean }) {
           if (value === "rename") setRenamingPin(session.id)
         }}
       >
-        <div class="tds-pins" data-drop={dropping() === "over" ? "" : undefined} aria-label="Pinned chats">
+        <div class="tds-pins" ref={flow} data-drop={dropping() === "over" ? "" : undefined} aria-label="Pinned chats">
           <For each={pinnedSessions()} keyed={(session) => session.id}>
             {(session) => (
               <MenuContextTrigger payload={session()} class="tds-pin-slot">

@@ -259,7 +259,7 @@ export async function updateThread(threadId: string, patch: Partial<ThreadMeta>)
 export const pinnedSessions = () =>
   app.sessions.filter((session) => session.meta.pinned && !session.meta.archived).sort((a, b) => (b.meta.pinnedAt ?? 0) - (a.meta.pinnedAt ?? 0))
 
-/** Pins hold four chats; pinning a fifth drops the oldest back into the list. */
+/** Pins hold up to limit.pins chats in a wrapping grid; pinning past it drops the oldest back into the list. */
 export function pinThread(threadId: string) {
   const pins = pinnedSessions()
   const oldest = pins.length >= tokens.limit.pins ? pins[pins.length - 1] : undefined

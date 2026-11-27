@@ -27,7 +27,7 @@
     & .tds-attach-meta b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
   }
   .tds-file-card[data-side="me"] { align-self: flex-end } .tds-file-card[data-side="agent"] { align-self: flex-start }
-  @media (hover: hover) and (pointer: fine) { .tds-file-card:hover { box-shadow: var(--tds-ring-attach-hover) } }
+  @media (hover: hover) and (pointer: fine) { .tds-file-card:hover { --tds-raise-ring: var(--tds-ring-attach-hover) } }
 
   .tds-lightbox {
     position: fixed; inset: 0; z-index: var(--tds-z-lightbox); display: flex; flex-direction: column; align-items: center; justify-content: center;

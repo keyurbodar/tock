@@ -267,7 +267,7 @@ export function WorkLog(props: { work: Work | undefined; shut: boolean; sessionI
   const limit = () => Math.min(innerHeight * 0.6, tokens.size["worklog-inline"])
   return (
     <div
-      class="tds-worklog"
+      class="tds-worklog tds-raise-3"
       data-material="solid"
       role="dialog"
       aria-label="Work log"

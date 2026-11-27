@@ -10,7 +10,7 @@
   .tds-ws-fold[data-open] .tds-ws-body { opacity: 1; filter: none; transition-duration: var(--tds-dur-layout) }
   .tds-ws-caret { transition: rotate var(--tds-dur-layout) var(--tds-ease-sheet) }
   .tds-worklog-body { flex: 1 1 auto; overflow-anchor: none }
-  .tds-column .tds-worklog { position: relative; left: auto; bottom: auto; z-index: auto; width: 100%; margin-top: var(--tds-space-6); box-shadow: var(--tds-ring-card); transform-origin: top left }
+  .tds-column .tds-worklog { position: relative; left: auto; bottom: auto; z-index: auto; width: 100%; margin-top: var(--tds-space-6); --tds-raise-ring: var(--tds-ring-card); transform-origin: top left }
   .tds-column .tds-worklog[data-closing] { translate: none; scale: none; opacity: 0; transition-duration: var(--tds-dur-layout); transition-timing-function: var(--tds-ease-sheet) }
   .tds-jump {
     position: absolute; left: 50%; bottom: var(--tds-size-column-bottom); z-index: 1;
@@ -24,4 +24,8 @@
   .tds-jump[data-on] { opacity: 1; translate: -50% 0; scale: 1; filter: none; pointer-events: auto; transition-duration: var(--tds-dur-layout) }
   .tds-jump:active { scale: var(--tds-press) }
   @media (hover: hover) and (pointer: fine) { .tds-jump:hover { color: var(--tds-text-tx) } }
+}
+
+@layer utilities {
+  .tds-column .tds-worklog { --raise-sheen: var(--tds-raise-sheen-1); --raise-shadow: var(--tds-raise-shadow-1) }
 }

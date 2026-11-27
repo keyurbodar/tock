@@ -39,6 +39,7 @@ v("cap-fill", m.cap.fill); v("cap-shadow", m.cap.shadow); v("cap-lift", m.cap.li
 v("key-fill", m.key.fill); v("key-shadow", m.key.shadow)
 v("key-cream-fill", m["key-cream"].fill); v("key-cream-shadow", m["key-cream"].shadow)
 v("focus-outline", m.focus.outline)
+for (const [k, val] of Object.entries(m.raise)) v(`raise-${k}`, val)
 for (const [k, val] of Object.entries(m.lift)) v(`lift-${k}`, val)
 v("veil-blur", m.veil.blur); v("veil-saturate", m.veil.saturate)
 v("pill-blur", m.pill.blur); v("pill-saturate", m.pill.saturate)

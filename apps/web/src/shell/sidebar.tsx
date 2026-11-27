@@ -452,12 +452,12 @@ export function Sidebar() {
   return (
     <aside class="tds-sidebar" style={{ width: `${width()}px` }} aria-label="Chats">
       <div class="flex gap-6">
-        <label class="tds-search" data-filled={query() ? "" : undefined}>
+        <label class="tds-search tds-raise-1" data-filled={query() ? "" : undefined}>
           <Icon name="magnifying-glass" size="menu" class="tds-search-glyph" />
           <input ref={search} value={query()} onInput={(e) => setQuery(e.currentTarget.value)} placeholder="Search" aria-label="Search chats" onKeyDown={(e) => e.key === "Escape" && (setQuery(""), e.currentTarget.blur())} />
           <kbd class="tds-search-hint">⌘K</kbd>
         </label>
-        <button type="button" class="tds-press grid size-new-chat flex-none place-items-center rounded-pill bg-glass text-tx2 shadow-glass" aria-label="New chat" onClick={startChat}>
+        <button type="button" class="tds-press grid size-new-chat flex-none place-items-center rounded-pill bg-glass text-tx2 tds-raise-1" aria-label="New chat" onClick={startChat}>
           <Icon name="note-pencil" size="menu" />
         </button>
       </div>

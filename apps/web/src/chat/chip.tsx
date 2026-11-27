@@ -67,7 +67,7 @@ export function FileChip(props: { id: string; name: string }) {
 export function FileCard(props: { id: string; name: string; side: "me" | "agent" }) {
   const meta = () => fileChip(props.name)
   return (
-    <a href={fileUrl(props.id)} target="_blank" rel="noreferrer" class="tds-file-card" data-side={props.side} style={{ "--tds-chip-accent": `var(--tds-chip-${meta().kind})` }}>
+    <a href={fileUrl(props.id)} target="_blank" rel="noreferrer" class="tds-file-card tds-raise-1" data-side={props.side} style={{ "--tds-chip-accent": `var(--tds-chip-${meta().kind})` }}>
       <span class="tds-attach-glyph" data-kind={meta().kind}>
         <svg class="tds-icon tds-chip-icon" aria-hidden="true">
           <use href={`#i-${meta().icon}:duotone`} />
