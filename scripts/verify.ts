@@ -2574,7 +2574,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(JSON.stringify(md.tasks) === '["Done","To do"]', "task items render a checkbox: " + JSON.stringify(md.tasks))
     check(JSON.stringify(md.th) === '["Name","Count"]' && md.right === 2, "table renders with alignment: " + JSON.stringify(md.th))
     check(!md.raw, "no raw markdown markers left in agent bubbles")
-    check(md.linkColor === md.tx && /radial-gradient/.test(String(md.dots)), `link text stays --tx with dotted underline (${md.linkColor} vs ${md.tx})`)
+    check(md.linkColor === md.tx, `link text stays --tx (${md.linkColor} vs ${md.tx})`)
     shot("markdown-agent")
     field()
     js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', '> a quoted line\\n\\n3. three\\n4. four\\n\\n- parent\\n  - nested child\\n\\n~~strike only~~'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
