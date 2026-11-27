@@ -257,9 +257,11 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     if (stick && props.work?.active) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight))
   }
   const grow = new ResizeObserver(fit)
+  const [ready, setReady] = createSignal(false)
   const frame = requestAnimationFrame(() => {
     fit()
     measure()
+    setTimeout(() => setReady(true), tokens.motion.duration.panel)
     if (content) grow.observe(content)
     if (props.anchor?.offsetParent) grow.observe(props.anchor.offsetParent)
     fit()
@@ -313,6 +315,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
       data-closing={closing() ? "" : undefined}
       data-up={scrolled() ? "" : undefined}
       data-down={place().up ? undefined : ""}
+      data-ready={ready() ? "" : undefined}
       style={{ width: place().width ? `${place().width}px` : undefined, left: `${place().left}px`, [place().up ? "bottom" : "top"]: `${place().edge}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
     >
       <Show when={props.work}>

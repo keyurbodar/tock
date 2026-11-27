@@ -96,7 +96,7 @@ export function installGrow(root: Document = document) {
     const trigger = source.trigger(el)
     if (!trigger) return
     pending.add(el)
-    const hold = el.animate([{ opacity: 0 }], { duration: tokens.motion.duration.panel, fill: "forwards" })
+    const hold = el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: tokens.motion.duration.panel, fill: "forwards" })
     requestAnimationFrame(() => {
       pending.delete(el)
       hold.cancel()

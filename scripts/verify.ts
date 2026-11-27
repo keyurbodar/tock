@@ -1702,6 +1702,24 @@ const journeys: Record<string, () => void> = {
     shot("worklog-long-output")
     ab("press", "Escape")
   },
+  growopen() {
+    ab("click", ".tds-row-wrap .tds-row")
+    until(() => exists(".tds-act-button"), Boolean, "a thread with a work log", 10000)
+    wait(600)
+    const line = rect(".tds-act-button")!
+    ab("eval", "(() => { const f = []; window.__g = f; let on = true; window.__gstop = () => (on = false); const tick = () => { const el = document.querySelector('.tds-worklog'); if (el) { const r = el.getBoundingClientRect(); f.push([r.x, r.y, r.width, r.height, +getComputedStyle(el).opacity]) } if (on) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()")
+    ab("click", ".tds-act-button")
+    wait(900)
+    const frames = js<number[][]>("window.__gstop(); return window.__g")
+    const end = frames.at(-1)!
+    const first = frames.find((f) => f[4] > 0.05)!
+    check(frames[0]![4] < 0.05, "the pane must not flash at full opacity before it grows (" + JSON.stringify(frames[0]) + ")")
+    check(first[2] < end[2] * 0.6, "the pane should first show small, near its line (" + JSON.stringify(first) + " vs " + JSON.stringify(end) + ")")
+    const between = frames.filter((f) => f[4] > 0.05 && f[2] > first[2] + 1 && f[2] < end[2] - 1)
+    check(between.length >= 3, "the pane should pass through intermediate sizes, saw " + between.length)
+    check(Math.abs(first[0] + first[2] / 2 - (line.x + line.w / 2)) < Math.abs(end[0] + end[2] / 2 - (line.x + line.w / 2)) + 1, "the first visible frame should sit nearer the line than the settled pane")
+    ab("press", "Escape")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1711,7 +1729,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

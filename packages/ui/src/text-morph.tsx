@@ -8,6 +8,10 @@ export function TextMorph(props: { value: string | number; class?: string; numbe
   createEffect(
     () => props.value,
     (value) => {
+      if (!engine && !el.textContent) {
+        el.textContent = String(value)
+        return
+      }
       engine ??= new Engine({
         element: el,
         duration: tokens.motion.duration.swap,
