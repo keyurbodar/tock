@@ -1714,9 +1714,8 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "Backspace")
   },
   chipcards() {
-    ensureRows(1)
-    const other = js<string>("return document.querySelector('.tds-row-wrap[data-id]')?.dataset.id ?? ''")
-    check(other !== "", "a chat to mention")
+    // A chat of our own with a short title, so its chip shares a line with the words around it.
+    const other = seeded("Short chat")
     fresh()
     linkFixtures()
     ab("eval", "fetch('/api/skills', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'verify-skill', description: 'Checks the chip cards', bodyMd: 'Say hi.' }) }).then((r) => r.status)")
