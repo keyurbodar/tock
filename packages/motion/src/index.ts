@@ -1,5 +1,6 @@
 import { tokens } from "@tock/tokens"
 export { installFluidHover, lanes } from "./fluid"
+export { growFrom, installGrow, sources } from "./grow"
 
 const m = tokens.motion
 export const ease = m.curve

@@ -665,6 +665,30 @@ const journeys: Record<string, () => void> = {
     shot("fluid-menu")
     ab("press", "Escape")
   },
+  peekbridge() {
+    const row = js<string>("const r = document.querySelectorAll('.tds-row-wrap')[1].getBoundingClientRect(); return Math.round(r.x + r.width * 0.6) + ' ' + Math.round(r.y + r.height / 2)")
+    ab("mouse", "move", ...row.split(" "))
+    until(() => exists(".tds-peek"), Boolean, "the peek card", 4000)
+    wait(500)
+    const title = js<string>("return document.querySelector('.tds-peek b')?.textContent ?? ''")
+    const card = rect(".tds-peek")!
+    const [x0, y0] = row.split(" ").map(Number) as [number, number]
+    const x1 = card.x + 20
+    const y1 = card.y + card.h - 20
+    const seen: string[] = []
+    for (let i = 1; i <= 12; i++) {
+      ab("mouse", "move", String(Math.round(x0 + ((x1 - x0) * i) / 12)), String(Math.round(y0 + ((y1 - y0) * i) / 12)))
+      wait(40)
+      seen.push(js<string>("return document.querySelector('.tds-peek b')?.textContent ?? '-'") + "@" + Date.now() % 100000)
+    }
+    check(exists(".tds-peek"), `the peek holds while the pointer travels to it across other rows (${title}: ${seen.join(" / ")}; from ${x0},${y0} to ${x1},${y1})`)
+    check(seen.every((t) => t.split("@")[0] === title), `the peek does not swap to a row the pointer crosses on the way (${title}: ${seen.join(" / ")})`)
+    wait(400)
+    check(exists(".tds-peek"), "the peek stays while hovered")
+    shot("peek-bridge")
+    ab("mouse", "move", "900", "450")
+    until(() => exists(".tds-peek"), (open) => !open, "the peek to hide once the pointer leaves it")
+  },
   morph() {
     ab("click", "button[aria-label='New chat']")
     ab("click", ".tds-composer-plus")
@@ -1309,7 +1333,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

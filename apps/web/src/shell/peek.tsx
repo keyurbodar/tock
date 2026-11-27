@@ -39,11 +39,39 @@ async function show(session: Session, row: HTMLElement) {
 }
 let keyed = false
 
+let pointer = { x: 0, y: 0 }
+let apex: { x: number; y: number } | undefined
+if (typeof document !== "undefined") document.addEventListener("pointermove", (e) => (pointer = { x: e.clientX, y: e.clientY }), { passive: true })
+
+const cross = (a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+
+/** Safe triangle: from where the pointer left its row to the card's near edge. Inside it the pointer is on its way to the card, so the card holds. */
+function aiming() {
+  const card = document.querySelector(".tds-peek")?.getBoundingClientRect()
+  if (!card || !apex) return false
+  const top = { x: card.left, y: card.top }
+  const bottom = { x: card.left, y: card.bottom }
+  const d1 = cross(apex, top, pointer)
+  const d2 = cross(top, bottom, pointer)
+  const d3 = cross(bottom, apex, pointer)
+  return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))
+}
+
+function holdOrHide(since: number) {
+  if (aiming() && Date.now() - since < intent.open * 2) {
+    leaveTimer = setTimeout(() => holdOrHide(since), intent.leave)
+    return
+  }
+  hidePeek()
+}
+
 /** Resting on a row shows the peek; once one is open, moving to the next row swaps it at once, as TDS px2 Peek. */
 export function peekEnter(session: Session, row: HTMLElement) {
+  if (shown() && shown()?.session.id !== session.id && aiming()) return
   hovered = { session, row }
   clearTimeout(restTimer)
   clearTimeout(leaveTimer)
+  apex = undefined
   if (shown()?.session.id === session.id) return
   restTimer = setTimeout(() => void show(session, row), warm ? 0 : intent["peek-rest"])
 }
@@ -51,7 +79,10 @@ export function peekEnter(session: Session, row: HTMLElement) {
 export function peekLeave() {
   hovered = undefined
   clearTimeout(restTimer)
-  leaveTimer = setTimeout(hidePeek, intent.leave)
+  clearTimeout(leaveTimer)
+  apex ??= pointer
+  const since = Date.now()
+  leaveTimer = setTimeout(() => holdOrHide(since), intent.leave)
 }
 
 export function hidePeek() {
@@ -85,7 +116,7 @@ export function Peek() {
             role="dialog"
             aria-label={`Peek at ${titleOf(peek().session)}`}
             style={{ left: `${peek().left}px`, top: `${peek().top}px` }}
-            onPointerEnter={() => clearTimeout(leaveTimer)}
+            onPointerEnter={() => ((apex = undefined), clearTimeout(leaveTimer))}
             onPointerLeave={() => peekLeave()}
             onClick={() => (navigate(`/t/${peek().session.id}`), hidePeek())}
           >
