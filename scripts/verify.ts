@@ -1623,6 +1623,18 @@ const journeys: Record<string, () => void> = {
     ab("press", "Control+a")
     ab("press", "Backspace")
   },
+  revealstable() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    settled()
+    js<boolean>(`const b = document.querySelector('.tds-act-button'); const r0 = b.getBoundingClientRect(); window.__drift = { max: 0, frames: 0, done: false }; const tick = () => { const r = document.querySelector('.tds-act-button')?.getBoundingClientRect(); if (r) window.__drift.max = Math.max(window.__drift.max, Math.abs(r.top - r0.top), Math.abs(r.left - r0.left), Math.abs(r.height - r0.height)); window.__drift.frames++; if (document.querySelector('.tds-word-wait, .tds-word') || window.__drift.frames < 30) requestAnimationFrame(tick); else window.__drift.done = true }; requestAnimationFrame(tick); return true`)
+    const drift = until(() => js<{ max: number; frames: number; done: boolean }>("return window.__drift"), (d) => d.done, "the reveal to finish", 15000)
+    check(drift.max < 0.5, `the activity line moved ${drift.max}px between the run settling and the reveal ending`)
+    shot("reveal-stable")
+  },
   clamp() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
@@ -2071,7 +2083,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "revealstable", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

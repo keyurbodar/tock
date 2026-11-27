@@ -13,13 +13,16 @@ import { createReveal } from "./stream"
 interface Words {
   next(): number
   delay(i: number): string | undefined
+  hidden(i: number): boolean
 }
 
 function words(text: string, clock: Words | undefined): JSX.Element {
   if (!clock) return text
   return text.split(/(\s+)/).map((part) => {
     if (part === "" || /^\s+$/.test(part)) return part
-    const delay = clock.delay(clock.next())
+    const i = clock.next()
+    if (clock.hidden(i)) return <span class="tds-word-wait">{part}</span>
+    const delay = clock.delay(i)
     return delay ? <span class="tds-word" style={{ "animation-delay": delay }}>{part}</span> : part
   })
 }
@@ -151,7 +154,7 @@ function lexBlocks(text: string): Token[] {
 /** A reply. While it streams, words arrive one at a time and each fades in from a slight blur (TDS streaming words). */
 export function Markdown(props: { text: string; streaming?: boolean }) {
   const reveal = createReveal(() => props.text, () => props.streaming ?? false)
-  const blocks = createMemo(() => lexBlocks(reveal.text()))
+  const blocks = createMemo(() => lexBlocks(props.text))
   /** Word numbers restart for every render pass; blocks render in order, so block i counts after the blocks before it. */
   const offsets = createMemo(() => {
     let total = 0
@@ -164,7 +167,7 @@ export function Markdown(props: { text: string; streaming?: boolean }) {
   const clockFor = (index: number): Words | undefined => {
     if (!reveal.revealing() && !props.streaming) return undefined
     let i = offsets()[index] ?? 0
-    return { next: () => i++, delay: reveal.delay }
+    return { next: () => i++, delay: reveal.delay, hidden: reveal.hidden }
   }
   return <For each={blocks()} keyed={false}>{(token, index) => <Block token={token()} clock={() => clockFor(index)} />}</For>
 }

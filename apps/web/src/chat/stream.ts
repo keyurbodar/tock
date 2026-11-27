@@ -11,7 +11,9 @@ const remembered = new Map<string, Progress>()
 const keyOf = (text: string) => text.slice(0, tokens.limit["stream-key"])
 
 /**
- * Streamed text, revealed a word at a time (TDS motion.stream): words arrive at a steady pace and catch up when the model
+ * Streamed text, revealed a word at a time. Every word that has arrived already takes its final space; the reveal only
+ * fades words in (opacity and blur), so the text block's height is final the moment text lands.
+ * Words are revealed one at a time (TDS motion.stream): words arrive at a steady pace and catch up when the model
  * runs ahead. When the backlog passes stream-burst words (a long reply arriving in bulk), everything but the last few
  * words lands at once and only that tail fades in, so big outputs never crawl. Text that was already finished when it
  * mounted shows at once.
@@ -47,13 +49,8 @@ export function createReveal(text: () => string, live: () => boolean) {
   onCleanup(() => clearTimeout(timer))
 
   return {
-    /** The revealed prefix, cut at a word end. */
-    text: () => {
-      const all = ends()
-      const shown = Math.min(count(), all.length)
-      if (shown >= all.length) return text()
-      return shown === 0 ? "" : text().slice(0, all[shown - 1])
-    },
+    /** Word i is laid out from the moment it arrives but stays invisible until the reveal reaches it, so layout never changes as words appear. */
+    hidden: (i: number) => i >= count(),
     /** How far into its fade word i is, as a negative delay, so re-rendering never restarts a word. */
     delay: (i: number) => {
       const at = progress.times[i]
