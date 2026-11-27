@@ -12,23 +12,31 @@ import { Message } from "./reactions"
 import { splitFiles } from "./attachments"
 import { Attachments } from "./files"
 import { LinkMenu, openLinkMenu, shortUrl } from "./link"
+import { parseQuote } from "./quote"
+import { QuoteChip, ReplyActions } from "./reply"
 import { toast } from "../shell/toasts"
 import { app, send, type ThreadState } from "../state/app"
 import { cancelIdle, whenIdle } from "../lib/idle"
 
-function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
+function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean; has: (ref: string) => boolean }) {
   const mine = () => props.item.kind === "user"
   const parts = createMemo(() => splitFiles(props.item.text))
+  const quoted = createMemo(() => parseQuote(parts().text))
   return (
     <>
       <Show when={parts().files.length > 0}>
         <Attachments files={parts().files} side={mine() ? "me" : "agent"} queued={props.queued} />
       </Show>
       <Show when={parts().text}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" dir="auto" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
-          <div class="tds-bubble-rich">
-            <Markdown text={parts().text} nested />
-          </div>
+        <div ref={(el) => clamp(el)} class="tds-bubble" dir="auto" data-side={mine() ? "me" : "agent"} data-ref={props.item.kind === "user" ? props.item.ref : undefined} data-queued={props.queued ? "" : undefined}>
+          <Show when={quoted()}>{(quote) => <QuoteChip source={quote().ref} excerpt={quote().excerpt} exists={props.has(quote().ref)} />}</Show>
+          <Show when={quoted() ? quoted()!.body.trim() : parts().text}>
+            {(body) => (
+              <div class="tds-bubble-rich">
+                <Markdown text={body()} nested />
+              </div>
+            )}
+          </Show>
         </div>
       </Show>
     </>
@@ -88,6 +96,8 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
   const toggle = (key: string, anchor: HTMLElement) => setOpen((current) => (current?.key === key ? undefined : { key, anchor }))
   const built = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting", Date.now(), props.state.thinking) : []))
+  /** Every message's text by its ref, for replies: what a quote of the whole message says, and whether a quote's source is still here. */
+  const refs = createMemo(() => new Map(built().flatMap((item) => (item.kind === "user" || item.kind === "text") && item.ref ? [[item.ref, item.kind === "user" ? (parseQuote(splitFiles(item.text).text)?.body ?? splitFiles(item.text).text) : item.text] as const] : [])))
   const groupOf = (item: Item) => (item.kind === "text" ? item.key.replace(/:\d+$/, "") : item.kind === "user" ? item.key : undefined)
   /** TDS CxDividersTime "New": a rose "N new" divider where the messages that arrived while you were scrolled up start; it stays until you send. */
   const [seen, setSeen] = createSignal<ReadonlySet<string>>()
@@ -176,12 +186,12 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     <Switch>
       <Match when={item().kind === "text"}>
         <Message sessionId={props.sessionId} side="agent" target={(item() as Extract<Item, { kind: "text" }>).ref} at={(item() as Extract<Item, { kind: "text" }>).at} text={(item() as Extract<Item, { kind: "text" }>).text}>
-          <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} />
+          <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} address={(item() as Extract<Item, { kind: "text" }>).ref} />
         </Message>
       </Match>
       <Match when={item().kind === "user" || item().kind === "routine"}>
         <Message sessionId={props.sessionId} side={item().kind === "user" ? "me" : "agent"} target={(item() as { ref?: string }).ref} at={(item() as Extract<Item, { kind: "user" | "routine" }>).at} text={(item() as Extract<Item, { kind: "user" | "routine" }>).text}>
-          <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} />
+          <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} has={(ref) => refs().has(ref)} />
         </Message>
       </Match>
       <Match when={item().kind === "work"}>
@@ -248,6 +258,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
       <MorphIcon name="chevron-down" size="send" weight={tokens.icon["stroke-crisp"]} />
       <span class="tds-jump-count num"><TextMorph value={unseen() ? String(unseen()) : ""} mode="roll" /></span>
     </button>
+    <ReplyActions sessionId={props.sessionId} scroller={() => scroller} text={(ref) => refs().get(ref)} />
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
     <Show when={open()}>
       {(current) => <WorkLog work={items().find((item): item is Work => item.kind === "work" && item.key === current().key)} anchor={current().anchor} sessionId={props.sessionId} onClose={() => setOpen(undefined)} />}

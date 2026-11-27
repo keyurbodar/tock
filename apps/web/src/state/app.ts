@@ -483,8 +483,10 @@ function flatten(list: readonly Token[]): string {
     .join("")
 }
 
+/** A reply's leading quote line (chat/quote.ts) is context, not what the message says. */
+const QUOTE_LEAD = /^> \[(?:\\.|[^\]\\\n])*\]\(tock-quote:[^)\s]+\)[ \t]*\n*/
 export const plainText = (text: string) => {
-  const linked = text.replace(FILE_LINK, "").replace(/\[([^\]\n]+)\]\(tock-thread:[\w-]+\)/g, "$1").replace(/\[(@[^\]\n]*)(\]\([^)\s]*)?…?$/, "$1").replace(/\[[^\]\n]*(\]\(tock-file:[\w-]*)?…?$/, "")
+  const linked = text.replace(QUOTE_LEAD, "").replace(FILE_LINK, "").replace(/\[([^\]\n]+)\]\(tock-thread:[\w-]+\)/g, "$1").replace(/\[(@[^\]\n]*)(\]\([^)\s]*)?…?$/, "$1").replace(/\[[^\]\n]*(\]\(tock-file:[\w-]*)?…?$/, "")
   const words = flatten(Lexer.lex(linked, { gfm: true })).replace(/\s+/g, " ").trim()
   return words || [...text.matchAll(FILE_LINK)].map((match) => match[1]).join(", ")
 }

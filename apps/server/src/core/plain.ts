@@ -1,9 +1,11 @@
 /**
  * Markdown to the plain words a sidebar row or a notification shows: titles and previews are derived on the server,
- * so a message written as "# Plan **bold** *soft*" never reaches the client as markup.
+ * so a message written as "# Plan **bold** *soft*" never reaches the client as markup. A reply's leading
+ * tock-quote blockquote is context for the agent, so it never becomes the title or the preview.
  */
 export function plainMarkdown(text: string): string {
   return text
+    .replace(/^> \[(?:\\.|[^\]\\\n])*\]\(tock-quote:[^)\s]+\)[ \t]*\n*/, "")
     .replace(/^\s*```[^\n]*$/gm, "")
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")

@@ -572,6 +572,9 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
         );
       }
     }
+    sections.push(
+      "## Quoted replies\nA user message that starts with a line like `> [excerpt](tock-quote:<ref>)` is a reply to an earlier message in this chat: the excerpt is the part they are pointing at (yours when the ref has three parts, theirs when it has two). Answer the rest of the message about that excerpt, and never echo the tock-quote link.",
+    );
     sections.push(`## Codemode Runtime API\n\`\`\`ts\n${TOCK_CODEMODE_DTS}\n\`\`\``);
     const quietStr = cfg.quietHoursStart && cfg.quietHoursEnd ? `${cfg.quietHoursStart}-${cfg.quietHoursEnd}` : "off";
     sections.push(

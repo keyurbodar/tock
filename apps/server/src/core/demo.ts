@@ -113,6 +113,8 @@ const scripted: FauxResponseFactory = (context) => {
     ], { stopReason: "toolUse" })
   if (answered && /"answer":"Deny"/.test(JSON.stringify(answered.content)))
     return fauxAssistantMessage(fauxText("Understood, I won't deploy. The branch stays as it is, ready whenever you want to ship it."))
+  const quoted = /^> \[((?:\\.|[^\]\\\n])*)\]\(tock-quote:[^)\s]+\)\s*([\s\S]*)$/.exec(asked)
+  if (!done.size && quoted) return fauxAssistantMessage(fauxText(`On “${quoted[1]!.replace(/\\([\\[\]])/g, "$1")}”: ${quoted[2] || "noted"}. Got it, I'll work from that line.`))
   if (!done.size) {
     if (asked.startsWith("Show a long code block")) return fauxAssistantMessage(fauxText(LONG))
     if (asked.startsWith("Show every markdown format")) return fauxAssistantMessage(fauxText(FORMATS))

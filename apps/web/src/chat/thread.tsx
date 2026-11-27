@@ -15,6 +15,13 @@ import { ChipCards } from "./chip-card"
 import { Boundary } from "../shell/boundary"
 import { followupsIn, hasPendingAsk } from "./items"
 import { Followups } from "./followups"
+import { quoteFor, setQuote, withQuote } from "./quote"
+
+/** A send while a reply is docked leads with its quote, and the dock clears. */
+const sendReply = (sessionId: string, text: string) => {
+  void send(sessionId, withQuote(quoteFor(sessionId), text))
+  setQuote(sessionId, undefined)
+}
 
 export function Thread() {
   const params = useParams<{ id: string }>()
@@ -79,7 +86,7 @@ export function Thread() {
       <ChipCards />
       <Boundary surface="composer">
         <Followups set={followupsIn(state()?.entries ?? [])} working={isWorking(state())} onPick={(prompt) => void send(params.id, prompt)} />
-        <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
+        <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => untrack(() => sendReply(params.id, text))} onStop={() => void abort(params.id)} />
       </Boundary>
       <Show when={dragging()}>
         <div class="tds-drop tds-veil-glass" data-bad={unreadable() ? "" : undefined} aria-hidden="true">

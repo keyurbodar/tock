@@ -22,6 +22,7 @@ import { MediaBroken } from "./files"
 import { createHotkey } from "@tanstack/solid-hotkeys"
 import { appHotkeys } from "../shell/hotkeys"
 import { hasTable, htmlToMarkdown } from "./markdown-clipboard"
+import { QuotePreview } from "./reply"
 import { STATUS_LABEL, statusOf } from "../lib/status"
 
 type Kit = typeof import("./editor-kit")
@@ -804,6 +805,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           <TextMorph value={(length() - tokens.limit["prompt-chars"]).toLocaleString()} mode="swap" /> characters over the limit. Attach long text as a file instead.
         </p>
       </Show>
+      <QuotePreview sessionId={props.draftKey} />
       <form class="tds-composer-row" onSubmit={(e) => (e.preventDefault(), submit())}>
         <input ref={picker} type="file" multiple hidden onChange={(e) => (add([...(e.currentTarget.files ?? [])]), (e.currentTarget.value = ""))} />
         <Menu open={plusOpen()} onOpenChange={(next) => setPlusOpen(next)} onAction={(value) => void plus(String(value))}>

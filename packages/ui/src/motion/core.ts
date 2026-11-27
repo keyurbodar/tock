@@ -99,6 +99,20 @@ export const exit = {
     animate(el, [{ opacity: 1 }, { opacity: 0, translate: "0 6px", scale: 0.97 }], { duration: dur["followup-out"], easing: ease.followup, fill: "forwards" }),
 }
 
+/** Highlight: a message the reader was sent to (a quote chip's source) blooms a soft rose ring that settles, with a small lift. The ring is colour, not movement, so it stays under reduced motion. */
+export function flash(el: Element) {
+  const ring = (color: string) => `0 0 0 var(--tds-size-quote-bar) ${color}`
+  const on = ring("var(--tds-accent-quote-flash)")
+  animate(el, [{ boxShadow: ring("transparent") }, { boxShadow: on, offset: 0.15 }, { boxShadow: on, offset: 0.6 }, { boxShadow: ring("transparent") }], { duration: dur.flash, easing: ease.std, essential: true })
+  return spring(el, [{ scale: 1 }, { scale: 1.02 }, { scale: 1 }], "soft")
+}
+
+/** Presence for a strip that slides up out of the edge it docks on (the composer's reply preview): rises and unblurs in, sinks and fades out. */
+export const dock = {
+  in: (el: Element) => animate(el, [{ opacity: 0, translate: "0 var(--tds-space-8)", filter: blur(m.blur.exit) }, { opacity: 1, translate: "0 0", filter: clear }], { duration: dur.menu, easing: ease.sheet }),
+  out: (el: Element) => animate(el, [{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "0 var(--tds-space-6)" }], { duration: dur["exit-small"], easing: ease.in, fill: "forwards" }),
+}
+
 export function flip(els: HTMLElement[], change: () => void, duration: number = dur.swap, easing: string = ease.sheet) {
   const before = els.map((e) => e.getBoundingClientRect())
   change()

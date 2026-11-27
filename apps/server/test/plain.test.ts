@@ -19,4 +19,11 @@ describe("plain titles", () => {
     expect(summary.title).toBe("Plan bold soft");
     expect(summary.preview).toBe("Here's the plan");
   });
+  it("drops a reply's tock-quote blockquote from titles and previews", () => {
+    const reply = "> [Here's what I found, \\[draft\\]](tock-quote:e1:2:0)\n\nShip **the** smaller fix";
+    expect(plainMarkdown(reply)).toBe("Ship the smaller fix");
+    expect(plainMarkdown("> plain quote\n\nkept")).toBe("plain quote\n\nkept");
+    const summary = summarizeEntries([{ model: [{ role: "user", content: reply }, { role: "assistant", content: "Done" }] }]);
+    expect(summary.title).toBe("Ship the smaller fix");
+  });
 });

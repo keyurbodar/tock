@@ -1,0 +1,42 @@
+@layer components {
+  /* Reply and quote: the preview docked above the composer, the chip in a sent bubble, the hover Reply button and the selection pair. */
+  .tds-quote-bar { flex: none; align-self: stretch; width: var(--tds-size-quote-bar); border-radius: var(--tds-radius-pill); background: var(--tds-accent-rose) }
+  .tds-quote-body { display: grid; min-width: 0; gap: var(--tds-space-1); text-align: start }
+  .tds-quote-author {
+    display: inline-flex; align-items: center; gap: var(--tds-space-4); min-width: 0;
+    font-size: var(--tds-type-micro-size); font-weight: var(--tds-weight-semibold); color: var(--tds-accent-rose);
+  }
+  .tds-quote-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
+
+  .tds-quote-preview {
+    display: flex; align-items: center; gap: var(--tds-space-10); width: 100%; max-width: var(--tds-size-quote-preview-max);
+    margin-bottom: var(--tds-space-8); padding: var(--tds-space-8) var(--tds-space-8) var(--tds-space-8) var(--tds-space-12);
+    border-radius: var(--tds-radius-menu);
+    & .tds-quote-body { flex: 1 }
+  }
+  .tds-quote-close {
+    flex: none; display: grid; place-items: center; width: var(--tds-size-reply-hit); height: var(--tds-size-reply-hit);
+    border-radius: var(--tds-radius-pill); color: var(--tds-text-muted);
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-quote-close:hover { color: var(--tds-text-tx); background: var(--tds-overlay-hover) } }
+
+  .tds-quote-chip {
+    display: flex; gap: var(--tds-space-8); width: 100%; min-width: 0; margin: var(--tds-space-2) 0 var(--tds-space-6);
+    padding: var(--tds-space-4) var(--tds-space-8) var(--tds-space-4) var(--tds-space-4);
+    border-radius: var(--tds-radius-button); background: var(--tds-overlay-hover); cursor: pointer; white-space: normal;
+    &[data-gone] { cursor: default; & .tds-quote-bar { background: var(--tds-text-faint) } & .tds-quote-author { color: var(--tds-text-faint) } }
+  }
+  .tds-bubble[data-side="me"] .tds-quote-chip .tds-quote-text { color: var(--tds-text-me); opacity: .72 }
+  @media (hover: hover) and (pointer: fine) { .tds-quote-chip:not([data-gone]):hover { background: var(--tds-overlay-press) } }
+
+
+  .tds-select-bar {
+    position: fixed; z-index: var(--tds-z-lift); display: flex; gap: var(--tds-space-2); padding: var(--tds-space-3);
+    translate: -50% -100%; border-radius: var(--tds-radius-pill); transform-origin: 50% 100%;
+  }
+  .tds-select-action {
+    display: inline-flex; align-items: center; gap: var(--tds-space-5); height: var(--tds-size-reply-hit); padding: 0 var(--tds-space-10);
+    border-radius: var(--tds-radius-pill); font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx);
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-select-action:hover { background: var(--tds-overlay-hover) } }
+}
