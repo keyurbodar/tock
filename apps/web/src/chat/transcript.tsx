@@ -1,5 +1,5 @@
 import { clamp } from "./clamp"
-import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
 import { Icon } from "@tock/ui/icon"
@@ -92,6 +92,11 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     baseline = { top: scroller.scrollTop, height: scroller.scrollHeight }
   }
   const onScroll = () => {
+    if (scroller.scrollTop < tokens.limit["transcript-edge"] && untrack(depth) < untrack(items).length) {
+      const fromEnd = scroller.scrollHeight - scroller.scrollTop
+      setDepth((now) => now + tokens.limit["transcript-window"])
+      requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight - fromEnd))
+    }
     const next = { top: scroller.scrollTop, height: scroller.scrollHeight }
     const upward = next.height >= baseline.height && next.top < baseline.top - 1
     baseline = next
@@ -111,6 +116,19 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
   const toggle = (key: string, anchor: HTMLElement) => setOpen((current) => (current?.key === key ? undefined : { key, anchor }))
   const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting") : []))
+  const [depth, setDepth] = createSignal<number>(tokens.limit["transcript-window"])
+  /** Long chats mount their newest items first and the rest as you scroll up (overflow-anchor keeps your place), so opening a 500-message chat costs what opening a short one does. */
+  const shown = createMemo(() => {
+    const all = items()
+    return all.length > depth() ? all.slice(all.length - depth()) : all
+  })
+  createEffect(
+    () => props.sessionId,
+    () => void setDepth(tokens.limit["transcript-window"]),
+  )
+  const all = () => setDepth(Number.POSITIVE_INFINITY)
+  addEventListener("tds-transcript-all", all)
+  onCleanup(() => removeEventListener("tds-transcript-all", all))
   createEffect(
     () => props.state?.pending.at(-1)?.id,
     (sent) => {
@@ -134,7 +152,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
             <p>Tuesday holds the longest block, so the deep work goes there.</p>
           </Dynamic>
         </Show>
-        <For each={items()} keyed={(item) => item.key}>
+        <For each={shown()} keyed={(item) => item.key}>
           {(item) => (
             <Switch>
               <Match when={item().kind === "text"}>

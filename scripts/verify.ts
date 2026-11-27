@@ -2074,6 +2074,23 @@ const journeys: Record<string, () => void> = {
     }
     until(() => exists(".ProseMirror") && exists(".tds-bubble") && exists(".tds-row"), Boolean, "every surface back")
   },
+  longchat() {
+    seeded()
+    ab("eval", "window.__long = null; const t0 = performance.now(); window.__tockSeed(location.pathname.slice(3), 130); requestAnimationFrame(() => requestAnimationFrame(() => { window.__long = { render: Math.round(performance.now() - t0), nodes: document.querySelectorAll('.tds-transcript *').length, bubbles: document.querySelectorAll('.tds-column .tds-bubble').length } }))")
+    const m = until(() => js<{ render: number; nodes: number; bubbles: number } | null>("return window.__long"), Boolean, "the long chat to mount")!
+    console.log("      longchat: " + JSON.stringify(m))
+    check(m.render < 1000, "mounting a 500+ message chat stays under 1000ms of main thread, took " + m.render + "ms")
+    check(m.nodes < 4000, "only the newest window is in the DOM, got " + m.nodes + " nodes")
+    until(() => js<number>("const s = document.querySelector('.tds-transcript'); return Math.round(s.scrollHeight - s.scrollTop - s.clientHeight)"), (g) => g <= 140, "the long chat to open at the end")
+    const before = m.bubbles
+    ab("eval", "{ const s = document.querySelector('.tds-transcript'); s.scrollTop = 0 }")
+    until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n > before, "older messages to mount when scrolling up")
+    check(js<number>("return document.querySelector('.tds-transcript').scrollTop") > 0, "mounting older messages keeps the reader's place instead of jumping to the very top")
+    ab("click", "button[aria-label='Search in chat']")
+    until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n >= 500, "find to mount the whole chat so it can search every message")
+    ab("press", "Escape")
+    shot("longchat")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -2083,7 +2100,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "revealstable", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "revealstable", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

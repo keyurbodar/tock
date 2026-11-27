@@ -63,6 +63,7 @@ function Finder(props: { onClose: () => void }) {
   const [count, setCount] = createSignal(0)
   let ranges: Range[] = []
   let input!: HTMLInputElement
+  queueMicrotask(() => dispatchEvent(new Event("tds-transcript-all")))
   const paint = (q: string, index: number) => {
     const root = document.querySelector(".tds-transcript .tds-column")
     const all = new Highlight()

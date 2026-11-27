@@ -373,4 +373,14 @@ export const plainText = (text: string) => {
 
 export const titleOf = (session: Session | undefined) => session?.meta?.title || plainText(session?.title ?? "").replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
 
+/** Dev-only: repeats a thread's real entries `copies` times in place, so the perf journey can load a transcript of hundreds of messages without a server round trip per message. */
+if (import.meta.env.DEV)
+  Object.assign(window, {
+    __tockSeed: (sessionId: string, copies: number) =>
+      thread(sessionId, (state) => {
+        const base = snapshot(state.entries)
+        state.entries = Array.from({ length: copies }, (_, copy) => base.map((entry) => ({ ...entry, id: `${entry.id}~${copy}` }))).flat()
+      }),
+  })
+
 export const isWorking = (state: ThreadState | undefined) => state !== undefined && (state.live?.run !== undefined || state.pending.length > 0)
