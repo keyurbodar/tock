@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, For, Show, untrack } from "solid-js"
 import { createStore } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/text-morph"
@@ -93,7 +93,7 @@ function DocCard(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
   const meta = () => fileMeta(props.file.id, props.file.name)
   const chip = () => fileChip(props.file.name)
   const [thumb, setThumb] = createSignal<string | null>(null)
-  if (isPdf(props.file.name)) void pdfThumb(fileUrl(props.file.id), tokens.size["file-tile"]).then(setThumb)
+  untrack(() => isPdf(props.file.name) && void pdfThumb(fileUrl(props.file.id), tokens.size["file-tile"]).then(setThumb))
   const line = () => (meta()?.state === "missing" ? "Unavailable" : [typeName(props.file.name), meta()?.state === "ready" ? describe(meta()) : ""].filter(Boolean).join(" · "))
   return (
     <a

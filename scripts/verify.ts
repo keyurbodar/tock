@@ -2599,7 +2599,7 @@ const journeys: Record<string, () => void> = {
       ab("eval", `sessionStorage.setItem("tock.fault", "${surface}")`)
       ab("open", `${BASE}/t/${id}`)
       until(() => exists(`.tds-fault[data-surface="${surface}"]`), Boolean, `the ${surface} error state`)
-      check(js<string>(`return document.querySelector('.tds-fault[data-surface="${surface}"] .tds-empty-button')?.textContent.trim() ?? ''`) === "Try Again", `the ${surface} error state offers Try again`)
+      check(js<string>(`return document.querySelector('.tds-fault[data-surface="${surface}"] .tds-empty-button')?.textContent.trim() ?? ''`) === "Try again", `the ${surface} error state offers Try again`)
       if (surface !== "sidebar") check(exists(".tds-row"), `the sidebar keeps working while the ${surface} is down`)
       if (surface !== "transcript") check(exists(".tds-bubble"), `the transcript keeps working while the ${surface} is down`)
       shot(`fault-${surface}`)
