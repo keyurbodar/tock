@@ -123,7 +123,6 @@
     font-size: var(--tds-type-bubble-size); line-height: var(--tds-type-bubble-lh); letter-spacing: var(--tds-type-bubble-tracking);
     white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
     transition: opacity var(--tds-dur-layout) var(--tds-ease-out);
-    @starting-style { opacity: 0; translate: 0 var(--tds-space-10); scale: var(--tds-press) }
     transition-property: opacity, translate, scale;
     transition-duration: var(--tds-dur-swap);
   }
@@ -138,7 +137,6 @@
   .tds-step {
     display: flex; align-items: center; gap: var(--tds-space-10); height: var(--tds-size-step); padding: 0 var(--tds-space-4);
     font-size: var(--tds-type-step-size); letter-spacing: var(--tds-type-step-tracking); color: var(--tds-text-muted);
-    @starting-style { opacity: 0; translate: 0 var(--tds-space-4) }
     transition: opacity var(--tds-dur-layout) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-out);
   }
   .tds-alert {
@@ -220,7 +218,6 @@
   .tds-typing {
     display: inline-flex; align-self: flex-start; align-items: center; gap: var(--tds-space-5); height: var(--tds-size-typing);
     margin-top: var(--tds-space-14); padding: 0 var(--tds-space-15); border-radius: var(--tds-radius-bubble); background: var(--tds-surface-bubble);
-    @starting-style { opacity: 0; translate: 0 var(--tds-space-6) }
     transition: opacity var(--tds-dur-menu) var(--tds-ease-out), translate var(--tds-dur-menu) var(--tds-ease-out);
     & i { width: var(--tds-size-typing-dot); height: var(--tds-size-typing-dot); border-radius: var(--tds-radius-pill); background: var(--tds-text-muted); animation: tds-dot var(--tds-dur-typing) var(--tds-ease-std) infinite }
     & i:nth-child(2) { animation-delay: var(--tds-dur-typing-step) }

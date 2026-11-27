@@ -3080,6 +3080,60 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(mounting.bubbles >= 600, "scrolling to the top mounts the whole chat, got " + mounting.bubbles + " bubbles")
     check(!prod || mounting.long === 0, "scrolling up right after opening a 650-bubble chat, while older slices still mount, keeps every frame under 50ms: " + JSON.stringify(mounting))
   },
+  historyrest() {
+    const b = seeded()
+    const a = seeded()
+    for (const more of ["And the weekend?", "Thanks, one last check"]) {
+      say(more)
+      settled()
+    }
+    const long = js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length")
+    ab("press", "Alt+ArrowDown")
+    until(() => js<string>("return location.pathname"), (path) => path === "/t/" + b, "Alt+ArrowDown to the other chat")
+    until(() => exists(".tds-column .tds-bubble"), Boolean, "the other chat to paint")
+    const sample = (target: string) => {
+      js<boolean>("window.__rest = { frames: [], done: false }; const end = performance.now() + 2500; const tick = () => { const r = window.__rest; if (location.pathname === '/t/" + target + "') { const t = document.querySelector('.tds-transcript'); const box = t && t.getBoundingClientRect(); const seen = [...document.querySelectorAll('.tds-column .tds-bubble:not([data-queued]), .tds-column .tds-code, .tds-column .tds-media-tile, .tds-column .tds-sq')].filter((el) => { const b = el.getBoundingClientRect(); return box && b.bottom > box.top && b.top < box.bottom && b.height > 0 }); if (seen.length) r.frames.push({ ready: t.hasAttribute('data-ready'), seen: seen.length, moving: seen.filter((el) => { const s = getComputedStyle(el); return +s.opacity < 0.99 || (s.translate !== 'none' && s.translate !== '0px') || (s.scale !== 'none' && s.scale !== '1') || el.getAnimations().some((x) => x.playState === 'running') }).length }) } if (performance.now() < end && r.frames.length < 30) requestAnimationFrame(tick); else r.done = true }; requestAnimationFrame(tick); return true")
+    }
+    sample(a)
+    ab("press", "Alt+ArrowUp")
+    until(() => js<boolean>("return window.__rest.done"), Boolean, "the long chat to paint after Alt+ArrowUp")
+    check(js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length") >= long, "Alt+ArrowUp went back to the longer chat with all " + long + " bubbles")
+    const open = js<{ frames: { ready: boolean; seen: number; moving: number }[] }>("return window.__rest").frames
+    console.log("      historyrest open: " + JSON.stringify(open.slice(0, 6)) + " … " + open.length + " frames")
+    check(open.length >= 5, "the long chat never painted after Alt+ArrowUp: " + JSON.stringify(open))
+    check(open.slice(0, 10).every((f) => f.moving === 0), "opening a long chat shows its history at rest, no bubble mid-entrance on the first frames: " + JSON.stringify(open.slice(0, 10)))
+    until(() => js<boolean>("return document.querySelector('.tds-transcript').hasAttribute('data-ready')"), Boolean, "the transcript to arm entrances after its first paint")
+    js<boolean>("window.__arrive = null; new MutationObserver((list, obs) => { for (const m of list) for (const n of m.addedNodes) { const el = n instanceof Element && (n.matches('.tds-bubble[data-side=me]') ? n : n.querySelector && n.querySelector('.tds-bubble[data-side=me]')); if (el && !window.__arrive) { requestAnimationFrame(() => { window.__arrive = +getComputedStyle(el).opacity }); obs.disconnect() } } }).observe(document.querySelector('.tds-column'), { childList: true, subtree: true }); return true")
+    say("one more thing")
+    const arrive = until(() => js<number | null>("return window.__arrive"), (v) => v !== null, "the sent bubble to mount")!
+    console.log("      historyrest arrival opacity on its first frame: " + arrive)
+    check(arrive < 1, "a message that arrives after the first paint still plays its entrance, opacity on its first frame was " + arrive)
+    shot("historyrest")
+  },
+  rtlbubble() {
+    fresh()
+    say("مرحبا، هل يمكنك مساعدتي في التخطيط لهذا الأسبوع؟")
+    until(() => exists(".tds-bubble[data-side='me']"), Boolean, "the sent bubble")
+    const me = js<{ dir: string; direction: string; bidi: string; align: string }>("const el = [...document.querySelectorAll('.tds-bubble[data-side=me], .tds-bubble[data-side=me] .tds-bubble')].at(-1); const s = getComputedStyle(el); return { dir: el.closest('.tds-bubble[data-side=me]').getAttribute('dir'), direction: s.direction, bidi: s.unicodeBidi, align: s.textAlign }")
+    console.log("      rtlbubble: " + JSON.stringify(me))
+    check(me.dir === "auto" && me.direction === "rtl" && me.align === "start", "an Arabic message reads right to left in its bubble: " + JSON.stringify(me))
+    settled()
+    check(js<boolean>("return [...document.querySelectorAll('.tds-bubble[data-side]')].every((el) => el.getAttribute('dir') === 'auto')"), "every bubble, yours and the agent's, takes dir=auto")
+    shot("rtlbubble")
+  },
+  headeredge() {
+    seeded()
+    ab("eval", "window.__tockSeed(location.pathname.slice(3), 8)")
+    until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n >= 16, "a chat long enough to scroll")
+    ab("eval", "const s = document.querySelector('.tds-transcript'); s.scrollTop = s.scrollHeight / 2")
+    wait(400)
+    const band = js<{ filter: string; bottom: number; pill: number; avatar: number; events: string }>("const b = document.querySelector('.tds-header-band'); const s = getComputedStyle(b); return { filter: s.backdropFilter || s.webkitBackdropFilter, bottom: Math.round(b.getBoundingClientRect().bottom), pill: Math.round(document.querySelector('.tds-header-pill').getBoundingClientRect().bottom), avatar: Math.round(document.querySelector('.tds-header-avatar').getBoundingClientRect().bottom), events: s.pointerEvents }")
+    console.log("      headeredge: " + JSON.stringify(band))
+    check(/blur/.test(band.filter), "the header has a glass band so the chat blurs behind the avatar and title: " + JSON.stringify(band))
+    check(band.bottom > band.pill && band.pill >= band.avatar, "the band reaches below the title pill: " + JSON.stringify(band))
+    check(band.events === "none", "the band never takes clicks meant for the chat")
+    shot("headeredge")
+  },
   prefetch() {
     ensureRows(3)
     ab("open", BASE)
@@ -4002,7 +4056,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
@@ -4012,6 +4066,7 @@ const requires: Record<string, { mode: "dev" | "build" | "preview"; why: string 
   faults: { mode: "dev", why: "uses the dev-only sessionStorage tock.fault switch" },
   orb: { mode: "dev", why: "reads the Orb card on the dev-only /__motion route" },
   longchat: { mode: "dev", why: "seeds 650 bubbles with the dev-only window.__tockSeed" },
+  headeredge: { mode: "dev", why: "seeds a scrollable chat with the dev-only window.__tockSeed" },
   offlinereload: { mode: "build", why: "the service worker registers only in a production build" },
   swdeploy: { mode: "preview", why: "swaps the files of a local production build (vite preview + TOCK_DIST), so it cannot run against a deploy" },
   jank: { mode: "build", why: "the dev build runs Solid's dev-only performance track, which inflates every frame" },

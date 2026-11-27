@@ -3,7 +3,6 @@
     align-self: flex-start; width: min(100%, var(--tds-size-ask-card)); margin-top: var(--tds-space-14); overflow: hidden;
     border-radius: var(--tds-radius-card); background: var(--tds-surface-card); box-shadow: var(--tds-ring-card);
     transition: height var(--tds-dur-layout) var(--tds-ease-std);
-    @starting-style { opacity: 0; translate: 0 var(--tds-space-4) }
   }
   .tds-ask-in { padding: var(--tds-space-14) var(--tds-space-14) var(--tds-space-14) var(--tds-space-16); transition: opacity var(--tds-dur-exit-small) var(--tds-ease-out), filter var(--tds-dur-exit-small) var(--tds-ease-out) }
   .tds-ask[data-folding] .tds-ask-in { opacity: 0; filter: blur(var(--tds-blur-exit)) }

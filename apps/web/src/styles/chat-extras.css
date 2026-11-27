@@ -2,7 +2,6 @@
   .tds-caption {
     align-self: flex-start; margin: var(--tds-space-5) var(--tds-space-4) 0;
     font-size: var(--tds-type-micro-size); line-height: var(--tds-type-micro-lh); letter-spacing: var(--tds-type-micro-tracking); color: var(--tds-text-faint);
-    @starting-style { opacity: 0 }
     transition: opacity var(--tds-dur-swap) var(--tds-ease-out);
   }
   .tds-caption[data-side="me"] { align-self: flex-end }

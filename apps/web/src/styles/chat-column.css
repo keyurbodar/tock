@@ -1,0 +1,24 @@
+/* Transcript entrances play only for what arrives after a chat's first paint (A2-03): opening or switching chats shows its history at rest. */
+@layer components {
+  .tds-transcript[data-ready] {
+    & .tds-bubble { @starting-style { opacity: 0; translate: 0 var(--tds-space-10); scale: var(--tds-press) } }
+    & .tds-step { @starting-style { opacity: 0; translate: 0 var(--tds-space-4) } }
+    & .tds-typing { @starting-style { opacity: 0; translate: 0 var(--tds-space-6) } }
+    & :is(.tds-sq, .tds-file-wide, .tds-media-tile) { @starting-style { opacity: 0; scale: .94; filter: blur(var(--tds-space-4)) } }
+    & .tds-code { @starting-style { opacity: 0; translate: 0 var(--tds-space-10) } }
+    & .tds-caption { @starting-style { opacity: 0 } }
+    & .tds-ask { @starting-style { opacity: 0; translate: 0 var(--tds-space-4) } }
+  }
+  /* B2-15: a glass band behind the header, so the chat blurs under the avatar and title instead of reading through them; it fades out below the pill. */
+  .tds-header-band {
+    position: absolute; inset: 0 0 auto; height: calc(var(--tds-size-header) + var(--tds-size-header-band-fade)); pointer-events: none;
+    background: none; box-shadow: none;
+    mask-image: linear-gradient(to bottom, black var(--tds-size-header), transparent);
+  }
+}
+
+@layer utilities {
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    .tds-header-band { background-color: var(--tds-surface-main); outline: none }
+  }
+}

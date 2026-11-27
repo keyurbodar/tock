@@ -1,6 +1,6 @@
 import { clamp } from "./clamp"
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
-import { enter, exit, Skeleton } from "@tock/ui/motion"
+import { afterLayout, enter, exit, Skeleton } from "@tock/ui/motion"
 import { Icon } from "@tock/ui/icon"
 import { MorphIcon, TextMorph } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
@@ -50,6 +50,8 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   let following = true
   let baseline = { top: 0, height: 0 }
   const [away, setAway] = createSignal(false)
+  /** Entrances play only for what arrives after a chat's first paint, so opening or switching chats shows the history at rest. */
+  const [ready, setReady] = createSignal(false)
   const distance = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
   const toEnd = (smooth = false) => {
     following = true
@@ -160,6 +162,13 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
       requestAnimationFrame(() => toEnd())
     },
   )
+  createEffect(
+    () => (props.state?.phase !== "loading" && items().length > 0 ? props.sessionId : undefined),
+    (painted) => {
+      setReady(false)
+      if (painted) return afterLayout(scroller, () => requestAnimationFrame(() => setReady(true)))
+    },
+  )
   const view = (item: () => Item) => (
     <Switch>
       <Match when={item().kind === "text"}>
@@ -213,7 +222,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   )
   return (
     <>
-    <div ref={scroller} class="tds-transcript tds-scroll" data-away={away() ? "" : undefined} onContextMenu={openLinkMenu} onScroll={onScroll}>
+    <div ref={scroller} class="tds-transcript tds-scroll" data-away={away() ? "" : undefined} data-ready={ready() ? "" : undefined} onContextMenu={openLinkMenu} onScroll={onScroll}>
       <Skeleton
         fill
         id={`transcript:${props.sessionId}`}

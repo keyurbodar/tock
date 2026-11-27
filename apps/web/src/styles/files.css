@@ -29,7 +29,6 @@
   }
   .tds-docs { display: flex; flex-wrap: wrap; gap: var(--tds-space-8); &[data-side="me"] { justify-content: flex-end } &[data-side="agent"] { flex-direction: column } }
   .tds-sq, .tds-file-wide, .tds-media-tile {
-    @starting-style { opacity: 0; scale: .94; filter: blur(var(--tds-space-4)) }
     transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out), filter var(--tds-dur-swap) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out);
   }
   .tds-sq {

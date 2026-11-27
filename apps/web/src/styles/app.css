@@ -31,6 +31,7 @@
 @import "./cards.css";
 @import "./links.css";
 @import "./text-scale.css";
+@import "./chat-column.css";
 
 @layer base {
   html {

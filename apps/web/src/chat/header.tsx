@@ -39,6 +39,7 @@ export function Header(props: { title: string; glyph: ReturnType<typeof glyphFor
   return (
     <>
       <header class="tds-header">
+        <span class="tds-header-band tds-glass" aria-hidden="true" />
         <div class="tds-header-stack">
           <span class="tds-header-avatar grid size-header-avatar place-items-center rounded-pill bg-glass shadow-glass" data-glyph={props.glyph ? "" : undefined}>
             <img src="/brand/toast-face-center.svg" alt="" class="tds-header-mascot size-header-face" draggable={false} />
