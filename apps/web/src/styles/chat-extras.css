@@ -1,12 +1,9 @@
 @layer components {
-  .tds-swap { display: grid; place-items: center }
-  .tds-swap > * {
-    grid-area: 1 / 1; display: grid; place-items: center;
-    transition-property: opacity, scale, filter; transition-duration: var(--tds-dur-swap); transition-timing-function: var(--tds-ease-std);
-  }
-  .tds-swap-b { opacity: 0; scale: var(--tds-swap-scale); filter: blur(var(--tds-blur-swap)); color: var(--tds-status-done) }
-  .tds-swap[data-on] .tds-swap-a { opacity: 0; scale: var(--tds-swap-scale); filter: blur(var(--tds-blur-swap)) }
-  .tds-swap[data-on] .tds-swap-b { opacity: 1; scale: 1; filter: none }
+  .tds-code-actions { display: flex; align-items: center; gap: var(--tds-space-2) }
+  .tds-code-action[aria-pressed="true"] { color: var(--tds-text-tx2); background: var(--tds-overlay-hover) }
+  .tds-code-copy[data-glyph="check"] { color: var(--tds-status-done) }
+  .tds-code[data-wrap] pre { white-space: pre-wrap; overflow-wrap: anywhere }
+  .tds-code[data-streaming] pre { overflow-anchor: none }
 
   .tds-code pre { white-space: pre; transition: max-height var(--tds-dur-panel) var(--tds-ease-std) }
   .tds-code pre[data-collapsed] {

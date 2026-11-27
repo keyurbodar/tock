@@ -131,16 +131,17 @@ const journeys: Record<string, () => void> = {
     shot("send")
   },
   code() {
-    until(() => exists(".tds-code .tds-code-action"), Boolean, "a code block", 15000)
+    until(() => exists(".tds-code .tds-code-action") && !exists("button[aria-label='Stop']"), Boolean, "a finished code block", 15000)
+    wait(600)
     check(js<string>("return document.querySelector('.tds-code-head span')?.textContent ?? ''") === "ts", "the code block should be labelled with its language")
     ab("eval", "Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.resolve() }, configurable: true })")
-    ab("click", ".tds-code .tds-code-action")
-    until(() => exists(".tds-code .tds-swap[data-on]"), Boolean, "the copy icon to morph into a check")
-    wait(150)
-    const mid = js<{ a: number; b: number }>("const s = document.querySelector('.tds-swap[data-on]'); return { a: +getComputedStyle(s.children[0]).opacity, b: +getComputedStyle(s.children[1]).opacity }")
-    check(mid.a < 1 && mid.b > 0, `both icons should be mid-morph, got ${JSON.stringify(mid)}`)
+    ab("click", ".tds-code button[aria-label='Copy code']")
+    until(() => exists(".tds-code .tds-code-copy[data-glyph='check']"), Boolean, "the copy icon to morph into a check")
+    check(js<number>("return document.querySelectorAll('.tds-code .tds-code-copy .tds-glyph-layer').length") === 2, "copy and check should both be on screen mid-morph")
+    wait(400)
     shot("code-copied")
-    until(() => exists(".tds-code .tds-swap[data-on]"), (on) => !on, "the check to morph back", 4000)
+    until(() => exists(".tds-code .tds-code-copy[data-glyph='copy']"), Boolean, "the check to morph back", 4000)
+    check(js<boolean>("const c = document.querySelector('.tds-code pre code'); return !c.closest('.tds-code').hasAttribute('data-streaming') && c.textContent === c.firstElementChild.textContent && !!c.querySelector('[class^=sh__]')"), "a finished block should be fully highlighted with no plain tail")
   },
   divider() {
     until(() => exists(".tds-divider"), Boolean, "a time divider")
@@ -162,6 +163,12 @@ const journeys: Record<string, () => void> = {
     until(() => rect(".tds-code pre")!.h, (h) => h > collapsed + 100, "the block to expand")
     check(js<string>("return document.querySelector('.tds-code-more').textContent") === "Show less", "the button should offer Show less")
     shot("code-expanded")
+    ab("click", ".tds-code button[aria-label='Wrap lines']")
+    until(() => js<{ sw: number; cw: number }>("const p = document.querySelector('.tds-code pre'); return { sw: p.scrollWidth, cw: p.clientWidth }"), (p) => p.sw <= p.cw, "wrapped lines to fit the block")
+    check(js<string | null>("return document.querySelector('.tds-code button[aria-label=\"Disable line wrap\"]')?.getAttribute('aria-pressed') ?? null") === "true", "the wrap toggle should read pressed")
+    shot("code-wrapped")
+    ab("click", ".tds-code button[aria-label='Disable line wrap']")
+    until(() => js<{ sw: number; cw: number }>("const p = document.querySelector('.tds-code pre'); return { sw: p.scrollWidth, cw: p.clientWidth }"), (p) => p.sw > p.cw, "unwrapped lines to scroll again")
   },
   stopped() {
     ab("click", "button[aria-label='New chat']")
