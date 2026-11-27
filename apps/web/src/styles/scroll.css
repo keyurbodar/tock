@@ -5,8 +5,8 @@
   .tds-ws-fold[data-open] { grid-template-rows: 1fr }
   .tds-ws-fold > * { min-height: 0; overflow: hidden }
   .tds-ws-fold:not([data-open]) > .tds-ws-body { margin-block: 0 }
-  .tds-ws-fold .tds-ws-body { opacity: 0; filter: blur(var(--tds-blur-enter)); transition: opacity var(--tds-dur-exit-small) var(--tds-ease-out), filter var(--tds-dur-exit-small) var(--tds-ease-out) }
-  .tds-ws-fold[data-open] .tds-ws-body { opacity: 1; filter: none; transition-duration: var(--tds-dur-exit-small) }
+  .tds-ws-fold .tds-ws-body { opacity: 0; filter: blur(var(--tds-blur-enter)); transition-property: opacity, filter, margin; transition-duration: var(--tds-dur-layout), var(--tds-dur-layout), var(--tds-dur-spring); transition-timing-function: var(--tds-ease-out), var(--tds-ease-out), var(--tds-ease-spring) }
+  .tds-ws-fold[data-open] .tds-ws-body { opacity: 1; filter: none; transition-duration: var(--tds-dur-exit-small), var(--tds-dur-exit-small), var(--tds-dur-spring) }
   .tds-ws-caret { transition: rotate var(--tds-dur-spring) var(--tds-ease-spring) }
   .tds-worklog[data-ready] .tds-ws { @starting-style { opacity: 0; filter: blur(var(--tds-blur-enter)); translate: 0 var(--tds-space-6) } transition: opacity var(--tds-dur-layout) var(--tds-ease-out), filter var(--tds-dur-layout) var(--tds-ease-out), translate var(--tds-dur-spring) var(--tds-ease-spring) }
   .tds-worklog-body { flex: 1 1 auto; overflow-anchor: none }
