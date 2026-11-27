@@ -48,4 +48,38 @@
   .tds-fault[data-surface="transcript"] { flex: 1; min-height: 0 }
   .tds-fault[data-surface="sidebar"] { flex: none; width: var(--tds-size-sidebar); background: var(--tds-surface-side) }
   .tds-fault[data-surface="composer"] { position: absolute; inset: auto 0 0; padding-block: var(--tds-space-16) }
+
+  .tds-transcript {
+    mask-image: linear-gradient(to bottom,
+      transparent 0, transparent var(--tds-size-fade-top-clear), black var(--tds-size-fade-top),
+      black calc(100% - var(--composer-reserve, var(--tds-size-fade-bottom)) - (var(--tds-size-column-bottom) - var(--tds-size-fade-bottom))),
+      transparent calc(100% - var(--composer-reserve, var(--tds-size-fade-bottom))));
+  }
+
+  .tds-attach, .tds-attach[data-kind="doc"], .tds-attach[data-kind="image"] {
+    padding: 0; background: var(--tds-surface-card); box-shadow: inset 0 0 0 var(--tds-space-1) var(--tds-overlay-hairline);
+    transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out);
+  }
+  .tds-attach[data-status="failed"] { box-shadow: inset 0 0 0 var(--tds-space-1) color-mix(in oklab, var(--tds-status-failed) 45%, transparent) }
+  @media (hover: hover) and (pointer: fine) { .tds-attach:hover { background-color: var(--tds-surface-raise) } }
+  .tds-attach-open {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--tds-space-3); min-width: 0;
+    padding: var(--tds-space-10) var(--tds-space-10) var(--tds-space-8); border-radius: inherit; overflow: hidden; color: inherit; text-align: left; cursor: pointer;
+    &[aria-disabled] { cursor: progress }
+    & .tds-sq-pill { margin-top: auto; flex: none }
+  }
+  .tds-attach[data-kind="image"] .tds-attach-open { padding: 0; & img { width: 100%; height: 100%; object-fit: cover } }
+  .tds-attach-name {
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; flex: none; max-width: 100%; overflow: hidden; overflow-wrap: anywhere;
+    font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-lh); font-weight: var(--tds-weight-regular); color: var(--tds-text-tx);
+  }
+  .tds-attach-line { flex: none; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-lh); color: var(--tds-text-muted) }
+  .tds-attach[data-status="failed"] .tds-attach-line { color: var(--tds-status-failed) }
+  .tds-attach[data-kind="doc"] .tds-attach-ring, .tds-attach[data-kind="doc"] .tds-attach-retry-pill { position: absolute; top: auto; right: var(--tds-space-8); bottom: var(--tds-space-8); margin: 0 }
+  .tds-attach[data-kind="image"] .tds-attach-retry-pill { position: absolute; inset: 0; margin: auto; width: max-content; height: var(--tds-size-token) }
+  .tds-attach-remove { top: calc(var(--tds-space-6) * -1); right: calc(var(--tds-space-6) * -1); z-index: 1 }
+  .tds-attach[data-kind="image"] { overflow: visible }
+  .tds-attach:focus-within { z-index: 2 }
+  @media (hover: hover) and (pointer: fine) { .tds-attach:hover { z-index: 2 } }
+  .tds-attach-tray { padding-top: var(--tds-space-12) }
 }

@@ -19,6 +19,8 @@
 | Error boundaries | faults | a throw in the transcript, composer or sidebar (dev-only `sessionStorage["tock.fault"]`) shows that surface's TDS error state with Try again while the others keep working, and Try again restores it |
 | Long chats | longchat | a 500+ message chat (dev-only `__tockSeed` repeats real entries) mounts only its newest window under budget (render < 1000ms, < 4000 nodes), opens at the end, mounts older messages on scroll-up without losing the reader's place, and find mounts everything |
 | Prefetch | prefetch | hovering a row preloads its chat (router intentPreload), so clicking it paints its messages in the first frame with no skeleton or blank |
+| Inline code | codeexit | clearing toggled inline code drops the code mark, a backtick typed in code steps out without inserting, ArrowRight at the end exits |
+| Tray lightbox | trayopen | unsent tray cards are labelled buttons with a focus ring; Enter or Space opens the doc or image in the lightbox and focus returns to the card |
 | Health | diagnostics | no Solid diagnostics or page errors across the run |
 - [media.md](media.md): image rows, doc cards, lightbox, finished-elsewhere dot (`lightbox`, `finished`)
 - [ui.md](ui.md): interface/layout rules from the jk and ek skills (`ui`)

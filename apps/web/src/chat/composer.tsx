@@ -2,11 +2,11 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { createEffect, createMemo, createSignal, For, onCleanup, onSettled, Show, untrack } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from "@ui-sdk/solid/menu"
-import { Editor, type JSONContent } from "@tiptap/core"
+import { Editor, Extension, type JSONContent } from "@tiptap/core"
 import StarterKit from "@tiptap/starter-kit"
 import { Markdown } from "@tiptap/markdown"
 import { Placeholder } from "@tiptap/extensions"
-import { EditorState } from "@tiptap/pm/state"
+import { EditorState, Plugin, type EditorState as State } from "@tiptap/pm/state"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
@@ -19,6 +19,7 @@ import { setShortcutsOpen } from "../shell/shortcuts"
 import { linkToken, linkTyped, selectTokenBefore, Token, triggerAt, type TokenAttrs, type Trigger } from "./tokens"
 import { extension, formatSize, readingLabel, withFiles, type Attachment, type createAttachments, type Rejection } from "./attachments"
 import { fileChip } from "./chip"
+import { openLightbox } from "./lightbox"
 import { CodeHighlight } from "./code-highlight"
 
 type Attachments = ReturnType<typeof createAttachments>
@@ -34,9 +35,46 @@ export function refuse(rejected: readonly Rejection[]) {
   for (const reason of rejected) toast(reason.title, { description: reason.hint, tone: "failed", icon: "prohibit", duration: tokens.motion.toast.error })
 }
 
+const touchesCode = (state: State) => {
+  const code = state.schema.marks.code
+  const { $from } = state.selection
+  return !!code && [$from.nodeBefore, $from.nodeAfter].some((node) => node && code.isInSet(node.marks))
+}
+
+/**
+ * Inline code never traps the caret: clearing the last code character drops the code mark instead of keeping it for the next keystroke,
+ * and typing a backtick while in code steps out of it (ArrowRight at the end already exits, as the mark is exitable).
+ */
+const CodeExit = Extension.create({
+  name: "codeExit",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handleTextInput(view, from, to, text) {
+            const code = view.state.schema.marks.code
+            if (text !== "`" || from !== to || !code) return false
+            const active = (view.state.storedMarks ?? view.state.selection.$from.marks()).some((mark) => mark.type === code)
+            if (!active) return false
+            view.dispatch(view.state.tr.removeStoredMark(code))
+            return true
+          },
+        },
+        appendTransaction(transactions, before, after) {
+          const code = after.schema.marks.code
+          if (!code || !transactions.some((tr) => tr.docChanged) || !after.selection.empty) return null
+          const stored = after.storedMarks ?? after.selection.$from.marks()
+          if (!stored.some((mark) => mark.type === code) || touchesCode(after) || !touchesCode(before)) return null
+          return after.tr.setStoredMarks(stored.filter((mark) => mark.type !== code))
+        },
+      }),
+    ]
+  },
+})
+
 export const attach = (attachments: Attachments, files: Iterable<File>, from?: DOMRect) => refuse(attachments.add(files, from))
 
-function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; onRetry: () => void; onPointerDown: (event: PointerEvent, el: HTMLElement) => void; onHover: (el: HTMLElement | null) => void }) {
+function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; onRetry: () => void; onOpen: (el: HTMLElement) => void; onPointerDown: (event: PointerEvent, el: HTMLElement) => void; onHover: (el: HTMLElement | null) => void }) {
   let el!: HTMLDivElement
   const ring = () => `${Math.round(props.item.progress * 100)} 100`
   const kind = () => fileChip(props.item.name)
@@ -55,6 +93,8 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
     event.stopPropagation()
     props.onRetry()
   }
+  let open!: HTMLButtonElement
+  const label = () => (props.item.status === "uploading" ? `${props.item.name}, uploading ${formatSize(props.item.size * props.item.progress)} of ${formatSize(props.item.size)}` : props.item.status === "failed" ? `${props.item.name}, upload failed` : `Open ${props.item.name}`)
   return (
     <div
       ref={(node) => {
@@ -62,55 +102,35 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
         const from = props.from
         if (from) requestAnimationFrame(() => growFrom(node, from))
       }}
-      class="tds-attach tds-raise-1"
+      class="tds-attach"
       data-kind={props.item.preview ? "image" : "doc"}
       data-status={props.item.status}
       data-key={props.item.key}
+      style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}
       onPointerDown={(event) => props.onPointerDown(event, el)}
       onPointerEnter={() => props.onHover(el)}
       onPointerLeave={() => props.onHover(null)}
     >
-      <Show
-        when={props.item.preview}
-        fallback={
-          <>
-            <span class="tds-attach-meta">
-              <b>{props.item.name}</b>
-              <Show
-                when={props.item.status === "failed"}
-                fallback={
-                  <span class="num" data-shimmer={props.item.status === "reading" ? "" : undefined}>
-                    <TextMorph value={props.item.status === "uploading" ? `${Math.round(props.item.progress * 100)}% of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))} />
-                  </span>
-                }
-              >
-                <span>
-                  {props.item.error},{" "}
-                  <button type="button" class="tds-attach-retry" onClick={retry}>
-                    Retry
-                  </button>
-                </span>
-              </Show>
-            </span>
-            <span class="tds-sq-foot" style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}>
-              <Icon name={kind().icon} size="chip" />
-              <span class="tds-sq-pill">{extension(props.item.name)}</span>
-            </span>
-          </>
-        }
-      >
-        {(src) => (
-          <>
-            <img src={src()} alt={props.item.name} draggable={false} />
-            <Show when={props.item.status === "failed"}>
-              <span class="tds-attach-veil">
-                <button type="button" class="tds-attach-retry-pill" onClick={retry}>
-                  Retry
-                </button>
+      <button ref={open} type="button" class="tds-attach-open" aria-label={label()} aria-disabled={props.item.fileId ? undefined : "true"} onClick={() => props.item.fileId && props.onOpen(open)}>
+        <Show
+          when={props.item.preview}
+          fallback={
+            <>
+              <b class="tds-attach-name">{props.item.name}</b>
+              <span class="tds-attach-line num" data-shimmer={props.item.status === "reading" ? "" : undefined}>
+                <TextMorph value={props.item.status === "failed" ? (props.item.error ?? "Upload failed") : props.item.status === "uploading" ? `${formatSize(props.item.size * props.item.progress)} of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))} />
               </span>
-            </Show>
-          </>
-        )}
+              <span class="tds-sq-pill">{extension(props.item.name)}</span>
+            </>
+          }
+        >
+          {(src) => <img src={src()} alt="" draggable={false} />}
+        </Show>
+      </button>
+      <Show when={props.item.status === "failed"}>
+        <button type="button" class="tds-attach-retry-pill tds-press" onPointerDown={(event) => event.stopPropagation()} onClick={retry}>
+          Retry
+        </button>
       </Show>
       <Show when={props.item.status === "uploading"}>
         <svg class="tds-attach-ring" viewBox="0 0 26 26" aria-hidden="true">
@@ -450,6 +470,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     const done = drag
     drag = null
     if (!done.moved) return
+    addEventListener("click", (event) => (event.stopPropagation(), event.preventDefault()), { capture: true, once: true })
     for (const card of done.cards) {
       card.style.transition = "none"
       card.style.translate = ""
@@ -479,6 +500,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         Markdown,
         Token,
         CodeHighlight,
+        CodeExit,
         Placeholder.configure({ placeholder: "Message toast" }),
       ],
       editorProps: {
@@ -739,6 +761,10 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
                     from={props.attachments.origin(item().key)}
                     onRemove={() => props.attachments.remove(item().key)}
                     onRetry={() => props.attachments.retry(item().key)}
+                    onOpen={(el) => {
+                      const ready = props.attachments.items().filter((entry) => entry.fileId)
+                      openLightbox(ready.map((entry) => ({ id: entry.fileId!, name: entry.name })), ready.findIndex((entry) => entry.key === item().key), el)
+                    }}
                     onPointerDown={(event, el) => grab(event, item().key, el)}
                     onHover={(el) => hover(item().key, el)}
                   />
