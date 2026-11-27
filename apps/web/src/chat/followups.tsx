@@ -35,14 +35,26 @@ export function Followups(props: { set: Set | undefined; working: boolean; onPic
   onCleanup(() => document.removeEventListener("input", onInput, true))
   const wanted = () => (props.set && !props.working && !typed() && !gone().has(props.set.key) ? props.set : undefined)
   let leaving: Promise<unknown> | undefined
+  let frame = 0
+  onCleanup(() => cancelAnimationFrame(frame))
+  /** A reply has settled once its words have finished revealing, so the chips never rise under a sentence still being written. */
+  const afterReveal = (show: () => void) => {
+    cancelAnimationFrame(frame)
+    const tick = () => (document.querySelector(".tds-transcript :is(.tds-word-wait, .tds-word)") ? (frame = requestAnimationFrame(tick)) : show())
+    tick()
+  }
   createEffect(wanted, (next) => {
     const now = untrack(shown)
-    if (now?.key === next?.key) return
+    if (now?.key === next?.key) return cancelAnimationFrame(frame)
     const chips = [...(row?.querySelectorAll<HTMLElement>(".tds-followup") ?? [])]
-    if (!now || chips.length === 0) return void setShown(next)
+    if (!now || chips.length === 0) return next ? afterReveal(() => setShown(untrack(wanted))) : (cancelAnimationFrame(frame), void setShown(undefined))
     const out = Promise.all(chips.map((chip) => exit.followup(chip)?.finished.catch(() => {})))
     leaving = out
-    void out.then(() => leaving === out && setShown(untrack(wanted)))
+    void out.then(() => {
+      if (leaving !== out) return
+      setShown(undefined)
+      if (untrack(wanted)) afterReveal(() => setShown(untrack(wanted)))
+    })
   })
   const mouse = (event: PointerEvent) => {
     if (event.pointerType !== "mouse" || !row) return

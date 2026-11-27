@@ -2156,6 +2156,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => js<number>("return document.querySelectorAll('.tds-followup:not(.tds-followup-x)').length"), (n) => n === 3, "three follow-ups once the reply settles", 20000)
     const delays = js<number[]>("return [...document.querySelectorAll('.tds-followup:not(.tds-followup-x)')].map((c) => c.getAnimations()[0]?.effect.getTiming().delay ?? -1)")
     check(delays.join() === "0,70,140", `the chips enter with a 70ms stagger (got ${delays})`)
+    check(!exists(".tds-transcript :is(.tds-word-wait, .tds-word)"), "the chips wait for the reply to finish revealing")
     check(!exists(".tds-transcript .tds-step[data-tool='suggest_followups']") && !text(".tds-transcript").includes("suggest_followups"), "the tool call stays out of the transcript")
     wait(700)
     const geo = js<{ row: number; field: number; right: number; send: number; h: number }>("const r = document.querySelector('.tds-followups').getBoundingClientRect(); const chips = [...document.querySelectorAll('.tds-followup')].map((c) => c.getBoundingClientRect()); return { row: Math.max(...chips.map((c) => c.bottom)), field: document.querySelector('.tds-field').getBoundingClientRect().top, right: Math.max(...chips.map((c) => c.right)), send: document.querySelector('.tds-send').getBoundingClientRect().left, h: chips[0].height }")
