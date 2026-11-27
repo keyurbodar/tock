@@ -39,7 +39,7 @@
   }
   .tds-sq-name { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-label-lh); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
   .tds-sq-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-label-size); color: var(--tds-text-muted) }
-  @media (hover: hover) and (pointer: fine) { :is(.tds-sq, .tds-file-wide, .tds-media-tile):hover { box-shadow: var(--tds-ring-attach-hover) } }
+
 
   .tds-media { display: flex; gap: var(--tds-space-4) }
   .tds-media-tile {

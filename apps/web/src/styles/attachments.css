@@ -1,3 +1,39 @@
 @layer components {
   .tds-column { padding-bottom: max(var(--tds-size-column-bottom), calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--tds-space-16))) }
+
+  .tds-docs[data-side] { flex-direction: column; flex-wrap: nowrap; gap: var(--tds-space-6) }
+  .tds-docs[data-side="me"] { align-items: flex-end }
+  .tds-doc {
+    display: flex; align-items: center; gap: var(--tds-space-10); width: var(--tds-size-agent-file); max-width: 100%;
+    padding: var(--tds-space-8) var(--tds-space-14) var(--tds-space-8) var(--tds-space-8);
+    border-radius: var(--tds-radius-card-sm); background-color: var(--tds-surface-card); color: inherit; text-decoration: none; cursor: pointer;
+    transition: background-color var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out);
+    &[data-state="loading"] .tds-doc-meta { color: var(--tds-text-faint) }
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-doc:hover { --raise-sheen: var(--tds-raise-sheen-2); --raise-shadow: var(--tds-raise-shadow-2); background-color: var(--tds-surface-raise) } }
+  .tds-doc-glyph {
+    display: grid; place-items: center; flex: none; width: var(--tds-size-file-tile); height: var(--tds-size-file-tile); border-radius: var(--tds-radius-glyph);
+    background: color-mix(in oklab, var(--tds-chip-accent) 16%, var(--tds-surface-attach-doc)); color: color-mix(in oklab, var(--tds-chip-accent) 80%, var(--tds-text-tx));
+  }
+  .tds-doc-text {
+    display: flex; flex-direction: column; min-width: 0; gap: var(--tds-space-1);
+    & b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-body-size); line-height: var(--tds-type-body-lh); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx) }
+  }
+  .tds-doc-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-caption-size); line-height: var(--tds-type-caption-lh); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out) }
+
+  .tds-media[data-layout="single"] .tds-media-tile { border-radius: var(--tds-radius-bubble) }
+  .tds-media[data-layout="row"] .tds-media-tile {
+    &:first-child { border-top-left-radius: var(--tds-radius-bubble); border-bottom-left-radius: var(--tds-radius-bubble) }
+    &:last-child { border-top-right-radius: var(--tds-radius-bubble); border-bottom-right-radius: var(--tds-radius-bubble) }
+  }
+  .tds-media[data-layout="grid"] .tds-media-tile {
+    &:nth-child(1) { border-top-left-radius: var(--tds-radius-bubble) } &:nth-child(2) { border-top-right-radius: var(--tds-radius-bubble) }
+    &:nth-child(3) { border-bottom-left-radius: var(--tds-radius-bubble) } &:nth-child(4) { border-bottom-right-radius: var(--tds-radius-bubble) }
+  }
+  .tds-media-tile { box-shadow: none; transition: translate var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out), filter var(--tds-dur-swap) var(--tds-ease-out) }
+  .tds-media-tile img, .tds-media-tile video { transition: filter var(--tds-dur-hover) var(--tds-ease-out) }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-media-tile:hover { box-shadow: none; translate: 0 calc(var(--tds-space-2) * -1) }
+    .tds-media-tile:hover :is(img, video) { filter: brightness(1.06) }
+  }
 }

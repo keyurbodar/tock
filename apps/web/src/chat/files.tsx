@@ -2,7 +2,6 @@ import { createSignal, For, Show } from "solid-js"
 import { createStore } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/text-morph"
-import { tokens } from "@tock/tokens"
 import { extension, fileUrl, formatSize, isImage } from "./attachments"
 import { fileChip } from "./chip"
 import { openLightbox, type LightboxItem } from "./lightbox"
@@ -84,15 +83,17 @@ function MediaTile(props: { file: SentFile; more: number; onOpen: (el: HTMLEleme
   )
 }
 
-function DocSquare(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
+/** A sent document as one compact press target: a type-tinted glyph, the name, and "Markdown · 54 B · 4 lines" in quiet tabular type. Text opens in the lightbox, anything else in a new tab. */
+function DocCard(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
   const meta = () => fileMeta(props.file.id, props.file.name)
   const chip = () => fileChip(props.file.name)
+  const line = () => (meta()?.state === "missing" ? "Unavailable" : [typeName(props.file.name), meta()?.state === "ready" ? describe(meta()) : ""].filter(Boolean).join(" · "))
   return (
     <a
       href={fileUrl(props.file.id)}
       target="_blank"
       rel="noreferrer"
-      class="tds-sq"
+      class="tds-doc tds-raise-1"
       data-file={props.file.id}
       data-state={meta()?.state ?? "loading"}
       style={{ "--tds-chip-accent": `var(--tds-chip-${chip().kind})` }}
@@ -102,42 +103,16 @@ function DocSquare(props: { file: SentFile; onOpen: (el: HTMLElement) => void })
         props.onOpen(event.currentTarget)
       }}
     >
-      <b class="tds-sq-name">{props.file.name}</b>
-      <span class="tds-sq-meta num" data-shimmer={meta()?.state === "ready" || meta()?.state === "missing" ? undefined : ""}>
-        <TextMorph value={meta()?.state === "missing" ? "Unavailable" : meta()?.state === "ready" ? describe(meta()) : "Reading"} />
+      <span class="tds-doc-glyph">
+        <Icon name={chip().icon} size="menu" />
       </span>
-      <span class="tds-sq-foot">
-        <Icon name={chip().icon} size="chip" />
-        <span class="tds-sq-pill">{extension(props.file.name)}</span>
+      <span class="tds-doc-text">
+        <b>{props.file.name}</b>
+        <span class="tds-doc-meta num">
+          <TextMorph value={line()} />
+        </span>
       </span>
     </a>
-  )
-}
-
-function DocWide(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
-  const meta = () => fileMeta(props.file.id, props.file.name)
-  const chip = () => fileChip(props.file.name)
-  return (
-    <div class="tds-file-wide" data-file={props.file.id} style={{ "--tds-chip-accent": `var(--tds-chip-${chip().kind})` }}>
-      <button
-        type="button"
-        class="tds-file-wide-open"
-        onClick={(event) => (kindOf(props.file.name) === "text" ? props.onOpen(event.currentTarget.parentElement!) : window.open(fileUrl(props.file.id), "_blank", "noreferrer"))}
-      >
-        <span class="tds-file-tile">
-          <Icon name={chip().icon} size="menu" />
-        </span>
-        <span class="tds-file-wide-text">
-          <b>{props.file.name}</b>
-          <span class="num">
-            <TextMorph value={[typeName(props.file.name), meta()?.state === "ready" ? describe(meta()) : ""].filter(Boolean).join(" · ")} />
-          </span>
-        </span>
-      </button>
-      <a class="tds-file-wide-save tds-press" href={fileUrl(props.file.id)} download={props.file.name} aria-label={`Download ${props.file.name}`}>
-        <Icon name="download-simple" size="menu" />
-      </a>
-    </div>
   )
 }
 
@@ -164,9 +139,7 @@ export function Attachments(props: { files: readonly SentFile[]; side: "me" | "a
               const text = () => docs().filter((entry) => kindOf(entry.name) === "text")
               const onOpen = (el: HTMLElement) => open(text(), text().indexOf(file()), el)
               return (
-                <Show when={props.side === "me"} fallback={<DocWide file={file()} onOpen={onOpen} />}>
-                  <DocSquare file={file()} onOpen={onOpen} />
-                </Show>
+                <DocCard file={file()} onOpen={onOpen} />
               )
             }}
           </For>
