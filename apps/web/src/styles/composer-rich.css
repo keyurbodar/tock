@@ -13,4 +13,8 @@
     & li[data-checked="true"] > div { color: var(--tds-text-muted); text-decoration: line-through }
   }
   .tds-field-body { padding-inline-end: var(--tds-space-16) }
+  .tds-suggest[data-kind="command"] {
+    & .tds-suggest-label { flex: none }
+    & .tds-suggest-hint { flex: 1; min-width: 0; margin-inline-start: calc(var(--tds-space-8) - var(--tds-space-10)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; color: var(--tds-text-muted) }
+  }
 }

@@ -6,7 +6,7 @@ import { Editor, Extension, type JSONContent } from "@tiptap/core"
 import StarterKit from "@tiptap/starter-kit"
 import { Markdown } from "@tiptap/markdown"
 import { Placeholder } from "@tiptap/extensions"
-import { EditorState, Plugin, type EditorState as State } from "@tiptap/pm/state"
+import { EditorState, Plugin, Selection, type EditorState as State } from "@tiptap/pm/state"
 import { Fragment, Slice } from "@tiptap/pm/model"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
@@ -53,7 +53,8 @@ const touchesCode = (state: State) => {
 
 /**
  * Inline code never traps the caret: clearing the last code character drops the code mark instead of keeping it for the next keystroke,
- * and typing a backtick while in code steps out of it (ArrowRight at the end already exits, as the mark is exitable).
+ * typing over a selection that starts where code starts replaces it with plain text, and typing a backtick while in code steps out of it
+ * (ArrowRight at the end already exits, as the mark is exitable).
  */
 const CodeExit = Extension.create({
   name: "codeExit",
@@ -73,6 +74,13 @@ const CodeExit = Extension.create({
         appendTransaction(transactions, before, after) {
           const code = after.schema.marks.code
           if (!code || !transactions.some((tr) => tr.docChanged) || !after.selection.empty) return null
+          const { empty } = before.selection
+          const start = Selection.findFrom(before.selection.$from, 1, true)?.$from ?? before.selection.$from
+          const end = Selection.findFrom(before.selection.$to, -1, true)?.$to ?? before.selection.$to
+          if (!empty && !before.storedMarks && code.isInSet(start.marksAcross(end) ?? []) && !(start.nodeBefore && code.isInSet(start.nodeBefore.marks))) {
+            const from = transactions.reduce((pos, tr) => tr.mapping.map(pos, -1), start.pos)
+            if (after.selection.from > from && after.doc.rangeHasMark(from, after.selection.from, code)) return after.tr.removeMark(from, after.selection.from, code).setStoredMarks(code.removeFromSet(after.selection.$from.marks()))
+          }
           const stored = after.storedMarks ?? after.selection.$from.marks()
           if (!stored.some((mark) => mark.type === code) || touchesCode(after) || !touchesCode(before)) return null
           return after.tr.setStoredMarks(stored.filter((mark) => mark.type !== code))
@@ -179,6 +187,7 @@ function Preview(props: { item: Attachment; left: number; bottom: number }) {
 
 interface Suggestion {
   readonly key: string
+  readonly group?: "Files" | "Chats"
   readonly label: string
   readonly hint: string
   readonly icon: IconName
@@ -202,6 +211,7 @@ const apps = [
 const drafts = new Map<string, JSONContent>()
 const typing = (e: KeyboardEvent) => e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey
 const editable = (el: Element | null) => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)
+const FILE_LINK = /\[([^\]\n]+)\]\(tock-file:([\w-]+)\)/g
 const URL_ONLY = /^https?:\/\/\S+$/
 const STRUCTURED_HTML = /<(table|h[1-6]|ul|ol|blockquote|pre|hr)[\s>]/i
 const MARKDOWN = /(^|\n)(#{1,6} |[-*+] |\d+\. |> |```|---)|~~[^~\n]+~~|\*\*[^*\n]+\*\*|(^|\s)_[^_\n]+_(\s|$)|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\)/
@@ -376,17 +386,29 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       return commands
         .filter((command) => command.label.startsWith(query))
         .map((command) => ({ key: command.key, label: `/${command.label}`, hint: command.hint, icon: command.icon, run: () => runCommand(command.key) }))
-    return app.sessions
+    const files = new Map<string, string>()
+    const thread = app.threads[props.draftKey]
+    const scan = (value: unknown): void => {
+      if (typeof value === "string") for (const match of value.matchAll(FILE_LINK)) files.set(match[2]!, match[1]!)
+      else if (value && typeof value === "object") for (const child of Object.values(value)) scan(child)
+    }
+    untrack(() => scan([thread?.entries, thread?.pending]))
+    const fileItems: Suggestion[] = [...files]
+      .filter(([, name]) => name.toLowerCase().includes(query))
+      .slice(0, tokens.limit["mention-results"])
+      .map(([id, name]) => ({ key: `file:${id}`, group: "Files", label: name, hint: "", icon: fileChip(name).icon, run: () => insertToken({ kind: "file", id, label: name }) }))
+    return fileItems.concat(app.sessions
       .filter((session) => session.id !== props.draftKey && !session.meta.archived && titleOf(session).toLowerCase().includes(query))
       .slice(0, tokens.limit["mention-results"])
       .map((session) => ({
         key: session.id,
+        group: "Chats" as const,
         label: titleOf(session),
         hint: statusOf(session) === "idle" ? messageCount(session.messageCount) : STATUS_LABEL[statusOf(session)],
         icon: glyphFor(session.id).icon,
         hue: glyphFor(session.id).hue,
         run: () => insertToken({ kind: "thread", id: session.id, label: titleOf(session) }),
-      }))
+      })))
   })
 
   const clearTrigger = () => {
@@ -696,11 +718,14 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   return (
     <div ref={wrap} class="tds-composer-wrap">
       <Show when={trigger() && suggestions().length > 0}>
-        <div ref={list} class="tds-menu tds-suggest tds-over" data-edge-fade="y" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: "0px", transform: `translateX(${caret().left}px)`, bottom: `${caret().bottom}px` }}>
+        <div ref={list} class="tds-menu tds-suggest tds-over" data-edge-fade="y" role="listbox" data-kind={trigger()?.char === "@" ? "mention" : "command"} aria-label={trigger()?.char === "@" ? "Mention a file or chat" : "Commands"} style={{ left: "0px", transform: `translateX(${caret().left}px)`, bottom: `${caret().bottom}px` }}>
           <span class="tds-suggest-glide" aria-hidden="true" style={{ translate: `0 ${glide().top}px`, height: `${glide().height}px` }} />
-          <span class="tds-menu-label">{trigger()?.char === "@" ? "Chats" : "Commands"}</span>
           <For each={suggestions()} keyed={(item) => item.key}>
             {(item, index) => (
+              <>
+              <Show when={item().group !== undefined && item().group !== suggestions()[index() - 1]?.group}>
+                <span class="tds-menu-label">{item().group}</span>
+              </Show>
               <div
                 role="option"
                 class="tds-menu-item"
@@ -713,8 +738,11 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
                   <Icon name={item().icon} size="menu" />
                 </span>
                 <span class="tds-suggest-label">{item().label}</span>
-                <span class="tds-suggest-hint">{item().hint}</span>
+                <Show when={item().hint}>
+                  <span class="tds-suggest-hint">{item().hint}</span>
+                </Show>
               </div>
+              </>
             )}
           </For>
         </div>
