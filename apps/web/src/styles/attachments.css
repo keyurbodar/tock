@@ -73,4 +73,7 @@
   .tds-attach:focus-within { z-index: 2 }
   @media (hover: hover) and (pointer: fine) { .tds-attach:hover { z-index: 2 } }
   .tds-attach-tray { padding-top: var(--tds-space-12) }
+
+  .tds-lightbox-bar .tds-lightbox-count { position: static; translate: none; height: auto; font: inherit; color: inherit; opacity: 1 }
+  .tds-lightbox-bar b { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
 }

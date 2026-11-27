@@ -316,14 +316,14 @@ function Viewer(props: { opening: Opening }) {
         if (!(event.target as HTMLElement).closest("button, .tds-lightbox-stage")) close()
       }}
     >
-      <Show when={items.length > 1}>
-        <span class="tds-lightbox-count num" aria-live="polite" aria-atomic="true">
-          <TextMorph value={index() + 1 + " / " + items.length} />
-        </span>
-      </Show>
       <div class="tds-lightbox-bar">
         <b>{item().name}</b>
         <em class="num">
+          <Show when={items.length > 1}>
+            <span class="tds-lightbox-count" aria-live="polite" aria-atomic="true">
+              <TextMorph value={index() + 1 + " of " + items.length} />
+            </span>
+          </Show>
           <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} /></span>}</Show>
         </em>
         <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>
