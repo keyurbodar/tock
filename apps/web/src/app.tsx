@@ -1,5 +1,6 @@
-import { Show } from "solid-js"
-import type { JSX } from "@solidjs/web"
+import { createEffect, createSignal, Show, untrack } from "solid-js"
+import { Dynamic, type JSX } from "@solidjs/web"
+import { opening } from "./chat/lightbox-state"
 import { injectIconSprite } from "@tock/ui/icon"
 import { app, boot } from "./state/app"
 import { Rail } from "./shell/rail"
@@ -11,11 +12,18 @@ import { Gate } from "./shell/gate"
 import { Shortcuts } from "./shell/shortcuts"
 import { Toasts } from "./shell/toasts"
 import { Palette } from "./shell/palette"
-import { Lightbox } from "./chat/lightbox"
 import { Router } from "./router"
 import { Boundary } from "./shell/boundary"
 
+/** The viewer is its own chunk: it loads once the app is idle, or at once if something opens before that. */
+const [Viewer, setViewer] = createSignal<() => JSX.Element>()
+const loadViewer = () => void import("./chat/lightbox").then((module) => setViewer(() => module.Lightbox))
+
 function Shell(props: { children?: JSX.Element }) {
+  requestIdleCallback(loadViewer)
+  createEffect(opening, (open) => {
+    if (open && !untrack(Viewer)) loadViewer()
+  })
   return (
     <div class="relative flex h-full overflow-hidden bg-main" data-narrow={narrow() ? "" : undefined}>
       <a class="tds-skip" href="#main" onClick={(e) => (e.preventDefault(), document.getElementById("main")?.focus())}>
@@ -30,7 +38,7 @@ function Shell(props: { children?: JSX.Element }) {
       <Shortcuts />
       <Toasts />
       <Palette />
-      <Lightbox />
+      <Show when={Viewer()}>{(viewer) => <Dynamic component={viewer()} />}</Show>
       <Show when={app.connection === "unauthorized"}>
         <Gate />
       </Show>

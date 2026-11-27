@@ -4,7 +4,7 @@ import { Icon } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/text-morph"
 import { extension, fileUrl, formatSize, isImage } from "./attachments"
 import { fileChip } from "./chip"
-import { openLightbox, type LightboxItem } from "./lightbox"
+import { openLightbox, type LightboxItem } from "./lightbox-state"
 
 export interface SentFile {
   readonly id: string

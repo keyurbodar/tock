@@ -19,7 +19,7 @@ import { setShortcutsOpen } from "../shell/shortcuts"
 import { linkToken, linkTyped, selectTokenBefore, Token, triggerAt, type TokenAttrs, type Trigger } from "./tokens"
 import { extension, formatSize, readingLabel, withFiles, type Attachment, type createAttachments, type Rejection } from "./attachments"
 import { fileChip } from "./chip"
-import { openLightbox } from "./lightbox"
+import { openLightbox } from "./lightbox-state"
 import { CodeHighlight } from "./code-highlight"
 
 type Attachments = ReturnType<typeof createAttachments>

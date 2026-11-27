@@ -9,25 +9,7 @@ import { extension, fileUrl, formatSize, isImage } from "./attachments"
 import { CodeBlock } from "./code"
 import { Markdown } from "./markdown"
 import { toast } from "../shell/toasts"
-
-export interface LightboxItem {
-  readonly id: string
-  readonly name: string
-}
-
-interface Opening {
-  readonly items: readonly LightboxItem[]
-  readonly index: number
-  readonly from: HTMLElement
-}
-
-const [opening, setOpening] = createSignal<Opening>()
-
-/** Opens the viewer grown out of the thumbnail `from` (TDS px4 Lightbox); a second open while one is up is ignored. */
-export function openLightbox(items: readonly LightboxItem[], index: number, from: HTMLElement) {
-  if (untrack(opening)) return
-  setOpening({ items, index, from })
-}
+import { opening, setOpening, type LightboxItem, type Opening } from "./lightbox-state"
 
 const d = tokens.motion.duration
 const ease = tokens.motion.curve

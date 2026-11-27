@@ -1,3 +1,4 @@
+import "../styles/motion-demo.css"
 import { createSignal, For, Show } from "solid-js"
 import { tokens } from "@tock/tokens"
 import { backdrop, drive, edgeFade, growFrom, MorphIcon, morphFrom, morphInto, raise, recede, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
