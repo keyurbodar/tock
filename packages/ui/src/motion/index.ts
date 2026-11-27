@@ -5,7 +5,7 @@
  * Flip       watchLayout, flip                               layout morph when items come, go or reflow
  * Presence   enter.*, exit.*, collapse, expandTo, animate     enter/exit presets, reduced-motion aware
  * Glide      installFluidHover + lanes                       one highlight that glides between items
- * Gesture    scrub, rubber, swipeState, isSideways           drag / wheel scrubbing with rubber band + velocity commit
+ * Gesture    scrub, swipe model (lockAxis, swipeDecision, inertiaTail), rubber           drag / wheel scrubbing with rubber band + velocity commit
  * Spring     spring, springEasing                            presets from tokens.motion.spring
  * Drive      drive, recede                                   one velocity-keeping 0..1 progress (--p), retargetable; recede one element by it
  * Backdrop   backdrop, backdropTo                            dim / scale / blur behind an expanded surface (on/off or by progress)
@@ -18,6 +18,7 @@ export { morphFrom, morphInto } from "./morph"
 export { installFluidHover, lanes } from "./fluid"
 export { watchLayout } from "./flip"
 export { scrub, type ScrubOptions } from "./gesture"
+export { inertiaTail, lockAxis, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeDecision, type SwipeSide, type SwipeStage, type SwipeThresholds } from "./swipe"
 export { drive, recede } from "./drive"
 export { TextMorph } from "../text-morph"
 export { MorphIcon, type GlyphName, type MorphIconName } from "../morph-icon"

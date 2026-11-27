@@ -25,17 +25,20 @@
   .tds-swipe-act {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; clip-path: var(--clip);
     font-size: var(--tds-type-micro-size); font-weight: var(--tds-weight-medium); letter-spacing: 0; color: var(--tds-surface-white);
+    transition: clip-path var(--tds-dur-menu) var(--tds-ease-std);
   }
-  .tds-swipe-body { display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-4); white-space: nowrap; translate: var(--shift) 0 }
-  .tds-row-wrap[data-going] .tds-swipe-act { transition: clip-path var(--tds-dur-menu) var(--tds-ease-std) }
-  .tds-row-wrap[data-going] .tds-swipe-body { transition: translate var(--tds-dur-menu) var(--tds-ease-std) }
-  .tds-swipe-act[data-act="pin"] { background: var(--tds-swipe-pin); --clip: inset(0 0 0 calc(var(--s) * 100%)); --shift: calc(var(--w) * var(--s) / 2) }
-  .tds-swipe-act[data-act="unread"] { background: var(--tds-swipe-unread); --clip: inset(0 calc((1 - var(--s)) * 100%) 0 0); --shift: calc(var(--w) * (1 - var(--s)) / -2) }
-  .tds-swipe-act[data-act="archive"] { background: var(--tds-swipe-archive); --clip: inset(0 calc(var(--s) * 100%) 0 0); --shift: calc(var(--w) * var(--s) / -2) }
-  .tds-swipe-act[data-act="delete"] { background: var(--tds-swipe-delete); --clip: inset(0 0 0 calc((1 - var(--s)) * 100%)); --shift: calc(var(--w) * (1 - var(--s)) / 2) }
-  .tds-row-wrap[data-go="left"] [data-act="pin"], .tds-row-wrap[data-go="right"] [data-act="archive"] { z-index: 1; --clip: inset(0); --shift: 0px }
-  .tds-row-wrap[data-go="left"] [data-act="unread"] { --clip: inset(0 100% 0 0); --shift: calc(var(--w) / -2) }
-  .tds-row-wrap[data-go="right"] [data-act="delete"] { --clip: inset(0 0 0 100%); --shift: calc(var(--w) / 2) }
+  .tds-swipe-body { display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-4); white-space: nowrap; translate: calc(var(--w, 0px) * var(--k)) 0; transition: translate var(--tds-dur-menu) var(--tds-ease-std) }
+  .tds-swipe-act[data-act="pin"] { background: var(--tds-swipe-pin) }
+  .tds-swipe-act[data-act="unread"] { background: var(--tds-swipe-unread) }
+  .tds-swipe-act[data-act="archive"] { background: var(--tds-swipe-archive) }
+  .tds-swipe-act[data-act="delete"] { background: var(--tds-swipe-delete) }
+  /* at rest the strip splits in two: the near action (stage 1) beside the row, the far one (stage 2) at the edge */
+  [data-side="right"] > [data-stage="1"], [data-side="left"] > [data-stage="2"] { --clip: inset(0 50% 0 0); --k: -.25 }
+  [data-side="right"] > [data-stage="2"], [data-side="left"] > [data-stage="1"] { --clip: inset(0 0 0 50%); --k: .25 }
+  /* an armed action takes the whole strip, so what you see is what release runs */
+  .tds-row-wrap[data-armed="1"] [data-stage="1"], .tds-row-wrap[data-armed="2"] [data-stage="2"] { z-index: 1; --clip: inset(0); --k: 0 }
+  .tds-row-wrap[data-armed="1"] [data-side="right"] > [data-stage="2"], .tds-row-wrap[data-armed="2"] [data-side="left"] > [data-stage="1"] { --clip: inset(0 0 0 100%); --k: .5 }
+  .tds-row-wrap[data-armed="1"] [data-side="left"] > [data-stage="2"], .tds-row-wrap[data-armed="2"] [data-side="right"] > [data-stage="1"] { --clip: inset(0 100% 0 0); --k: -.5 }
 
   .tds-pins {
     --pin-cols: 4; position: relative; display: flex; flex-wrap: wrap; justify-content: center; row-gap: var(--tds-space-4);

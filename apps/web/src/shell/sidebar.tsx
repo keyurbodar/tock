@@ -1,5 +1,5 @@
 import { Empty } from "../chat/empty"
-import { animate, morphFrom } from "@tock/ui/motion"
+import { animate, inertiaTail, lockAxis, morphFrom, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
 import { createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Dynamic } from "@solidjs/web"
@@ -12,7 +12,6 @@ import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
-import { spring } from "../lib/spring"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
@@ -99,50 +98,58 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
   let right!: HTMLDivElement
   let icon!: HTMLSpanElement
   let start: { x: number; y: number; from: number; id: number; mouse: boolean } | undefined
-  let velocity = 0
-  let last = { x: 0, t: 0 }
+  const speed = velocityTracker()
   let mode: "swipe" | "drag" | undefined
   let x = 0
-  let go = false
+  let stage: SwipeStage = 0
   let ghost: HTMLElement | undefined
+  const limits = () => swipeThresholds(row.offsetWidth)
+  const actionFor = (side: number, at: 1 | 2) => (side > 0 ? (at === 1 ? "unread" : "pin") : at === 1 ? "archive" : "delete")
 
-  const setX = (next: number, animate = false) => {
+  /** Crossing a threshold shows the action that release would run: its pill takes the strip and pops, before you let go. */
+  const arm = (next: SwipeStage) => {
+    if (next === stage) return
+    stage = next
+    wrap.dataset.armed = next ? String(next) : ""
+    if (!next) return
+    const pill = wrap.querySelector(`.tds-swipe-side[data-side="${x > 0 ? "left" : "right"}"] [data-stage="${next}"] .tds-swipe-body`)
+    if (pill) spring(pill, [{ scale: 1 }, { scale: 1.16 }, { scale: 1 }], "press")
+    try {
+      navigator.vibrate?.(tokens.motion.gesture.frame / 2)
+    } catch {}
+  }
+  const paint = (next: number, settle = false) => {
     x = next
-    const settle = spring()
-    const ease = animate ? `${settle.duration}ms ${settle.easing}` : "0s"
+    const { easing, duration } = springEasing("snappy")
+    const ease = settle ? `${duration}ms ${easing}` : "0s"
     row.style.transition = `transform ${ease}`
-    for (const side of [left, right]) side.style.transition = `width ${ease}`
     row.style.transform = next ? `translateX(${next}px)` : ""
-    left.style.width = `${Math.max(0, next)}px`
-    right.style.width = `${Math.max(0, -next)}px`
     for (const [side, w] of [[left, Math.max(0, next)], [right, Math.max(0, -next)]] as const) {
+      side.style.transition = `width ${ease}`
+      side.style.width = `${w}px`
       side.style.setProperty("--w", `${w}px`)
-      side.style.setProperty("--s", String(Math.min(1, Math.max(0, (w - tokens.size.swipe) / tokens.size.swipe)) / 2))
     }
     wrap.toggleAttribute("data-swiping", next !== 0)
+    arm(settle ? 0 : swipeStage(next, limits()))
   }
   const close = () => {
-    setX(0, true)
+    paint(0, true)
     if (closeOpenSwipe === close) closeOpenSwipe = undefined
   }
-  let going: ReturnType<typeof setTimeout> | undefined
-  const drag = (dx: number) => {
-    const width = row.offsetWidth
-    let next = Math.abs(dx) > L["swipe-max"] ? Math.sign(dx) * (L["swipe-max"] + (Math.abs(dx) - L["swipe-max"]) * L["swipe-rubber"]) : dx
-    next = Math.max(-width + tokens.space[18]!, Math.min(width - tokens.space[18]!, next))
-    setX(next)
-    const commit = Math.abs(next) > width * L["swipe-commit"]
-    if (commit !== go) {
-      go = commit
-      wrap.dataset.going = ""
-      clearTimeout(going)
-      going = setTimeout(() => delete wrap.dataset.going, D.menu)
-      wrap.dataset.go = commit ? (next > 0 ? "left" : "right") : ""
+  const rest = () => {
+    paint(Math.sign(x) * limits().rest, true)
+    closeOpenSwipe = close
+    const outside = (e: PointerEvent) => {
+      if (wrap.contains(e.target as Node)) return
+      removeEventListener("pointerdown", outside, true)
+      if (closeOpenSwipe === close) close()
     }
+    addEventListener("pointerdown", outside, true)
   }
   const act = (action: string) => {
     const session = untrack(() => props.session)
     const from = { rect: icon.getBoundingClientRect(), glyph: icon.innerHTML }
+    if (!wrap.dispatchEvent(new CustomEvent("tds-swipe", { bubbles: true, cancelable: true, detail: action }))) return close()
     if (action === "pin-drop") return pin(session, from)
     if (action === "unread") return close(), threadAction(action, session, props.current, props.navigate)
     row.style.transition = `transform ${D.panel}ms ${curve.sheet}`
@@ -154,53 +161,50 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
       if (action === "delete") remove([session], props.current, props.navigate)
     }, D.menu)
   }
-  const release = () => {
-    const projected = x + velocity * D["swipe-project"]
-    const flick = Math.abs(velocity) > L["swipe-velocity"] && Math.sign(velocity) === Math.sign(x)
-    if (go || (flick && Math.abs(projected) > row.offsetWidth * L["swipe-commit"])) return act(x > 0 ? "pin" : "archive")
-    if (Math.abs(projected) > L["swipe-snap"] && Math.sign(projected) === Math.sign(x)) {
-      setX(Math.sign(x) * tokens.size.swipe * 2, true)
-      closeOpenSwipe = close
-      const outside = (e: PointerEvent) => {
-        if (wrap.contains(e.target as Node)) return
-        removeEventListener("pointerdown", outside, true)
-        if (closeOpenSwipe === close) close()
-      }
-      addEventListener("pointerdown", outside, true)
-      return
-    }
+  const release = (velocity: number) => {
+    const decision = swipeDecision(x, velocity, limits())
+    wrap.dispatchEvent(new CustomEvent("tds-swipe-release", { bubbles: true, detail: decision.kind }))
+    if (decision.kind === "commit") return act(actionFor(x, decision.stage))
+    if (decision.kind === "open") return rest()
     close()
   }
 
-  let wheel: { lock: "swipe" | "scroll" | undefined; acc: number; idle?: ReturnType<typeof setTimeout>; t: number } | undefined
-  /** px2 trackpad swipe: two-finger horizontal scroll moves the row; intent locks per gesture, release comes a beat (wheel-idle) after the last event. */
+  let wheel: { lock?: "x" | "y"; sx: number; sy: number; acc: number; spent: boolean; tail: ReturnType<typeof inertiaTail>; idle?: ReturnType<typeof setTimeout> } | undefined
+  /**
+   * Trackpad swipe: the axis locks once the summed deltas leave the dead zone. When the deltas start decaying smoothly
+   * (the OS inertia tail after the fingers lift), the row settles from where the finger let go and the rest of the tail
+   * is swallowed, so momentum never pushes a swipe into the next action. A vertical scroll closes an open row.
+   */
   const onWheel = (e: WheelEvent) => {
     if (renaming() === untrack(() => props.session.id) || start) return
-    wheel ??= { lock: undefined, acc: x, t: e.timeStamp }
-    if (!wheel.lock) {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) * L["swipe-ratio"]) wheel.lock = "swipe"
-      else if (Math.abs(e.deltaY) > 0) wheel.lock = "scroll"
-      if (wheel.lock === "swipe") {
+    wheel ??= { sx: 0, sy: 0, acc: x, spent: false, tail: inertiaTail() }
+    const current = wheel
+    clearTimeout(current.idle)
+    current.idle = setTimeout(() => {
+      wheel = undefined
+      if (current.lock === "x" && !current.spent) release(0)
+    }, D["wheel-idle"])
+    if (!current.lock) {
+      current.sx -= e.deltaX
+      current.sy += e.deltaY
+      current.lock = lockAxis(current.sx, current.sy)
+      if (!current.lock) return Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.preventDefault()
+      if (current.lock === "x") {
         if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe()
-        go = false
-        velocity = 0
         hidePeek()
       }
     }
-    clearTimeout(wheel.idle)
-    const done = () => {
-      const ended = wheel
-      wheel = undefined
-      if (ended?.lock === "swipe") release()
-    }
-    wheel.idle = setTimeout(done, D["wheel-idle"])
-    if (wheel.lock !== "swipe") return
+    if (current.lock === "y") return void (x !== 0 && close())
     e.preventDefault()
-    const dt = e.timeStamp - wheel.t
-    if (dt > 0) velocity = velocity * 0.4 + (-e.deltaX / dt) * 0.6
-    wheel.t = e.timeStamp
-    wheel.acc -= e.deltaX
-    drag(wheel.acc)
+    if (current.spent) return
+    const letGo = current.tail.push(e.deltaX, current.acc)
+    if (letGo !== undefined) {
+      current.spent = true
+      paint(swipeOffset(letGo, limits()))
+      return release(0)
+    }
+    current.acc -= e.deltaX
+    paint(swipeOffset(current.acc, limits()))
   }
 
   const dragStart = (e: PointerEvent) => {
@@ -250,13 +254,13 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
     >
       <div class="tds-swipe" aria-hidden="true">
         <div class="tds-swipe-side" data-side="left" ref={left}>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="pin" onClick={() => act("pin")}>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="pin" data-stage="2" onClick={() => act("pin")}>
             <span class="tds-swipe-body">
               <Icon name="push-pin" size="code-action" />
               Pin
             </span>
           </button>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="unread" onClick={() => act("unread")}>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="unread" data-stage="1" onClick={() => act("unread")}>
             <span class="tds-swipe-body">
               <Icon name="circle" size="code-action" />
               {props.session.meta.unread ? "Read" : "Unread"}
@@ -264,13 +268,13 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
           </button>
         </div>
         <div class="tds-swipe-side" data-side="right" ref={right}>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="archive" onClick={() => act("archive")}>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="archive" data-stage="1" onClick={() => act("archive")}>
             <span class="tds-swipe-body">
               <Icon name="archive" size="code-action" />
               Archive
             </span>
           </button>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="delete" onClick={() => act("delete")}>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="delete" data-stage="2" onClick={() => act("delete")}>
             <span class="tds-swipe-body">
               <Icon name="trash" size="code-action" />
               Delete
@@ -296,8 +300,8 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
           if (e.button !== 0 || renaming() === untrack(() => props.session.id)) return
           if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe()
           start = { x: e.clientX, y: e.clientY, from: x, id: e.pointerId, mouse: e.pointerType === "mouse" }
-          velocity = 0
-          last = { x: e.clientX, t: e.timeStamp }
+          speed.reset()
+          speed.push(e.clientX, e.timeStamp)
           mode = undefined
         }}
         onPointerMove={(e) => {
@@ -305,25 +309,27 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
           const dx = e.clientX - start.x
           const dy = e.clientY - start.y
           if (!mode) {
-            if (Math.abs(dx) > L["swipe-intent"] && Math.abs(dx) > Math.abs(dy) * L["swipe-ratio"]) {
+            const axis = lockAxis(dx, dy)
+            if (!axis) return
+            if (axis === "x") {
               mode = "swipe"
-              go = false
-              e.currentTarget.setPointerCapture(start.id)
-            } else if (start.mouse && untrack(() => !props.session.meta.archived) && Math.abs(dy) > L["swipe-intent"]) {
+              start.x += Math.sign(dx) * tokens.motion.gesture["swipe-dead"]
+              hidePeek()
+            } else if (start.mouse && untrack(() => !props.session.meta.archived)) {
               mode = "drag"
-              e.currentTarget.setPointerCapture(start.id)
               dragStart(e)
-            } else return
+            } else return void (start = undefined)
+            try {
+              e.currentTarget.setPointerCapture(start.id)
+            } catch {}
           }
-          const dt = e.timeStamp - last.t
-          if (dt > 0) velocity = velocity * 0.4 + ((e.clientX - last.x) / dt) * 0.6
-          last = { x: e.clientX, t: e.timeStamp }
-          if (mode === "swipe") drag(start.from + dx)
+          speed.push(e.clientX, e.timeStamp)
+          if (mode === "swipe") paint(swipeOffset(start.from + e.clientX - start.x, limits()))
           else dragMove(e)
         }}
         onPointerUp={() => {
           if (mode) swallowClick()
-          if (mode === "swipe") release()
+          if (mode === "swipe") release(speed.get())
           if (mode === "drag") dragEnd()
           start = undefined
           mode = undefined

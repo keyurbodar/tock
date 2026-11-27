@@ -612,10 +612,14 @@ const journeys: Record<string, () => void> = {
     const y = String(at.y + at.h / 2)
     ab("mouse", "move", String(at.x + at.w - 60), y)
     ab("mouse", "down")
-    ab("mouse", "move", String(at.x + at.w - 150), y, "--steps", "8")
+    for (let dx = 15; dx <= 90; dx += 15) {
+      ab("mouse", "move", String(at.x + at.w - 60 - dx), y)
+      wait(40)
+    }
     ab("mouse", "up")
     until(() => exists(`.tds-row-wrap[data-id="${id}"][data-swiping]`), Boolean, "the row to stay open")
-    check(js<string>(`return document.querySelector('.tds-row-wrap[data-id="${id}"] .tds-row').style.transform`) === "translateX(-132px)", "a short swipe snaps open to two actions")
+    const openAt = js<string>(`return document.querySelector('.tds-row-wrap[data-id="${id}"] .tds-row').style.transform`)
+    check(openAt === "translateX(-132px)", `a short swipe snaps open to two actions (${openAt})`)
     wait(350)
     shot("swipe-open")
     ab("click", `.tds-row-wrap[data-id="${id}"] .tds-row`)
@@ -629,6 +633,76 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-toast-action"), Boolean, "the Undo toast")
     js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
     until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), Boolean, "Undo to restore the row")
+  },
+  swipeintent() {
+    ensureRows(1)
+    ab("mouse", "move", "5", "5")
+    const sel = ".tds-row-wrap:not([data-archived]) .tds-row"
+    check(rect(sel)!.w >= 290, `rows are wide enough for the stock thresholds (${rect(sel)!.w})`)
+    type Outcome = { fired: string[]; released: string[]; swiping: boolean }
+    const run = (kind: "pointer" | "wheel", steps: number[][]): Outcome => {
+      const out = ab("eval", `(async () => {
+        const row = document.querySelector(${JSON.stringify(sel)}); const wrap = row.closest(".tds-row-wrap")
+        const fired = [], released = []
+        const veto = (e) => { e.preventDefault(); fired.push(e.detail) }
+        const done = (e) => released.push(e.detail)
+        document.addEventListener("tds-swipe", veto); document.addEventListener("tds-swipe-release", done)
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+        const b = row.getBoundingClientRect(), x0 = b.left + b.width * 0.55, y0 = b.top + b.height / 2
+        const steps = ${JSON.stringify(steps)}
+        if (${JSON.stringify(kind)} === "pointer") {
+          const at = (x, y) => ({ bubbles: true, cancelable: true, composed: true, pointerId: 7, pointerType: "mouse", isPrimary: true, button: 0, buttons: 1, clientX: x0 + x, clientY: y0 + y })
+          row.dispatchEvent(new PointerEvent("pointerdown", at(0, 0)))
+          let last = [0, 0]
+          for (const [dx, dy, ms] of steps) { await sleep(ms); last = [dx, dy]; row.dispatchEvent(new PointerEvent("pointermove", at(dx, dy))) }
+          row.dispatchEvent(new PointerEvent("pointerup", { ...at(last[0], last[1]), buttons: 0 }))
+        } else {
+          for (const [dx, dy, ms] of steps) { await sleep(ms); row.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: dx, deltaY: dy, clientX: x0, clientY: y0 })) }
+          await sleep(260)
+        }
+        await sleep(30)
+        const swiping = wrap.hasAttribute("data-swiping")
+        document.removeEventListener("tds-swipe", veto); document.removeEventListener("tds-swipe-release", done)
+        return JSON.stringify({ fired, released, swiping })
+      })()`)
+      return JSON.parse(JSON.parse(out)) as Outcome
+    }
+    const reset = () => {
+      ab("mouse", "move", "900", "450")
+      ab("mouse", "down")
+      ab("mouse", "up")
+      until(() => exists(".tds-row-wrap[data-swiping]"), (on) => !on, "the row to settle closed")
+      wait(250)
+    }
+    const drag = (to: number, ms: number, n = 12) => Array.from({ length: n }, (_, i) => [Math.round((to * (i + 1)) / n), 0, ms])
+    const cases: { name: string; kind: "pointer" | "wheel"; steps: number[][]; fired: string[]; released?: string }[] = [
+      { name: "short slow drag rests open", kind: "pointer", steps: drag(-80, 30), fired: [], released: "open" },
+      { name: "tiny drag closes", kind: "pointer", steps: drag(-40, 30), fired: [], released: "close" },
+      { name: "medium drag archives", kind: "pointer", steps: drag(-175, 25), fired: ["archive"] },
+      { name: "long drag deletes", kind: "pointer", steps: drag(-245, 25, 16), fired: ["delete"] },
+      { name: "long then back to medium archives", kind: "pointer", steps: [...drag(-245, 20, 14), ...Array.from({ length: 12 }, (_, i) => [-245 + (i + 1) * 6, 0, 35])], fired: ["archive"] },
+      { name: "fast short flick archives", kind: "pointer", steps: drag(-64, 8, 4), fired: ["archive"] },
+      { name: "fast flick never reaches delete", kind: "pointer", steps: drag(-150, 6, 4), fired: ["archive"] },
+      { name: "flick back cancels an armed delete", kind: "pointer", steps: [...drag(-245, 20, 14), [-215, 0, 8], [-180, 0, 8], [-150, 0, 8]], fired: [], released: "close" },
+      { name: "diagonal never swipes", kind: "pointer", steps: [[10, 12, 20], [22, 30, 20], [30, 44, 20], [34, 60, 20]], fired: [] },
+      { name: "right medium marks unread", kind: "pointer", steps: drag(175, 25), fired: ["unread"] },
+      { name: "right long pins", kind: "pointer", steps: drag(245, 25, 16), fired: ["pin"] },
+      { name: "trackpad short rests open", kind: "wheel", steps: Array.from({ length: 7 }, () => [12, 0, 16]), fired: [], released: "open" },
+      { name: "trackpad inertia tail never commits", kind: "wheel", steps: [...Array.from({ length: 9 }, () => [14, 0, 16]), ...[12, 10, 8, 7, 6, 5, 4, 3, 2, 1].map((d) => [d, 0, 16])], fired: [], released: "open" },
+      { name: "trackpad deliberate long deletes", kind: "wheel", steps: Array.from({ length: 19 }, () => [14, 0, 16]), fired: ["delete"] },
+      { name: "trackpad medium archives", kind: "wheel", steps: Array.from({ length: 13 }, () => [13, 0, 16]), fired: ["archive"] },
+      { name: "vertical scroll never swipes", kind: "wheel", steps: Array.from({ length: 6 }, () => [1, 24, 16]), fired: [] },
+    ]
+    const failures: string[] = []
+    for (const c of cases) {
+      const got = run(c.kind, c.steps)
+      const ok = JSON.stringify(got.fired) === JSON.stringify(c.fired) && (c.released === undefined || got.released.at(-1) === c.released)
+      console.log(`      ${ok ? "ok  " : "FAIL"} ${c.name}: fired ${JSON.stringify(got.fired)} released ${JSON.stringify(got.released)}`)
+      if (!ok) failures.push(`${c.name}: fired ${JSON.stringify(got.fired)} released ${JSON.stringify(got.released)}`)
+      if (c.name === "medium drag archives") shot("swipe-armed")
+      reset()
+    }
+    check(failures.length === 0, failures.join("; "))
   },
   multiselect() {
     ensureRows(2)
@@ -2138,7 +2212,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
