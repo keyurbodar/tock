@@ -7,6 +7,7 @@ import StarterKit from "@tiptap/starter-kit"
 import { Markdown } from "@tiptap/markdown"
 import { Placeholder } from "@tiptap/extensions"
 import { EditorState, Plugin, type EditorState as State } from "@tiptap/pm/state"
+import { Fragment, Slice } from "@tiptap/pm/model"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
@@ -24,6 +25,8 @@ import { openLightbox } from "./lightbox-state"
 import { CodeHighlight } from "./code-highlight"
 import { createHotkey } from "@tanstack/solid-hotkeys"
 import { appHotkeys } from "../shell/hotkeys"
+import { convertCodeFenceOnEnter, exitCodeBlockOnClosingFence, linkSelection, RichTextExtensions, splitOrLiftListItem } from "./rich-text"
+import { hasTable, htmlToMarkdown } from "./markdown-clipboard"
 import { STATUS_LABEL, statusOf } from "../lib/status"
 
 const plural = new Intl.PluralRules("en")
@@ -200,7 +203,8 @@ const drafts = new Map<string, JSONContent>()
 const typing = (e: KeyboardEvent) => e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey
 const editable = (el: Element | null) => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)
 const URL_ONLY = /^https?:\/\/\S+$/
-const MARKDOWN = /(^|\n)(#{1,6} |[-*+] |\d+\. |> |```)|\*\*[^*\n]+\*\*|(^|\s)_[^_\n]+_(\s|$)|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\)/
+const STRUCTURED_HTML = /<(table|h[1-6]|ul|ol|blockquote|pre|hr)[\s>]/i
+const MARKDOWN = /(^|\n)(#{1,6} |[-*+] |\d+\. |> |```|---)|~~[^~\n]+~~|\*\*[^*\n]+\*\*|(^|\s)_[^_\n]+_(\s|$)|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\)/
 const pad = (value: number) => String(value).padStart(2, "0")
 
 async function screenshot(): Promise<File | null> {
@@ -329,7 +333,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     sync()
   }
 
-  const text = () => (editor?.isEmpty ? "" : (editor?.getMarkdown().replace(/&nbsp;/g, " ").trim() ?? ""))
+  const text = () => (editor?.isEmpty ? "" : (editor?.getMarkdown().replace(/&nbsp;|\u00a0/g, " ").trim() ?? ""))
 
   /** T3Code's held send: a send while files upload or read waits for them, then goes on its own; editing or Esc cancels it. */
   const submit = () => {
@@ -427,6 +431,27 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     return true
   }
 
+  /** Pasted text goes in as typed source; Markdown with blocks the composer can show is parsed, and a table stays as GFM lines (t3code markdown-clipboard.ts). */
+  const pasteSource = (value: string) => {
+    if (!editor) return false
+    const { schema } = editor.state
+    const blocks = value.replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) =>
+      schema.nodes.paragraph!.create(null, block.split("\n").flatMap((line, index) => [...(index > 0 ? [schema.nodes.hardBreak!.create()] : []), ...(line ? [schema.text(line)] : [])])),
+    )
+    editor.view.dispatch(editor.state.tr.replaceSelection(new Slice(Fragment.from(blocks), 1, 1)).scrollIntoView())
+    return true
+  }
+
+  const pasteMarkdown = (value: string) => {
+    if (!editor || !value) return false
+    if (hasTable(value) || !MARKDOWN.test(value)) return pasteSource(value)
+    try {
+      return editor.commands.insertContent(value, { contentType: "markdown" }) || pasteSource(value)
+    } catch {
+      return pasteSource(value)
+    }
+  }
+
   const pasteLink = (value: string) => {
     const url = value.trim()
     if (!editor || !URL_ONLY.test(url)) return false
@@ -504,7 +529,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       element,
       autofocus: matchMedia("(pointer: fine)").matches ? "end" : false,
       extensions: [
-        StarterKit.configure({ codeBlock: { HTMLAttributes: { "data-edge-fade": "both" } }, heading: false, horizontalRule: false, dropcursor: false, gapcursor: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false } }),
+        StarterKit.configure({ codeBlock: false, heading: false, horizontalRule: false, blockquote: false, bulletList: false, orderedList: false, listItem: false, underline: false, dropcursor: false, gapcursor: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false } }),
+        ...RichTextExtensions,
         Markdown,
         Token,
         CodeHighlight,
@@ -520,9 +546,9 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           }
           const value = event.clipboardData?.getData("text/plain") ?? ""
           if (longPaste(value) || pasteLink(value)) return true
-          if (event.clipboardData?.types.includes("text/html") || !MARKDOWN.test(value) || !editor) return false
-          editor.commands.insertContent(value, { contentType: "markdown" })
-          return true
+          const html = event.clipboardData?.getData("text/html") ?? ""
+          if (html && !STRUCTURED_HTML.test(html)) return false
+          return pasteMarkdown(html ? htmlToMarkdown(html) : value)
         },
         attributes: { class: "tds-input", role: "textbox", "aria-multiline": "true", "aria-label": "Message toast", enterkeyhint: "send" },
         handleKeyDown: (view, event) => {
@@ -546,9 +572,17 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             return false
           }
           if (event.key === "Backspace" && selectTokenBefore(view)) return true
+          if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k" && editor) {
+            event.preventDefault()
+            event.stopPropagation()
+            return linkSelection(editor)
+          }
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) return event.preventDefault(), submit(), true
-          if (event.key === "Enter" && event.shiftKey && editor && !editor.isActive("codeBlock")) return editor.isActive("listItem") ? editor.commands.splitListItem("listItem") : editor.commands.splitBlock()
-          if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229 || editor?.isActive("codeBlock")) return false
+          if (event.key !== "Enter" || event.isComposing || event.keyCode === 229 || !editor) return false
+          if (editor.isActive("codeBlock")) return !event.shiftKey && exitCodeBlockOnClosingFence(view.state, view.dispatch)
+          if (convertCodeFenceOnEnter(view.state, view.dispatch)) return event.preventDefault(), true
+          if (event.shiftKey && editor.isActive("blockquote") && view.state.selection.$from.parent.content.size === 0) return editor.commands.lift("blockquote")
+          if (event.shiftKey) return splitOrLiftListItem(editor) || editor.commands.splitBlock()
           event.preventDefault()
           submit()
           return true
@@ -781,9 +815,6 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           </Show>
           <div class="tds-field-body">
             <div ref={mount} class="tds-editor tds-scroll" data-edge-fade="y" onMouseDown={(e) => e.target === e.currentTarget && (e.preventDefault(), editor?.commands.focus("end"))} />
-            <button type="button" class="tds-press tds-mic" aria-label="Dictate">
-              <Icon name="waveform" size="composer" />
-            </button>
           </div>
         </div>
         <button type="submit" class="tds-press tds-send tds-raise-2" data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>

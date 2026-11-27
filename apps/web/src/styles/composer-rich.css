@@ -1,0 +1,16 @@
+@layer components {
+  .tds-input {
+    & h1, & h2, & h3 { margin: 0; font-weight: var(--tds-weight-semibold); letter-spacing: var(--tds-type-title-tracking) }
+    & h1 { font-size: var(--tds-type-title-size); line-height: var(--tds-type-title-lh) }
+    & h2, & h3 { font-size: var(--tds-type-composer-size); line-height: var(--tds-type-composer-lh) }
+    & hr { height: var(--tds-space-1); margin: var(--tds-space-8) 0; border: 0; background: var(--tds-overlay-fill-16) }
+    & hr.ProseMirror-selectednode { background: var(--tds-accent-rose) }
+    & ul[data-type="taskList"] { list-style: none; padding-left: 0 }
+    & li[data-checked] { display: flex; align-items: flex-start; gap: var(--tds-space-6) }
+    & li[data-checked] > label { flex: none; display: grid; place-items: center; height: var(--tds-type-composer-lh) }
+    & li[data-checked] > label input { margin: 0; accent-color: var(--tds-accent-rose) }
+    & li[data-checked] > div { flex: 1; min-width: 0 }
+    & li[data-checked="true"] > div { color: var(--tds-text-muted); text-decoration: line-through }
+  }
+  .tds-field-body { padding-inline-end: var(--tds-space-16) }
+}
