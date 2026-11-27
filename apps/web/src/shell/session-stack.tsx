@@ -137,7 +137,7 @@ export function ToastRow(props: { show: boolean }) {
         </button>
       </Show>
       <Portal>
-        <div class="tds-veil" aria-hidden="true" data-open={open() ? "" : undefined} onClick={() => close()} />
+        <div class="tds-veil tds-veil-glass" aria-hidden="true" data-open={open() ? "" : undefined} onClick={() => close()} />
         <div
           class="tds-stack"
           data-open={open() ? "" : undefined}

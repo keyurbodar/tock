@@ -117,7 +117,8 @@
 /* Material fallbacks: no see-through glass when the user asks for less transparency or more contrast. */
 @layer utilities {
   @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-    .tds-over, .tds-glass, .tds-veil-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: var(--tds-surface-card); background-image: none }
+    .tds-over, .tds-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: var(--tds-surface-card); background-image: none }
+    .tds-veil-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: var(--tds-overlay-scrim); background-image: none }
   }
   @media (prefers-contrast: more) {
     .tds-over, .tds-glass, .tds-raise-1, .tds-raise-2, .tds-raise-3 { outline: 1px solid var(--tds-text-muted); outline-offset: -1px }

@@ -805,8 +805,9 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-stack[data-open]"), Boolean, "the session stack", 2000)
     check(js<boolean>("return document.documentElement.hasAttribute('data-backdrop')"), "the stack recedes the app through the shared backdrop")
     wait(450)
-    const layer = style(".tds-sidebar", "filter") ?? ""
-    check(/blur\(/.test(layer) && /brightness\(/.test(layer), `the app behind blurs and dims (${layer})`)
+    check(style(".tds-backdrop-scrim", "opacity") === "1", "the shared backdrop scrim covers the app")
+    const order = js<{ scrim: number; stack: number }>("return { scrim: +getComputedStyle(document.querySelector('.tds-backdrop-scrim')).zIndex, stack: +getComputedStyle(document.querySelector('.tds-stack')).zIndex }")
+    check(order.stack > order.scrim, `the stack sits above the scrim (${order.stack} over ${order.scrim})`)
     const box = js<{ top: number; bottom: number; scroll: number; height: number }>("const s = document.querySelector('.tds-stack-scroll'); const r = s.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, scroll: s.scrollHeight, height: s.clientHeight }")
     check(box.bottom <= 520, `the stack stays on screen (bottom ${box.bottom})`)
     if (box.scroll > box.height + 2) {

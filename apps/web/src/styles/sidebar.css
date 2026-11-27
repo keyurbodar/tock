@@ -90,11 +90,11 @@
   @media (hover: hover) and (pointer: fine) { .tds-toast-row:hover .tds-toast-hint { opacity: 1 } }
 
   .tds-veil {
-    position: fixed; inset: 0; z-index: var(--tds-z-veil); background: var(--tds-overlay-veil); opacity: 0; pointer-events: none;
+    position: fixed; inset: 0; z-index: var(--tds-z-centre); opacity: 0; pointer-events: none; background: var(--tds-overlay-veil);
     transition: opacity var(--tds-dur-panel) var(--tds-ease-out);
   }
   .tds-veil[data-open] { opacity: 1; pointer-events: auto }
-  .tds-stack { position: fixed; z-index: var(--tds-z-stack); pointer-events: none }
+  .tds-stack { position: fixed; z-index: calc(var(--tds-z-centre) + 1); pointer-events: none }
   .tds-stack-label {
     position: absolute; top: calc(var(--tds-space-24) * -1 - var(--tds-space-2)); left: var(--tds-space-18); white-space: nowrap;
     font-size: var(--tds-type-label-size); color: var(--tds-text-muted); opacity: 0; transition: opacity var(--tds-dur-menu) var(--tds-ease-out);
@@ -110,7 +110,7 @@
   .tds-stack-pill {
     position: absolute; left: 0; display: flex; align-items: center; gap: var(--tds-space-12); height: var(--tds-size-session-pill); max-width: var(--tds-size-stack-pill-max);
     padding: 0 var(--tds-space-18) 0 var(--tds-space-12); border-radius: var(--tds-radius-pill); white-space: nowrap; text-align: left;
-    background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow);
+    background: var(--tds-surface-card); box-shadow: var(--tds-over-shadow);
     opacity: 0; translate: 0 calc(var(--tds-space-10) * -1); scale: .92; filter: blur(var(--tds-blur-enter)); transform-origin: var(--tds-space-20) 50%;
     --stack-delay: calc(var(--tds-stagger) * var(--stack-i, 0));
     transition: opacity var(--tds-dur-stack) var(--tds-ease-out) var(--stack-delay), translate var(--tds-dur-stack) var(--tds-ease-sheet) var(--stack-delay),
