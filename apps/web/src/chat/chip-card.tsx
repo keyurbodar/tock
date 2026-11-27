@@ -1,4 +1,4 @@
-import { createSignal, Match, onCleanup, onSettled, Show, Switch } from "solid-js"
+import { createSignal, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { animate } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
@@ -24,16 +24,27 @@ interface SkillInfo {
 const [skills, setSkills] = createSignal<readonly SkillInfo[] | undefined>(undefined)
 let skillsLoading = false
 
-/** Installed skills, fetched once on first use (the @ menu and skill cards share it). */
+const loadSkills = () => {
+  skillsLoading = true
+  void fetch("/api/skills")
+    .then((response) => (response.ok ? (response.json() as Promise<{ skills: SkillInfo[] }>) : { skills: [] }))
+    .catch(() => ({ skills: [] }))
+    .then((body) => setSkills(() => body.skills.map((skill) => ({ name: skill.name, description: skill.description }))))
+    .finally(() => (skillsLoading = false))
+}
+
+/** Installed skills, fetched on first use (the @ menu and skill cards share it). */
 export function skillList(): readonly SkillInfo[] {
-  if (!skillsLoading) {
-    skillsLoading = true
-    void fetch("/api/skills")
-      .then((response) => (response.ok ? (response.json() as Promise<{ skills: SkillInfo[] }>) : { skills: [] }))
-      .catch(() => ({ skills: [] }))
-      .then((body) => setSkills(() => body.skills.map((skill) => ({ name: skill.name, description: skill.description }))))
-  }
+  if (skills() === undefined && !skillsLoading) loadSkills()
   return skills() ?? []
+}
+
+/** A chip names a skill the list has not seen (installed since it loaded): fetch the list again once. */
+const refreshFor = new Set<string>()
+function refreshSkillsFor(name: string) {
+  if (refreshFor.has(name) || skillsLoading) return
+  refreshFor.add(name)
+  loadSkills()
 }
 
 const m = tokens.motion
@@ -257,13 +268,14 @@ function FileCardBody(props: { name: string }) {
 
 function SkillCardBody(props: { name: string }) {
   const skill = () => skillList().find((entry) => entry.name === props.name)
+  if (untrack(skills) !== undefined && !untrack(skill)) refreshSkillsFor(props.name)
   return (
     <>
       <span class="tds-chip-card-head" style={{ "--tds-chip-accent": "var(--tds-chip-skill)" }}>
         <Icon name="sparkle" size="chip" />
         <b class="tds-chip-card-title">{props.name}</b>
       </span>
-      <span class="tds-chip-card-site">{skill()?.description || (skills() === undefined ? "Skill" : "Not installed")}</span>
+      <span class="tds-chip-card-site">{skill() ? skill()!.description || "Skill" : skills() === undefined ? "Skill" : "Not installed"}</span>
     </>
   )
 }
