@@ -1906,7 +1906,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("mouse", "move", "5", "5")
     until(() => exists(".tds-chip-card"), (open) => !open, "the skill card to close", 2000)
     ab("hover", chip("link"))
-    until(() => text(".tds-link-card .tds-chip-card-title"), (t) => t === "Example Docs & Guides", "the link card")
+    until(() => (exists(".tds-link-card .tds-chip-card-title[data-loading]") ? "" : text(".tds-link-card .tds-chip-card-title")), (t) => (LOCAL ? t === "Example Docs & Guides" : t.length > 0), "the link card's page title (fixture locally, the real page title on a deploy)")
     wait(250)
     shot("chipcards-link")
     ab("mouse", "move", "5", "5")
