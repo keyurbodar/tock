@@ -2,12 +2,7 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { createEffect, createMemo, createSignal, For, onCleanup, onSettled, Show, untrack } from "solid-js"
 import { useNavigate } from "@solidjs/router"
 import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from "@ui-sdk/solid/menu"
-import { Editor, Extension, type JSONContent } from "@tiptap/core"
-import StarterKit from "@tiptap/starter-kit"
-import { Markdown } from "@tiptap/markdown"
-import { Placeholder } from "@tiptap/extensions"
-import { EditorState, Plugin, Selection, type EditorState as State } from "@tiptap/pm/state"
-import { Fragment, Slice } from "@tiptap/pm/model"
+import type { Editor, JSONContent } from "@tiptap/core"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
@@ -18,16 +13,22 @@ import { app, newThreadId, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
 import { toast } from "../shell/toasts"
 import { setShortcutsOpen } from "../shell/shortcuts"
-import { linkToken, linkTyped, selectTokenBefore, Token, triggerAt, type TokenAttrs, type Trigger } from "./tokens"
+import { linkToken, linkTyped, triggerAt, type TokenAttrs, type Trigger } from "./tokens"
 import { extension, formatSize, readingLabel, withFiles, type Attachment, type createAttachments, type Rejection } from "./attachments"
 import { fileChip } from "./chip"
 import { openLightbox } from "./lightbox-state"
-import { CodeHighlight } from "./code-highlight"
 import { createHotkey } from "@tanstack/solid-hotkeys"
 import { appHotkeys } from "../shell/hotkeys"
-import { convertCodeFenceOnEnter, exitCodeBlockOnClosingFence, linkSelection, RichTextExtensions, splitOrLiftListItem } from "./rich-text"
 import { hasTable, htmlToMarkdown } from "./markdown-clipboard"
 import { STATUS_LABEL, statusOf } from "../lib/status"
+
+type Kit = typeof import("./editor-kit")
+
+declare global {
+  interface Window {
+    __tockReleaseEditor?: () => void
+  }
+}
 
 const plural = new Intl.PluralRules("en")
 const messageCount = (n: number) => `${n} ${plural.select(n) === "one" ? "message" : "messages"}`
@@ -44,51 +45,6 @@ export function refuse(rejected: readonly Rejection[]) {
     )
   for (const reason of rejected) toast(reason.title, { description: reason.hint, tone: "failed", icon: "prohibit", duration: tokens.motion.toast.error })
 }
-
-const touchesCode = (state: State) => {
-  const code = state.schema.marks.code
-  const { $from } = state.selection
-  return !!code && [$from.nodeBefore, $from.nodeAfter].some((node) => node && code.isInSet(node.marks))
-}
-
-/**
- * Inline code never traps the caret: clearing the last code character drops the code mark instead of keeping it for the next keystroke,
- * typing over a selection that starts where code starts replaces it with plain text, and typing a backtick while in code steps out of it
- * (ArrowRight at the end already exits, as the mark is exitable).
- */
-const CodeExit = Extension.create({
-  name: "codeExit",
-  addProseMirrorPlugins() {
-    return [
-      new Plugin({
-        props: {
-          handleTextInput(view, from, to, text) {
-            const code = view.state.schema.marks.code
-            if (text !== "`" || from !== to || !code) return false
-            const active = (view.state.storedMarks ?? view.state.selection.$from.marks()).some((mark) => mark.type === code)
-            if (!active) return false
-            view.dispatch(view.state.tr.removeStoredMark(code))
-            return true
-          },
-        },
-        appendTransaction(transactions, before, after) {
-          const code = after.schema.marks.code
-          if (!code || !transactions.some((tr) => tr.docChanged) || !after.selection.empty) return null
-          const { empty } = before.selection
-          const start = Selection.findFrom(before.selection.$from, 1, true)?.$from ?? before.selection.$from
-          const end = Selection.findFrom(before.selection.$to, -1, true)?.$to ?? before.selection.$to
-          if (!empty && !before.storedMarks && code.isInSet(start.marksAcross(end) ?? []) && !(start.nodeBefore && code.isInSet(start.nodeBefore.marks))) {
-            const from = transactions.reduce((pos, tr) => tr.mapping.map(pos, -1), start.pos)
-            if (after.selection.from > from && after.doc.rangeHasMark(from, after.selection.from, code)) return after.tr.removeMark(from, after.selection.from, code).setStoredMarks(code.removeFromSet(after.selection.$from.marks()))
-          }
-          const stored = after.storedMarks ?? after.selection.$from.marks()
-          if (!stored.some((mark) => mark.type === code) || touchesCode(after) || !touchesCode(before)) return null
-          return after.tr.setStoredMarks(stored.filter((mark) => mark.type !== code))
-        },
-      }),
-    ]
-  },
-})
 
 export const attach = (attachments: Attachments, files: Iterable<File>, from?: DOMRect) => refuse(attachments.add(files, from))
 
@@ -263,6 +219,10 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const tooLong = () => length() > tokens.limit["prompt-chars"]
   const [height, setHeight] = createSignal<number>(tokens.size.composer)
   let editor: Editor | undefined
+  let kit: Kit | undefined
+  let shell: HTMLDivElement | undefined
+  let loading: Promise<void> | undefined
+  let queued: "line" | "send" | null = null
   let field!: HTMLDivElement
   const [sheet, setSheet] = createSignal(false)
   const resting = () => untrack(height) + (untrack(props.attachments.items).length > 0 ? tokens.size["attach-tray"] : 0)
@@ -293,7 +253,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const expand = (open: boolean, velocity?: number) => {
     setSheet(open)
     sheetDrive?.to(open ? 1 : 0, "glide", velocity)
-    if (open) editor?.commands.focus()
+    if (open) focusField()
   }
   const unbind: (() => void)[] = []
   const range = () => ("sheet" in field.dataset ? full : reach()) - resting()
@@ -338,9 +298,21 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const load = (content: JSONContent | undefined) => {
     if (!editor) return
     const doc = content ? editor.schema.nodeFromJSON(content) : editor.schema.topNodeType.createAndFill()!
-    editor.view.updateState(EditorState.create({ doc, plugins: editor.state.plugins }))
+    editor.view.updateState(kit!.EditorState.create({ doc, plugins: editor.state.plugins }))
     setTrigger(null)
     sync()
+  }
+
+  const restore = (forKey: string) => {
+    const cached = drafts.get(forKey)
+    load(cached)
+    if (!cached)
+      void idb.get<JSONContent>("drafts", forKey).then((stored) => {
+        if (stored && key === forKey && editor?.isEmpty) {
+          drafts.set(forKey, stored)
+          load(stored)
+        }
+      })
   }
 
   const text = () => (editor?.isEmpty ? "" : (editor?.getMarkdown().replace(/&nbsp;|\u00a0/g, " ").trim() ?? ""))
@@ -459,7 +431,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     const blocks = value.replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) =>
       schema.nodes.paragraph!.create(null, block.split("\n").flatMap((line, index) => [...(index > 0 ? [schema.nodes.hardBreak!.create()] : []), ...(line ? [schema.text(line)] : [])])),
     )
-    editor.view.dispatch(editor.state.tr.replaceSelection(new Slice(Fragment.from(blocks), 1, 1)).scrollIntoView())
+    editor.view.dispatch(editor.state.tr.replaceSelection(new kit!.Slice(kit!.Fragment.from(blocks), 1, 1)).scrollIntoView())
     return true
   }
 
@@ -544,11 +516,45 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     },
   )
 
-  const mount = (element: HTMLDivElement) => {
-    editorEl = element
+  /** Focus the editor, or the static shell while the editor chunk is still on its way. */
+  const focusField = (at: "end" | null = "end") => {
+    if (editor) return void editor.commands.focus(at)
+    if (!shell) return
+    shell.focus()
+    if (at === "end") getSelection()?.selectAllChildren(shell), getSelection()?.collapseToEnd()
+  }
+
+  /** The editor chunk (TipTap, ProseMirror) loads right after first paint, or as soon as the shell is focused. */
+  const boot = () => {
+    if (loading) return
+    loading = (async () => {
+      if (import.meta.env.DEV && localStorage.getItem("tock:hold-editor")) await new Promise<void>((go) => (window.__tockReleaseEditor = go))
+      const loaded = await import("./editor-kit")
+      if (!editorEl || editor) return
+      kit = loaded
+      createEditor(loaded, editorEl)
+    })().catch(() => {
+      loading = undefined
+    })
+  }
+
+  /** The shell hands over without a visible swap: its text, focus and caret move into the editor, and a key pressed meanwhile replays. */
+  const createEditor = (kit: Kit, element: HTMLDivElement) => {
+    const { Editor, StarterKit, Markdown, Placeholder, Token, CodeHighlight, CodeExit, RichTextExtensions, selectTokenBefore, linkSelection, exitCodeBlockOnClosingFence, convertCodeFenceOnEnter, splitOrLiftListItem } = kit
+    const typed = shell?.textContent ?? ""
+    const focused = !!shell && document.activeElement === shell
+    let caret = typed.length
+    const selection = getSelection()
+    if (focused && shell && selection?.focusNode && shell.contains(selection.focusNode)) {
+      const range = document.createRange()
+      range.selectNodeContents(shell)
+      range.setEnd(selection.focusNode, selection.focusOffset)
+      caret = range.toString().length
+    }
+    const replay = queued
+    queued = null
     editor = new Editor({
       element,
-      autofocus: matchMedia("(pointer: fine)").matches ? "end" : false,
       extensions: [
         StarterKit.configure({ codeBlock: false, heading: false, horizontalRule: false, blockquote: false, bulletList: false, orderedList: false, listItem: false, underline: false, dropcursor: false, gapcursor: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false } }),
         ...RichTextExtensions,
@@ -621,11 +627,28 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       },
       onBlur: () => setTrigger(null),
     })
-    const observer = new ResizeObserver(() => setHeight(Math.min((element.firstElementChild as HTMLElement | null)?.offsetHeight ?? element.scrollHeight, tokens.size["composer-max"])))
+    if (shell) observer?.unobserve(shell)
+    shell?.remove()
+    shell = undefined
+    observer?.observe(editor.view.dom)
+    if (typed) {
+      editor.view.dispatch(editor.state.tr.insertText(typed, 1))
+      sync()
+    } else restore(key)
+    if (focused) editor.commands.focus(1 + caret)
+    if (replay === "line") editor.commands.splitBlock()
+    if (replay === "send") submit()
+  }
+
+  let observer: ResizeObserver | undefined
+  const mount = (element: HTMLDivElement) => {
+    editorEl = element
+    observer = new ResizeObserver(() => setHeight(Math.min((element.firstElementChild as HTMLElement | null)?.offsetHeight ?? element.scrollHeight, tokens.size["composer-max"])))
     observer.observe(element.firstElementChild ?? element)
+    requestAnimationFrame(() => setTimeout(boot))
     const onKey = (event: KeyboardEvent) => {
-      if (!editor || event.defaultPrevented || !typing(event) || editable(document.activeElement) || (event.key === " " && pressable(document.activeElement))) return
-      editor.commands.focus("end")
+      if (event.defaultPrevented || !typing(event) || editable(document.activeElement) || (event.key === " " && pressable(document.activeElement))) return
+      focusField()
     }
     const outside = (event: PointerEvent) => {
       if (untrack(sheet) && event.target instanceof Element && event.target.closest(".tds-transcript")) expand(false)
@@ -636,7 +659,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     window.addEventListener("pointerup", drop)
     window.addEventListener("pointercancel", drop)
     teardown = () => {
-      observer.disconnect()
+      observer?.disconnect()
       document.removeEventListener("keydown", onKey)
       document.removeEventListener("pointerdown", outside)
       window.removeEventListener("pointermove", dragMove)
@@ -682,6 +705,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     clearTimeout(hoverTimer)
     editor?.destroy()
     editor = undefined
+    editorEl = undefined
   })
 
   createEffect(
@@ -691,16 +715,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       if (key && key !== next) props.attachments.clear()
       setHeld(false)
       key = next
-      const cached = drafts.get(next)
-      load(cached)
-      if (!cached)
-        void idb.get<JSONContent>("drafts", next).then((stored) => {
-          if (stored && key === next && editor?.isEmpty) {
-            drafts.set(next, stored)
-            load(stored)
-          }
-        })
-      if (matchMedia("(pointer: fine)").matches) editor?.commands.focus("end")
+      restore(next)
+      if (matchMedia("(pointer: fine)").matches) focusField()
     },
   )
 
@@ -841,7 +857,35 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </div>
           </Show>
           <div class="tds-field-body">
-            <div ref={mount} class="tds-editor tds-scroll" data-edge-fade="y" onMouseDown={(e) => e.target === e.currentTarget && (e.preventDefault(), editor?.commands.focus("end"))} />
+            <div ref={mount} class="tds-editor tds-scroll" data-edge-fade="y" onMouseDown={(e) => e.target === e.currentTarget && (e.preventDefault(), focusField())}>
+              <div
+                ref={(el) => (shell = el)}
+                class="tds-input"
+                data-shell=""
+                contenteditable="plaintext-only"
+                role="textbox"
+                aria-multiline="true"
+                aria-label="Message toast"
+                enterkeyhint="send"
+                onFocus={() => boot()}
+                onInput={(event) => {
+                  const value = event.currentTarget.textContent ?? ""
+                  event.currentTarget.firstElementChild?.classList.toggle("is-editor-empty", value === "")
+                  setEmpty(value.trim() === "")
+                  setLength(value.length)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" || event.isComposing) return
+                  event.preventDefault()
+                  queued = event.shiftKey ? "line" : "send"
+                  boot()
+                }}
+              >
+                <p class="is-empty is-editor-empty" data-placeholder="Message toast">
+                  <br />
+                </p>
+              </div>
+            </div>
           </div>
         </div>
         <button type="submit" class="tds-press tds-send tds-raise-2" onClick={(event) => stop() && (event.preventDefault(), event.detail <= 1 && props.onStop())} data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>

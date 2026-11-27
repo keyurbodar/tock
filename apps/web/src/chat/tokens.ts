@@ -1,7 +1,4 @@
-import { Node, mergeAttributes } from "@tiptap/core"
 import type { EditorView } from "@tiptap/pm/view"
-import { NodeSelection } from "@tiptap/pm/state"
-import type { IconName } from "@tock/ui/icon"
 import type { ChipKind } from "./chip"
 
 export interface TokenAttrs {
@@ -10,56 +7,11 @@ export interface TokenAttrs {
   readonly label: string
 }
 
-const icons: Record<TokenAttrs["kind"], `${IconName}` | `${IconName}:duotone`> = { thread: "chat-circle:duotone", command: "lightning:duotone", link: "link-simple", file: "file-text:duotone" }
-
 /** What a token sends: the model and the transcript read the same markdown link the chips render from. */
 export function tokenText(attrs: TokenAttrs) {
   if (attrs.kind === "thread") return `[@${attrs.label.replace(/[[\]]/g, "")}](tock-thread:${attrs.id})`
   if (attrs.kind === "link") return attrs.id
   return attrs.label
-}
-
-/** An inline chip in the draft (TDS PxChips "Tokens"): one atom, so it moves and deletes as a unit. */
-export const Token = Node.create({
-  name: "token",
-  group: "inline",
-  inline: true,
-  atom: true,
-  selectable: true,
-  draggable: false,
-  addAttributes: () => ({ kind: { default: "thread" }, id: { default: "" }, label: { default: "" } }),
-  parseHTML: () => [{ tag: "span[data-token]", getAttrs: (el) => ({ kind: el.dataset.kind, id: el.dataset.id, label: el.textContent ?? "" }) }],
-  renderHTML: ({ node, HTMLAttributes }) => {
-    const attrs = node.attrs as TokenAttrs
-    if (attrs.kind === "link") {
-      const host = attrs.label.split("/")[0] ?? ""
-      return [
-        "span",
-        mergeAttributes(HTMLAttributes, { "data-token": "", "data-kind": "link", "data-id": attrs.id, class: "tds-chip tds-link-token", contenteditable: "false" }),
-        ["span", { class: "tds-token-fav", "data-letter": host.charAt(0).toUpperCase(), "aria-hidden": "true" }, ["img", { src: `https://${host}/favicon.ico`, alt: "", draggable: "false", loading: "lazy" }]],
-        ["span", { class: "tds-chip-label" }, attrs.label],
-      ]
-    }
-    const label = attrs.kind === "command" ? `/${attrs.label}` : attrs.label
-    return [
-      "span",
-      mergeAttributes(HTMLAttributes, { "data-token": "", "data-kind": attrs.kind, "data-id": attrs.id, class: "tds-chip", contenteditable: "false", style: `--tds-chip-accent: var(--tds-chip-${attrs.kind})` }),
-      ["svg", { class: "tds-icon tds-chip-icon", "aria-hidden": "true" }, ["use", { href: `#i-${icons[attrs.kind]}` }]],
-      ["span", { class: "tds-chip-label" }, label],
-    ]
-  },
-  renderText: ({ node }) => tokenText(node.attrs as TokenAttrs),
-  renderMarkdown: (node) => tokenText(node.attrs as TokenAttrs),
-})
-
-/** The first Backspace after a token selects it; the second deletes it. */
-export function selectTokenBefore(view: EditorView): boolean {
-  const { selection } = view.state
-  if (!selection.empty) return false
-  const before = selection.$from.nodeBefore
-  if (before?.type.name !== "token") return false
-  view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, selection.from - before.nodeSize)))
-  return true
 }
 
 export interface Trigger {

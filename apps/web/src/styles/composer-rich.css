@@ -18,3 +18,12 @@
     & .tds-suggest-hint { flex: 1; min-width: 0; margin-inline-start: calc(var(--tds-space-8) - var(--tds-space-10)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit; color: var(--tds-text-muted) }
   }
 }
+
+/* The composer's static shell before the editor chunk loads: the same box as TipTap's injected .ProseMirror rules, so the handoff does not move a pixel. */
+.tds-input[data-shell] {
+  position: relative;
+  word-wrap: break-word;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+}

@@ -9,8 +9,8 @@ import { gzipSync } from "node:zlib"
 
 const DIST = join(import.meta.dir, "../apps/web/dist")
 const KB = 1024
-/** Today's numbers with a little headroom; lower them as tiptap and ui-sdk move behind import() (target: initial JS under 150 KB gz). */
-const BUDGET = { initialJs: 420 * KB, css: 34 * KB, lazyChunk: 60 * KB }
+/** Today's numbers with a little headroom; lower them as ui-sdk and marked move behind import() (target: initial JS under 150 KB gz). The editor chunk (TipTap, ProseMirror) loads right after first paint under the composer's static shell, so it has its own budget. */
+const BUDGET = { initialJs: 300 * KB, css: 34 * KB, lazyChunk: 60 * KB, editor: 135 * KB }
 
 const html = readFileSync(join(DIST, "index.html"), "utf8")
 const initial = new Set([...html.matchAll(/(?:src|href)="\/assets\/([^"]+\.(?:js|css))"/g)].map((match) => match[1]!))
@@ -24,7 +24,8 @@ const initialJs = rows.filter((row) => row.initial && row.file.endsWith(".js")).
 const css = rows.filter((row) => row.file.endsWith(".css")).reduce((sum, row) => sum + row.gz, 0)
 /** Decoders that load only when a file needs them (a HEIC photo, a PDF) carry their own wasm or worker and are exempt from the lazy budget. */
 const ON_DEMAND = /^(heic-to|pdf)/
-const fat = rows.filter((row) => !row.initial && row.file.endsWith(".js") && !ON_DEMAND.test(row.file) && row.gz > BUDGET.lazyChunk)
+const EDITOR = /^editor-kit/
+const fat = rows.filter((row) => !row.initial && row.file.endsWith(".js") && !ON_DEMAND.test(row.file) && row.gz > (EDITOR.test(row.file) ? BUDGET.editor : BUDGET.lazyChunk))
 const kb = (bytes: number) => (bytes / KB).toFixed(1).padStart(7) + " KB"
 
 for (const row of rows) console.log(`${kb(row.gz)}  ${row.initial ? "initial " : ON_DEMAND.test(row.file) ? "on demand" : "lazy    "}  ${row.file}`)
@@ -33,7 +34,7 @@ console.log(`initial JS ${kb(initialJs)} gz (budget ${kb(BUDGET.initialJs)}), CS
 const blown: string[] = [
   initialJs > BUDGET.initialJs && `initial JS is ${kb(initialJs)} gz, over ${kb(BUDGET.initialJs)}`,
   css > BUDGET.css && `CSS is ${kb(css)} gz, over ${kb(BUDGET.css)}`,
-  ...fat.map((row) => `lazy chunk ${row.file} is ${kb(row.gz)} gz, over ${kb(BUDGET.lazyChunk)}`),
+  ...fat.map((row) => `lazy chunk ${row.file} is ${kb(row.gz)} gz, over ${kb(EDITOR.test(row.file) ? BUDGET.editor : BUDGET.lazyChunk)}`),
 ].filter((line): line is string => Boolean(line))
 /** With TOCK_URL set (a running app), also budget Core Web Vitals as the app reports them through web-vitals (window.__tockVitals). */
 const url = process.env.TOCK_URL

@@ -129,16 +129,18 @@ function reset() {
 function fresh(): string {
   const id = crypto.randomUUID()
   ab("open", `${BASE}/t/${id}`)
-  until(() => exists(".ProseMirror") && exists(".tds-header"), Boolean, "a fresh chat")
+  until(() => exists(".tds-input") && exists(".tds-header"), Boolean, "a fresh chat")
   return id
 }
 function say(text: string) {
-  ab("click", ".ProseMirror")
+  field()
   ab("keyboard", "type", text)
   ab("press", "Enter")
   until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
 }
 /** Waits for the run to finish: an agent reply on screen and no Stop button. */
+/** The composer editor, once its chunk has loaded over the static shell. */
+const field = () => (until(() => exists(".ProseMirror"), Boolean, "the composer editor"), ab("click", ".ProseMirror"))
 const settled = () => until(() => exists(".tds-bubble[data-side='agent']") && !exists("button[aria-label='Stop'], .tds-send[data-stop]") && js<string>("return document.querySelector('.tds-act')?.dataset.state ?? 'done'") === "done", Boolean, "the run to finish", 20000)
 /** A fresh chat with one finished exchange. */
 /** Wait until an element has not moved for a few frames: the reply keeps revealing after the run settles, and a bottom-aligned transcript lifts everything above it. */
@@ -260,7 +262,7 @@ const journeys: Record<string, () => void> = {
   send() {
     ab("click", "button[aria-label='New chat']")
     const path = until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
@@ -291,7 +293,7 @@ const journeys: Record<string, () => void> = {
   expand() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Show a long code block please")
     ab("press", "Enter")
     until(() => exists(".tds-code .tds-code-action") && !exists("button[aria-label='Stop']"), Boolean, "a finished long code block", 15000)
@@ -313,7 +315,7 @@ const journeys: Record<string, () => void> = {
   fence() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "```ts ")
     until(() => exists(".tds-input pre code"), Boolean, "a typed fence to become a code block")
     ab("keyboard", "type", "const answer = compute(42) // done")
@@ -338,7 +340,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
     ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-fence.md"))
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 1 && s[0] === "done", "the upload to finish", 15000)
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Here is a file")
     ab("press", "Enter")
     until(() => exists(".tds-files[data-side='me'] .tds-doc[data-state='ready']"), Boolean, "the sent file card to resolve")
@@ -356,7 +358,7 @@ const journeys: Record<string, () => void> = {
   stopped() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Plan a long trip through Japan for me")
     ab("press", "Enter")
     until(() => exists("button[aria-label='Stop']"), Boolean, "the stop button")
@@ -490,7 +492,7 @@ const journeys: Record<string, () => void> = {
     ab("mouse", "move", x, String(g.y + g.h / 2))
     for (let i = 0; i < 12; i++) ab("mouse", "wheel", "60")
     until(h, (v) => Math.abs(v - open) < 1, "a two-finger swipe up over the grip to open the sheet")
-    ab("click", ".ProseMirror")
+    field()
     ab("press", "End")
     ab("press", "Enter")
     closed("sending to collapse the sheet")
@@ -542,7 +544,7 @@ const journeys: Record<string, () => void> = {
     wait(500)
     probe("plus menu", ".tds-plus-menu, .tds-menu", () => (ab("click", ".tds-composer-plus"), wait(600), ab("press", "Escape")))
     probe("plus to x", ".tds-composer-plus svg", () => (ab("click", ".tds-composer-plus"), wait(500), ab("press", "Escape")))
-    ab("click", ".ProseMirror")
+    field()
     probe("composer grows", ".tds-field", () => {
       for (let i = 0; i < 4; i++) (ab("keyboard", "type", "line " + i), ab("press", "Shift+Enter"))
     }, 900)
@@ -590,7 +592,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
     ab("upload", ".tds-composer-wrap input[type=file]", png(join(work, "verify-calm.png"), 900, 600, [120, 160, 230]))
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 1 && s[0] === "done", "the upload to finish", 15000)
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Calm zoom")
     ab("press", "Enter")
     until(() => js<boolean>("const i = document.querySelector('.tds-media-tile img'); return !!i && i.complete && i.naturalWidth > 0"), Boolean, "the sent image")
@@ -1079,7 +1081,7 @@ const journeys: Record<string, () => void> = {
     const before = unread()
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a fresh chat")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
@@ -1162,7 +1164,7 @@ const journeys: Record<string, () => void> = {
   links() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a new chat")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "see https://github.com/keyurbodar/tock ")
     until(() => exists(".tds-input .tds-chip[data-kind='link']"), Boolean, "a typed URL plus space to become a link chip")
     check(js<string>("return document.querySelector('.tds-input .tds-chip[data-kind=link]').textContent") === "github.com/keyurbodar/tock", "the link chip reads host and path")
@@ -1194,7 +1196,7 @@ const journeys: Record<string, () => void> = {
     const target = js<string>("return document.querySelector('.tds-row .tds-row-title, .tds-row b')?.textContent?.trim() ?? ''")
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a new chat")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "ask @")
     until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ menu")
     const query = js<string>("return document.querySelector('.tds-suggest .tds-menu-item .tds-suggest-label').textContent").split(" ")[0]!.slice(0, 4)
@@ -1228,7 +1230,7 @@ const journeys: Record<string, () => void> = {
   command() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "/sho")
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-suggest .tds-suggest-label')].map((e) => e.textContent)"), (items) => items.length === 1 && items[0] === "/shortcuts", "the / menu filtered to /shortcuts")
     shot("command-menu")
@@ -1394,7 +1396,7 @@ const journeys: Record<string, () => void> = {
     ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"), join(work, "verify-pixel.png"))
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "done"), "both uploads to finish", 15000)
     shot("attach-tray")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Here are two files")
     ab("press", "Enter")
     until(() => exists(".tds-files[data-side='me'] .tds-media-tile img") && exists(".tds-files[data-side='me'] .tds-doc"), Boolean, "the sent image and file card")
@@ -1413,7 +1415,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
     ab("upload", ".tds-composer-wrap input[type=file]", ...files)
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 3 && s.every((x) => x === "done"), "three uploads to finish", 15000)
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Three pictures")
     ab("press", "Enter")
     until(() => js<boolean>("const imgs = [...document.querySelectorAll('.tds-media[data-count=\"3\"] .tds-media-tile img')]; return imgs.length === 3 && imgs.every((i) => i.complete && i.naturalWidth > 0)"), Boolean, "a row of three loaded images")
@@ -1468,7 +1470,7 @@ const journeys: Record<string, () => void> = {
   finished() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Search the web for the history of toast and write a long summary")
     ab("press", "Enter")
     const chat = until(() => js<string>("return location.pathname.startsWith('/t/') ? location.pathname.slice(3) : ''"), Boolean, "the chat to get an id")
@@ -1548,7 +1550,7 @@ const journeys: Record<string, () => void> = {
     ab("click", "button[aria-label='New chat']")
     const path = until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID chat url")
     const id = path.slice(3)
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "please approve the deploy")
     ab("press", "Enter")
     until(() => exists(".tds-ask .tds-key[data-option='Approve']"), Boolean, "the approval card", 15000)
@@ -1569,7 +1571,7 @@ const journeys: Record<string, () => void> = {
   ask() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "please approve the deploy")
     ab("press", "Enter")
     until(() => exists(".tds-ask .tds-key[data-option='Approve']"), Boolean, "the approval card", 15000)
@@ -1596,7 +1598,7 @@ const journeys: Record<string, () => void> = {
   question() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "help me choose a base branch")
     ab("press", "Enter")
     until(() => exists(".tds-ask[data-kind='question'] .tds-key"), Boolean, "the question card", 15000)
@@ -1615,7 +1617,7 @@ const journeys: Record<string, () => void> = {
   },
   numbered() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "help me choose a base branch")
     ab("press", "Enter")
     until(() => exists(".tds-ask[data-kind='question'] .tds-ask-opt"), Boolean, "the question card", 15000)
@@ -1640,7 +1642,7 @@ const journeys: Record<string, () => void> = {
   },
   multiquestion() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "ask me two questions")
     ab("press", "Enter")
     until(() => exists(".tds-ask .tds-ask-step"), Boolean, "the stepped question card", 15000)
@@ -1657,7 +1659,7 @@ const journeys: Record<string, () => void> = {
   },
   retry() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", `fail once ${Date.now()}`)
     ab("press", "Enter")
     until(() => exists(".tds-alert .tds-alert-retry"), Boolean, "the error card with Retry", 15000)
@@ -1676,7 +1678,7 @@ const journeys: Record<string, () => void> = {
     check(sizes.every((h) => h === 44), `SPEC: plus, field and send are 44 (got ${sizes})`)
     check(style(".tds-input", "fontSize") === "14.5px" && style(".tds-input", "lineHeight") === "20px", "composer type is 14.5/20")
     check(style(".tds-field", "borderTopLeftRadius") === "22px", "the resting field is radius 22")
-    ab("click", ".ProseMirror")
+    field()
     check(style(".tds-input", "outlineStyle") === "none" && !js<boolean>("return getComputedStyle(document.activeElement).outlineStyle !== 'none'"), "no focus ring on click")
     ab("keyboard", "type", "line one")
     ab("press", "Shift+Enter")
@@ -1692,7 +1694,7 @@ const journeys: Record<string, () => void> = {
   tokens() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "see https://github.com/keyurbodar/tock and")
     until(() => exists(".tds-input .tds-link-token .tds-token-fav"), Boolean, "the typed link chip with its favicon")
     const m = js<{ line: number; text: number[]; label: number[]; chip: number[] }>(
@@ -1727,7 +1729,7 @@ const journeys: Record<string, () => void> = {
   longpaste() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', Array.from({ length: 20 }, (_, i) => 'line ' + (i + 1)).join('\\n')); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
     until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Long text became a file"), "the long paste toast")
     until(() => js<string>("const card = document.querySelector('.tds-attach'); const m = card?.querySelector('.tds-attach-line')?.cloneNode(true); m?.querySelectorAll('[aria-hidden=true]').forEach((e) => e.remove()); return (card?.querySelector('.tds-attach-name')?.textContent ?? '') + (m?.textContent ?? '')"), (t) => t.startsWith("Pasted text.txt") && t.endsWith("20 lines"), "the Pasted text card with its line count", 10000)
@@ -1771,7 +1773,7 @@ const journeys: Record<string, () => void> = {
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "uploading"), "both cards uploading")
     check(exists(".tds-attach[data-kind='doc'] .tds-attach-ring") && exists(".tds-attach[data-kind='image'] .tds-attach-ring"), "uploading cards show the ring")
     shot("lifecycle-uploading")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "two files, held")
     ab("press", "Enter")
     until(() => exists(".tds-held") && exists(".tds-send[data-held]"), Boolean, "the held send")
@@ -1868,7 +1870,7 @@ const journeys: Record<string, () => void> = {
   queued() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Plan a long trip through Japan for two weeks")
     ab("press", "Enter")
     until(() => exists(".tds-send[data-stop]"), Boolean, "Stop while toast works and the field is empty", 4000)
@@ -1907,7 +1909,7 @@ const journeys: Record<string, () => void> = {
     const id = fresh()
     say("help me choose a base branch")
     until(() => exists(".tds-ask[data-kind='question'] .tds-key"), Boolean, "the question card", 15000)
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "ok go")
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-queued]"), Boolean, "the send to queue behind the ask")
@@ -1969,7 +1971,7 @@ const journeys: Record<string, () => void> = {
   baseline() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "ask @")
     until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ list")
     wait(250)
@@ -1998,7 +2000,7 @@ const journeys: Record<string, () => void> = {
   scroll() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => exists(".tds-code"), Boolean, "the agent reply", 15000)
@@ -2020,7 +2022,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-jump[data-on]"), (on) => !on, "the pill to morph out")
     ab("eval", "{ const s = document.querySelector('.tds-transcript'); s.scrollTop = 0 }")
     until(() => exists(".tds-jump[data-on]"), Boolean, "the pill after scrolling to the top")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "and Osaka too")
     ab("press", "Enter")
     until(gap, (g) => g <= 140, "sending to jump to the bottom", 4000)
@@ -2030,7 +2032,7 @@ const journeys: Record<string, () => void> = {
   rich() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "make **bold** and _soft_ and `code` ")
     until(() => exists(".tds-input strong") && exists(".tds-input em") && exists(".tds-input code"), Boolean, "markdown marks to render live")
     ab("press", "Control+b")
@@ -2050,7 +2052,7 @@ const journeys: Record<string, () => void> = {
     check(sent.strong.includes("bold") && sent.strong.includes("loud") && sent.em === 1 && sent.code === 1 && sent.li === 2, "the bubble renders the same markdown: " + JSON.stringify(sent))
     wait(300)
     shot("rich-sent")
-    ab("click", ".ProseMirror")
+    field()
     js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', '> quoted\\n\\n1. one\\n2. two'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
     until(() => exists(".tds-input blockquote") && js<number>("return document.querySelectorAll('.tds-input ol li').length") === 2, Boolean, "pasted markdown to parse")
     js<boolean>("const dt = new DataTransfer(); dt.setData('text/html', '<p>an <b>html</b> <i>paste</i></p>'); dt.setData('text/plain', 'an html paste'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
@@ -2076,7 +2078,7 @@ const journeys: Record<string, () => void> = {
     check(!md.raw, "no raw markdown markers left in agent bubbles")
     check(md.linkColor === md.tx && /radial-gradient/.test(String(md.dots)), `link text stays --tx with dotted underline (${md.linkColor} vs ${md.tx})`)
     shot("markdown-agent")
-    ab("click", ".ProseMirror")
+    field()
     js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', '> a quoted line\\n\\n3. three\\n4. four\\n\\n- parent\\n  - nested child\\n\\n~~strike only~~'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
     until(() => exists(".tds-input blockquote"), Boolean, "pasted markdown in the composer")
     ab("press", "Enter")
@@ -2113,7 +2115,7 @@ const journeys: Record<string, () => void> = {
   jumppill() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
@@ -2133,7 +2135,7 @@ const journeys: Record<string, () => void> = {
   },
   seen() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => exists(".tds-caption[data-seen] .tds-seen-face"), Boolean, "Seen under my bubble while the run works", 10000)
@@ -2143,7 +2145,7 @@ const journeys: Record<string, () => void> = {
   },
   newdivider() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
@@ -2158,7 +2160,7 @@ const journeys: Record<string, () => void> = {
     shot("divider-new")
     check(exists(".tds-divider[data-tone='new']"), `the ${label} divider stays after you jump down`)
     ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "thanks")
     ab("press", "Enter")
     until(() => exists(".tds-divider[data-tone='new']"), (on) => !on, "the new divider to clear once you send")
@@ -2172,7 +2174,7 @@ const journeys: Record<string, () => void> = {
   revealstable() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     settled()
@@ -2184,7 +2186,7 @@ const journeys: Record<string, () => void> = {
   clamp() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
-    ab("click", ".ProseMirror")
+    field()
     const long = Array.from({ length: 40 }, (_, i) => `line ${i + 1} of a very long note that keeps going so the bubble has to clamp.`).join(" ")
     ab("keyboard", "inserttext", long)
     ab("press", "Enter")
@@ -2201,7 +2203,7 @@ const journeys: Record<string, () => void> = {
   anchor() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
@@ -2254,7 +2256,7 @@ const journeys: Record<string, () => void> = {
     const sq = rect(".tds-attach[data-kind=doc]")!
     check(sq.w === 112 && sq.h === 112, `square tray card: ${JSON.stringify(sq)}`)
     shot("files-tray")
-    ab("click", ".ProseMirror")
+    field()
     js<boolean>("window.__fileChips = 0; new MutationObserver(() => { window.__fileChips = Math.max(window.__fileChips, document.querySelectorAll('.tds-bubble[data-side=agent] .tds-chip').length) }).observe(document.querySelector('.tds-transcript') ?? document.body, { subtree: true, childList: true }); return true")
     ab("keyboard", "type", "Send the files back")
     ab("press", "Enter")
@@ -2389,7 +2391,7 @@ const journeys: Record<string, () => void> = {
     check(all.length === 0, `transition: all on ${all.join(" | ")}`)
     const press = js<{ p: string; d: string }>("const s = getComputedStyle(document.querySelector('.tds-composer button:not(:disabled)') ?? document.querySelector('button')); return { p: s.transitionProperty, d: s.transitionDuration }")
     check(/scale/.test(press.p), `buttons carry no press transition (${press.p})`)
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "@")
     until(() => exists(".tds-suggest-glide"), Boolean, "the mention list")
     ab("press", "ArrowDown")
@@ -2480,7 +2482,7 @@ const journeys: Record<string, () => void> = {
   steps() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
@@ -2503,7 +2505,7 @@ const journeys: Record<string, () => void> = {
   longrun() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "please run a long job")
     ab("press", "Enter")
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the long run to finish", 60000)
@@ -2720,9 +2722,48 @@ const journeys: Record<string, () => void> = {
     check(bg[0] === bg[1], "the work log takes the composer's surface: " + bg.join(" vs "))
     ab("press", "Escape")
   },
+  editorboot() {
+    ab("eval", "localStorage.setItem('tock:hold-editor', '1')")
+    try {
+      fresh()
+      until(() => exists(".tds-input[data-shell]"), Boolean, "the static composer shell")
+      check(!exists(".ProseMirror"), "the editor chunk is held back")
+      const box = () => js<number[]>("const f = document.querySelector('.tds-field').getBoundingClientRect(); const i = document.querySelector('.tds-input').getBoundingClientRect(); return [f.x, f.y, f.width, f.height, i.x, i.y, i.width, i.height]")
+      const placeholder = () => js<string>("const p = document.querySelector('.tds-input p'); const s = getComputedStyle(p, '::before'); return s.content.replaceAll(String.fromCharCode(34), '') + ' ' + s.color + ' ' + s.fontSize")
+      const shellBox = box()
+      const shellPlaceholder = placeholder()
+      shot("editorboot-shell")
+      ab("click", ".tds-input[data-shell]")
+      ab("keyboard", "type", "hello world")
+      ab("press", "ArrowLeft")
+      ab("press", "ArrowLeft")
+      check(!exists(".ProseMirror") && !exists(".tds-send[data-empty]"), "typing in the shell arms Send before the editor loads")
+      ab("eval", "window.__tockReleaseEditor?.()")
+      until(() => exists(".ProseMirror") && !exists(".tds-input[data-shell]"), Boolean, "the editor to take over from the shell")
+      check(js<string>("return document.querySelector('.ProseMirror').textContent") === "hello world", "typed text carries over")
+      check(js<boolean>("return document.activeElement === document.querySelector('.ProseMirror')"), "focus carries over")
+      ab("keyboard", "type", "X")
+      check(js<string>("return document.querySelector('.ProseMirror').textContent") === "hello worXld", "the caret carries over")
+      ab("press", "Control+a")
+      ab("press", "Backspace")
+      wait(300)
+      const editorBox = box()
+      check(JSON.stringify(editorBox) === JSON.stringify(shellBox) && placeholder() === shellPlaceholder, "the shell and the editor are pixel-identical: " + JSON.stringify({ shellBox, editorBox, shellPlaceholder, editor: placeholder() }))
+      fresh()
+      until(() => exists(".tds-input[data-shell]"), Boolean, "the shell again")
+      ab("click", ".tds-input[data-shell]")
+      ab("keyboard", "type", "sent before load")
+      ab("press", "Enter")
+      ab("eval", "window.__tockReleaseEditor?.()")
+      until(() => js<string>("return [...document.querySelectorAll('.tds-bubble[data-side=me]')].map((b) => b.textContent).join('|')"), (t) => t.includes("sent before load"), "Enter pressed in the shell to send once the editor loads")
+      check(js<string>("return document.querySelector('.ProseMirror').textContent") === "", "the composer clears after the replayed send")
+    } finally {
+      ab("eval", "localStorage.removeItem('tock:hold-editor')")
+    }
+  },
   roundtrip() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     const html = () => js<string>("return [...document.querySelectorAll('.tds-input *')].map((e) => e.tagName.toLowerCase()).join(' ')")
     const type = (text: string) => ab("keyboard", "type", text)
     const line = () => ab("press", "Shift+Enter")
@@ -2784,7 +2825,7 @@ const journeys: Record<string, () => void> = {
   },
   richpaste() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     const paste = (plain: string, html = "") => js<boolean>(`const dt = new DataTransfer(); ${html ? `dt.setData('text/html', ${JSON.stringify(html)});` : ""} dt.setData('text/plain', ${JSON.stringify(plain)}); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true`)
     const html = () => js<string>("return [...document.querySelectorAll('.tds-input *')].map((e) => e.tagName.toLowerCase()).join(' ')")
     const clear = () => (ab("press", "Control+a"), ab("press", "Backspace"))
@@ -2805,7 +2846,7 @@ const journeys: Record<string, () => void> = {
     const table = exists(".tds-bubble[data-side='me'] table")
     check(table || js<string>("return [...document.querySelectorAll('.tds-bubble[data-side=me]')].at(-1).textContent").includes("| 1 | 2 |"), "the sent table arrives as GFM")
     if (!table) console.log("      note: the bubble does not render GFM tables yet (markdown.tsx); the composer sends them correctly")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "read the docs")
     ab("eval", "(() => { const p = document.querySelector('.tds-input p'); const t = p.firstChild; const r = document.createRange(); r.setStart(t, 9); r.setEnd(t, 13); getSelection().removeAllRanges(); getSelection().addRange(r) })()")
     wait(100)
@@ -2831,11 +2872,11 @@ const journeys: Record<string, () => void> = {
     clear()
     ab("upload", ".tds-composer-wrap input[type=file]", join(FIXTURES, "verify-notes.md"))
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 1 && s[0] === "done", "the upload to finish", 15000)
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "notes")
     ab("press", "Enter")
     until(() => exists(".tds-files[data-side='me']"), Boolean, "the sent file")
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "@")
     until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ list")
     const groups = js<string[]>("return [...document.querySelectorAll('.tds-suggest .tds-menu-label')].map((e) => e.textContent)")
@@ -2855,7 +2896,7 @@ const journeys: Record<string, () => void> = {
   },
   codeexit() {
     fresh()
-    ab("click", ".ProseMirror")
+    field()
     ab("keyboard", "type", "`abc`")
     until(() => js<string>("return [...document.querySelectorAll('.tds-input code')].map((e) => e.textContent).join('|')"), (t) => t === "abc", "a backtick pair to make inline code")
     for (let i = 0; i < 3; i++) ab("press", "Backspace")
@@ -3079,7 +3120,7 @@ const journeys: Record<string, () => void> = {
       ab("eval", "window.__stay = 1")
       ab("click", "button[aria-label='New chat']")
       until(() => exists(".ProseMirror"), Boolean, "the composer")
-      ab("click", ".ProseMirror")
+      field()
       ab("keyboard", "type", "draft in progress")
       ab("eval", "navigator.serviceWorker.getRegistration().then((r) => r && r.update())")
       until(() => js<boolean>("return document.documentElement.hasAttribute('data-update-waiting')"), Boolean, "build B's worker to take over", 15000)
@@ -3104,7 +3145,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
