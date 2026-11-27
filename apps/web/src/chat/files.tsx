@@ -33,10 +33,13 @@ async function load(id: string, name: string) {
   try {
     const response = await fetch(fileUrl(id), { signal: controller.signal })
     if (!response.ok) return setMetas((all) => void (all[id] = { state: "missing", size: null, lines: null }))
-    const size = Number(response.headers.get("content-length")) || null
+    let size = Number(response.headers.get("x-file-size") || response.headers.get("content-length")) || null
     let lines: number | null = null
-    if (kindOf(name) === "text" && (size ?? 0) < TEXT_LIMIT) lines = (await response.text()).split("\n").length
-    else controller.abort()
+    if (kindOf(name) === "text" && (size ?? 0) < TEXT_LIMIT) {
+      const bytes = await response.arrayBuffer()
+      size = bytes.byteLength
+      lines = new TextDecoder().decode(bytes).split("\n").length
+    } else controller.abort()
     setMetas((all) => void (all[id] = { state: "ready", size, lines }))
   } catch {
     if (!controller.signal.aborted) setMetas((all) => void (all[id] = { state: "missing", size: null, lines: null }))

@@ -218,6 +218,7 @@ export default {
       return new Response(found.bytes, {
         headers: {
           "content-type": found.meta.mime,
+          "x-file-size": String(found.bytes.byteLength),
           "content-disposition": inlineDisposition(found.meta.name),
           "content-security-policy": "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'",
           "x-content-type-options": "nosniff",
