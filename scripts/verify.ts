@@ -227,7 +227,6 @@ const JANK_FRAME_MS = 50
 const JANK_P95_MS = 34
 const JANK_KNOWN: Record<string, string> = {
   streaming: "frame: each streamed token re-renders the reply and reflows the column under 4x throttle",
-  "work log": "forced: the pane's ResizeObserver fit() reads heights after other observers wrote",
   centre: "frame: since b25f77d the sidebar and main scale back as two viewport-sized layers promoted at open; on this VM's software compositor each frame of that scale costs 50-130ms (2 dropped frames before it, 43 after)",
 }
 
@@ -2810,12 +2809,13 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const samples: number[] = []
     for (let i = 0; i < 6; i++) { samples.push(tall()); wait(60) }
     wait(500)
-    const out = js<{ h: number; sh: number }>("const b = document.querySelector('.tds-ws[data-nested][data-open] .tds-ws-body'); return { h: b.getBoundingClientRect().height, sh: b.scrollHeight }")
+    const out = js<{ h: number; sh: number }>("const b = document.querySelector('.tds-ws[data-nested][data-open] [data-section=output] .tds-ws-pre'); return { h: b.getBoundingClientRect().height, sh: b.scrollHeight }")
     check(out.h <= 241, "an expanded long output should cap near 240px, got " + out.h)
     check(out.sh > out.h, "the long output should scroll inside its row")
     shot("worklog-long-output")
     ab("press", "Escape")
   },
+
 
   growopen() {
     seeded()
@@ -3573,6 +3573,28 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "Escape")
     until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
   },
+  toolio() {
+    seeded()
+    steady(".tds-act-button")
+    ab("click", ".tds-act-button")
+    until(() => exists(".tds-worklog .tds-ws[data-kind=tool] .tds-ws-line:not(:disabled)"), Boolean, "a tool row")
+    wait(500)
+    ab("eval", "[...document.querySelectorAll('.tds-worklog .tds-ws[data-kind=tool] .tds-ws-line')].find((l) => /Ran code/.test(l.textContent)).click()")
+    until(() => exists(".tds-worklog .tds-ws[data-open] .tds-ws-section[data-section=output] .tds-ws-pre"), Boolean, "the expanded tool row")
+    wait(700)
+    const io = js<{ labels: string[]; input: string; output: string; capped: boolean }>("const r = document.querySelector('.tds-worklog .tds-ws[data-kind=tool][data-open]'); const pres = [...r.querySelectorAll('.tds-ws-pre')]; return { labels: [...r.querySelectorAll('.tds-ws-section-label')].map((e) => e.textContent.trim()), input: r.querySelector('[data-section=input] .tds-ws-pre').textContent, output: r.querySelector('[data-section=output] .tds-ws-pre').textContent, capped: pres.every((p) => p.getBoundingClientRect().height <= 241 && ['auto', 'scroll'].includes(getComputedStyle(p).overflowY)) }")
+    check(io.labels.join(",") === "Input,Output", "a tool row opens into labelled Input and Output sections, got " + io.labels.join(","))
+    check(io.input.includes("runs") && io.output.includes("slowest"), "Input shows the code, Output the result: " + JSON.stringify(io).slice(0, 200))
+    check(io.capped, "each section caps near 240px and scrolls inside")
+    ab("eval", "window.__copied = ''; Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied = t; return Promise.resolve() } }, configurable: true })")
+    ab("click", ".tds-worklog .tds-ws[data-open] [data-section=output] .tds-ws-copy")
+    until(() => js<string>("return window.__copied"), (t) => t.includes("slowest"), "the copied output")
+    until(() => js<string>("return document.querySelector('.tds-worklog .tds-ws[data-open] [data-section=output] .tds-ws-copy').getAttribute('aria-label')"), (t) => t === "Output copied", "the copy key to confirm")
+    ab("click", ".tds-worklog .tds-ws[data-open] [data-section=input] .tds-ws-copy")
+    until(() => js<string>("return window.__copied"), (t) => t.includes("runs"), "the copied input")
+    shot("worklog-io")
+    ab("press", "Escape")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -3582,7 +3604,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

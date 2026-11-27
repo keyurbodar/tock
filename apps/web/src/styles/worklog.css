@@ -12,6 +12,15 @@
   .tds-worklog[data-folding] { transition: none }
   .tds-ws-fold[data-instant], .tds-ws-fold[data-instant] .tds-ws-body { transition: none }
   .tds-worklog[data-dropping] { transition: height var(--tds-dur-layout) var(--tds-ease-sheet) }
+  .tds-worklog .tds-ws-clip > .tds-ws-body:has(> .tds-ws-io) { max-height: none; overflow: visible }
+  .tds-ws-io { display: flex; flex-direction: column; gap: var(--tds-space-8); padding: var(--tds-space-2) var(--tds-space-8) var(--tds-space-8) 0 }
+  .tds-ws-section { min-width: 0; border-radius: var(--tds-radius-field); background: var(--tds-surface-main); box-shadow: 0 0 0 .5px var(--tds-overlay-worklog-rule); overflow: hidden }
+  .tds-ws-section-head { display: flex; align-items: center; justify-content: space-between; height: var(--tds-size-worklog-row); padding: 0 var(--tds-space-6) 0 var(--tds-space-12) }
+  .tds-ws-section-label { font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-faint) }
+  .tds-ws-copy { display: grid; place-items: center; width: var(--tds-size-key); height: var(--tds-size-key); border-radius: var(--tds-radius-small); color: var(--tds-text-faint); transition: color var(--tds-dur-hover) var(--tds-ease-out) }
+  @media (hover: hover) and (pointer: fine) { .tds-ws-copy:hover { color: var(--tds-text-tx) } }
+  .tds-ws-pre[data-edge-fade] { margin: 0; padding: 0 var(--tds-space-12) var(--tds-space-10); max-height: var(--tds-size-worklog-out); overflow: auto; overscroll-behavior: contain; font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); line-height: var(--tds-type-code-lh); color: var(--tds-text-title); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text }
+  .tds-ws-pre[data-edge-fade][data-bad] { color: color-mix(in srgb, var(--tds-status-failed) 80%, var(--tds-text-title)) }
   .tds-ws-dur { flex: none; color: var(--tds-text-faint); font-size: var(--tds-type-caption-size) }
   .tds-worklog .tds-ws[data-nested] .tds-ws-line { padding-left: var(--tds-space-18) }
   .tds-worklog .tds-ws-body { margin-left: var(--tds-space-8) }

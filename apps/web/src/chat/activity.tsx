@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
+import { MorphIcon } from "@tock/ui/morph-icon"
 import { Orb } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
 import type { JSX } from "@solidjs/web"
@@ -32,6 +33,36 @@ const codeOf = (step: Extract<Step, { kind: "tool" }>) => {
   const source = step.call.arguments.code ?? step.call.arguments.command
   return typeof source === "string" ? source.trim() : undefined
 }
+/** The call's arguments as the model sent them, minus nothing: what "Input" shows when there is no code or command. */
+const argsText = (step: Extract<Step, { kind: "tool" }>) => {
+  const args = step.call.arguments
+  return Object.keys(args).length ? JSON.stringify(args, null, 2) : undefined
+}
+
+/** One labelled half of a tool call (t3code's work-log Input / Output): its own code block, capped with inner scroll, and a copy key. */
+function IoSection(props: { label: "Input" | "Output"; text: string; bad?: boolean }) {
+  const [copied, setCopied] = createSignal(false)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  onCleanup(() => clearTimeout(timer))
+  const copy = async () => {
+    await navigator.clipboard.writeText(props.text)
+    setCopied(true)
+    clearTimeout(timer)
+    timer = setTimeout(() => setCopied(false), tokens.motion.duration.confirm)
+  }
+  return (
+    <section class="tds-ws-section" data-section={props.label.toLowerCase()}>
+      <header class="tds-ws-section-head">
+        <span class="tds-ws-section-label">{props.label}</span>
+        <button type="button" class="tds-ws-copy tds-press" aria-label={copied() ? `${props.label} copied` : `Copy ${props.label.toLowerCase()}`} onClick={() => void copy()}>
+          <MorphIcon name={copied() ? "check" : "copy"} size="chip" />
+        </button>
+      </header>
+      <pre class="tds-ws-pre" data-edge-fade="y" data-bad={props.bad ? "" : undefined}>{props.text}</pre>
+    </section>
+  )
+}
+
 const asking = (step: Step | undefined) => step?.kind === "tool" && step.call.name === "ask_owner" && !step.result && step.status !== "cancelled"
 const needs = (work: Work) => asking(work.steps.at(-1))
 const failed = (work: Work) => !work.active && work.steps.length > 0 && statusOf(work.steps.at(-1)!) === "failed"
@@ -144,10 +175,9 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
   const body = createMemo(() => {
     const step = props.step
     if (step.kind === "thinking") return step.text.trim() ? { kind: "think" as const, text: step.text.trim() } : undefined
-    const code = codeOf(step)
-    const out = step.status === "running" ? (step.output ?? "").trim() : resultText(step)
-    if (code !== undefined) return { kind: "code" as const, code, out, bad: step.status === "failed" }
-    return out ? { kind: "out" as const, text: out, bad: step.status === "failed" } : undefined
+    const output = step.status === "running" ? (step.output ?? "").trim() : resultText(step)
+    const input = codeOf(step) ?? argsText(step)
+    return input || output ? { kind: "io" as const, input, output, bad: step.status === "failed" } : undefined
   })
   return (
     <div ref={row} class="tds-ws" data-key={props.step.key} data-kind={props.step.kind} data-ms={props.ms === undefined ? undefined : Math.round(props.ms)} data-nested={props.nested ? "" : undefined} data-status={status()} data-open={open() ? "" : undefined}>
@@ -188,20 +218,13 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
                   </For>
                 </div>
               </Match>
-              <Match when={shown().kind === "code"}>
-                <div class="tds-ws-code">
-                  <div class="tds-ws-cmd">
-                    <Icon name="terminal-window" size="chip" class="tds-ws-prompt" />
-                    <span>{(shown() as { code: string }).code.split("\n")[0]}</span>
+              <Match when={shown().kind === "io" && (shown() as { input: string | undefined; output: string; bad: boolean })}>
+                {(io) => (
+                  <div class="tds-ws-io">
+                    <Show when={io().input}>{(text) => <IoSection label="Input" text={text()} />}</Show>
+                    <Show when={io().output}>{(text) => <IoSection label="Output" text={text()} bad={io().bad} />}</Show>
                   </div>
-                  <div class="tds-ws-on">on tock</div>
-                  <Show when={(shown() as { out: string }).out}>
-                    {(out) => <pre data-edge-fade="y" data-bad={(shown() as { bad: boolean }).bad ? "" : undefined}>{out()}</pre>}
-                  </Show>
-                </div>
-              </Match>
-              <Match when={shown().kind === "out"}>
-                <pre class="tds-ws-output" data-edge-fade="y" data-bad={(shown() as { bad: boolean }).bad ? "" : undefined}>{(shown() as { text: string }).text}</pre>
+                )}
               </Match>
             </Switch>
           </div>
@@ -265,26 +288,33 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   let base: number | undefined
   let drift = 0
   let glide: Animation | undefined
+  let queued = 0
+  /** One placement pass per frame: every read first (rects, the pane's current translate), then the writes. */
   const measure = () => {
+    if (queued) return
+    queued = requestAnimationFrame(() => {
+      queued = 0
+      place_()
+    })
+  }
+  const place_ = () => {
     const host = panel?.offsetParent
     if (!props.anchor || !host) return
     const box = host.getBoundingClientRect()
     const at = props.anchor.getBoundingClientRect()
+    const mine = [...document.querySelectorAll(".tds-bubble[data-side='me'], .tds-sent-images, .tds-file-card[data-side='me']")].map((el) => el.getBoundingClientRect())
+    const [, from = "0"] = getComputedStyle(panel).translate.split(" ")
     const above = at.top - box.top - tokens.size["worklog-top"]
     const below = box.bottom - at.bottom - tokens.size["column-bottom"]
     const want = untrack(height) ?? 0
     const pick = want > 0 && want <= below ? "down" : above > below ? "up" : "down"
     if (want > 0) side ??= pick
     const up = (side ?? pick) === "up"
-    const mine = [...document.querySelectorAll(".tds-bubble[data-side='me'], .tds-sent-images, .tds-file-card[data-side='me']")]
-      .map((el) => el.getBoundingClientRect())
-      .filter((r) => r.bottom > box.top && r.top < box.bottom && r.left > at.left)
-    const room = Math.min(...mine.map((r) => r.left - at.left - tokens.size["worklog-anchor"]), tokens.size["worklog-pane"])
+    const room = Math.min(...mine.filter((r) => r.bottom > box.top && r.top < box.bottom && r.left > at.left).map((r) => r.left - at.left - tokens.size["worklog-anchor"]), tokens.size["worklog-pane"])
     const edge = up ? box.bottom - at.top + tokens.size["worklog-anchor"] : at.bottom - box.top + tokens.size["worklog-anchor"]
     if (base === undefined || want <= 0) base = edge
     const shift = up ? base - edge : edge - base
     if (Math.abs(shift - drift) >= 1 && panel) {
-      const [, from = "0"] = getComputedStyle(panel).translate.split(" ")
       glide?.cancel()
       glide = spring(panel, [{ translate: `0 ${parseFloat(from) || 0}px` }, { translate: `0 ${shift}px` }], "snappy", { fill: "forwards" })
       drift = shift
@@ -299,6 +329,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   }
 
 
+
   const close = () => {
     if (closing()) return
     setClosing(true)
@@ -310,26 +341,44 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     const target = e.target as Node
     if (!panel.contains(target) && !props.anchor?.contains(target)) close()
   }
+  /** Sizes come from the ResizeObserver's own entries (measured after layout), so fitting the pane never forces one. */
+  const sizes = { head: 0, content: 0, pads: 0 }
   const fit = () => {
-    const scroller = body()
-    if (!scroller || !content || !head) return
-    const style = getComputedStyle(scroller)
-    setHeight(head.offsetHeight + content.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom))
-    if (stick && props.work?.active) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight))
+    if (!sizes.content) return
+    setHeight(sizes.head + sizes.content + sizes.pads)
+    const scroller = untrack(body)
+    if (stick && props.work?.active && scroller) requestAnimationFrame(() => (scroller.scrollTop = sizes.head + sizes.content + sizes.pads))
   }
-  const grow = new ResizeObserver(fit)
+  const blockSize = (entry: ResizeObserverEntry) => entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
+  const grow = new ResizeObserver((entries) => {
+    let moved = false
+    for (const entry of entries) {
+      if (entry.target === content) sizes.content = blockSize(entry)
+      else if (entry.target === head) sizes.head = blockSize(entry)
+      else moved = true
+    }
+    fit()
+    if (moved) measure()
+  })
   const [ready, setReady] = createSignal(false)
   const frame = requestAnimationFrame(() => {
+    const scroller = untrack(body)
+    if (scroller) {
+      const style = getComputedStyle(scroller)
+      sizes.pads = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+    }
+    if (head) sizes.head = head.offsetHeight
+    if (content) sizes.content = content.offsetHeight
+    place_()
     fit()
-    measure()
     requestAnimationFrame(() => setFull(true))
     setTimeout(() => {
       setReady(true)
       reflow()
     }, tokens.motion.duration.panel)
     if (content) grow.observe(content)
+    if (head) grow.observe(head)
     if (props.anchor?.offsetParent) grow.observe(props.anchor.offsetParent)
-    fit()
   })
   let flip: { stop: () => void } | undefined
   let foldTimer = 0
@@ -353,6 +402,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   addEventListener("scroll", onScroll, true)
   onCleanup(() => {
     cancelAnimationFrame(frame)
+    cancelAnimationFrame(queued)
     grow.disconnect()
     removeEventListener("keydown", onKey)
     removeEventListener("pointerdown", onPointer, true)
