@@ -172,6 +172,38 @@ const framesOf = (type: string) => js<number>(`return window.__frames.filter((f)
 const bannerText = () => js<string>("const e = document.querySelector('.tds-banner'); return e?.dataset.state === 'off' ? '' : ((e?.querySelector('[torph-sr]') ?? e)?.textContent ?? '')")
 const unreadRow = (id: string) => exists(`.tds-row-wrap[data-id="${id}"] [data-unread], .tds-row-wrap[data-id="${id}"][data-unread]`)
 
+/** Scrolls the open transcript from its end to its top at 60px per frame, sampling after each paint (rAF then setTimeout), until the top is reached and nothing more mounts. `over` counts every sample past 50ms; `long` counts the ones where the page itself was busy: a long animation frame with a task over 50ms, or over 16ms of script, style, layout and paint. Headless Chrome on a 2-CPU machine composites in software, so an odd frame lands late with no page work behind it (no long animation frame, or one with no script and 1ms of render; trace: rAF gaps max 41ms and draws 43ms while one timer sample read 58ms). Those are logged in `slow` but are not the page's cost. */
+function scrollUp() {
+  const out = ab("eval", `new Promise((done) => {
+    const s = document.querySelector('.tds-transcript'), frames = [], slow = [], loafs = []
+    const count = () => document.querySelectorAll('.tds-column .tds-bubble').length
+    const po = new PerformanceObserver((list) => { for (const e of list.getEntries()) if (e.duration > 50) loafs.push(e) })
+    po.observe({ type: 'long-animation-frame' })
+    s.scrollTop = s.scrollHeight
+    let last = 0, still = 0, seen = count()
+    const step = () => {
+      s.scrollTop = Math.max(0, s.scrollTop - 60)
+      setTimeout(() => {
+        const t = performance.now(), n = count()
+        if (last) frames.push(t - last)
+        if (last && t - last > 50) slow.push({ from: last, to: t, at: Math.round(s.scrollTop), bubbles: n })
+        last = t
+        still = s.scrollTop < 1 && n === seen ? still + 1 : 0
+        seen = n
+        if (still < 30) return requestAnimationFrame(step)
+        loafs.push(...po.takeRecords().filter((e) => e.duration > 50))
+        po.disconnect()
+        const cause = (f) => loafs.find((e) => e.startTime < f.to && e.startTime + e.duration > f.from)
+        const shown = slow.map((f) => { const e = cause(f); return { ms: Math.round(f.to - f.from), at: f.at, bubbles: f.bubbles, loaf: e ? { ms: Math.round(e.duration), blocking: Math.round(e.blockingDuration), work: Math.round(e.scripts.reduce((sum, x) => sum + x.duration, 0) + (e.renderStart ? e.startTime + e.duration - e.renderStart : 0)), scripts: e.scripts.map((x) => x.invoker + ' ' + (x.sourceFunctionName || x.sourceCharPosition) + ' ' + Math.round(x.duration)) } : null } })
+        const sorted = [...frames].sort((a, b) => a - b), at = (p) => Math.round(sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))])
+        done(JSON.stringify({ frames: frames.length, p50: at(0.5), p95: at(0.95), max: Math.round(sorted.at(-1)), over: slow.length, long: shown.filter((f) => f.loaf && (f.loaf.blocking > 0 || f.loaf.work > 16)).length, bubbles: n, slow: shown.slice(0, 8) }))
+      })
+    }
+    requestAnimationFrame(step)
+  })`)
+  return JSON.parse(JSON.parse(out)) as { frames: number; p50: number; p95: number; max: number; over: number; long: number; bubbles: number; slow: unknown[] }
+}
+
 const journeys: Record<string, () => void> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
@@ -2622,6 +2654,18 @@ const journeys: Record<string, () => void> = {
     until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n >= 500, "find to mount the whole chat so it can search every message")
     ab("press", "Escape")
     shot("longchat")
+    const prod = !js<boolean>("return !!document.querySelector('script[src*=\"@vite/client\"]')")
+    if (!prod) console.log("      longchat scroll: dev build, frames logged but not gated (Solid dev attribution inflates mounts ~6x); gate it with a VITE_TOCK_SEED=1 build on TOCK_URL=http://localhost:4173")
+    const settled = scrollUp()
+    console.log("      longchat scroll, all mounted: " + JSON.stringify(settled))
+    check(!prod || settled.long === 0, "scrolling a fully mounted 650-bubble chat from end to top keeps every frame under 50ms: " + JSON.stringify(settled))
+    seeded()
+    ab("eval", "window.__tockSeed(location.pathname.slice(3), 130)")
+    until(() => js<number>("const s = document.querySelector('.tds-transcript'); return document.querySelectorAll('.tds-column .tds-bubble').length >= 60 ? Math.round(s.scrollHeight - s.scrollTop - s.clientHeight) : 9999"), (g) => g <= 140, "the long chat to open at its end")
+    const mounting = scrollUp()
+    console.log("      longchat scroll, while slices mount: " + JSON.stringify(mounting))
+    check(mounting.bubbles >= 600, "scrolling to the top mounts the whole chat, got " + mounting.bubbles + " bubbles")
+    check(!prod || mounting.long === 0, "scrolling up right after opening a 650-bubble chat, while older slices still mount, keeps every frame under 50ms: " + JSON.stringify(mounting))
   },
   prefetch() {
     ensureRows(3)
