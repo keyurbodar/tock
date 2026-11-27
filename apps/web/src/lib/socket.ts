@@ -29,15 +29,7 @@ export class Socket {
 
   constructor(private readonly url: string) {
     addEventListener("online", () => this.reconnectNow())
-    addEventListener("offline", () => {
-      const ws = this.ws
-      if (!ws) return
-      this.ws = null
-      ws.close()
-      for (const [, entry] of this.pending) entry.reject(new RequestError("disconnected", "Connection lost"))
-      this.pending.clear()
-      this.setState("closed")
-    })
+    addEventListener("offline", () => this.ws && this.lost(this.ws))
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") this.reconnectNow()
     })
@@ -92,19 +84,26 @@ export class Socket {
       for (const frame of this.queue.splice(0)) ws.send(frame)
     })
     ws.addEventListener("message", (message) => this.receive(String(message.data)))
-    ws.addEventListener("close", async () => {
-      if (this.ws !== ws) return
-      for (const [, entry] of this.pending) entry.reject(new RequestError("disconnected", "Connection lost"))
-      this.pending.clear()
-      if (Date.now() - opened < 1500 && this.attempt > 0) {
-        const res = await fetch("/api/auth", { credentials: "same-origin" }).catch(() => null)
-        if (res?.status === 401) return this.setState("unauthorized")
-      }
-      this.setState("closed")
-      const jitter = Math.random() * 200
-      const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** this.attempt++) + jitter
-      this.retry = setTimeout(() => this.connect(), delay)
+    ws.addEventListener("close", () => {
+      if (this.ws === ws) void this.lost(ws, Date.now() - opened < 1500)
     })
+  }
+
+  /** Drops the socket at once: a close handshake over a dead network can take many seconds, so offline never waits for it. */
+  private async lost(ws: WebSocket, quick = false) {
+    this.ws = null
+    if (ws.readyState <= WebSocket.OPEN) ws.close()
+    for (const [, entry] of this.pending) entry.reject(new RequestError("disconnected", "Connection lost"))
+    this.pending.clear()
+    clearTimeout(this.retry)
+    if (quick && this.attempt > 0) {
+      const res = await fetch("/api/auth", { credentials: "same-origin" }).catch(() => null)
+      if (res?.status === 401) return this.setState("unauthorized")
+    }
+    this.setState("closed")
+    const jitter = Math.random() * 200
+    const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** this.attempt++) + jitter
+    this.retry = setTimeout(() => this.connect(), delay)
   }
 
   private receive(raw: string) {

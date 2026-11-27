@@ -81,6 +81,45 @@ const openRow = () => {
   until(() => exists(".tds-menu"), Boolean, "the thread menu")
 }
 
+const WEATHER = "Check the weather in Tokyo and summarise it"
+const liveRows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
+/** Every journey starts here: a reload clears overlays, toasts, sidebar search and hover. */
+function reset() {
+  ab("open", BASE)
+  ab("mouse", "move", "900", "450")
+  until(() => exists(".tds-row, .tds-sidebar .tds-empty"), Boolean, "the sidebar to load", 12000)
+}
+/** A brand-new chat of the journey's own at /t/<uuid>, composer ready. */
+function fresh(): string {
+  const id = crypto.randomUUID()
+  ab("open", `${BASE}/t/${id}`)
+  until(() => exists(".ProseMirror") && exists(".tds-header"), Boolean, "a fresh chat")
+  return id
+}
+function say(text: string) {
+  ab("click", ".ProseMirror")
+  ab("keyboard", "type", text)
+  ab("press", "Enter")
+  until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
+}
+/** Waits for the run to finish: an agent reply on screen and no Stop button. */
+const settled = () => until(() => exists(".tds-bubble[data-side='agent']") && !exists("button[aria-label='Stop'], .tds-send[data-stop]") && js<string>("return document.querySelector('.tds-act')?.dataset.state ?? 'done'") === "done", Boolean, "the run to finish", 20000)
+/** A fresh chat with one finished exchange. */
+function seeded(text = WEATHER): string {
+  const id = fresh()
+  say(text)
+  settled()
+  return id
+}
+/** At least n live rows in the sidebar, creating chats if the store has fewer, then back home. */
+function ensureRows(n: number) {
+  for (let i = 0; liveRows() < n && i < n; i++) {
+    seeded(WEATHER)
+    reset()
+  }
+  until(liveRows, (count) => count >= n, `${n} sidebar rows`)
+}
+
 const journeys: Record<string, () => void> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
@@ -97,6 +136,8 @@ const journeys: Record<string, () => void> = {
     shot("shell")
   },
   resize() {
+    ab("eval", "localStorage.removeItem('tock.sidebar.width')")
+    reset()
     const handle = rect(".tds-sidebar-handle")
     check(handle, "no resize handle")
     const x = handle.x + handle.w / 2
@@ -131,6 +172,7 @@ const journeys: Record<string, () => void> = {
     shot("send")
   },
   code() {
+    seeded()
     until(() => exists(".tds-code .tds-code-action") && !exists("button[aria-label='Stop']"), Boolean, "a finished code block", 15000)
     wait(600)
     check(js<string>("return document.querySelector('.tds-code-head span')?.textContent ?? ''") === "ts", "the code block should be labelled with its language")
@@ -144,6 +186,7 @@ const journeys: Record<string, () => void> = {
     check(js<boolean>("const c = document.querySelector('.tds-code pre code'); return !c.closest('.tds-code').hasAttribute('data-streaming') && c.textContent === c.firstElementChild.textContent && !!c.querySelector('[class^=sh__]')"), "a finished block should be fully highlighted with no plain tail")
   },
   divider() {
+    seeded()
     until(() => exists(".tds-divider"), Boolean, "a time divider")
     check(js<string>("return document.querySelector('.tds-divider-text')?.textContent ?? ''") === "Today", "the first divider should read Today")
     shot("divider")
@@ -182,13 +225,14 @@ const journeys: Record<string, () => void> = {
     shot("stopped")
   },
   worklog() {
+    seeded()
     until(() => exists(".tds-act-button"), Boolean, "an activity line", 15000)
     check(transparent(style(".tds-act-button", "backgroundColor")), "the activity line must have no background")
     check(transparent(style(".tds-act-caret", "backgroundColor")), "the activity caret must have no background")
     ab("hover", ".tds-act-button")
     check(transparent(style(".tds-act-button", "backgroundColor")), "the activity line must have no hover background")
     ab("click", ".tds-act-button")
-    until(() => exists(".tds-worklog .tds-ws-line"), Boolean, "the work log rows")
+    until(() => js<string>("const w = document.querySelector('.tds-worklog'); return w ? (w.querySelector('.tds-ws-line') ? 'rows' : 'empty ' + Math.round(w.getBoundingClientRect().height) + ' ' + w.querySelectorAll('*').length) : 'closed ' + document.querySelector('.tds-act-button')?.getAttribute('aria-expanded')"), (s) => s === "rows", "the work log rows")
     until(() => js<number>("return document.querySelectorAll('.tds-worklog .tds-plan-item').length"), (n) => n === 3, "the three plan steps from update_plan")
     check(js<boolean>("return [...document.querySelectorAll('.tds-ws-line')].every((e) => ['rgba(0, 0, 0, 0)', 'transparent'].includes(getComputedStyle(e).backgroundColor))"), "work log rows must have no background")
     ab("hover", ".tds-ws-line")
@@ -198,6 +242,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-worklog"), (open) => !open, "the work log to close")
   },
   menu() {
+    ensureRows(1)
     openRow()
     const items = js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())")
     check(["Rename…", "Pin", "Mark as Unread", "Snooze", "Move to…", "Copy Link", "Archive", "Delete"].every((item) => items.some((text) => text.startsWith(item))), `menu items: ${items.join(", ")}`)
@@ -206,6 +251,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-menu"), (open) => !open, "the menu to close")
   },
   pin() {
+    ensureRows(1)
     const first = () => js<string>("return document.querySelector('.tds-row-wrap')?.dataset.id ?? ''")
     const id = first()
     const pins = () => js<number>("return document.querySelectorAll('.tds-pin').length")
@@ -232,6 +278,7 @@ const journeys: Record<string, () => void> = {
     check(!exists(`.tds-pin[data-id="${id}"]`), "the pin should be gone")
   },
   swipe() {
+    ensureRows(1)
     ab("mouse", "move", "5", "5")
     const id = js<string>("return document.querySelector('.tds-row-wrap')?.dataset.id ?? ''")
     const at = rect(`.tds-row-wrap[data-id="${id}"]`)!
@@ -257,6 +304,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), Boolean, "Undo to restore the row")
   },
   multiselect() {
+    ensureRows(2)
     ab("mouse", "move", "5", "5")
     js<boolean>("const rows = [...document.querySelectorAll('.tds-row-wrap:not([data-archived]) .tds-row')].slice(0, 2); rows[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true })); return rows.length === 2")
     wait(150)
@@ -273,6 +321,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-bulk[data-open]"), (open) => !open, "Escape to clear the selection")
   },
   peek() {
+    ensureRows(1)
     ab("mouse", "move", "5", "5")
     const at = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
     ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2))
@@ -297,6 +346,7 @@ const journeys: Record<string, () => void> = {
     ab("mouse", "move", "900", "450")
   },
   snooze() {
+    ensureRows(1)
     const id = js<string>("return document.querySelector('.tds-row-wrap:not([data-archived])')?.dataset.id ?? ''")
     openRow()
     ab("hover", ".tds-menu-sub")
@@ -310,6 +360,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(`.tds-row-wrap[data-id="${id}"]`), Boolean, "Undo to bring the chat back")
   },
   move() {
+    ensureRows(1)
     openRow()
     choose("Move to…")
     until(() => exists(".tds-move input"), Boolean, "the move dialog")
@@ -324,6 +375,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-move"), (open) => !open, "the dialog to close")
   },
   stack() {
+    ensureRows(2)
     ab("mouse", "move", "5", "5")
     const at = rect(".tds-toast-row")!
     ab("mouse", "move", String(at.x + 40), String(at.y + at.h / 2))
@@ -343,6 +395,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-stack[data-open]"), (open) => !open, "the stack to close")
   },
   typography() {
+    ensureRows(1)
     const row = ".tds-row-wrap:not([data-archived]) .tds-row"
     check(rect(row)?.h === 58, `rows are 58 tall, got ${rect(row)?.h}`)
     check(style(`${row} .tds-row-title`, "fontSize") === "14.5px", "row titles are 14.5")
@@ -352,6 +405,7 @@ const journeys: Record<string, () => void> = {
     ab("mouse", "move", "900", "450")
   },
   rename() {
+    ensureRows(1)
     const before = js<string>("return document.querySelector('.tds-row-wrap .tds-row-title').textContent.trim()")
     openRow()
     choose("Rename…")
@@ -369,6 +423,7 @@ const journeys: Record<string, () => void> = {
     ab("press", "Enter")
   },
   dialog() {
+    ensureRows(1)
     const id = js<string>("return document.querySelector('.tds-row-wrap:not([data-archived])').dataset.id")
     const here = () => exists(`.tds-row-wrap[data-id="${id}"]`)
     openRow()
@@ -383,6 +438,7 @@ const journeys: Record<string, () => void> = {
   },
 
   shortcuts() {
+    ensureRows(1)
     ab("eval", "document.activeElement?.blur()")
     ab("press", "?")
     until(() => exists(".tds-keys"), Boolean, "the shortcuts dialog")
@@ -401,6 +457,7 @@ const journeys: Record<string, () => void> = {
     until(unread, (now) => now === before, "Ctrl+U to toggle unread back")
   },
   notifications() {
+    ensureRows(2)
     const unread = () => js<number>("return Number(document.querySelector('[data-bell] .tds-badge:not([data-zero])')?.textContent?.trim() || 0)")
     const before = unread()
     ab("click", "button[aria-label='New chat']")
@@ -474,6 +531,7 @@ const journeys: Record<string, () => void> = {
     shot("links-toast")
   },
   mention() {
+    ensureRows(1)
     const target = js<string>("return document.querySelector('.tds-row .tds-row-title, .tds-row b')?.textContent?.trim() ?? ''")
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a new chat")
@@ -522,6 +580,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-keys"), (open) => !open, "the shortcuts dialog to close")
   },
   toasts() {
+    ensureRows(1)
     const title = js<string>("return document.querySelector('.tds-row-wrap .tds-row')?.getAttribute('aria-label') ?? document.querySelector('.tds-row-wrap')?.textContent ?? ''")
     const before = js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
     openRow()
@@ -717,11 +776,11 @@ const journeys: Record<string, () => void> = {
     check(js<string>("return location.pathname") !== `/t/${chat}`, "chat B is open")
     ab("mouse", "move", "700", "500")
     until(() => exists(`.tds-row[href="/t/${chat}"]:not([data-status="working"])`), Boolean, "chat A to finish", 60000)
+    js<boolean>(`window.__flew = false; new MutationObserver((_, o) => { if (document.querySelector('.tds-flight-dot[data-chat="${chat}"]')) { window.__flew = true; o.disconnect() } }).observe(document.body, { childList: true }); return true`)
     const title = until(() => js<string>(`return [...document.querySelectorAll('.tds-toast .tds-toast-title')].map((t) => t.textContent).join('|')`), (t) => t.includes("history of toast"), "chat A's finished toast")
     shot("finished-toast")
-    until(() => exists(`.tds-flight-dot[data-chat="${chat}"]`), Boolean, "the dot to fly home", 60000)
-    wait(250)
-    shot("finished-flight")
+    until(() => js<boolean>("return window.__flew"), Boolean, "the dot to fly home", 10000)
+    if (exists(".tds-flight-dot")) shot("finished-flight")
     until(() => exists(`.tds-flight-dot`), (flying) => !flying, "the dot to land", 3000)
     until(() => exists(`.tds-row[href="/t/${chat}"][data-unread] .tds-unread`), Boolean, "chat A's row to show unread")
     shot("finished-landed")
@@ -744,9 +803,7 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
   },
   header() {
-    until(() => exists(".tds-row"), Boolean, "sidebar rows")
-    check(js<boolean>("const r = [...document.querySelectorAll('.tds-row')].find((e) => e.textContent.includes('what I found')); r?.click(); return !!r"), "no chat with a reply in the sidebar")
-    until(() => exists(".tds-bubble[data-side='agent']"), Boolean, "a thread with a reply", 15000)
+    seeded()
     check(rect(".tds-header-pill")?.h === 31, `header pill should be 31 tall, got ${rect(".tds-header-pill")?.h}`)
     check(style(".tds-header-pill", "fontSize") === "14px", "header title is 14px")
     check(rect(".tds-header .size-header-avatar")?.w === 50, "header avatar is 50")
@@ -767,6 +824,8 @@ const journeys: Record<string, () => void> = {
     check(js<number>("return CSS.highlights.size") === 0, "highlights cleared on close")
   },
   offline() {
+    fresh()
+    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "off", "the banner to start hidden")
     check(js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''") === "off", "the banner starts hidden")
     ab("set", "offline", "on")
     ab("eval", "window.dispatchEvent(new Event('offline'))")
@@ -1225,12 +1284,21 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
     until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
   },
-  diagnostics() {
-    const logs = ab("console")
-    const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
-    check(bad.length === 0, `console diagnostics:\n${bad.slice(0, 5).join("\n")}`)
-    const errors = ab("errors")
-    check(!/Error/.test(errors), `page errors:\n${errors.slice(0, 600)}`)
+  flip() {
+    ensureRows(3)
+    const ids = js<string[]>("return [...document.querySelectorAll('.tds-row-wrap:not([data-archived])')].slice(0, 2).map((e) => e.dataset.id)")
+    const [gone, next] = [ids[0]!, ids[1]!]
+    js<boolean>(`window.__flip = { max: 0 }; const end = performance.now() + 2500; const tick = () => { const w = document.querySelector('.tds-row-wrap[data-id="${next}"]'); const t = w ? new DOMMatrix(getComputedStyle(w).transform).m42 : 0; window.__flip.max = Math.max(window.__flip.max, Math.abs(t)); if (performance.now() < end) requestAnimationFrame(tick) }; requestAnimationFrame(tick); return true`)
+    openRow()
+    choose("Archive")
+    until(() => exists(`.tds-row-wrap[data-id="${gone}"]:not([data-archived])`), (still) => !still, "the archived row to leave")
+    until(() => js<number>(`return document.querySelector('.tds-row-wrap[data-id="${next}"]')?.getAnimations().length ?? 0`), (n) => n === 0, "the slide to land", 4000)
+    const moved = js<{ max: number }>("return window.__flip")
+    check(moved.max > 4, `the row below slides up into the gap instead of jumping (max offset ${moved.max}px)`)
+    check(Math.abs(js<number>(`return new DOMMatrix(getComputedStyle(document.querySelector('.tds-row-wrap[data-id="${next}"]')).transform).m42`)) < 0.5, "the row lands with no offset")
+    shot("flip-landed")
+    js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
+    until(() => exists(`.tds-row-wrap[data-id="${gone}"]:not([data-archived])`), Boolean, "Undo to restore the row")
   },
   diagnostics() {
     const logs = ab("console")
@@ -1250,6 +1318,7 @@ for (const name of run) {
   if (!journey) throw new Error(`unknown journey ${name}; known: ${order.join(", ")}`)
   const started = Date.now()
   try {
+    if (name !== "doctor" && name !== "diagnostics") reset()
     journey()
     console.log(`ok    ${name.padEnd(12)} ${Date.now() - started}ms`)
   } catch (error) {

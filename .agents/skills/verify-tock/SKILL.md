@@ -27,7 +27,18 @@ The first `agent-browser open` in a container needs `--args --no-sandbox`.
 
 `bun scripts/verify.ts` runs every journey in order; `bun scripts/verify.ts menu dialog` runs a subset after `doctor`. Journeys use stable handles only: class names from `apps/web/src/styles/shell.css`, ARIA labels and route shapes. The feature map in [features/](features/README.md) lists what each journey proves.
 
-To add a journey, add a function to `journeys` in `scripts/verify.ts` and a line to the feature map. Assert what a person sees (computed style, focus, text, url, persisted state after a reload), never internal signals.
+To add a journey, add a function to `journeys` in `scripts/verify.ts`, put its name in `order`, and add a line to the feature map. A name in `order` with no function crashes the whole run, so delete both together.
+
+## Isolation rule
+
+Every journey must pass alone (`bun scripts/verify.ts <name>`) and in any position of the full run. The runner calls `reset()` before each journey (a reload of `/`, pointer parked, sidebar loaded), which clears overlays, toasts, hover and the sidebar search. Beyond that, a journey builds the state it needs itself:
+
+- `fresh()` opens a brand-new chat at `/t/<uuid>` and returns the id. Use it instead of relying on whatever chat the last journey left open.
+- `seeded(text?)` is `fresh()` plus one finished exchange: it waits until an agent bubble is on screen, Stop is gone and the activity line reads done.
+- `ensureRows(n)` creates chats until the sidebar has `n` live rows. Sidebar journeys call it first.
+- Never find a chat by its text (`'what I found'`), never reuse a previous journey's chat, and leave the store as you found it (Undo, unpin, rename back).
+
+Wait on what a person can observe, never on time. `until()` polls every 150ms, so it cannot see anything that lives for less than about half a second (the finished dot flies for 700ms). For short-lived states, install a `MutationObserver` or a `requestAnimationFrame` sampler in the page that writes to `window.__name`, act, then `until()` on that flag (see `finished`, `queued`, `flip`). Keep `wait()` only to let an animation settle before a screenshot. Assert what a person sees (computed style, focus, text, url, persisted state after a reload), never internal signals.
 
 ## Evidence
 
