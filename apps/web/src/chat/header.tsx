@@ -135,16 +135,19 @@ function OfflineBanner() {
   createEffect(
     () => app.connection,
     (connection) => {
-      clearTimeout(timer)
       if (connection === "open") {
         if (seen && untrack(shown) === "on") {
+          clearTimeout(timer)
           setShown("ok")
           timer = setTimeout(() => setShown("off"), tokens.motion.duration.confirm + tokens.motion.duration.exit * 4)
         }
         seen = true
         return
       }
-      if (seen && connection === "closed") timer = setTimeout(() => setShown("on"), tokens.motion.duration.exit)
+      if (seen && connection !== "unauthorized") {
+        clearTimeout(timer)
+        setShown("on")
+      }
     },
   )
   return (

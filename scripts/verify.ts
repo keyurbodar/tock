@@ -4,7 +4,7 @@
  * fails loudly. Usage: bun scripts/verify.ts [journey ...]
  * Needs Vite on :5199 and wrangler dev on :8787 (see .agents/skills/verify-tock).
  */
-import { mkdirSync } from "node:fs"
+import { mkdirSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
@@ -613,6 +613,8 @@ const journeys: Record<string, () => void> = {
     const work = join(homedir(), ".capy/work")
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+    writeFileSync(join(work, "verify-notes.md"), "# Notes\n\nA small markdown file for the attach journey.\n")
+    png(join(work, "verify-pixel.png"), 4, 4, [229, 143, 180])
     ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-notes.md"), join(work, "verify-pixel.png"))
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "done"), "both uploads to finish", 15000)
     shot("attach-tray")
@@ -734,6 +736,7 @@ const journeys: Record<string, () => void> = {
   offline() {
     check(js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''") === "off", "the banner starts hidden")
     ab("set", "offline", "on")
+    ab("eval", "window.dispatchEvent(new Event('offline'))")
     try {
       until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "on", "the offline banner", 12000)
       wait(400)
