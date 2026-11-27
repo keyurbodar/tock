@@ -33,13 +33,14 @@
   .tds-toast-close {
     --pad: calc((var(--tds-size-hit-min) - var(--tds-size-toast-close)) / 2);
     position: absolute; left: calc(var(--tds-space-7) * -1 - var(--pad)); top: calc(var(--tds-space-7) * -1 - var(--pad)); isolation: isolate; display: grid; place-items: center;
-    width: var(--tds-size-hit-min); height: var(--tds-size-hit-min); border-radius: var(--tds-radius-pill); color: var(--tds-text-tx2); opacity: 0; scale: .6;
+    width: var(--tds-size-hit-min); height: var(--tds-size-hit-min); border-radius: var(--tds-radius-pill); color: var(--tds-text-tx2); opacity: 0; --shrink: .6;
     &::before { content: ""; position: absolute; inset: var(--pad); z-index: -1; border-radius: var(--tds-radius-pill); background: var(--tds-surface-badge-ring); box-shadow: var(--tds-lift-fan) }
+    &::before, & > * { scale: var(--shrink); transition: scale var(--tds-dur-tooltip) var(--tds-ease-out) }
     transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-tooltip) var(--tds-ease-out);
   }
-  .tds-toast-close:focus-visible { opacity: 1; scale: 1 }
-  @media (hover: hover) and (pointer: fine) { .tds-toast:hover .tds-toast-close { opacity: 1; scale: 1 } }
-  @media (hover: none) { .tds-toast-close { opacity: 1; scale: 1 } }
+  .tds-toast-close:focus-visible { opacity: 1; --shrink: 1 }
+  @media (hover: hover) and (pointer: fine) { .tds-toast:hover .tds-toast-close { opacity: 1; --shrink: 1 } }
+  @media (hover: none) { .tds-toast-close { opacity: 1; --shrink: 1 } }
   .tds-toast-progress { position: absolute; left: var(--tds-space-16); right: var(--tds-space-16); bottom: 0; height: var(--tds-space-2); border-radius: var(--tds-radius-pill); overflow: hidden; opacity: 0; transition: opacity var(--tds-dur-layout) var(--tds-ease-out) }
   .tds-toasts[data-expanded] .tds-toast-progress { opacity: 1 }
   .tds-toast-progress i { display: block; height: 100%; background: var(--tds-overlay-fill-20); transform-origin: 0 0 }
