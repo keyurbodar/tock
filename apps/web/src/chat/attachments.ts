@@ -91,7 +91,23 @@ async function describe(file: File): Promise<string> {
     const pages = ((await file.text()).match(/\/Type\s*\/Page(?!s)/g) ?? []).length
     if (pages > 0) return `${formatSize(file.size)} · ${plural(pages, { one: "# page", other: "# pages" })}`
   }
+  if (file.type.startsWith("video/") || /\.(mp4|mov|webm|m4v)$/i.test(file.name)) {
+    const seconds = await duration(file)
+    if (seconds) return `${formatSize(file.size)} · ${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`
+  }
   return formatSize(file.size)
+}
+
+function duration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video")
+    const url = URL.createObjectURL(file)
+    const done = (value: number | null) => (URL.revokeObjectURL(url), resolve(value))
+    video.preload = "metadata"
+    video.onloadedmetadata = () => done(Number.isFinite(video.duration) ? video.duration : null)
+    video.onerror = () => done(null)
+    video.src = url
+  })
 }
 
 /** The verb the reading line shimmers while toast looks inside (TDS px3 proc). */
@@ -106,6 +122,7 @@ export function readingLabel(name: string) {
 export function createAttachments() {
   const [list, setList] = createStore<{ items: Attachment[] }>({ items: [] })
   const sources = new Map<string, File>()
+  const origins = new Map<string, DOMRect>()
   const patch = (key: string, change: Partial<Attachment>) =>
     setList((s) => {
       const item = s.items.find((entry) => entry.key === key)
@@ -132,7 +149,7 @@ export function createAttachments() {
   }
 
   /** Adds what toast can read and returns why it refused the rest; refused files never reach the tray. */
-  const add = (files: Iterable<File>): Rejection[] => {
+  const add = (files: Iterable<File>, from?: DOMRect): Rejection[] => {
     const rejected: Rejection[] = []
     for (const file of files) {
       const name = file.name || "pasted"
@@ -146,6 +163,7 @@ export function createAttachments() {
       }
       const key = crypto.randomUUID()
       sources.set(key, file)
+      if (from) origins.set(key, from)
       setList((s) =>
         void s.items.push({ key, name, size: file.size, mime: file.type, preview: isImage(name, file.type) ? URL.createObjectURL(file) : null, status: "uploading", progress: 0, error: null, meta: null, fileId: null }),
       )
@@ -187,6 +205,12 @@ export function createAttachments() {
     move,
     clear,
     retry: start,
+    /** Where a card was attached from (the plus button or the drop point), read once when it mounts. */
+    origin: (key: string) => {
+      const from = origins.get(key)
+      origins.delete(key)
+      return from
+    },
     ready: () => list.items.every((item) => item.status === "done"),
     files: () => list.items.flatMap((item) => (item.fileId ? [{ name: item.name, id: item.fileId }] : [])),
   }

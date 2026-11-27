@@ -63,7 +63,7 @@ export function Thread() {
         e.preventDefault()
         depth = 0
         setDragging(false)
-        attach(attachments, [...(e.dataTransfer?.files ?? [])])
+        attach(attachments, [...(e.dataTransfer?.files ?? [])], new DOMRect(e.clientX, e.clientY, 1, 1))
       }}
     >
       <Header title={titleOf(session())} status={status()} />

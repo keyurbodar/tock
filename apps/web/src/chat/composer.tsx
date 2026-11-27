@@ -10,7 +10,7 @@ import { EditorState } from "@tiptap/pm/state"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
-import { prefersReducedMotion, animate, drive, recede, scrub } from "@tock/ui/motion"
+import { prefersReducedMotion, animate, drive, recede, scrub, growFrom, watchLayout } from "@tock/ui/motion"
 import { idb } from "../lib/idb"
 import { app, newThreadId, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
@@ -34,9 +34,9 @@ export function refuse(rejected: readonly Rejection[]) {
   for (const reason of rejected) toast(reason.title, { description: reason.hint, tone: "failed", icon: "prohibit", duration: tokens.motion.toast.error })
 }
 
-export const attach = (attachments: Attachments, files: Iterable<File>) => refuse(attachments.add(files))
+export const attach = (attachments: Attachments, files: Iterable<File>, from?: DOMRect) => refuse(attachments.add(files, from))
 
-function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => void; onPointerDown: (event: PointerEvent, el: HTMLElement) => void; onHover: (el: HTMLElement | null) => void }) {
+function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; onRetry: () => void; onPointerDown: (event: PointerEvent, el: HTMLElement) => void; onHover: (el: HTMLElement | null) => void }) {
   let el!: HTMLDivElement
   const ring = () => `${Math.round(props.item.progress * 100)} 100`
   const kind = () => fileChip(props.item.name)
@@ -57,7 +57,11 @@ function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => vo
   }
   return (
     <div
-      ref={el}
+      ref={(node) => {
+        el = node
+        const from = props.from
+        if (from) requestAnimationFrame(() => growFrom(node, from))
+      }}
       class="tds-attach tds-raise-1"
       data-kind={props.item.preview ? "image" : "doc"}
       data-status={props.item.status}
@@ -268,7 +272,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   let key = ""
   let teardown = () => {}
   const stop = () => props.working && blank()
-  const add = (files: Iterable<File>) => attach(props.attachments, files)
+  const add = (files: Iterable<File>) => attach(props.attachments, files, wrap.querySelector(".tds-composer-plus")?.getBoundingClientRect())
 
   const save = (forKey: string) => {
     clearTimeout(saveTimer)
@@ -727,11 +731,12 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         <div ref={mountField} class="tds-field tds-raise-2" data-invalid={tooLong() ? "" : undefined} data-tall={height() > tokens.size.composer || props.attachments.items().length > 0 ? "" : undefined} style={{ height: `${height() + (props.attachments.items().length > 0 ? tokens.size["attach-tray"] : 0)}px` }}>
           <button ref={grip} type="button" class="tds-sheet-grip" aria-label={sheet() ? "Collapse composer" : "Expand composer"} aria-expanded={sheet() ? "true" : "false"} onClick={() => expand(!untrack(sheet))} />
           <Show when={props.attachments.items().length > 0}>
-            <div ref={tray} class="tds-attach-tray tds-scroll">
+            <div ref={(el) => ((tray = el), watchLayout(el, ".tds-attach", (card) => card.dataset.key ?? ""))} class="tds-attach-tray tds-scroll">
               <For each={props.attachments.items()} keyed={(item) => item.key}>
                 {(item) => (
                   <Card
                     item={item()}
+                    from={props.attachments.origin(item().key)}
                     onRemove={() => props.attachments.remove(item().key)}
                     onRetry={() => props.attachments.retry(item().key)}
                     onPointerDown={(event, el) => grab(event, item().key, el)}

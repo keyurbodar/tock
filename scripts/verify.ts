@@ -483,7 +483,7 @@ const journeys: Record<string, () => void> = {
     ab("mouse", "move", "900", "450")
     probe("row to chat", "#main", () => ab("click", `.tds-row-wrap[data-id="${next}"] .tds-row`), 900)
     probe("toast", ".tds-toast[data-front]", () => (ab("hover", ".tds-row-wrap .tds-row"), ab("click", ".tds-row-wrap .tds-row-more"), wait(300), choose("Copy link")), 900)
-    ab("click", ".tds-row-wrap .tds-row")
+    seeded()
     until(() => exists(".tds-act-button"), Boolean, "a thread with a work log", 10000)
     wait(500)
     probe("work log open and close", ".tds-worklog", () => (ab("click", ".tds-act-button"), wait(700), ab("press", "Escape")))
@@ -1945,7 +1945,7 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
   },
   growopen() {
-    ab("click", ".tds-row-wrap .tds-row")
+    seeded()
     until(() => exists(".tds-act-button"), Boolean, "a thread with a work log", 10000)
     wait(600)
     steady(".tds-act-button")
@@ -1986,6 +1986,40 @@ const journeys: Record<string, () => void> = {
     check(gap >= 0, "the last message sits above the grown composer, gap " + gap)
     ab("click", ".tds-attach-remove")
   },
+  traygrow() {
+    fresh()
+    const work = join(homedir(), ".capy/work")
+    const a = png(join(work, "verify-tray-a.png"), 320, 240, [229, 143, 180])
+    const big = join(FIXTURES, "verify-tray-big-notes.md")
+    writeFileSync(big, "# Big notes\n" + "a line of notes for the tray journey\n".repeat(90000))
+    js<boolean>("window.__grow = { first: null, heights: [], metas: [], widths: [] }; const plus = document.querySelector('.tds-composer-plus').getBoundingClientRect(); window.__grow.plus = [plus.x + plus.width / 2, plus.y + plus.height / 2]; const end = performance.now() + 15000; const tick = () => { const g = window.__grow; const card = document.querySelector('.tds-attach'); if (card && !g.first && +getComputedStyle(card).opacity > 0.05) { const r = card.getBoundingClientRect(); g.first = [r.x + r.width / 2, r.y + r.height / 2, r.width] } g.heights.push(Math.round(document.querySelector('.tds-field').getBoundingClientRect().height)); const m = document.querySelector('.tds-attach[data-kind=doc] .tds-attach-meta span'); if (m) { const c = m.cloneNode(true); c.querySelectorAll('[aria-hidden=true]').forEach((x) => x.remove()); const t = c.textContent.trim(); if (g.metas.at(-1) !== t) g.metas.push(t) } const w = document.querySelector('.tds-attach[data-leaving], .tds-attach[style*=pointer-events]'); if (w) g.widths.push(Math.round(w.getBoundingClientRect().width)); if (performance.now() < end && !window.__growStop) requestAnimationFrame(() => setTimeout(tick)) }; window.__growStop = false; requestAnimationFrame(() => setTimeout(tick)); return true")
+    ab("upload", ".tds-composer-wrap input[type=file]", a)
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done", "the image to upload")
+    until(() => js<boolean>("return !!window.__grow.first"), Boolean, "the card to appear")
+    wait(700)
+    const g1 = js<{ first: number[] | null; heights: number[]; plus: number[] }>("return window.__grow")
+    const card = rect(".tds-attach")!
+    check(g1.first !== null, "the card was never seen entering")
+    const near = Math.hypot(g1.first![0]! - g1.plus[0]!, g1.first![1]! - g1.plus[1]!)
+    const far = Math.hypot(card.x + card.w / 2 - g1.plus[0]!, card.y + card.h / 2 - g1.plus[1]!)
+    check(near < far - 8 && g1.first![2]! < card.w, `the card grows out of the plus button (first frame ${JSON.stringify(g1.first)}, rest ${JSON.stringify(card)})`)
+    const heights = [...new Set(g1.heights)]
+    check(heights.length >= 4, "the composer height moves through intermediate sizes, saw " + heights.join(","))
+    check(Math.max(...g1.heights) > heights.at(-1)!, "the composer height springs past its rest and settles: " + heights.join(","))
+    ab("upload", ".tds-composer-wrap input[type=file]", big)
+    until(() => js<string[]>("return document.querySelectorAll('.tds-attach').length === 2 ? [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status) : []"), (s) => s.length === 2 && s.every((x) => x === "done"), "the big doc to finish", 30000)
+    const metas = js<string[]>("return window.__grow.metas")
+    check(metas.some((t) => /^\d+% of [\d.]+ [KM]?B$/.test(t)), "the doc showed upload progress as N% of size: " + JSON.stringify(metas))
+    check(/lines?$/.test(metas.at(-1)!), "the progress morphs into the final meta: " + JSON.stringify(metas))
+    shot("traygrow-two")
+    ab("hover", ".tds-attach[data-kind=image]")
+    ab("click", ".tds-attach[data-kind=image] .tds-attach-remove")
+    until(() => js<number>("return document.querySelectorAll('.tds-attach').length"), (n) => n === 1, "the removed card to go")
+    const widths = [...new Set(js<number[]>("return window.__grow.widths"))]
+    check(widths.length >= 3, "removal collapses through intermediate widths, saw " + widths.join(","))
+    ab("eval", "window.__growStop = true")
+    ab("click", ".tds-attach-remove")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1995,7 +2029,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
