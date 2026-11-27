@@ -252,23 +252,24 @@
   .tds-act { display: flex; align-self: flex-start; align-items: center; min-height: var(--tds-size-act); margin-top: var(--tds-space-14) }
   .tds-act + .tds-bubble, .tds-act + .tds-code { margin-top: var(--tds-space-10) }
   .tds-act-button {
-    display: flex; align-items: center; gap: var(--tds-space-8); height: var(--tds-size-act); color: var(--tds-text-tx2);
+    display: flex; align-items: center; gap: var(--tds-space-10); height: var(--tds-size-act); color: var(--tds-text-title);
     font-size: var(--tds-type-act-size); line-height: var(--tds-type-act-leading); letter-spacing: var(--tds-type-act-tracking);
-    transition: color var(--tds-dur-hover) var(--tds-ease-out);
+    transition: color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
+    &:active { scale: var(--tds-press-row) }
   }
-  .tds-act[data-state="done"] .tds-act-button { color: var(--tds-text-muted) }
-  .tds-act-text { white-space: nowrap; max-width: var(--tds-size-act-text); overflow: hidden; text-overflow: ellipsis }
-  .tds-act-caret { display: grid; place-items: center; color: var(--tds-text-faint); transition: color var(--tds-dur-hover) var(--tds-ease-out), rotate var(--tds-dur-menu) var(--tds-ease-std) }
-  @media (hover: hover) and (pointer: fine) { .tds-act-button:hover, .tds-act-button:hover .tds-act-caret { color: var(--tds-text-tx) } }
-  .tds-act-button[aria-expanded="true"] { color: var(--tds-text-tx) }
-  .tds-act-button[aria-expanded="true"] .tds-act-caret { rotate: -90deg; color: var(--tds-text-tx2) }
-  .tds-step-verb { color: inherit }
-  .tds-step-object { font-weight: var(--tds-weight-regular); color: var(--tds-text-tx) }
-  [data-shimmer] .tds-step-object { color: transparent }
+  .tds-act[data-state="done"] .tds-act-button, .tds-act[data-state="failed"] .tds-act-button { gap: var(--tds-space-6) }
+  .tds-act[data-state="done"] .tds-act-text { color: var(--tds-text-muted) }
+  .tds-act-text { white-space: nowrap; max-width: var(--tds-size-act-text); overflow: hidden; text-overflow: ellipsis; transition: color var(--tds-dur-hover) var(--tds-ease-out) }
+  .tds-act-caret { display: grid; place-items: center; flex: none; color: var(--tds-text-faint); transition: color var(--tds-dur-hover) var(--tds-ease-out), rotate var(--tds-dur-menu) var(--tds-ease-std) }
+  @media (hover: hover) and (pointer: fine) { .tds-act-button:hover .tds-act-text, .tds-act-button:hover .tds-act-caret { color: var(--tds-text-tx) } }
+  .tds-act-button[aria-expanded="true"] .tds-act-caret { rotate: -90deg; color: var(--tds-text-tx) }
+  .tds-step-verb { color: var(--tds-text-muted) }
+  .tds-step-object { font-weight: var(--tds-weight-regular); color: var(--tds-text-tx2) }
+  [data-shimmer] .tds-step-object, [data-shimmer] .tds-step-verb { color: transparent }
 
   .tds-worklog {
     position: absolute; z-index: var(--tds-z-lay); display: flex; flex-direction: column; width: min(var(--tds-size-worklog), calc(100% - var(--tds-space-32) * 2));
-    background: var(--tds-surface-card); border-radius: var(--tds-radius-worklog); box-shadow: var(--tds-lift-worklog);
+    background: var(--tds-surface-card); border-radius: var(--tds-radius-worklog); box-shadow: var(--tds-lift-worklog); overflow: hidden;
     transform-origin: var(--tds-space-20) 100%;
     transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-menu) var(--tds-ease-sheet), translate var(--tds-dur-menu) var(--tds-ease-sheet);
     @starting-style { opacity: 0; translate: 0 var(--tds-space-8); scale: var(--tds-press) }
@@ -276,42 +277,63 @@
   .tds-worklog[data-closing] { opacity: 0; translate: 0 var(--tds-space-6); scale: var(--tds-press-row); transition-duration: var(--tds-dur-exit); transition-timing-function: var(--tds-ease-in) }
   .tds-worklog-head {
     display: flex; flex: none; align-items: center; gap: var(--tds-space-9); height: var(--tds-size-worklog-head); padding: 0 var(--tds-space-10) 0 var(--tds-space-18);
-    box-shadow: 0 1px 0 var(--tds-overlay-worklog-rule); color: var(--tds-text-tx2); font-size: var(--tds-type-timer-size); white-space: nowrap;
+    color: var(--tds-text-title); font-size: var(--tds-type-timer-size); white-space: nowrap; transition: box-shadow var(--tds-dur-tooltip) var(--tds-ease-out);
   }
+  .tds-worklog[data-up] .tds-worklog-head { box-shadow: 0 1px 0 var(--tds-overlay-worklog-rule) }
+  .tds-worklog-ok { color: var(--tds-status-done) }
+  .tds-worklog-title { font-weight: var(--tds-weight-medium) }
   .tds-timer { font-weight: var(--tds-type-timer-weight); color: var(--tds-text-tx); font-variant-numeric: tabular-nums }
-  .tds-worklog-close {
-    display: grid; place-items: center; width: var(--tds-size-action); height: var(--tds-size-action); margin-left: auto; border-radius: var(--tds-radius-pill);
-    color: var(--tds-text-muted); transition: background-color var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
-  }
-  @media (hover: hover) and (pointer: fine) { .tds-worklog-close:hover { background: var(--tds-overlay-chip); color: var(--tds-text-tx) } }
-  .tds-worklog-head[data-up] { box-shadow: 0 1px 0 var(--tds-overlay-worklog-rule) }
   .tds-worklog-count { margin-left: auto; font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
-  .tds-worklog-count + .tds-worklog-close { margin-left: var(--tds-space-4) }
-  .tds-worklog-body { min-height: 0; overflow-y: auto; padding: 0 var(--tds-space-8) var(--tds-space-12) }
+  .tds-worklog-close {
+    display: grid; place-items: center; flex: none; width: var(--tds-size-action); height: var(--tds-size-action); margin-left: auto; border-radius: var(--tds-radius-pill);
+    color: var(--tds-text-muted); transition: background-color var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
+    &:active { scale: var(--tds-press) }
+  }
+  .tds-worklog-count + .tds-worklog-close { margin-left: var(--tds-space-6) }
+  @media (hover: hover) and (pointer: fine) { .tds-worklog-close:hover { background: var(--tds-overlay-chip); color: var(--tds-text-tx) } }
+  .tds-worklog-body { min-height: 0; overflow-y: auto; scrollbar-width: none; padding: var(--tds-space-8) var(--tds-space-8) var(--tds-space-12) }
+
+  .tds-plan { padding: var(--tds-space-4) var(--tds-space-10) var(--tds-space-12); margin-bottom: var(--tds-space-8); box-shadow: 0 1px 0 var(--tds-overlay-worklog-rule) }
+  .tds-plan-item { position: relative; display: flex; align-items: center; gap: var(--tds-space-12); height: var(--tds-size-plan-row); font-size: var(--tds-type-timer-size) }
+  .tds-plan-item:not(:last-child)::after {
+    content: ""; position: absolute; left: calc(var(--tds-size-plan-glyph) / 2 - .5px); top: calc(var(--tds-size-plan-row) / 2 + var(--tds-size-plan-glyph) / 2); height: var(--tds-size-plan-rail); width: 1px;
+    background: var(--tds-overlay-plan-rail); transition: background-color var(--tds-dur-layout) var(--tds-ease-out);
+  }
+  .tds-plan-item[data-state="done"]:not(:last-child)::after { background: color-mix(in srgb, var(--tds-status-done) 38%, transparent) }
+  .tds-plan-glyph { display: grid; place-items: center; flex: none; width: var(--tds-size-plan-glyph); height: var(--tds-size-plan-glyph); border-radius: var(--tds-radius-pill); background: var(--tds-surface-card) }
+  .tds-plan-glyph i { width: var(--tds-size-plan-dot); height: var(--tds-size-plan-dot); border-radius: var(--tds-radius-pill); box-shadow: inset 0 0 0 1.5px var(--tds-text-faint) }
+  .tds-plan-item[data-state="done"] .tds-plan-glyph { color: var(--tds-status-done) }
+  .tds-plan-title { transition: color var(--tds-dur-layout) var(--tds-ease-out) }
+  .tds-plan-item[data-state="done"] .tds-plan-title { color: var(--tds-text-muted) }
+  .tds-plan-item[data-state="cur"] .tds-plan-title { color: var(--tds-text-tx); font-weight: var(--tds-weight-medium) }
+  .tds-plan-item[data-state="next"] .tds-plan-title { color: var(--tds-text-faint) }
+
   .tds-ws { display: flex; flex-direction: column; @starting-style { opacity: 0; translate: 0 var(--tds-space-4) } transition: opacity var(--tds-dur-layout) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-out) }
   .tds-ws-line {
     display: grid; grid-template-columns: var(--tds-size-worklog-slot) minmax(0, 1fr) auto; align-items: center; column-gap: var(--tds-space-8);
-    width: 100%; min-height: var(--tds-size-worklog-row); padding: 0 var(--tds-space-10); text-align: left;
-    font-size: var(--tds-type-step-size); line-height: var(--tds-type-step-leading); letter-spacing: var(--tds-type-step-tracking); color: var(--tds-text-muted);
-    cursor: default; transition: color var(--tds-dur-hover) var(--tds-ease-out);
+    width: 100%; min-height: var(--tds-size-worklog-row); padding: var(--tds-space-5) var(--tds-space-10); border-radius: var(--tds-radius-step); text-align: left;
+    font-size: var(--tds-type-step-size); line-height: var(--tds-type-step-leading); letter-spacing: var(--tds-type-step-tracking); color: var(--tds-text-tx2);
+    cursor: default;
   }
   .tds-ws-line:not(:disabled) { cursor: pointer }
-  @media (hover: hover) and (pointer: fine) { .tds-ws-line:not(:disabled):hover { color: var(--tds-text-tx2) } }
-  .tds-ws-slot { display: grid; place-items: center; width: var(--tds-size-worklog-slot); height: var(--tds-size-worklog-slot); color: var(--tds-text-faint) }
-  .tds-ws-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .tds-ws-caret { display: grid; place-items: center; color: var(--tds-text-faint); transition: rotate var(--tds-dur-menu) var(--tds-ease-std) }
-  .tds-ws[data-open] .tds-ws-caret { rotate: 90deg }
-  .tds-ws[data-status="failed"] .tds-ws-line, .tds-ws[data-status="failed"] .tds-step-object { color: var(--tds-status-failed) }
-  .tds-ws-thought, .tds-ws-output {
-    margin: var(--tds-space-2) var(--tds-space-10) var(--tds-space-8) calc(var(--tds-size-worklog-slot) + var(--tds-space-18));
-    max-height: var(--tds-size-worklog-body); overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
-    @starting-style { opacity: 0 } transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out);
-  }
-  .tds-ws-thought { font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-leading); color: var(--tds-text-muted) }
-  .tds-ws-output {
-    padding: var(--tds-space-10) var(--tds-space-12); border-radius: var(--tds-radius-field); background: var(--tds-surface-well);
-    font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); line-height: var(--tds-type-code-leading); color: var(--tds-code-fg);
-  }
+  @media (hover: hover) and (pointer: fine) { .tds-ws-line:not(:disabled):hover .tds-ws-label { color: var(--tds-text-tx) } .tds-ws-line:hover .tds-ws-time { opacity: 1 } }
+  .tds-ws-slot { display: grid; place-items: center; width: var(--tds-size-worklog-slot); height: var(--tds-size-worklog-slot) }
+  .tds-ws-kind { opacity: .88 }
+  .tds-ws-text { display: flex; align-items: center; gap: var(--tds-space-6); min-width: 0 }
+  .tds-ws-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color var(--tds-dur-hover) var(--tds-ease-out) }
+  .tds-ws-caret { display: flex; flex: none; color: var(--tds-text-faint); rotate: -90deg; transition: rotate var(--tds-dur-menu) var(--tds-ease-sheet) }
+  .tds-ws[data-open] .tds-ws-caret { rotate: 0deg }
+  .tds-ws-time { font-size: var(--tds-type-caption-size); color: var(--tds-text-faint); opacity: 0; white-space: nowrap; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out) }
+  .tds-ws[data-status="failed"] .tds-step-verb { color: color-mix(in srgb, var(--tds-status-failed) 78%, var(--tds-text-muted)) }
+  .tds-ws-body { margin: var(--tds-space-2) var(--tds-space-10) var(--tds-space-8) var(--tds-size-ws-body-inset); user-select: text; @starting-style { opacity: 0; translate: 0 calc(var(--tds-space-4) * -1) } transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), translate var(--tds-dur-tooltip) var(--tds-ease-out) }
+  .tds-ws-thought { max-height: var(--tds-size-worklog-body); overflow-y: auto; padding: var(--tds-space-2) 0 var(--tds-space-2) var(--tds-space-12); box-shadow: inset 1.5px 0 0 var(--tds-overlay-thought-rule); font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-leading); color: var(--tds-text-muted) }
+  .tds-ws-code { padding: var(--tds-space-11) var(--tds-space-14) var(--tds-space-12); border-radius: var(--tds-radius-field); background: var(--tds-surface-main); box-shadow: 0 0 0 .5px var(--tds-overlay-worklog-rule) }
+  .tds-ws-cmd { display: flex; align-items: center; gap: var(--tds-space-8); font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); line-height: var(--tds-type-code-leading); color: var(--tds-text-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+  .tds-ws-prompt { color: var(--tds-text-faint); flex: none }
+  .tds-ws-on { margin: 1px 0 0 calc(var(--tds-space-14) + var(--tds-space-8)); font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
+  .tds-ws-code pre, .tds-ws-output { margin: var(--tds-space-9) 0 0; max-height: var(--tds-size-worklog-body); overflow-y: auto; font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); line-height: var(--tds-type-code-leading); color: var(--tds-text-title); white-space: pre-wrap; overflow-wrap: anywhere }
+  .tds-ws-output { margin: 0; padding: var(--tds-space-10) var(--tds-space-12); border-radius: var(--tds-radius-field); background: var(--tds-surface-main) }
+  :is(.tds-ws-code pre, .tds-ws-output)[data-bad] { color: color-mix(in srgb, var(--tds-status-failed) 80%, var(--tds-text-title)) }
 
   /* menus and dialogs */
   .tds-menu {
@@ -586,4 +608,10 @@
 
 @layer components {
   .tds-file-card .tds-attach-glyph { color: color-mix(in oklab, var(--tds-chip-accent) 80%, var(--tds-text-tx)); background: color-mix(in oklab, var(--tds-chip-accent) 16%, var(--tds-surface-attach-doc)) }
+}
+
+@layer components {
+  .tds-word { animation: tds-word var(--tds-dur-word) var(--tds-ease-out) both }
+  @keyframes tds-word { from { opacity: 0; filter: blur(var(--tds-blur-word)) } }
+  @media (prefers-reduced-motion: reduce) { .tds-word { animation-name: tds-word-fade } @keyframes tds-word-fade { from { opacity: 0 } } }
 }

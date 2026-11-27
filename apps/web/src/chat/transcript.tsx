@@ -88,7 +88,7 @@ export function Transcript(props: { state: ThreadState | undefined }) {
           {(item) => (
             <Switch>
               <Match when={item().kind === "text"}>
-                <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} />
+                <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} />
               </Match>
               <Match when={item().kind === "user" || item().kind === "routine"}>
                 <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={item().key.startsWith("pending:")} />

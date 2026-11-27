@@ -6,7 +6,7 @@ export type OrbSurface = "main" | "side" | "sel"
 
 const file: Record<OrbStatus, string> = { working: "working", needs: "needs", failed: "failed", done: "done" }
 
-export function Orb(props: { status: OrbStatus; surface?: OrbSurface; size?: "orb" | "orb-sm"; class?: string }) {
+export function Orb(props: { status: OrbStatus; surface?: OrbSurface; size?: "orb" | "orb-sm" | "orb-act" | "orb-row"; class?: string }) {
   return (
     <img
       class={`tds-orb ${props.class ?? ""}`}

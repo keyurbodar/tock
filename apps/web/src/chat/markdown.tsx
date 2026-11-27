@@ -6,26 +6,42 @@ import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { FileChip, ThreadChip } from "./chip"
 import { ExternalLink, shortUrl, webHost } from "./link"
+import { createReveal } from "./stream"
 
-function inline(tokens: readonly Token[] | undefined): JSX.Element[] {
+/** Hands out word numbers in reading order, so each streamed word keeps its own fade across re-renders. */
+interface Words {
+  next(): number
+  delay(i: number): string | undefined
+}
+
+function words(text: string, clock: Words | undefined): JSX.Element {
+  if (!clock) return text
+  return text.split(/(\s+)/).map((part) => {
+    if (part === "" || /^\s+$/.test(part)) return part
+    const delay = clock.delay(clock.next())
+    return delay ? <span class="tds-word" style={{ "animation-delay": delay }}>{part}</span> : part
+  })
+}
+
+function inline(tokens: readonly Token[] | undefined, clock?: Words): JSX.Element[] {
   return (tokens ?? []).map((token): JSX.Element => {
     switch (token.type) {
       case "strong":
-        return <strong>{inline(token.tokens)}</strong>
+        return <strong>{inline(token.tokens, clock)}</strong>
       case "em":
-        return <em>{inline(token.tokens)}</em>
+        return <em>{inline(token.tokens, clock)}</em>
       case "del":
-        return <del>{inline(token.tokens)}</del>
+        return <del>{inline(token.tokens, clock)}</del>
       case "codespan":
         return <code class="tds-inline-code">{decode(token.text)}</code>
       case "br":
         return <br />
       case "link":
-        return <Reference href={token.href} text={token.text} raw={token.raw}>{inline(token.tokens)}</Reference>
+        return <Reference href={token.href} text={token.text} raw={token.raw}>{inline(token.tokens, clock)}</Reference>
       case "text":
-        return "tokens" in token && token.tokens ? inline(token.tokens) : decode(token.text)
+        return "tokens" in token && token.tokens ? inline(token.tokens, clock) : words(decode(token.text), clock)
       default:
-        return "text" in token ? decode(String(token.text)) : token.raw
+        return "text" in token ? words(decode(String(token.text)), clock) : token.raw
     }
   })
 }
@@ -71,7 +87,7 @@ function CodeCard(props: { token: Tokens.Code }) {
   )
 }
 
-function Block(props: { token: Token }) {
+function Block(props: { token: Token; clock?: () => Words | undefined }) {
   return (
     <Switch fallback={<div class="tds-bubble" data-side="agent">{props.token.raw.trim()}</div>}>
       <Match when={props.token.type === "code"}>
@@ -79,13 +95,13 @@ function Block(props: { token: Token }) {
       </Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
         <div class="tds-bubble" data-side="agent" data-heading={props.token.type === "heading" ? "" : undefined}>
-          {inline((props.token as Tokens.Paragraph).tokens)}
+          {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
         </div>
       </Match>
       <Match when={props.token.type === "list"}>
         <div class="tds-bubble" data-side="agent">
           <ul class="tds-list" data-ordered={(props.token as Tokens.List).ordered ? "" : undefined}>
-            <For each={(props.token as Tokens.List).items} keyed={false}>{(item) => <li>{inline(item().tokens.flatMap((t) => ("tokens" in t && t.tokens ? t.tokens : [t])))}</li>}</For>
+            <For each={(props.token as Tokens.List).items} keyed={false}>{(item) => <li>{inline(item().tokens.flatMap((t) => ("tokens" in t && t.tokens ? t.tokens : [t])), props.clock?.())}</li>}</For>
           </ul>
         </div>
       </Match>
@@ -93,7 +109,23 @@ function Block(props: { token: Token }) {
   )
 }
 
-export function Markdown(props: { text: string }) {
-  const blocks = createMemo(() => Lexer.lex(props.text, { gfm: true, breaks: true }).filter((token) => token.type !== "space"))
-  return <For each={blocks()} keyed={false}>{(token) => <Block token={token()} />}</For>
+/** A reply. While it streams, words arrive one at a time and each fades in from a slight blur (TDS streaming words). */
+export function Markdown(props: { text: string; streaming?: boolean }) {
+  const reveal = createReveal(() => props.text, () => props.streaming ?? false)
+  const blocks = createMemo(() => Lexer.lex(reveal.text(), { gfm: true, breaks: true }).filter((token) => token.type !== "space"))
+  /** Word numbers restart for every render pass; blocks render in order, so block i counts after the blocks before it. */
+  const offsets = createMemo(() => {
+    let total = 0
+    return blocks().map((token) => {
+      const start = total
+      total += (token.type === "code" ? "" : token.raw).match(/\S+/g)?.length ?? 0
+      return start
+    })
+  })
+  const clockFor = (index: number): Words | undefined => {
+    if (!reveal.revealing() && !props.streaming) return undefined
+    let i = offsets()[index] ?? 0
+    return { next: () => i++, delay: reveal.delay }
+  }
+  return <For each={blocks()} keyed={false}>{(token, index) => <Block token={token()} clock={() => clockFor(index)} />}</For>
 }

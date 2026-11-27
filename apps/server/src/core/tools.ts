@@ -8,7 +8,7 @@ import {
   type Extension,
   type ToolRegistration,
 } from "@earendil-works/pi-durable";
-import { bool, lit, map, num, obj, opt, str, union, unknown } from "@earendil-works/pi-schema";
+import { arr, bool, lit, map, num, obj, opt, str, union, unknown } from "@earendil-works/pi-schema";
 import type { UnifiedMemory } from "./memory.js";
 import type { Vault } from "./vault.js";
 import type { ExecutionGuards } from "./guards.js";
@@ -84,6 +84,7 @@ const HttpRequestParams = obj({
 const FileReadParams = obj({ id: str() });
 const FileWriteParams = obj({ name: str(), content: str(), mime: opt(str()) });
 const SkillReadParams = obj({ name: str(), file: opt(str()) });
+const UpdatePlanParams = obj({ steps: arr(str()), current: num() });
 
 export function createTockExtension(deps: TockToolsDeps): Extension {
   const memorySearchTool = defineTool({
@@ -297,6 +298,18 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     },
   });
 
+  const updatePlanTool = defineTool({
+    name: "update_plan",
+    description:
+      "Show the owner your plan for this turn as a short checklist (2 to 6 plain steps). Call it once before multi-step work and again whenever you move to the next step; `current` is the zero-based index of the step you are on, or steps.length when everything is done.",
+    parameters: UpdatePlanParams,
+    replay: "safe",
+    async execute(args) {
+      const current = Math.max(0, Math.min(args.steps.length, Math.floor(args.current)));
+      return { output: [{ type: "text", text: JSON.stringify({ steps: args.steps, current }) }] };
+    },
+  });
+
   const notifyOwnerTool = defineTool({
     name: "notify_owner",
     description: "Send a proactive alert to the owner (live WebSocket + Web Push / webhook). Respects quiet hours: low/normal alerts queue for morning digest while urgent breaks through immediately.",
@@ -444,6 +457,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     routineUpsertTool as unknown as ToolRegistration,
     routineListTool as unknown as ToolRegistration,
     routineDeleteTool as unknown as ToolRegistration,
+    updatePlanTool as unknown as ToolRegistration,
     notifyOwnerTool as unknown as ToolRegistration,
     mcpListTool as unknown as ToolRegistration,
     mcpCallTool as unknown as ToolRegistration,

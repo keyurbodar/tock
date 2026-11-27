@@ -8,6 +8,7 @@ import type {
   ToolResultMessage,
   ToolSlot,
 } from "@tock/protocol"
+import { isPlan, planOf, type Plan } from "./steps"
 
 export type Step =
   | { readonly kind: "thinking"; readonly key: string; readonly text: string; readonly active: boolean }
@@ -17,6 +18,8 @@ export type Step =
       readonly call: ToolCallBlock
       readonly result: ToolResultMessage | undefined
       readonly status: "running" | "done" | "failed" | "cancelled"
+      /** Output the tool is printing while it runs. */
+      readonly output: string | undefined
     }
 
 export type Item =
@@ -26,6 +29,7 @@ export type Item =
       readonly kind: "work"
       readonly key: string
       readonly steps: readonly Step[]
+      readonly plan: Plan | undefined
       readonly active: boolean
       readonly startedAt: number | null
       readonly endedAt: number | null
@@ -38,6 +42,7 @@ interface Work {
   kind: "work"
   key: string
   steps: Step[]
+  plan: Plan | undefined
   active: boolean
   startedAt: number | null
   endedAt: number | null
@@ -82,7 +87,7 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
   let turnStart: number | null = null
   const work = (key: string): Work => {
     if (turn) return turn
-    turn = { kind: "work", key, steps: [], active: false, startedAt: turnStart, endedAt: null }
+    turn = { kind: "work", key, steps: [], plan: undefined, active: false, startedAt: turnStart, endedAt: null }
     items.splice(turnAt, 0, turn)
     return turn
   }
@@ -112,7 +117,12 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
       const unfinished = result === undefined && (streaming || (running && slot?.status !== "done"))
       const cancelled = result === undefined ? !unfinished && message.stopReason === "aborted" : aborted.has(block.id)
       const group = work(blockKey)
+      if (isPlan(block)) {
+        group.plan = planOf(block) ?? group.plan
+        return
+      }
       group.steps.push({
+        output: unfinished ? slot?.output : undefined,
         kind: "tool",
         key: blockKey,
         call: block,
