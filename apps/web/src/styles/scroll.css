@@ -1,0 +1,15 @@
+@layer components {
+  .tds-transcript { overflow-anchor: auto }
+  .tds-jump {
+    position: absolute; left: 50%; bottom: var(--tds-size-column-bottom); z-index: 1;
+    display: inline-flex; align-items: center; gap: var(--tds-space-6);
+    height: var(--tds-size-jump-pill); padding: 0 var(--tds-space-12) 0 var(--tds-space-10); border-radius: var(--tds-radius-pill);
+    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow); backdrop-filter: blur(var(--tds-pill-blur));
+    color: var(--tds-text-tx2); font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium); white-space: nowrap;
+    translate: -50% var(--tds-space-8); scale: .96; opacity: 0; filter: blur(var(--tds-blur-exit)); pointer-events: none;
+    transition: opacity var(--tds-dur-exit-small) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-out), scale var(--tds-dur-layout) var(--tds-ease-out), filter var(--tds-dur-exit-small) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
+  }
+  .tds-jump[data-on] { opacity: 1; translate: -50% 0; scale: 1; filter: none; pointer-events: auto; transition-duration: var(--tds-dur-layout) }
+  .tds-jump:active { scale: var(--tds-press) }
+  @media (hover: hover) and (pointer: fine) { .tds-jump:hover { color: var(--tds-text-tx) } }
+}

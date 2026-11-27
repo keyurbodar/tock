@@ -1018,7 +1018,38 @@ const journeys: Record<string, () => void> = {
     check(js<number>("return Math.round(window.__sent.getBoundingClientRect().height)") <= m.line + 16 + 1, "a bubble chip does not grow its line")
     shot("baseline-bubble")
   },
-  diagnostics() {
+  scroll() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => exists(".tds-code"), Boolean, "the agent reply", 15000)
+    const gap = () => js<number>("const s = document.querySelector('.tds-transcript'); return Math.round(s.scrollHeight - s.scrollTop - s.clientHeight)")
+    ab("eval", "{ const d = document.createElement('div'); d.className = 'verify-older'; d.style.height = '2400px'; document.querySelector('.tds-transcript .tds-column').prepend(d) }")
+    until(gap, (g) => g <= 140, "the transcript to stay pinned when content grows")
+    check(!exists(".tds-jump[data-on]"), "no scroll affordance while pinned")
+    ab("eval", "{ const s = document.querySelector('.tds-transcript'); s.scrollTop = s.scrollTop - 900 }")
+    until(() => exists(".tds-jump[data-on]"), Boolean, "the Scroll to end pill once scrolled up")
+    check(js<string>("return document.querySelector('.tds-jump')?.textContent ?? ''").includes("Scroll to end"), "the pill should read Scroll to end")
+    const before = js<number>("return Math.round(document.querySelector('.tds-bubble[data-side=me]').getBoundingClientRect().top)")
+    ab("eval", "{ const d = document.createElement('div'); d.className = 'verify-older'; d.style.height = '600px'; document.querySelector('.tds-transcript .tds-column').prepend(d) }")
+    wait(200)
+    const after = js<number>("return Math.round(document.querySelector('.tds-bubble[data-side=me]').getBoundingClientRect().top)")
+    check(Math.abs(after - before) <= 1, "older content above should not move what I am reading (" + before + " -> " + after + ")")
+    shot("scroll-pill")
+    ab("click", ".tds-jump")
+    until(gap, (g) => g <= 140, "Scroll to end to return to the bottom")
+    until(() => exists(".tds-jump[data-on]"), (on) => !on, "the pill to morph out")
+    ab("eval", "{ const s = document.querySelector('.tds-transcript'); s.scrollTop = 0 }")
+    until(() => exists(".tds-jump[data-on]"), Boolean, "the pill after scrolling to the top")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "and Osaka too")
+    ab("press", "Enter")
+    until(gap, (g) => g <= 140, "sending to jump to the bottom", 4000)
+    shot("scroll-sent")
+    ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
+  },  diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
     check(bad.length === 0, `console diagnostics:\n${bad.slice(0, 5).join("\n")}`)
@@ -1027,7 +1058,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

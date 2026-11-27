@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
 import { Icon } from "@tock/ui/icon"
@@ -83,20 +83,53 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
 
 export function Transcript(props: { state: ThreadState | undefined; sessionId: string }) {
   let scroller!: HTMLDivElement
-  let pinned = true
+  let column!: HTMLDivElement
+  let following = true
+  let baseline = { top: 0, height: 0 }
+  const [away, setAway] = createSignal(false)
+  const distance = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
+  const toEnd = (smooth = false) => {
+    following = true
+    setAway(false)
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "instant" })
+    baseline = { top: scroller.scrollTop, height: scroller.scrollHeight }
+  }
+  const onScroll = () => {
+    const next = { top: scroller.scrollTop, height: scroller.scrollHeight }
+    const upward = next.height >= baseline.height && next.top < baseline.top - 1
+    baseline = next
+    if (upward) following = false
+    if (distance() <= tokens.size["column-bottom"]) following = true
+    setAway(!following && distance() > tokens.size["column-bottom"])
+  }
+  const grow = new ResizeObserver(() => {
+    if (following) toEnd()
+    else setAway(distance() > tokens.size["column-bottom"])
+  })
+  onSettled(() => {
+    grow.observe(column)
+    toEnd()
+  })
+  onCleanup(() => grow.disconnect())
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
   const toggle = (key: string, anchor: HTMLElement) => setOpen((current) => (current?.key === key ? undefined : { key, anchor }))
   const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting") : []))
   createEffect(
-    () => items().length + (items().at(-1)?.kind === "text" ? (items().at(-1) as { text: string }).text.length : 0),
+    () => props.state?.pending.at(-1)?.id,
+    (sent) => {
+      if (sent) requestAnimationFrame(() => toEnd())
+    },
+  )
+  createEffect(
+    () => props.sessionId,
     () => {
-      if (pinned) scroller.scrollTop = scroller.scrollHeight
+      requestAnimationFrame(() => toEnd())
     },
   )
   return (
     <>
-    <div ref={scroller} class="tds-transcript tds-scroll" onContextMenu={openLinkMenu} onScroll={() => (pinned = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < tokens.size["column-bottom"])}>
-      <div class="tds-column">
+    <div ref={scroller} class="tds-transcript tds-scroll" onContextMenu={openLinkMenu} onScroll={onScroll}>
+      <div ref={column} class="tds-column">
         <Show when={props.state?.phase === "loading" && items().length === 0}>
           <Dynamic component="skullet-reveal" loading="" label="Loading messages" class="tds-transcript-skeleton">
             <div class="tds-bubble" data-side="me">Plan the week ahead with me</div>
@@ -142,6 +175,10 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
         </For>
       </div>
     </div>
+    <button type="button" class="tds-jump" data-on={away() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} onClick={() => toEnd(true)}>
+      <Icon name="arrow-down" size="chip" />
+      Scroll to end
+    </button>
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
     <Show when={open()}>
       {(current) => <WorkLog work={items().find((item): item is Work => item.kind === "work" && item.key === current().key)} anchor={current().anchor} sessionId={props.sessionId} onClose={() => setOpen(undefined)} />}
