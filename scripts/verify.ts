@@ -456,7 +456,7 @@ const journeys: Record<string, () => void> = {
     const chat = until(() => js<string>("return location.pathname.startsWith('/t/') ? location.pathname.slice(3) : ''"), Boolean, "the chat to get an id")
     until(() => exists(`.tds-row[href="/t/${chat}"][data-status="working"]`), Boolean, "chat A to start working", 10000)
     ab("click", "button[aria-label='New chat']")
-    until(() => !location.pathname.includes(chat) || js<string>("return location.pathname") !== `/t/${chat}`, Boolean, "leaving chat A")
+    until(() => js<string>("return location.pathname") !== `/t/${chat}`, Boolean, "leaving chat A")
     check(js<string>("return location.pathname") !== `/t/${chat}`, "chat B is open")
     const title = until(() => js<string>(`return [...document.querySelectorAll('.tds-toast')].map((t) => t.querySelector('.tds-toast-title')?.textContent ?? '').join('|')`), (t) => t.length > 0, "the finished toast", 60000)
     shot("finished-toast")
