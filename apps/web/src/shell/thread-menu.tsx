@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js"
-import { animate } from "@tock/ui/motion"
+import { afterLayout, animate } from "@tock/ui/motion"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { createMenuController, Menu, MenuContent, MenuItem, MenuItemIcon, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger } from "@ui-sdk/solid/menu"
 import {
@@ -56,7 +56,7 @@ export function leaveList(ids: readonly string[], then: () => void) {
   let left = wraps.length
   const done = () => {
     then()
-    requestAnimationFrame(() => {
+    const settle = () => {
       for (const wrap of wraps) {
         wrap.getAnimations().forEach((animation) => animation.cancel())
         wrap.removeAttribute("data-swiping")
@@ -66,12 +66,15 @@ export function leaveList(ids: readonly string[], then: () => void) {
         if (row) Object.assign(row.style, { transform: "", transition: "" })
         wrap.querySelectorAll<HTMLElement>(".tds-swipe-side").forEach((side) => (side.style.width = ""))
       }
-      for (const wrap of document.querySelectorAll<HTMLElement>(".tds-row-wrap")) {
-        const from = before.get(wrap.dataset.id)
-        const delta = from === undefined ? 0 : from - wrap.getBoundingClientRect().top
-        if (delta) animate(wrap, [{ transform: `translateY(${delta}px)` }, { transform: "none" }], { duration: layout, easing: tokens.motion.curve.std })
-      }
-    })
+      afterLayout(document.querySelector(".tds-row-wrap")?.parentElement ?? document.body, () => {
+        const moved = [...document.querySelectorAll<HTMLElement>(".tds-row-wrap")].map((wrap) => {
+          const from = before.get(wrap.dataset.id)
+          return [wrap, from === undefined ? 0 : from - wrap.getBoundingClientRect().top] as const
+        })
+        for (const [wrap, delta] of moved) if (delta) animate(wrap, [{ transform: `translateY(${delta}px)` }, { transform: "none" }], { duration: layout, easing: tokens.motion.curve.std })
+      })
+    }
+    requestAnimationFrame(settle)
   }
   for (const wrap of wraps) wrap.setAttribute("data-leaving", "")
   for (const wrap of wraps) animate(wrap, [{ opacity: 1 }, { opacity: 0 }], { duration: exit, easing: tokens.motion.curve.out, fill: "forwards" }).onfinish = () => --left || done()

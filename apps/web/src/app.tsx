@@ -14,6 +14,7 @@ import { Toasts } from "./shell/toasts"
 import { Palette } from "./shell/palette"
 import { Router } from "./router"
 import { Boundary } from "./shell/boundary"
+import { whenIdle } from "./lib/idle"
 import { HotkeysProvider } from "@tanstack/solid-hotkeys"
 import { appHotkeys } from "./shell/hotkeys"
 
@@ -22,7 +23,7 @@ const [Viewer, setViewer] = createSignal<() => JSX.Element>()
 const loadViewer = () => void import("./chat/lightbox").then((module) => setViewer(() => module.Lightbox))
 
 function Shell(props: { children?: JSX.Element }) {
-  requestIdleCallback(loadViewer)
+  whenIdle(loadViewer)
   createEffect(opening, (open) => {
     if (open && !untrack(Viewer)) loadViewer()
   })

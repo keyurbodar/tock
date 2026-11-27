@@ -13,6 +13,7 @@ import { Attachments } from "./files"
 import { LinkMenu, openLinkMenu, shortUrl } from "./link"
 import { toast } from "../shell/toasts"
 import { app, send, type ThreadState } from "../state/app"
+import { cancelIdle, whenIdle } from "../lib/idle"
 
 function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
   const mine = () => props.item.kind === "user"
@@ -119,9 +120,9 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   /** The rest of a long chat mounts above the fold in idle slices right after it opens, so scrolling back later never waits on a mount. */
   let idle = 0
   const fill = () => {
-    cancelIdleCallback(idle)
+    cancelIdle(idle)
     if (untrack(depth) >= untrack(items).length) return
-    idle = requestIdleCallback(() => {
+    idle = whenIdle(() => {
       setDepth((now) => now + tokens.limit["transcript-step"])
       fill()
     })
@@ -130,7 +131,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     () => [props.sessionId, items().length] as const,
     () => fill(),
   )
-  onCleanup(() => cancelIdleCallback(idle))
+  onCleanup(() => cancelIdle(idle))
   /** Messages that arrived while you were scrolled up: counted from the moment the pill appears. */
   const messages = createMemo(() => new Set(items().flatMap((item) => (item.kind === "text" ? [item.key.replace(/:\d+$/, "")] : item.kind === "user" ? [item.key] : []))).size)
   const [mark, setMark] = createSignal(0)

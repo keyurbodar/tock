@@ -63,12 +63,11 @@ export function Centre() {
   onCleanup(() => (unbind(), sheet?.stop(), backdropTo("centre", 0)))
   const bind = (el: HTMLElement) => {
     panel = el
+    let travel = 0
     const moved = drive(el, {
       preset: "glide",
-      onFrame: (p) => {
-        el.toggleAttribute("data-moving", p > 0.001)
-        backdropTo("centre", Math.min(1, Math.max(0, p)))
-      },
+      backdrop: "centre",
+      tracks: [{ el: () => el, at: (p) => ({ translate: ((p - 1) * (travel ||= el.offsetWidth + el.offsetLeft + parseFloat(getComputedStyle(el).getPropertyValue("--tds-space-24")))).toFixed(2) + "px 0" }) }],
     })
     sheet = moved
     unbind = scrub(el, {

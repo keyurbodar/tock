@@ -27,6 +27,17 @@ export function springEasing(name: keyof typeof m.spring = "snappy"): { easing: 
   return { easing: `linear(${points.join(", ")})`, duration }
 }
 
+/**
+ * Run fn once, right after the next layout and before that frame paints: the first ResizeObserver delivery for a newly
+ * observed element. Geometry read there is already computed, so a FLIP "last" read never forces a layout, and an
+ * animation started there is in the very frame that paints the change.
+ */
+export function afterLayout(el: Element, fn: () => void) {
+  const once = new ResizeObserver(() => (once.disconnect(), fn()))
+  once.observe(el)
+  return () => once.disconnect()
+}
+
 type Options = KeyframeAnimationOptions & { /** Not decoration (a timer bar, a measured height): keep it under reduced motion. */ essential?: boolean }
 
 /** Presence: the one WAAPI entry point. Defaults to the out-curve and, under reduced motion, keeps only the opacity. */

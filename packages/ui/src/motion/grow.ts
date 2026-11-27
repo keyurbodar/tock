@@ -1,4 +1,5 @@
 import { tokens } from "@tock/tokens"
+import { afterLayout } from "./core"
 
 /**
  * Surfaces grow out of whatever opened them: a shared-element move from the trigger's box to the surface's.
@@ -85,8 +86,8 @@ export function growFrom(surface: HTMLElement, trigger: Element | DOMRect, kind:
 
 /** Backdrop: the app behind an expanded surface dims, scales and blurs; nested surfaces stack, the last close clears it. */
 let depth = 0
-function scrim() {
-  if (!document.querySelector(".tds-backdrop-scrim")) document.body.append(Object.assign(document.createElement("div"), { className: "tds-backdrop-scrim", ariaHidden: "true" }))
+export function scrim() {
+  return document.querySelector<HTMLElement>(".tds-backdrop-scrim") ?? document.body.appendChild(Object.assign(document.createElement("div"), { className: "tds-backdrop-scrim", ariaHidden: "true" }))
 }
 
 export function backdrop(on: boolean) {
@@ -154,17 +155,16 @@ export function installGrow(root: Document = document) {
     pending.add(el)
     const kind = source.kind ?? "menu"
     const hold = el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: tokens.motion.enter[kind].duration, fill: "forwards" })
-    requestAnimationFrame(() => {
+    afterLayout(el, () => {
       pending.delete(el)
       hold.cancel()
       if (!el.isConnected) return
       const from = trigger.getBoundingClientRect()
+      const remember = () => el.isConnected && open.set(el, { trigger: from, box: el.getBoundingClientRect(), display: getComputedStyle(el).display, kind })
+      if (source.ghost) remember()
       const grow = growFrom(el, from, kind)
       if (source.backdrop && !dimmed.has(el)) (dimmed.add(el), backdrop(true))
-      if (!source.ghost) return
-      const remember = () => el.isConnected && open.set(el, { trigger: from, box: el.getBoundingClientRect(), display: getComputedStyle(el).display, kind })
-      remember()
-      if (grow) grow.addEventListener("finish", remember)
+      if (source.ghost && grow) grow.addEventListener("finish", remember)
     })
   }
   const leave = (el: HTMLElement) => {

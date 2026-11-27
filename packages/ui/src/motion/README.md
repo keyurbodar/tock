@@ -20,7 +20,7 @@ Use it when an always-mounted surface changes what it shows because something el
 onClick={(e) => morphFrom(e.currentTarget)}               // the source: remembers its box, marks it data-handoff
 createEffect(() => params.id, () => morphInto(main))      // the surface, once the new content rendered
 ```
-The surface never moves, so its box never jumps. One `drive()` spring (glide) drives the clip from the source's band to the full box on `--p`, and sets `[data-morphing]` so the content fades and unblurs off the same value (motion.css). A source marked `data-handoff` skips its ghost exit, so the peek card turns into the chat instead of also shrinking back into its row. A source older than two panel durations is ignored.
+The surface never moves, so its box never jumps. One `drive()` spring (glide) plays the clip from the source's band to the full box as a track, and a second track fades and unblurs the surface's children on the same curve; `[data-morphing]` marks the flight. A source marked `data-handoff` skips its ghost exit, so the peek card turns into the chat instead of also shrinking back into its row. A source older than two panel durations is ignored.
 
 ## Enter and exit: one table per component class
 Timing lives in `motion.enter` / `motion.exit` (tokens.json); `sources` entries pick a class with `kind`.
@@ -49,7 +49,7 @@ Use it for an element appearing or leaving in place.
 `spring(el, frames, "snappy" | "soft" | "text" | "press" | "glide")` runs a token spring as a `linear()` easing on the compositor. `springEasing(name)` returns `{ easing, duration }` for your own `animate` call. Use springs for movement and scale; use `curve.out` with a duration for colour and opacity.
 
 ## Drive: one progress, interruptible
-Use it when one expand/collapse moves several things at once (a sheet, its content, the backdrop) or when a gesture can hand off to a spring. `drive(el, { preset: "expressive" })` writes a 0..1 `--p` on the element from a real spring that keeps its velocity. `to(1, "pop-open")` opens, `to(0, "pop-close")` closes, and calling `to` mid-flight turns around without a jump. During a drag, call `set(p)`; on release, call `to(open ? 1 : 0, preset, velocity)`. Key the CSS off `--p`: `scale: calc(.96 + var(--p) * .04); filter: blur(calc((1 - var(--p)) * var(--tds-blur-enter)))`. Presets come from `motion.spring.{expressive,pop-open,pop-close,highlight,…}` (expandable-bottom-tabs values; see renders/TOCK-3/motion-research.md).
+Use it when one expand/collapse moves several things at once (a sheet, its content, the backdrop) or when a gesture can hand off to a spring. `drive(el, { preset: "expressive" })` plays a 0..1 `--p` (a registered `<number>` property) on the element from a real spring that keeps its velocity. Each leg is solved in closed form and runs as one WAAPI animation whose `linear()` easing is the spring, so no script runs per frame. `tracks: [{ el, at: (p) => keyframe }]` move other elements on the same curve; keep `at` linear in p and stick to transform, opacity and filter so they run on the compositor. `backdrop: "holder"` fades the shared scrim as a track. `to(1, "pop-open")` opens, `to(0, "pop-close")` closes, and calling `to` mid-flight turns around without a jump. During a drag, call `set(p)`; on release, call `to(open ? 1 : 0, preset, velocity)`. Key the CSS off `--p`: `scale: calc(.96 + var(--p) * .04); filter: blur(calc((1 - var(--p)) * var(--tds-blur-enter)))`. Presets come from `motion.spring.{expressive,pop-open,pop-close,highlight,…}` (expandable-bottom-tabs values; see renders/TOCK-3/motion-research.md).
 
 ## Glide: fluid hover
 Use it for one highlight that glides between the items of a list and takes on their size. Add a lane in `fluid.ts`:
@@ -65,17 +65,17 @@ Pointer drag and trackpad wheel both drive progress. It locks the gesture to one
 ## Recede: the backdrop on a progress
 Use it with Drive when one element, not the whole backdrop layer, should give way in step with a surface that grows over it. The composer sheet lives inside the main column, so it recedes only the transcript; use `backdropTo` when the whole app should recede.
 ```ts
-const d = drive(field, { preset: "glide", onFrame: (p) => recede(transcript, p) })
+const d = drive(field, { preset: "glide", tracks: [recede(() => transcript)] })
 scrub(grip, { axis: "y", direction: -1, area: field, distance: () => travel(), from: () => d.value, onProgress: (p) => d.set(p), onRelease: (open, v) => d.to(open ? 1 : 0, "glide", (v * 1000) / travel()) })
 ```
-- `recede(el, p)` sets `data-recede` and `--p`, which drive scale, blur and dim from the same `--tds-backdrop-*` material as `backdrop()`. `recede(el, 0)` clears it. Under reduced motion only the dim stays.
+- `recede(() => el)` is a drive track: scale, blur and dim from the same `--tds-backdrop-*` material as `backdrop()`, on the compositor. Resting at 0 clears its inline style.
 - `scrub` reports release velocity in px/ms and `drive.to` takes progress per second, so divide by the travel as above.
 - `scrub` follows the pointer outside the handle once pressed, swallows the click that ends a drag, and with `area` keeps a wheel gesture going after the handle moves out from under it. `distance` may be a function, read at the start of each gesture.
 
 ## Backdrop
 `backdrop(true | false)` (reference counted) and `backdropTo(holder, p)` fade one static scrim (`--tds-backdrop-scrim`) behind the open surface. Opacity only: blurring or scaling the whole app every frame cost 50+ long frames per palette open on the production build. Morph sources with `backdrop: true` call it for you. `recede(el, p)` is the per-element version the composer sheet uses.
 
-`backdropTo(holder, amount)` is the same recede keyed off a 0..1 progress, for surfaces that ride `drive()` or a gesture: the layers follow the surface frame by frame and reverse with it. Holders stack and the deepest wins. The notification centre uses `drive` + `scrub` + `backdropTo`.
+`backdropTo(holder, amount)` is the same recede keyed off a 0..1 progress, for surfaces that ride `drive()` or a gesture: the layers follow the surface frame by frame and reverse with it. Holders stack and the deepest wins. The notification centre uses `drive({ backdrop: "centre" })` + `scrub`, so the scrim rides the spring as a compositor track instead of a per-frame variable on :root (which restyled the whole document every frame).
 
 ## Text and icon morphs
 - `<TextMorph value={v} mode="roll" | "morph" | "calm" | "swap" />`. The mode is required, so every site picks one:
@@ -143,6 +143,9 @@ Use it for anything that shows a placeholder while data loads: sidebar rows, the
 
 ## Material: Raise
 `tds-raise-1` (fields, chips, cards), `tds-raise-2` (buttons, selected states, pin circles) and `tds-raise-3` (panes and floating cards) add a top highlight, a gradient sheen and a small plus a large shadow. When a state adds a ring, set `--tds-raise-ring` rather than `box-shadow`. Glass overlays keep `tds-over` and `tds-glass`. `raise` exports the class names.
+
+## Layout reads: afterLayout
+A FLIP or grow reads geometry right after a DOM change. Read it in `afterLayout(el, fn)` (the first ResizeObserver delivery: after layout, before paint) instead of a `requestAnimationFrame`, which runs before layout and forces it. Read every box first, then write; never interleave. The `jank` journey counts forced layouts per interaction.
 
 ## Checking motion
 Add a `probe(name, selector, act)` line to the `smooth` journey in scripts/verify.ts. It samples every frame and fails on single-frame jumps, on pops (no enter motion) and on vanishes (no exit motion). For a visual check, record at 60fps with `agent-browser record start clip.mp4 --fps 60` and step through the frames with ffmpeg.

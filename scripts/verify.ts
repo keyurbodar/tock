@@ -210,7 +210,120 @@ function scrollUp() {
   return JSON.parse(JSON.parse(out)) as { frames: number; p50: number; p95: number; max: number; over: number; long: number; bubbles: number; slow: unknown[] }
 }
 
-const journeys: Record<string, () => void> = {
+/**
+ * Budget for the jank journey, at CDP 4× CPU throttle on the 4-core cloud VM with headless Chrome and no GPU. The aim
+ * is 20ms (one 60Hz vsync plus timer noise), but on this VM single frames still land on 33ms or 50ms run to run with no
+ * script in them (raster and compositor work on the CPU), so the budget that holds without flaking is: no animated
+ * frame over 50ms (three vsyncs), p95 at one missed vsync (34ms) at most, and zero forced layouts from app code outside
+ * input handlers. The three frames after each pointerdown/up or keydown are the response (mounting the surface and
+ * rasterising it on the CPU), reported as mount, not animation. JANK_KNOWN lists what is still over and why (renders/TOCK-3/jank-report.md); it reports, never passes silently.
+ */
+const JANK_FRAME_MS = 50
+const JANK_P95_MS = 34
+const JANK_KNOWN: Record<string, string> = {
+  streaming: "frame: each streamed token re-renders the reply and reflows the column under 4x throttle",
+  "composer sheet": "frame and forced: the sheet animates the field's height (layout every frame) and the transcript's scroll handler reads scrollHeight inside it",
+  "work log": "forced: the pane's ResizeObserver fit() reads heights after other observers wrote",
+  palette: "frame (not yet traced to a cause): one 67-83ms frame after open or close; both are backdrop sources, and backdrop() toggles :root[data-backdrop], which restyles the whole document",
+  dialog: "frame (not yet traced to a cause): one 67ms frame after open or close; same backdrop path as the palette",
+  centre: "frame: since b25f77d the sidebar and main scale back as two viewport-sized layers promoted at open; on this VM's software compositor each frame of that scale costs 50-130ms (2 dropped frames before it, 43 after)",
+}
+
+/** CDP session on the page agent-browser drives: CPU throttling and DevTools traces for the jank journey. */
+async function cdpPage() {
+  const ws = new WebSocket(ab("get", "cdp-url"))
+  await new Promise((ok, fail) => ((ws.onopen = ok), (ws.onerror = fail)))
+  let next = 0
+  const waiting = new Map<number, (msg: { result?: any; error?: { message: string } }) => void>()
+  const listeners: ((msg: { method: string; params: any; sessionId?: string }) => void)[] = []
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(String(e.data))
+    if (msg.id !== undefined) waiting.get(msg.id)?.(msg)
+    else listeners.forEach((fn) => fn(msg))
+  }
+  const send = (method: string, params: object = {}, sessionId?: string) =>
+    new Promise<any>((ok, fail) => {
+      const id = ++next
+      waiting.set(id, (msg) => (waiting.delete(id), msg.error ? fail(new Error(method + ": " + msg.error.message)) : ok(msg.result)))
+      ws.send(JSON.stringify({ id, method, params, sessionId }))
+    })
+  const href = js<string>("return location.href")
+  const { targetInfos } = await send("Target.getTargets")
+  const page = (targetInfos as { type: string; url: string; targetId: string }[]).find((t) => t.type === "page" && t.url === href)
+  check(page, "no CDP page target for " + href)
+  const { sessionId } = await send("Target.attachToTarget", { targetId: page.targetId, flatten: true })
+  const on = (method: string) => new Promise<any>((ok) => listeners.push((m) => m.method === method && m.sessionId === sessionId && ok(m.params)))
+  return {
+    send: (method: string, params: object = {}) => send(method, params, sessionId),
+    async trace(act: () => void): Promise<TraceEvent[]> {
+      await send("Tracing.start", { transferMode: "ReturnAsStream", traceConfig: { includedCategories: ["devtools.timeline", "disabled-by-default-devtools.timeline", "disabled-by-default-devtools.timeline.stack", "v8.execute", "blink.user_timing"] } }, sessionId)
+      act()
+      const done = on("Tracing.tracingComplete")
+      await send("Tracing.end", {}, sessionId)
+      const { stream } = await done
+      let text = ""
+      for (;;) {
+        const chunk = await send("IO.read", { handle: stream, size: 1 << 20 }, sessionId)
+        text += chunk.base64Encoded ? atob(chunk.data) : chunk.data
+        if (chunk.eof) break
+      }
+      await send("IO.close", { handle: stream }, sessionId)
+      const parsed = JSON.parse(text)
+      return Array.isArray(parsed) ? parsed : parsed.traceEvents
+    },
+    close: () => ws.close(),
+  }
+}
+type TraceEvent = { name: string; ph: string; ts: number; dur?: number; pid: number; tid: number; args?: any }
+type JankRow = { name: string; frames: number; dropped: number; worst: number; p95: number; mount: number; long: number; forced: number; forcedAtInput: number; vendor: number; paint: number; culprits: string[] }
+
+/** Reads one interaction's trace and in-page frame intervals into the numbers the jank budget checks. */
+function jankOf(name: string, events: TraceEvent[], intervals: number[]): Omit<JankRow, "mount"> {
+  const threads = events.filter((e) => e.ph === "M" && e.name === "thread_name" && e.args?.name === "CrRendererMain")
+  const busiest = threads
+    .map((t) => ({ t, n: events.filter((e) => e.pid === t.pid && e.tid === t.tid && e.ph === "X").length }))
+    .sort((a, b) => b.n - a.n)[0]?.t
+  const main = events.filter((e) => busiest && e.pid === busiest.pid && e.tid === busiest.tid && e.ph === "X")
+  const scripts = new Set(["FunctionCall", "EvaluateScript", "FireAnimationFrame", "TimerFire", "EventDispatch", "v8.callFunction", "RunMicrotasks", "v8.run"])
+  const inputs = main.filter((e) => e.name === "EventDispatch" && /^(pointer|mouse|key|click|wheel|touch|focus|blur)/.test(e.args?.data?.type ?? ""))
+  const within = (e: TraceEvent, outer: TraceEvent) => e.ts >= outer.ts && e.ts <= outer.ts + (outer.dur ?? 0)
+  const jsSpans = main.filter((e) => scripts.has(e.name))
+  const app = (e: TraceEvent) => {
+    const top = e.args?.beginData?.stackTrace?.[0]
+    return top && /\/assets\/|\/src\//.test(top.url ?? "") ? top : undefined
+  }
+  const forced = main.filter((e) => e.name === "Layout" && jsSpans.some((s) => within(e, s)) && app(e))
+  const atInput = forced.filter((e) => inputs.some((s) => within(e, s)))
+  const vendor = forced.filter((e) => !atInput.includes(e) && /\/ui-[\w-]+\.js/.test(app(e)!.url))
+  const late = forced.filter((e) => !atInput.includes(e) && !vendor.includes(e))
+  const culprits = [...new Set(late.map((e) => { const f = app(e)!; return (f.functionName || "?") + "@" + String(f.url).split("/").pop() + ":" + f.lineNumber + ":" + f.columnNumber }))]
+  const long = main.filter((e) => (e.name === "RunTask" || e.name === "ThreadControllerImpl::RunTask") && (e.dur ?? 0) > 50000).length
+  let paint = 0
+  for (const e of main) {
+    if (e.name !== "Paint") continue
+    const q = e.args?.data?.clip as number[] | undefined
+    if (!q || q.length < 8) continue
+    const xs = [q[0]!, q[2]!, q[4]!, q[6]!].map((x) => Math.min(1440, Math.max(0, x)))
+    const ys = [q[1]!, q[3]!, q[5]!, q[7]!].map((y) => Math.min(900, Math.max(0, y)))
+    paint += (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys))
+  }
+  const sorted = [...intervals].sort((a, b) => a - b)
+  return {
+    name,
+    frames: intervals.length,
+    dropped: intervals.reduce((n, dt) => n + Math.max(0, Math.round(dt / (1000 / 60)) - 1), 0),
+    worst: Math.round(sorted.at(-1) ?? 0),
+    p95: Math.round(sorted[Math.floor(sorted.length * 0.95)] ?? 0),
+    long,
+    forced: late.length,
+    forcedAtInput: atInput.length,
+    vendor: vendor.length,
+    paint: +(paint / (1440 * 900)).toFixed(2),
+    culprits,
+  }
+}
+
+const journeys: Record<string, () => void | Promise<void>> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
     ab("open", BASE, "--args", "--no-sandbox")
@@ -3149,6 +3262,122 @@ const journeys: Record<string, () => void> = {
       writeFileSync(files.sw, a.sw)
     }
   },
+  async jank() {
+    ensureRows(6)
+    ab("open", BASE)
+    until(liveRows, (n) => n >= 6, "rows")
+    const cdp = await cdpPage()
+    const rows: JankRow[] = []
+    const center = (sel: string) => {
+      const r = rect(sel)
+      check(r, "nothing at " + sel)
+      return [String(Math.round(r.x + r.w / 2)), String(Math.round(r.y + r.h / 2))] as const
+    }
+    const tap = (sel: string) => (ab("mouse", "move", ...center(sel)), ab("mouse", "down"), ab("mouse", "up"))
+    const drag = (from: readonly [number, number], to: readonly [number, number], steps = 8) => {
+      ab("mouse", "move", String(from[0]), String(from[1]))
+      ab("mouse", "down")
+      for (let k = 1; k <= steps; k++) (ab("mouse", "move", String(Math.round(from[0] + ((to[0] - from[0]) * k) / steps)), String(Math.round(from[1] + ((to[1] - from[1]) * k) / steps))), wait(16))
+      ab("mouse", "up")
+    }
+    const probe = async (name: string, act: () => void, ms = 700) => {
+      wait(300)
+      ab("eval", "(() => { const dts = []; const all = []; let last = 0, input = 0, skip = 0, on = true; const mark = () => (input = performance.now()); for (const type of ['pointerdown', 'pointerup', 'keydown']) addEventListener(type, mark, { capture: true, passive: true }); window.__jank = () => { on = false; for (const type of ['pointerdown', 'pointerup', 'keydown']) removeEventListener(type, mark, { capture: true }); return [dts, all] }; const tick = (t) => { if (last) { all.push(t - last); if (input > last) skip = 3; if (skip > 0) skip--; else dts.push(t - last) } last = t; if (on) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()")
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 })
+      const events = await cdp.trace(() => (act(), wait(ms)))
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+      const [animated, all] = js<[number[], number[]]>("return window.__jank()")
+      rows.push({ ...jankOf(name, events, animated), mount: Math.round(Math.max(0, ...all)) })
+    }
+    try {
+      ab("mouse", "move", "5", "5")
+      const list = js<{ x: number; y: number }[]>("return [...document.querySelectorAll('.tds-row-wrap:not([data-archived]) .tds-row')].slice(0, 6).map((e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) } })")
+      await probe("hover glide", () => {
+        for (const p of [...list, ...[...list].reverse()]) (ab("mouse", "move", String(p.x), String(p.y), "--steps", "4"), wait(60))
+        ab("mouse", "move", "900", "450")
+      })
+      ab("mouse", "move", "5", "5")
+      await probe("peek", () => (ab("mouse", "move", String(list[1]!.x - 40), String(list[1]!.y)), wait(1100), ab("mouse", "move", "900", "450")), 900)
+      await probe("palette", () => (ab("press", "Control+k"), wait(600), ab("press", "Escape")))
+      ab("mouse", "move", String(list[0]!.x), String(list[0]!.y))
+      wait(300)
+      const more = center(".tds-row-wrap:not([data-archived]) .tds-row-more")
+      await probe("menu", () => (ab("mouse", "move", ...more), ab("mouse", "down"), ab("mouse", "up"), wait(600), ab("press", "Escape")))
+      ab("mouse", "move", "900", "450")
+      ab("eval", "document.activeElement?.blur()")
+      await probe("dialog", () => (ab("press", "?"), wait(600), ab("press", "Escape")))
+      const bell = center(".tds-rail-button[data-bell]")
+      await probe("centre", () => (ab("mouse", "move", ...bell), ab("mouse", "down"), ab("mouse", "up"), wait(700), drag([300, 420], [180, 420]), wait(600), drag([300, 420], [40, 420])), 900)
+      ab("mouse", "move", "5", "5")
+      wait(300)
+      const swipeAt = rect(".tds-row-wrap:not([data-archived])")!
+      const sy = Math.round(swipeAt.y + swipeAt.h / 2)
+      await probe("row swipe", () => (drag([swipeAt.x + swipeAt.w - 60, sy], [swipeAt.x + swipeAt.w - 160, sy], 6), wait(500), ab("mouse", "move", String(swipeAt.x + 60), String(sy)), ab("mouse", "down"), ab("mouse", "up")))
+      ab("mouse", "move", "900", "450")
+      fresh()
+      ab("click", ".ProseMirror")
+      ab("keyboard", "type", WEATHER)
+      await probe("streaming", () => (ab("press", "Enter"), wait(400)), 2500)
+      settled()
+      until(() => exists(".tds-act-button"), Boolean, "a work log", 10000)
+      steady(".tds-act-button")
+      await probe("work log", () => {
+        tap(".tds-act-button")
+        wait(800)
+        const line = rect(".tds-worklog .tds-ws-line:not(:disabled)")
+        if (line) (ab("mouse", "move", String(line.x + 40), String(line.y + line.h / 2)), ab("mouse", "down"), ab("mouse", "up"), wait(700), ab("mouse", "down"), ab("mouse", "up"), wait(700))
+        ab("press", "Escape")
+      })
+      ab("mouse", "move", ...center(".tds-field"))
+      wait(300)
+      await probe("composer sheet", () => (tap(".tds-sheet-grip"), wait(900), ab("press", "Escape")), 900)
+      const seed = js<boolean>("return typeof window.__tockSeed === 'function'")
+      if (seed) {
+        ab("eval", "window.__tockSeed(location.pathname.slice(3), 60)")
+        until(() => js<number>("return document.querySelectorAll('.tds-column .tds-bubble').length"), (n) => n >= 100, "a long chat")
+        wait(1500)
+        ab("mouse", "move", "900", "400")
+        await probe("transcript scroll", () => {
+          for (let i = 0; i < 24; i++) (ab("mouse", "wheel", "-120"), wait(30))
+          for (let i = 0; i < 12; i++) (ab("mouse", "wheel", "240"), wait(30))
+        })
+      } else console.log("      jank: transcript scroll skipped (build with VITE_TOCK_SEED=1 for the long chat)")
+      reset()
+      ab("mouse", "move", String(list[0]!.x), String(list[0]!.y))
+      wait(300)
+      await probe("toast", () => {
+        ab("mouse", "move", ...center(".tds-row-wrap:not([data-archived]) .tds-row-more"))
+        ab("mouse", "down")
+        ab("mouse", "up")
+        wait(300)
+        choose("Copy Link")
+      }, 1200)
+      const work = join(homedir(), ".capy/work")
+      ab("click", "button[aria-label='New chat']")
+      until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+      ab("upload", ".tds-composer-wrap input[type=file]", png(join(work, "verify-rose.png"), 640, 420, [229, 143, 180]), png(join(work, "verify-teal.png"), 420, 640, [80, 190, 170]))
+      until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "done"), "uploads", 15000)
+      ab("click", ".ProseMirror")
+      ab("keyboard", "type", "Two pictures")
+      ab("press", "Enter")
+      until(() => js<boolean>("const imgs = [...document.querySelectorAll('.tds-media .tds-media-tile img')]; return imgs.length === 2 && imgs.every((i) => i.complete && i.naturalWidth > 0)"), Boolean, "the images")
+      settled()
+      wait(800)
+      await probe("lightbox", () => (tap(".tds-media .tds-media-tile:nth-child(1)"), wait(900), ab("press", "Escape")), 900)
+    } finally {
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 }).catch(() => {})
+      cdp.close()
+    }
+    const cols = ["name", "frames", "dropped", "worst", "p95", "mount", "long", "forced", "forcedAtInput", "vendor", "paint"] as const
+    console.log("      " + cols.join("\t"))
+    for (const r of rows) console.log("      " + cols.map((c) => r[c]).join("\t") + (r.culprits.length ? "\t" + r.culprits.join(" ") : ""))
+    writeFileSync(join(OUT, "jank.json"), JSON.stringify(rows, null, 1))
+    if (process.env.JANK_OUT) writeFileSync(process.env.JANK_OUT, JSON.stringify(rows, null, 1))
+    const over = rows.filter((r) => r.worst > JANK_FRAME_MS || r.p95 > JANK_P95_MS || r.forced > 0)
+    for (const r of over.filter((r) => JANK_KNOWN[r.name])) console.log("      known: " + r.name + " — " + JANK_KNOWN[r.name])
+    if (process.env.JANK_SOFT) return
+    check(over.every((r) => JANK_KNOWN[r.name]), "over the jank budget: " + over.filter((r) => !JANK_KNOWN[r.name]).map((r) => r.name + " (worst animated frame " + r.worst + "ms, " + r.forced + " forced layouts" + (r.culprits.length ? ": " + r.culprits.join(" ") : "") + ")").join("; "))
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -3158,7 +3387,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
@@ -3169,6 +3398,7 @@ const requires: Record<string, { mode: "dev" | "build"; why: string }> = {
   longchat: { mode: "dev", why: "seeds 650 bubbles with the dev-only window.__tockSeed" },
   offlinereload: { mode: "build", why: "the service worker registers only in a production build" },
   swdeploy: { mode: "build", why: "swaps the files of a local production build (vite preview + TOCK_DIST)" },
+  jank: { mode: "build", why: "the dev build runs Solid's dev-only performance track, which inflates every frame" },
 }
 let devCache: boolean | undefined
 function devServer(): boolean {
@@ -3189,7 +3419,7 @@ for (const name of run) {
   }
   try {
     if (name !== "doctor" && name !== "diagnostics") reset()
-    journey()
+    await journey()
     console.log(`ok    ${name.padEnd(12)} ${Date.now() - started}ms`)
   } catch (error) {
     failed++

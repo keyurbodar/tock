@@ -233,27 +233,29 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     field = el
     sheetDrive = drive(el, {
       preset: "glide",
-      onFrame: (progress) => {
-        if (progress <= 0 && !("sheet" in el.dataset)) return
-        if (!("sheet" in el.dataset)) {
-          full = reach()
-          el.dataset.sheet = ""
-        }
-        el.style.setProperty("--sheet-from", `${resting()}px`)
-        el.style.setProperty("--sheet-to", `${full}px`)
-        recede(wrap.parentElement?.querySelector(".tds-transcript"), progress)
-      },
+      tracks: [recede(() => wrap.parentElement?.querySelector(".tds-transcript"))],
       onRest: (progress) => {
         if (progress > 0) return
+        el.style.transition = "none"
         delete el.dataset.sheet
         for (const name of ["--sheet-from", "--sheet-to"]) el.style.removeProperty(name)
+        requestAnimationFrame(() => el.style.removeProperty("transition"))
       },
     })
   }
+  const prime = () => {
+    if (!("sheet" in field.dataset)) {
+      full = reach()
+      field.dataset.sheet = ""
+    }
+    field.style.setProperty("--sheet-from", `${resting()}px`)
+    field.style.setProperty("--sheet-to", `${full}px`)
+  }
   const expand = (open: boolean, velocity?: number) => {
     setSheet(open)
-    sheetDrive?.to(open ? 1 : 0, "glide", velocity)
     if (open) focusField()
+    if (open || "sheet" in field.dataset) prime()
+    sheetDrive?.to(open ? 1 : 0, "glide", velocity)
   }
   const unbind: (() => void)[] = []
   const range = () => ("sheet" in field.dataset ? full : reach()) - resting()
@@ -265,7 +267,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         area: field,
         distance: range,
         from: () => sheetDrive?.value ?? 0,
-        onProgress: (progress) => sheetDrive?.set(progress),
+        onProgress: (progress) => (prime(), sheetDrive?.set(progress)),
         onRelease: (open, velocity) => expand(open, (velocity * 1000) / Math.max(1, range())),
       }),
     )

@@ -75,7 +75,7 @@ export default function MotionDemo() {
           type="button"
           class="tds-motion-drive tds-raise-2"
           ref={(el) => {
-            const d = (pull = drive(el, { preset: "glide", onFrame: (p) => recede(behind, p) }))
+            const d = (pull = drive(el, { preset: "glide", tracks: [recede(() => behind)] }))
             scrub(el, { axis: "y", direction: -1, distance: reach, from: () => d.value, onProgress: (p) => d.set(p), onRelease: (on, v) => d.to(on ? 1 : 0, "glide", (v * 1000) / reach) })
           }}
           onClick={() => pull?.to(pull.value > 0.5 ? 0 : 1, "glide")}

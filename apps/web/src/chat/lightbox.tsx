@@ -2,7 +2,7 @@ import { createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { TextMorph } from "@tock/ui/text-morph"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { animate, prefersReducedMotion } from "@tock/ui/motion"
+import { afterLayout, animate, prefersReducedMotion } from "@tock/ui/motion"
 import { render } from "@solidjs/web"
 import { lang } from "sugar-high/lang"
 import { extension, fileUrl, formatSize, isImage } from "./attachments"
@@ -274,11 +274,14 @@ function Viewer(props: { opening: Opening }) {
       preload(items[start + 1])
       preload(items[start - 1])
       if (img instanceof HTMLImageElement) await img.decode().catch(() => undefined)
-      from.style.visibility = "hidden"
-      animate(root, [{ backgroundColor: "transparent" }, { backgroundColor: "var(--tds-overlay-lightbox)" }], { duration: d.swap, fill: "forwards" })
-      animate(img, [{ transform: flip(from.getBoundingClientRect(), img.getBoundingClientRect()), transformOrigin: "0 0", borderRadius: px(tokens.radius["lightbox-from"]) }, { transform: "none", transformOrigin: "0 0", borderRadius: px(tokens.radius.lightbox) }], { duration: d["lightbox-open"], easing: ease.sheet })
-      setTimeout(() => setReady(true), prefersReducedMotion() ? 0 : d.menu)
-      root.focus({ preventScroll: true })
+      afterLayout(img, () => {
+        const start = flip(from.getBoundingClientRect(), img.getBoundingClientRect())
+        root.focus({ preventScroll: true })
+        from.style.visibility = "hidden"
+        animate(root, [{ backgroundColor: "transparent" }, { backgroundColor: "var(--tds-overlay-lightbox)" }], { duration: d.swap, fill: "forwards" })
+        animate(img, [{ transform: start, transformOrigin: "0 0", borderRadius: px(tokens.radius["lightbox-from"]) }, { transform: "none", transformOrigin: "0 0", borderRadius: px(tokens.radius.lightbox) }], { duration: d["lightbox-open"], easing: ease.sheet })
+        setTimeout(() => setReady(true), prefersReducedMotion() ? 0 : d.menu)
+      })
     })
   }
 

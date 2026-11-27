@@ -30,18 +30,20 @@ export function morphInto(surface: HTMLElement) {
   let state = live.get(surface)
   if (!state) {
     const own = { start } as { spring: ReturnType<typeof drive>; start: number[] }
+    const blur = parseFloat(tokens.motion.blur.enter)
     own.spring = drive(surface, {
       preset: "glide",
       value: 1,
-      onFrame: (p) => {
-        const at = own.start.map((v) => (v * (1 - p)).toFixed(2))
-        surface.style.clipPath = p >= 1 ? "" : `inset(${at[0]}px ${at[1]}px ${at[2]}px ${at[3]}px round ${at[4]}px)`
-        surface.toggleAttribute("data-morphing", p < 1)
-      },
+      tracks: [
+        { el: () => surface, idle: 1, at: (p) => ({ clipPath: "inset(" + own.start.slice(0, 4).map((v) => (v * (1 - p)).toFixed(2) + "px").join(" ") + " round " + (own.start[4]! * (1 - p)).toFixed(2) + "px)" }) },
+        { el: () => [...surface.children], idle: 1, at: (p) => ({ opacity: String(p), filter: "blur(" + ((1 - p) * blur).toFixed(3) + "px)" }) },
+      ],
+      onRest: () => surface.removeAttribute("data-morphing"),
     })
     live.set(surface, (state = own))
   }
   state.start = start
+  surface.setAttribute("data-morphing", "")
   state.spring.set(0)
   state.spring.to(1)
 }
