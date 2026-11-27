@@ -1,35 +1,54 @@
+import { For, Show } from "solid-js"
 import { Icon, type IconName } from "@tock/ui/icon"
+import { TextMorph } from "@tock/ui/text-morph"
+import { app } from "../state/app"
+import { unreadNotes } from "../state/notes"
+import { centreOpen, setCentreOpen } from "./centre"
+import { setShortcutsOpen } from "./shortcuts"
 
-const items: { icon: IconName; label: string; on?: boolean }[] = [
-  { icon: "chat-circle", label: "Chats", on: true },
-  { icon: "terminal-window", label: "Sessions" },
-  { icon: "code", label: "Code" },
-  { icon: "globe", label: "Web" },
-]
-
-export function Rail(props: { unread: number }) {
+function Badge(props: { count: number }) {
   return (
-    <nav class="relative z-rail flex w-rail flex-none flex-col items-center gap-6 bg-rail pt-20 pb-18" aria-label="Spaces">
-      {items.map((item) => (
-        <button
-          type="button"
-          aria-label={item.label}
-          aria-current={item.on ? "page" : undefined}
-          data-on={item.on ? "" : undefined}
-          class="tds-press relative grid size-rail-button place-items-center rounded-row text-muted tds-hoverfill hover:bg-hover hover:text-tx2 data-on:bg-glass-on data-on:text-tx data-on:shadow-glass"
-        >
-          <Icon name={item.on ? "chat-circle:fill" : item.icon} size="rail" />
-          {item.on && props.unread > 0 && (
-            <span class="absolute top-4 right-3 grid h-badge min-w-badge place-items-center rounded-pill bg-rose px-5 text-badge text-on-rose shadow-ring-badge num">
-              {props.unread}
-            </span>
-          )}
-        </button>
-      ))}
-      <span class="flex-1" />
-      <button type="button" aria-label="Settings" class="tds-press grid size-rail-button place-items-center rounded-row text-muted hover:bg-hover hover:text-tx2">
-        <Icon name="gear-six" size="rail" />
-      </button>
+    <span class="tds-badge num" data-zero={props.count === 0 ? "" : undefined} aria-hidden="true">
+      <TextMorph value={String(Math.max(props.count, 1))} />
+    </span>
+  )
+}
+
+function RailButton(props: { icon: IconName; label: string; on?: boolean; count?: number; bell?: boolean; onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      class="tds-rail-button"
+      aria-label={props.count ? `${props.label}, ${props.count} new` : props.label}
+      title={props.label}
+      aria-pressed={props.on ? "true" : "false"}
+      data-on={props.on ? "" : undefined}
+      data-bell={props.bell ? "" : undefined}
+      onClick={() => props.onClick?.()}
+    >
+      <Icon name={props.on ? (`${props.icon}:fill` as IconName) : props.icon} size="rail" />
+      <Show when={props.count !== undefined}>
+        <Badge count={props.count!} />
+      </Show>
+    </button>
+  )
+}
+
+const unreadChats = () => app.sessions.filter((session) => session.meta.unread && !session.meta.archived).length
+
+/** TDS px4 mount: Chats, Files, Bell, then Keyboard and Settings at the foot. */
+export function Rail() {
+  const top: () => { icon: IconName; label: string; on?: boolean; count?: number; bell?: boolean; onClick?: () => void }[] = () => [
+    { icon: "chat-circle", label: "Chats", on: !centreOpen(), count: unreadChats(), onClick: () => setCentreOpen(false) },
+    { icon: "folder-simple", label: "Files" },
+    { icon: "bell", label: "Notifications", on: centreOpen(), count: unreadNotes(), bell: true, onClick: () => setCentreOpen((value) => !value) },
+  ]
+  return (
+    <nav class="tds-rail" aria-label="Spaces">
+      <For each={top()} keyed={(item) => item.label}>{(item) => <RailButton {...item()} />}</For>
+      <span class="tds-rail-space" />
+      <RailButton icon="keyboard" label="Keyboard shortcuts" onClick={() => setShortcutsOpen(true)} />
+      <RailButton icon="gear-six" label="Settings" />
     </nav>
   )
 }

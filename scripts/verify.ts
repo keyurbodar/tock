@@ -179,6 +179,29 @@ const journeys: Record<string, () => void> = {
     ab("press", "Control+u")
     until(unread, (now) => now === before, "Ctrl+U to toggle unread back")
   },
+  notifications() {
+    const unread = () => js<number>("return Number(document.querySelector('[data-bell] .tds-badge:not([data-zero])')?.textContent?.trim() || 0)")
+    const before = unread()
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a fresh chat")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
+    const fresh = js<string>("return location.pathname")
+    ab("eval", "[...document.querySelectorAll('.tds-row:not([aria-current])')][0]?.click()")
+    until(() => js<string>("return location.pathname"), (p) => p !== fresh, "another chat to open")
+    until(unread, (now) => now > before, "a bell badge once the run finishes elsewhere", 20000)
+    ab("click", "[data-bell]")
+    until(() => exists(".tds-centre[data-open]"), Boolean, "the notification centre to open")
+    until(() => exists(".tds-centre .tds-note"), Boolean, "a note in the centre")
+    wait(400)
+    shot("notifications")
+    ab("click", ".tds-centre .tds-centre-read")
+    until(unread, (now) => now === 0, "Mark All Read to clear the badge")
+    ab("press", "Escape")
+    until(() => exists(".tds-centre[data-open]"), (open) => !open, "Escape to close the centre")
+  },
   palette() {
     ab("press", "Control+k")
     until(() => exists(".tds-palette"), Boolean, "the palette on Ctrl+K")
@@ -328,7 +351,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "plus", "attach", "links", "mention", "command", "toasts", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "links", "mention", "command", "toasts", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

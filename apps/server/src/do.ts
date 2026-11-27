@@ -60,6 +60,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly models: Models;
   private readonly credentials: CredentialStore;
   private readonly activeWatches = new Map<string, ConversationWatch>();
+  private readonly runningSessions = new Set<string>();
   private readonly lastUserQuery = new Map<string, string>();
   private readonly backgroundSessions = new Set<string>();
   private readonly threads: ThreadIds;
@@ -269,10 +270,23 @@ export class TockDO extends DurableObject<Env> {
           { sessionId, ops: call.ops, value: call.value },
           false,
         );
+        this.announceRun(sessionId, call.value);
       } else {
         this.broadcastSession(sessionId, "session.error", { sessionId, error: String(call.error) });
       }
     });
+  }
+
+  /** Every socket hears when a chat starts or stops working, not only the one watching it, so other tabs and the notification centre stay true. */
+  private announceRun(sessionId: string, value: unknown): void {
+    const docs = (value as { docs?: Record<string, unknown> } | undefined)?.docs;
+    const live = docs?.["pi.live"] as { run?: unknown; runFailure?: { reason: string; detail?: string } } | undefined;
+    if (!docs || !("pi.live" in docs)) return;
+    const busy = live?.run !== undefined;
+    if (this.runningSessions.has(sessionId) === busy) return;
+    if (busy) this.runningSessions.add(sessionId);
+    else this.runningSessions.delete(sessionId);
+    this.broadcast("session.status", { sessionId, busy, failure: busy ? undefined : live?.runFailure }, false);
   }
 
   private async resolveThread(frame: ClientFrame): Promise<{ frame: ClientFrame; draft?: string }> {
@@ -1061,8 +1075,8 @@ export class TockDO extends DurableObject<Env> {
     }
   }
 
-  private broadcast(event: string, payload: unknown): void {
-    const seq = this.recordEvent(null, event, payload);
+  private broadcast(event: string, payload: unknown, persist = true): void {
+    const seq = persist ? this.recordEvent(null, event, payload) : this.latestEventSeq();
     const encoded = JSON.stringify({ type: "event", seq, event, payload: this.publicPayload(payload) } satisfies ServerFrame);
     for (const ws of this.ctx.getWebSockets()) {
       try {

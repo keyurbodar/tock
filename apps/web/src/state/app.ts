@@ -2,6 +2,7 @@ import { createStore, reconcile, snapshot } from "solid-js"
 import type { ConversationView, EntryRecord, LiveState, SessionSummary, ThreadMeta } from "@tock/protocol"
 import { idb } from "../lib/idb"
 import { socket, type ConnectionState } from "../lib/socket"
+import { addNote } from "./notes"
 
 const LIVE_DOC = "pi.live"
 
@@ -81,6 +82,9 @@ socket.onState((connection) => {
 })
 
 socket.onEvent(({ event, payload }) => {
+  if (event === "notification.push" && isRecord(payload) && typeof payload.title === "string") {
+    return addNote({ chat: undefined, tone: payload.urgency === "urgent" ? "needs" : "done", title: payload.title, body: typeof payload.body === "string" ? payload.body : "" })
+  }
   if (!isRecord(payload) || typeof payload.sessionId !== "string") return
   const sessionId = payload.sessionId
   if (event === "session.delta" && isRecord(payload.value)) {
@@ -100,6 +104,15 @@ socket.onEvent(({ event, payload }) => {
       if (known) Object.assign(known, { busy: live?.run !== undefined })
     })
     if (live?.run === undefined) void refreshSessions()
+    return
+  }
+  if (event === "session.status" && typeof payload.busy === "boolean") {
+    const busy = payload.busy
+    setApp((s) => {
+      const known = s.sessions.find((session) => session.id === sessionId)
+      if (known) Object.assign(known, { busy })
+    })
+    if (!busy) void refreshSessions().then(() => noteFinished(sessionId, isRecord(payload.failure) ? (payload.failure as unknown as LiveState["runFailure"]) : undefined))
     return
   }
   if (event === "session.error" && typeof payload.error === "string") {
@@ -128,6 +141,19 @@ export async function refreshSessions() {
   } catch {
     return
   }
+}
+
+/** A run that ends while you look elsewhere leaves a note in the centre, as TDS px2 Centre. */
+function noteFinished(sessionId: string, failure: LiveState["runFailure"]) {
+  if (failure?.reason === "aborted") return
+  if (!document.hidden && location.pathname === `/t/${sessionId}`) return
+  const session = app.sessions.find((item) => item.id === sessionId)
+  addNote({
+    chat: sessionId,
+    tone: failure ? "failed" : "done",
+    title: titleOf(session),
+    body: failure ? (failure.detail ?? failure.reason) : plainText(session?.preview ?? "") || "Finished",
+  })
 }
 
 async function reload(sessionId: string) {

@@ -3,6 +3,8 @@ import type { JSX } from "@solidjs/web"
 import { injectIconSprite } from "@tock/ui/icon"
 import { app, boot } from "./state/app"
 import { Rail } from "./shell/rail"
+import { Centre } from "./shell/centre"
+import { loadNotes } from "./state/notes"
 import { Sidebar } from "./shell/sidebar"
 import { Gate } from "./shell/gate"
 import { Shortcuts } from "./shell/shortcuts"
@@ -12,8 +14,9 @@ import { Router } from "./router"
 
 function Shell(props: { children?: JSX.Element }) {
   return (
-    <div class="flex h-full overflow-hidden bg-main">
-      <Rail unread={0} />
+    <div class="relative flex h-full overflow-hidden bg-main">
+      <Rail />
+      <Centre />
       <Sidebar />
       {props.children}
       <Shortcuts />
@@ -29,6 +32,7 @@ function Shell(props: { children?: JSX.Element }) {
 export function App() {
   injectIconSprite()
   void boot()
+  void loadNotes()
   return (
     <Router>{(props) => <Shell>{props.children}</Shell>}</Router>
   )
