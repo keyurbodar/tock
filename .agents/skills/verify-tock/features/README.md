@@ -16,6 +16,7 @@
 | Composer tray | trayfit | a large upload mid-chat: the progress ring never intersects the file name, and the grown composer never covers the last message in any painted frame (the column reserves the composer's live height) |
 | Tray motion | traygrow | a card grows out of the plus button, the composer height springs past rest and settles, a doc shows N% of size then morphs into its final meta, removal collapses through intermediate widths |
 | Outbox | outbox | a send made offline waits in the IndexedDB outbox with the offline caption, flushes once on reconnect and gets a reply; a send left in the outbox survives a reload and flushes exactly once; the outbox drains |
+| Error boundaries | faults | a throw in the transcript, composer or sidebar (dev-only `sessionStorage["tock.fault"]`) shows that surface's TDS error state with Try again while the others keep working, and Try again restores it |
 | Health | diagnostics | no Solid diagnostics or page errors across the run |
 - [media.md](media.md): image rows, doc cards, lightbox, finished-elsewhere dot (`lightbox`, `finished`)
 - [ui.md](ui.md): interface/layout rules from the jk and ek skills (`ui`)

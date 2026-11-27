@@ -10,6 +10,7 @@ import { Header } from "./header"
 import { Empty } from "./empty"
 import type { OrbStatus } from "@tock/ui/orb"
 import { Transcript } from "./transcript"
+import { Boundary } from "../shell/boundary"
 import { hasPendingAsk } from "./items"
 
 export function Thread() {
@@ -68,9 +69,13 @@ export function Thread() {
     >
       <Header title={titleOf(session())} status={status()} />
       <Show when={state()?.phase !== "ready" || state()!.entries.length > 0 || state()!.pending.length > 0} fallback={<div class="tds-transcript grid"><Empty art="hi" /></div>}>
-        <Transcript state={state()} sessionId={params.id} />
+        <Boundary surface="transcript">
+          <Transcript state={state()} sessionId={params.id} />
+        </Boundary>
       </Show>
-      <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
+      <Boundary surface="composer">
+        <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
+      </Boundary>
       <Show when={dragging()}>
         <div class="tds-drop tds-veil-glass" data-bad={unreadable() ? "" : undefined} aria-hidden="true">
           <span class="tds-drop-fan">

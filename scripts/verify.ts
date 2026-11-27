@@ -2047,16 +2047,31 @@ const journeys: Record<string, () => void> = {
     check(mine() === 1, "no duplicate of the first send after the reload")
     shot("outbox-flushed")
   },
+  faults() {
+    const id = seeded()
+    for (const surface of ["transcript", "composer", "sidebar"] as const) {
+      ab("eval", `sessionStorage.setItem("tock.fault", "${surface}")`)
+      ab("open", `${BASE}/t/${id}`)
+      until(() => exists(`.tds-fault[data-surface="${surface}"]`), Boolean, `the ${surface} error state`)
+      check(js<string>(`return document.querySelector('.tds-fault[data-surface="${surface}"] .tds-empty-button')?.textContent.trim() ?? ''`) === "Try again", `the ${surface} error state offers Try again`)
+      if (surface !== "sidebar") check(exists(".tds-row"), `the sidebar keeps working while the ${surface} is down`)
+      if (surface !== "transcript") check(exists(".tds-bubble"), `the transcript keeps working while the ${surface} is down`)
+      shot(`fault-${surface}`)
+      ab("click", `.tds-fault[data-surface="${surface}"] .tds-empty-button`)
+      until(() => exists(`.tds-fault[data-surface="${surface}"]`), (down) => !down, `Try again to bring the ${surface} back`)
+    }
+    until(() => exists(".ProseMirror") && exists(".tds-bubble") && exists(".tds-row"), Boolean, "every surface back")
+  },
   diagnostics() {
     const logs = ab("console")
-    const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
+    const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
     check(bad.length === 0, `console diagnostics:\n${bad.slice(0, 5).join("\n")}`)
-    const errors = ab("errors")
+    const errors = ab("errors").split("\n").filter((line) => !line.includes("tock.fault")).join("\n")
     check(!/Error/.test(errors), `page errors:\n${errors.slice(0, 600)}`)
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

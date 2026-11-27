@@ -13,6 +13,7 @@ import { Toasts } from "./shell/toasts"
 import { Palette } from "./shell/palette"
 import { Lightbox } from "./chat/lightbox"
 import { Router } from "./router"
+import { Boundary } from "./shell/boundary"
 
 function Shell(props: { children?: JSX.Element }) {
   return (
@@ -22,7 +23,9 @@ function Shell(props: { children?: JSX.Element }) {
       </a>
       <Rail />
       <Centre />
-      <Sidebar />
+      <Boundary surface="sidebar">
+        <Sidebar />
+      </Boundary>
       {props.children}
       <Shortcuts />
       <Toasts />
