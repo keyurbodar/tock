@@ -2,6 +2,7 @@ import { Extension, Node, mergeAttributes } from "@tiptap/core"
 import { NodeSelection, Plugin, Selection, type EditorState as State } from "@tiptap/pm/state"
 import type { EditorView } from "@tiptap/pm/view"
 import type { IconName } from "@tock/ui/icon"
+import { iconUrl } from "./link"
 import { tokenText, type TokenAttrs } from "./tokens"
 
 /** Everything the composer's editor needs, in one chunk the composer loads after first paint (TipTap and ProseMirror stay out of the initial JS). */
@@ -33,7 +34,7 @@ export const Token = Node.create({
       return [
         "span",
         mergeAttributes(HTMLAttributes, { "data-token": "", "data-kind": "link", "data-id": attrs.id, class: "tds-chip tds-link-token", contenteditable: "false" }),
-        ["span", { class: "tds-token-fav", "data-letter": host.charAt(0).toUpperCase(), "aria-hidden": "true" }, ["img", { src: `https://${host}/favicon.ico`, alt: "", draggable: "false", loading: "lazy" }]],
+        ["span", { class: "tds-link-fav", "aria-hidden": "true" }, ["svg", { class: "tds-icon tds-link-fav-glyph" }, ["use", { href: "#i-globe" }]], ["img", { src: iconUrl(host), alt: "", draggable: "false", decoding: "async", "data-host": host }]],
         ["span", { class: "tds-chip-label" }, attrs.label],
       ]
     }

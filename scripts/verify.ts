@@ -137,6 +137,8 @@ function fresh(): string {
   until(() => exists(".tds-input") && exists(".tds-header"), Boolean, "a fresh chat")
   return id
 }
+/** Point the worker's link resolver at its canned pages (dev only), so link journeys run offline. */
+const linkFixtures = () => ab("eval", "document.cookie = 'tock-link-fixture=1; path=/'; true")
 function say(text: string) {
   field()
   ab("keyboard", "type", text)
@@ -1323,6 +1325,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   links() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a new chat")
+    linkFixtures()
     field()
     ab("keyboard", "type", "see https://github.com/keyurbodar/tock ")
     until(() => exists(".tds-input .tds-chip[data-kind='link']"), Boolean, "a typed URL plus space to become a link chip")
@@ -1335,10 +1338,12 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(exists(`${link} .tds-link-fav`), "the link leads with the site's mark")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).textContent`) === "github.com/keyurbodar/tock", "the link reads host and path")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).getAttribute('href')`) === "https://github.com/keyurbodar/tock", "the link keeps the full URL")
+    check(js<string>(`return document.querySelector(${JSON.stringify(link)}).dataset.shape`) === "chip", "a bare URL is a chip")
     ab("hover", link)
-    wait(700)
-    check(!exists(".tds-hover-card, .tds-thread-card"), "plain links get no hover card")
+    until(() => text(".tds-link-card-title"), (t) => t === "keyurbodar/tock", "the link card after hover intent")
     shot("links-hover")
+    ab("mouse", "move", "5", "5")
+    until(() => exists(".tds-link-card"), (open) => !open, "the link card to leave", 2500)
     const at = rect(link)!
     ab("mouse", "move", String(at.x + at.w / 2), String(at.y + at.h / 2))
     ab("mouse", "down", "right")
@@ -1349,6 +1354,76 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')"), (t) => t.includes("Link copied"), "the Link copied toast")
     wait(450)
     shot("links-toast")
+  },
+  linkchips() {
+    fresh()
+    linkFixtures()
+    field()
+    ab("keyboard", "type", "see https://github.com/keyurbodar/tock ")
+    until(() => exists(".tds-input .tds-link-token .tds-link-fav img"), Boolean, "the composer link chip with its favicon")
+    until(() => js<number>("return Number(getComputedStyle(document.querySelector('.tds-input .tds-link-token .tds-link-fav img')).opacity)"), (o) => o === 1, "the composer favicon to fade in")
+    ab("keyboard", "type", "and [the docs](https://example.com/docs)")
+    // Sample every frame from the bubble's first paint until both favicons have faded in: its layout size and the linked
+    // words' layout offset inside it (offset metrics, so the bubble's own enter motion doesn't count) must never change.
+    ab("eval", `window.__linkSamples = []; window.__linkDone = false; const t0 = performance.now()
+      const abs = (el) => { let x = 0, y = 0; for (let e = el; e; e = e.offsetParent) (x += e.offsetLeft), (y += e.offsetTop); return [x, y] }
+      const tick = () => {
+        const b = document.querySelector('.tds-bubble[data-side=me]'); const words = b?.querySelector('a.tds-link[data-shape=words]')
+        if (b && words) { const imgs = [...b.querySelectorAll('.tds-link-fav img')]; const [bx, by] = abs(b), [wx, wy] = abs(words)
+          window.__linkSamples.push({ h: b.offsetHeight, w: b.offsetWidth, wx: wx - bx, wy: wy - by, ops: imgs.map((i) => Number(getComputedStyle(i).opacity)) })
+          if (imgs.length === 2 && imgs.every((i) => Number(getComputedStyle(i).opacity) === 1)) { window.__linkDone = true; return } }
+        if (performance.now() - t0 < 10000) requestAnimationFrame(tick) }
+      requestAnimationFrame(tick); true`)
+    ab("press", "Enter")
+    until(() => js<boolean>("return window.__linkDone"), Boolean, "both favicons in the bubble to fade in", 10000)
+    const samples = js<{ h: number; w: number; wx: number; wy: number; ops: number[] }[]>("return window.__linkSamples")
+    check(samples.length > 3 && samples[0]!.ops.some((o) => o < 1), `the bubble painted before a favicon arrived (${samples.length} frames, first opacities ${samples[0]?.ops})`)
+    const first = samples[0]!
+    const moved = samples.filter((s) => Math.abs(s.h - first.h) > 0.5 || Math.abs(s.w - first.w) > 0.5 || Math.abs(s.wx - first.wx) > 0.5 || Math.abs(s.wy - first.wy) > 0.5)
+    check(moved.length === 0, `no layout shift while the favicons load (${moved.length} of ${samples.length} frames moved: ${JSON.stringify(samples.map((s) => [s.h, s.w, s.wx, s.wy, s.ops.join("/")].join(" ")).filter((s, i, a) => s !== a[i - 1]))})`)
+    const bubble = ".tds-bubble[data-side='me']"
+    const chip = `${bubble} a.tds-link[data-shape='chip']`
+    const words = `${bubble} a.tds-link[data-shape='words']`
+    check(text(chip) === "github.com/keyurbodar/tock", "the bare URL is a chip reading host and path")
+    check(exists(`${chip} .tds-link-fav img`), "the chip leads with the site's favicon")
+    check(text(words) === "the docs", `the linked words stay words (${text(words)})`)
+    check(js<boolean>(`const a = document.querySelector(${JSON.stringify(words)}); return a.querySelector('.tds-link-fav') !== null && a.getAttribute('href') === 'https://example.com/docs'`), "the linked words carry a favicon prefix and keep the URL")
+    for (const sel of [chip, words]) {
+      const box = js<{ w: number; h: number; bottom: number; baseline: number }>(`const a = document.querySelector(${JSON.stringify(sel)}); const fav = a.querySelector('.tds-link-fav').getBoundingClientRect()
+        const walker = document.createTreeWalker(a, NodeFilter.SHOW_TEXT); let node; while ((node = walker.nextNode()) && !node.textContent.trim()) {}
+        const range = document.createRange(); range.selectNodeContents(node); const line = range.getClientRects()[0]
+        const ctx = document.createElement('canvas').getContext('2d'); ctx.font = getComputedStyle(node.parentElement).font
+        return { w: fav.width, h: fav.height, bottom: fav.bottom, baseline: line.bottom - ctx.measureText(node.textContent).fontBoundingBoxDescent }`)
+      check(box.w === 14 && box.h === 14, `the icon box is 14px (${box.w}×${box.h})`)
+      check(Math.abs(box.bottom - box.baseline) <= 1, `the icon sits on the text baseline (bottom ${box.bottom.toFixed(1)}, baseline ${box.baseline.toFixed(1)})`)
+    }
+    check(style(words, "textDecorationLine") === "underline" && /rgba\(0, 0, 0, 0\)|transparent/.test(style(words, "textDecorationColor") ?? ""), "no dotted or visible underline at rest")
+    shot("linkchips-bubble")
+    settled()
+    steady(words)
+    ab("hover", words)
+    until(() => text(".tds-link-card-title"), (t) => t === "Example Docs & Guides", "the link card's page title")
+    check(text(".tds-link-card-site") === "example.com" && text(".tds-link-card-url") === "https://example.com/docs", "the card shows the site and the URL")
+    wait(250)
+    shot("linkchips-card-words")
+    ab("mouse", "move", "5", "5")
+    until(() => exists(".tds-link-card"), (open) => !open, "the card to leave", 2500)
+    ab("hover", chip)
+    until(() => text(".tds-link-card-title"), (t) => t === "keyurbodar/tock", "the chip's card title")
+    check(text(".tds-link-card-site") === "GitHub", "the chip's card names the site from og:site_name")
+    wait(250)
+    shot("linkchips-card-chip")
+    ab("mouse", "move", "5", "5")
+    until(() => exists(".tds-link-card"), (open) => !open, "the card to leave", 2500)
+    field()
+    ab("keyboard", "type", "https://example.com/docs ")
+    until(() => exists(".tds-input .tds-link-token"), Boolean, "a composer link chip")
+    ab("hover", ".tds-input .tds-link-token")
+    until(() => text(".tds-composer-wrap .tds-link-card-title"), (t) => t === "Example Docs & Guides", "the composer chip's link card")
+    wait(250)
+    shot("linkchips-card-composer")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
   },
   mention() {
     ensureRows(1)
@@ -3507,7 +3582,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

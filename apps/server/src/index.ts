@@ -117,7 +117,9 @@ export default {
 
     if ((url.pathname === "/api/link" || url.pathname === "/api/link/icon") && request.method === "GET") {
       const fixture = env.DEV_ALLOW_ANON === "1" && /(?:^|;\s*)tock-link-fixture=1(?:;|$)/.test(request.headers.get("cookie") ?? "");
-      return handleLink(url, fixture ? fixtureFetch : (input, init) => fetch(input, init), fixture ? null : caches.default);
+      if (!fixture) return handleLink(url, (input, init) => fetch(input, init), caches.default);
+      const response = await handleLink(url, fixtureFetch, null);
+      return new Response(response.body, { status: response.status, headers: { ...Object.fromEntries(response.headers), "cache-control": "no-store" } });
     }
 
     const stub = env.TOCK_DO.get(env.TOCK_DO.idFromName(auth.owner));

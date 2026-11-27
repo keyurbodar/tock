@@ -7,7 +7,7 @@ import { Icon } from "@tock/ui/icon"
 import { FileChip, ThreadChip } from "./chip"
 import { CodeBlock } from "./code"
 import { Attachments, type SentFile } from "./files"
-import { ExternalLink, shortUrl, webHost } from "./link"
+import { ExternalLink, isAddressLabel, shortUrl, webHost } from "./link"
 import { createReveal } from "./stream"
 
 /** Hands out word numbers in reading order, so each streamed word keeps its own fade across re-renders. */
@@ -63,8 +63,9 @@ export function Reference(props: { href: string; text: string; raw: string; chil
   if (thread) return <ThreadChip id={thread[1]!} label={plainLabel(props.text).replace(/^@/, "")} />
   const host = webHost(props.href)
   if (!host) return <span>{props.children}</span>
-  const autolink = props.raw === props.href || props.raw === `<${props.href}>`
-  return <ExternalLink href={props.href} host={host} text={autolink ? shortUrl(props.href) : !/[*_`~]/.test(props.raw) ? plainLabel(props.text) : null}>{props.children}</ExternalLink>
+  const label = /[*_`~]/.test(props.raw) ? null : plainLabel(props.text)
+  const chip = props.raw === props.href || props.raw === `<${props.href}>` || isAddressLabel(label, props.href)
+  return <ExternalLink href={props.href} host={host} chip={chip} text={chip ? shortUrl(props.href) : label}>{props.children}</ExternalLink>
 }
 
 const entities: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }

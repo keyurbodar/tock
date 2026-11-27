@@ -472,19 +472,6 @@
   @media (hover: hover) and (pointer: fine) { .tds-chip-action:hover { opacity: 1; background: color-mix(in oklab, var(--tds-chip-accent) 22%, transparent) } }
   .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-text-me) }
 
-  .tds-link {
-    color: var(--tds-text-tx); text-decoration: none;
-    background-image: radial-gradient(circle, var(--tds-accent-rose-75) 0.75px, transparent 1px); background-position: left bottom; background-repeat: repeat-x; background-size: var(--tds-space-4) var(--tds-space-2);
-    transition: color var(--tds-dur-hover) var(--tds-ease-out), background-image var(--tds-dur-tooltip) var(--tds-ease-out);
-  }
-  @media (hover: hover) and (pointer: fine) { .tds-link:hover { color: var(--tds-text-rose-tint); background-image: radial-gradient(circle, var(--tds-accent-rose) 1px, transparent 1.3px) } }
-  .tds-link:focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-accent-rose); outline-offset: var(--tds-space-1); border-radius: var(--tds-radius-kbd) }
-  .tds-bubble[data-side="me"] .tds-link { color: inherit }
-  .tds-link-lead { white-space: nowrap }
-  .tds-link-break { overflow-wrap: anywhere }
-  .tds-link-fav { display: inline-block; margin-inline-end: var(--tds-space-5); vertical-align: -0.15em;
-    & img, & svg { display: inline-block; width: var(--tds-size-favicon); height: var(--tds-size-favicon); border-radius: var(--tds-radius-favicon) } }
-
   .tds-thread-card {
     z-index: var(--tds-z-lay); display: flex; flex-direction: column; gap: var(--tds-space-6); width: var(--tds-size-thread-card); padding: var(--tds-space-12);
     border-radius: var(--tds-radius-card-sm); background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow);

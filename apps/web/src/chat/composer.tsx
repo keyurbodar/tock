@@ -6,7 +6,8 @@ import type { Editor, JSONContent } from "@tiptap/core"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
-import { prefersReducedMotion, animate, drive, recede, scrub, growFrom, watchLayout } from "@tock/ui/motion"
+import { prefersReducedMotion, animate, drive, recede, scrub, growFrom, watchLayout, hoverIntent } from "@tock/ui/motion"
+import { brokenFavicon, fadeFavicon, LinkCardBody, webHost } from "./link"
 import { idb } from "../lib/idb"
 import { pressable } from "../lib/keys"
 import { app, newThreadId, titleOf } from "../state/app"
@@ -216,6 +217,39 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const reserve = new ResizeObserver(([entry]) => !(field && "sheet" in field.dataset) && wrap.parentElement?.style.setProperty("--composer-reserve", `${Math.ceil(entry!.borderBoxSize[0]!.blockSize)}px`))
   onSettled(() => reserve.observe(wrap))
   onCleanup(() => reserve.disconnect())
+  const [linkCard, setLinkCard] = createSignal<{ href: string; host: string; left: number; bottom: number } | null>(null)
+  let overToken: Element | null = null
+  const linkIntent = hoverIntent({
+    show: (el) => {
+      const href = (el as HTMLElement).dataset.id ?? ""
+      const box = el.getBoundingClientRect()
+      const host = wrap.getBoundingClientRect()
+      setLinkCard({ href, host: webHost(href) ?? "", left: Math.max(0, Math.min(box.left - host.left, host.width - tokens.size["hover-card"])), bottom: host.bottom - box.top + tokens.size["menu-offset"] })
+    },
+    hide: () => setLinkCard(null),
+  })
+  const overLink = (event: PointerEvent) => {
+    const token = (event.target as Element | null)?.closest?.(".tds-link-token") ?? null
+    if (token === overToken) return
+    overToken = token
+    if (token) linkIntent.enter(token)
+    else linkIntent.leave()
+  }
+  const favicon = (event: Event) => {
+    const img = event.target
+    if (!(img instanceof HTMLImageElement) || !img.closest(".tds-link-token")) return
+    if (event.type === "load") fadeFavicon(img)
+    else brokenFavicon(img, img.dataset.host ?? "")
+  }
+  onSettled(() => {
+    wrap.addEventListener("load", favicon, true)
+    wrap.addEventListener("error", favicon, true)
+  })
+  onCleanup(() => {
+    linkIntent.cancel()
+    wrap.removeEventListener("load", favicon, true)
+    wrap.removeEventListener("error", favicon, true)
+  })
   let list: HTMLDivElement | undefined
   let editorEl: HTMLDivElement | undefined
   let tray: HTMLDivElement | undefined
@@ -754,7 +788,14 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   }
 
   return (
-    <div ref={wrap} class="tds-composer-wrap">
+    <div ref={wrap} class="tds-composer-wrap" onPointerOver={overLink} onPointerLeave={() => ((overToken = null), linkIntent.leave())}>
+      <Show when={linkCard()}>
+        {(card) => (
+          <div class="tds-link-card tds-over" role="tooltip" style={{ left: `${card().left}px`, bottom: `${card().bottom}px` }}>
+            <LinkCardBody href={card().href} host={card().host} />
+          </div>
+        )}
+      </Show>
       <Show when={trigger() && suggestions().length > 0}>
         <div ref={list} class="tds-menu tds-suggest tds-over" data-edge-fade="y" role="listbox" data-kind={trigger()?.char === "@" ? "mention" : "command"} aria-label={trigger()?.char === "@" ? "Mention a file or chat" : "Commands"} style={{ left: "0px", transform: `translateX(${caret().left}px)`, bottom: `${caret().bottom}px` }}>
           <span class="tds-suggest-glide" aria-hidden="true" style={{ translate: `0 ${glide().top}px`, height: `${glide().height}px` }} />

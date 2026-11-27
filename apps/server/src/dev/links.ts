@@ -5,7 +5,7 @@ import type { Fetcher } from "../core/links.js";
  * DEV_ALLOW_ANON is set and the page carries the tock-link-fixture cookie. Icons answer late, so a journey can watch
  * the favicon fade in over its fallback without the line moving.
  */
-const ICON_DELAY_MS = 600;
+const ICON_DELAY_MS = 1000;
 
 const svg = (fill: string, letter: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" rx="3" fill="${fill}"/><text x="8" y="12" font-size="11" font-family="sans-serif" font-weight="700" text-anchor="middle" fill="#fff">${letter}</text></svg>`;

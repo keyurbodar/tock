@@ -29,6 +29,7 @@
 @import "./skills-a11y.css";
 @import "./skills-ui.css";
 @import "./cards.css";
+@import "./links.css";
 
 @layer base {
   html {
