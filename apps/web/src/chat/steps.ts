@@ -44,6 +44,7 @@ const host = (value: unknown) => {
 type Verbs = readonly [kind: Kind, live: string, done: string, object?: (args: Readonly<Record<string, unknown>>) => string | undefined]
 
 const verbs: Record<string, Verbs> = {
+  ask_owner: ["ask", "Waiting on you", "Asked you", (args) => text(args.question)],
   memory_search: ["memory", "Searching memory", "Searched memory for", (args) => text(args.query)],
   memory_save: ["memory", "Saving to memory", "Saved to memory"],
   open_item_set: ["memory", "Noting an open item", "Noted", (args) => text(args.title)],

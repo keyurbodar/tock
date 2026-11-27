@@ -4,6 +4,7 @@ import { tokens } from "@tock/tokens"
 import { buildItems, type Item } from "./items"
 import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
+import { AskCard } from "./ask"
 import { fileUrl, isImage, splitFiles } from "./attachments"
 import { FileCard, ThreadChip } from "./chip"
 import { openLightbox } from "./lightbox"
@@ -78,7 +79,7 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
   )
 }
 
-export function Transcript(props: { state: ThreadState | undefined }) {
+export function Transcript(props: { state: ThreadState | undefined; sessionId: string }) {
   let scroller!: HTMLDivElement
   let pinned = true
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
@@ -106,6 +107,9 @@ export function Transcript(props: { state: ThreadState | undefined }) {
               <Match when={item().kind === "work"}>
                 <Activity work={item() as Work} open={open()?.key === item().key} onToggle={(anchor) => toggle(item().key, anchor)} />
               </Match>
+              <Match when={item().kind === "ask" && (item() as Extract<Item, { kind: "ask" }>)}>
+                {(ask) => <AskCard sessionId={props.sessionId} ask={ask().ask} answer={ask().answer} pending={ask().pending} />}
+              </Match>
               <Match when={item().kind === "typing"}>
                 <Typing />
               </Match>
@@ -131,7 +135,7 @@ export function Transcript(props: { state: ThreadState | undefined }) {
     </div>
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
     <Show when={open()}>
-      {(current) => <WorkLog work={items().find((item): item is Work => item.kind === "work" && item.key === current().key)} anchor={current().anchor} onClose={() => setOpen(undefined)} />}
+      {(current) => <WorkLog work={items().find((item): item is Work => item.kind === "work" && item.key === current().key)} anchor={current().anchor} sessionId={props.sessionId} onClose={() => setOpen(undefined)} />}
     </Show>
     </>
   )

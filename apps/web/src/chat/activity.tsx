@@ -7,6 +7,8 @@ import { tokens } from "@tock/tokens"
 import type { Item, Step } from "./items"
 import { kinds, stepLabel, type Plan, type StepLabel } from "./steps"
 import { Markdown } from "./markdown"
+import { AskButtons } from "./ask"
+import { askOf } from "./items"
 import { elapsed } from "../lib/time"
 import { now } from "../lib/clock"
 
@@ -24,6 +26,8 @@ const codeOf = (step: Extract<Step, { kind: "tool" }>) => {
   const source = step.call.arguments.code ?? step.call.arguments.command
   return typeof source === "string" ? source.trim() : undefined
 }
+const asking = (step: Step | undefined) => step?.kind === "tool" && step.call.name === "ask_owner" && !step.result && step.status !== "cancelled"
+const needs = (work: Work) => asking(work.steps.at(-1))
 const failed = (work: Work) => !work.active && work.steps.length > 0 && statusOf(work.steps.at(-1)!) === "failed"
 const took = (work: Work, at: number) => elapsed((work.active ? at : (work.endedAt ?? at)) - (work.startedAt ?? at))
 const planAt = (work: Work) => (work.plan ? (work.active ? work.plan.current : work.plan.steps.length) : 0)
@@ -51,9 +55,10 @@ export function Typing() {
 
 /** The one line under the user's message: live step while it runs, a muted "Worked for" once it's done. */
 export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: HTMLElement) => void }) {
-  const state = () => (props.work.active ? "live" : failed(props.work) ? "failed" : "done")
+  const state = () => (needs(props.work) ? "needs" : props.work.active ? "live" : failed(props.work) ? "failed" : "done")
   const live = () => {
     const step = props.work.steps.at(-1)
+    if (step?.kind === "tool" && needs(props.work)) return askOf(step.call).question || labelOf(step).live
     if (step && statusOf(step) === "running") return labelOf(step).live
     const plan = props.work.plan
     return plan ? (plan.steps[Math.min(plan.current, plan.steps.length - 1)] ?? "Thinking") : "Thinking"
@@ -62,6 +67,9 @@ export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: 
     <div class="tds-act" data-state={state()}>
       <button type="button" class="tds-act-button" aria-expanded={props.open ? "true" : "false"} aria-label="Open the work log" onClick={(e) => props.onToggle(e.currentTarget)}>
         <Switch>
+          <Match when={state() === "needs"}>
+            <Orb status="needs" surface="main" size="orb-act" />
+          </Match>
           <Match when={state() === "live"}>
             <Orb status="working" surface="main" size="orb-act" />
           </Match>
@@ -70,7 +78,7 @@ export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: 
           </Match>
         </Switch>
         <span class="tds-act-text" data-shimmer={state() === "live" ? "" : undefined}>
-          <Show when={state() === "live"} fallback={<>{state() === "failed" ? "Failed after " : "Worked for "}<TextMorph value={took(props.work, now())} /></>}>
+          <Show when={state() === "live" || state() === "needs"} fallback={<>{state() === "failed" ? "Failed after " : "Worked for "}<TextMorph value={took(props.work, now())} /></>}>
             {live()}
           </Show>
         </span>
@@ -109,9 +117,9 @@ function PlanList(props: { plan: Plan; at: number }) {
   )
 }
 
-function StepRow(props: { step: Step; live: boolean }) {
+function StepRow(props: { step: Step; live: boolean; sessionId: string }) {
   const [open, setOpen] = createSignal(false)
-  const status = () => statusOf(props.step)
+  const status = () => (asking(props.step) ? "needs" : statusOf(props.step))
   const label = createMemo(() => labelOf(props.step))
   const kind = () => kinds[label().kind]
   const body = createMemo(() => {
@@ -127,13 +135,18 @@ function StepRow(props: { step: Step; live: boolean }) {
     <div class="tds-ws" data-status={status()} data-open={open() ? "" : undefined}>
       <button type="button" class="tds-ws-line" disabled={!body()} aria-expanded={body() ? (open() ? "true" : "false") : undefined} onClick={() => setOpen((value) => !value)}>
         <span class="tds-ws-slot" style={{ color: status() === "failed" ? undefined : kind().hue }}>
-          <Show when={status() !== "failed"} fallback={<Orb status="failed" surface="main" size="orb-row" />}>
-            <MorphIcon name={kind().icon} size="menu" class="tds-ws-kind" />
-          </Show>
+          <Switch fallback={<MorphIcon name={kind().icon} size="menu" class="tds-ws-kind" />}>
+            <Match when={status() === "failed"}>
+              <Orb status="failed" surface="main" size="orb-row" />
+            </Match>
+            <Match when={status() === "needs"}>
+              <Orb status="needs" surface="main" size="orb-row" />
+            </Match>
+          </Switch>
         </span>
         <span class="tds-ws-text">
-          <span class="tds-ws-label" data-shimmer={props.live ? "" : undefined}>
-            <Label label={label()} live={props.live} />
+          <span class="tds-ws-label" data-shimmer={props.live && status() !== "needs" ? "" : undefined}>
+            <Label label={label()} live={props.live && status() !== "needs"} />
           </span>
           <Show when={body()}>
             <span class="tds-ws-caret">
@@ -143,6 +156,9 @@ function StepRow(props: { step: Step; live: boolean }) {
         </span>
         <span class="tds-ws-time num">{at() ? clock.format(at()!) : ""}</span>
       </button>
+      <Show when={status() === "needs" && props.step.kind === "tool" ? props.step.call : undefined}>
+        {(call) => <AskButtons sessionId={props.sessionId} ask={askOf(call())} />}
+      </Show>
       <Show when={open() ? body() : undefined}>
         {(shown) => (
           <div class="tds-ws-body">
@@ -175,7 +191,7 @@ function StepRow(props: { step: Step; live: boolean }) {
   )
 }
 
-export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | undefined; onClose: () => void }) {
+export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | undefined; sessionId: string; onClose: () => void }) {
   const [closing, setClosing] = createSignal(false)
   const [place, setPlace] = createSignal({ left: 0, bottom: 0, max: 0 })
   const [scrolled, setScrolled] = createSignal(false)
@@ -241,6 +257,9 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
           <>
             <div class="tds-worklog-head">
               <Switch fallback={<Icon name="check" size="menu" class="tds-worklog-ok" />}>
+                <Match when={needs(work())}>
+                  <Orb status="needs" surface="main" size="orb-row" />
+                </Match>
                 <Match when={work().active}>
                   <Orb status="working" surface="main" size="orb-row" />
                 </Match>
@@ -273,7 +292,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
             >
               <Show when={work().plan}>{(plan) => <PlanList plan={plan()} at={planAt(work())} />}</Show>
               <For each={steps()} keyed={(step) => step.key}>
-                {(step, index) => <StepRow step={step()} live={work().active && index() === steps().length - 1 && statusOf(step()) === "running"} />}
+                {(step, index) => <StepRow step={step()} sessionId={props.sessionId} live={work().active && index() === steps().length - 1 && statusOf(step()) === "running"} />}
               </For>
             </div>
           </>

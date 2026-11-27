@@ -9,6 +9,7 @@ import { Header } from "./header"
 import { Empty } from "./empty"
 import type { OrbStatus } from "@tock/ui/orb"
 import { Transcript } from "./transcript"
+import { hasPendingAsk } from "./items"
 
 export function Thread() {
   const params = useParams<{ id: string }>()
@@ -20,6 +21,7 @@ export function Thread() {
   const session = createMemo(() => app.sessions.find((s) => s.id === params.id))
   const status = (): OrbStatus | undefined => {
     const s = state()
+    if (s && hasPendingAsk(s.entries)) return "needs"
     if (isWorking(s)) return "working"
     if (s?.live?.runFailure && s.live.runFailure.reason !== "aborted") return "failed"
     return undefined
@@ -44,7 +46,7 @@ export function Thread() {
     >
       <Header title={titleOf(session())} status={status()} />
       <Show when={state()?.phase !== "ready" || state()!.entries.length > 0 || state()!.pending.length > 0} fallback={<div class="tds-transcript grid"><Empty art="hi" /></div>}>
-        <Transcript state={state()} />
+        <Transcript state={state()} sessionId={params.id} />
       </Show>
       <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
       <Show when={dragging()}>

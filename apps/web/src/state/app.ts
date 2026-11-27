@@ -216,6 +216,16 @@ export async function send(sessionId: string, text: string) {
   }
 }
 
+export async function answerAsk(sessionId: string, answer: string) {
+  try {
+    await socket.request("ask.answer", { sessionId, answer })
+  } catch (cause) {
+    thread(sessionId, (state) => {
+      state.error = cause instanceof Error ? cause.message : "Answer failed to send"
+    })
+  }
+}
+
 export async function abort(sessionId: string) {
   try {
     await socket.request("chat.abort", { sessionId })

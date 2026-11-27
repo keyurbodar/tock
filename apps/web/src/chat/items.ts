@@ -39,6 +39,42 @@ export type Item =
   | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string }
   | { readonly kind: "caption"; readonly key: string; readonly text: string; readonly side: "me" | "agent" }
   | { readonly kind: "divider"; readonly key: string; readonly text: string }
+  | { readonly kind: "ask"; readonly key: string; readonly ask: Ask; readonly answer: string | undefined; readonly pending: boolean }
+
+export interface Ask {
+  readonly kind: "approval" | "question"
+  readonly question: string
+  readonly summary: string | undefined
+  readonly options: readonly string[]
+}
+
+export const askOf = (call: ToolCallBlock): Ask => {
+  const args = call.arguments
+  const options = Array.isArray(args.options) ? args.options.filter((option): option is string => typeof option === "string") : []
+  const kind = args.kind === "question" || (args.kind !== "approval" && options.length) ? "question" : "approval"
+  return {
+    kind,
+    question: typeof args.question === "string" ? args.question : "",
+    summary: typeof args.summary === "string" ? args.summary : undefined,
+    options: kind === "approval" ? ["Approve", "Deny"] : options.slice(0, 4),
+  }
+}
+
+export const hasPendingAsk = (entries: readonly EntryRecord[]) => {
+  const messages = entries.flatMap((entry) => entry.model ?? [])
+  const answered = new Set(messages.flatMap((message) => (message.role === "toolResult" ? [message.toolCallId] : [])))
+  return messages.some((message) => message.role === "assistant" && message.stopReason !== "aborted" && message.content.some((block) => block.type === "toolCall" && block.name === "ask_owner" && !answered.has(block.id)))
+}
+
+export const answerOf = (result: ToolResultMessage | undefined): string | undefined => {
+  const text = (result?.content ?? []).flatMap((block) => (block.type === "text" ? [block.text] : [])).join("")
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return typeof parsed === "object" && parsed !== null && "answer" in parsed && typeof parsed.answer === "string" ? parsed.answer : undefined
+  } catch {
+    return undefined
+  }
+}
 
 const HOUR = 3_600_000
 const day = (at: number) => new Date(at).toDateString()
@@ -162,6 +198,7 @@ export function buildItems(
         status: unfinished ? "running" : cancelled ? "cancelled" : result?.isError ? "failed" : "done",
       })
       group.active ||= unfinished
+      if (block.name === "ask_owner" && !streaming) items.push({ kind: "ask", key: `${blockKey}:ask`, ask: askOf(block), answer: answerOf(result), pending: result === undefined && !cancelled })
     })
     const open = turn as Work | undefined
     if (open && message.timestamp) open.endedAt = message.timestamp

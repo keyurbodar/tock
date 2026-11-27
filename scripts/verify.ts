@@ -589,6 +589,50 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "back online", 15000)
     shot("offline-back")
   },
+  ask() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "please approve the deploy")
+    ab("press", "Enter")
+    until(() => exists(".tds-ask .tds-key[data-option='Approve']"), Boolean, "the approval card", 15000)
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "needs", "the activity line in needs state")
+    check(js<string>("return document.querySelector('.tds-act-text')?.textContent ?? ''").includes("Deploy the fix"), "the activity line should show the question")
+    until(() => exists(".tds-header-status img[src*='needs']"), Boolean, "the header pill to show the needs orb")
+    check(rect(".tds-ask")!.w <= 460, `the card should be at most 460px wide, got ${rect(".tds-ask")?.w}`)
+    shot("ask-card")
+    ab("click", ".tds-act-button")
+    until(() => exists(".tds-worklog .tds-wa .tds-wbtn"), Boolean, "the ask row buttons in the work log")
+    check(exists(".tds-worklog .tds-ws[data-status='needs'] .tds-orb"), "the ask row should carry the needs orb")
+    shot("ask-worklog")
+    ab("press", "Escape")
+    until(() => exists(".tds-worklog"), (open) => !open, "the work log to close")
+    ab("click", ".tds-ask .tds-key[data-option='Approve']")
+    until(() => exists(".tds-ask-done"), Boolean, "the answered summary")
+    check(js<string>("return document.querySelector('.tds-ask-done')?.textContent ?? ''").includes("You approved"), "the summary should say You approved")
+    check(!exists(".tds-ask"), "the card should collapse once answered")
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
+    until(() => exists(".tds-code"), Boolean, "the final reply", 15000)
+    shot("ask-answered")
+  },
+  question() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "help me choose a base branch")
+    ab("press", "Enter")
+    until(() => exists(".tds-ask[data-kind='question'] .tds-key"), Boolean, "the question card", 15000)
+    check(js<number>("return document.querySelectorAll('.tds-ask .tds-key').length") === 3, "the question card should offer three options")
+    shot("ask-question")
+    ab("click", ".tds-act-button")
+    until(() => exists(".tds-worklog .tds-wbtn[data-primary]"), Boolean, "the work log option pills")
+    ab("click", ".tds-worklog .tds-wbtn:nth-child(2)")
+    until(() => exists(".tds-ask-done"), Boolean, "the answered summary")
+    check(js<string>("return document.querySelector('.tds-ask-done')?.textContent ?? ''").includes("You chose release/2.4"), "the summary should name the chosen option")
+    ab("press", "Escape")
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
+    shot("ask-question-answered")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -598,7 +642,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
