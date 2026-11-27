@@ -1,0 +1,3 @@
+@layer components {
+  .tds-palette-item[data-disabled] { color: var(--tds-text-faint); cursor: default; & .tds-palette-icon, & kbd { opacity: .6 } }
+}

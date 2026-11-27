@@ -5,7 +5,7 @@ import { dirname, join } from "node:path"
 const root = join(dirname(createRequire(import.meta.url).resolve("@phosphor-icons/core/package.json")), "assets")
 
 const regular = [
-  "chat-circle", "folder-simple", "bell", "keyboard", "gear-six", "magnifying-glass", "note-pencil", "plus", "arrow-up", "arrow-down", "stop",
+  "chat-circle", "folder-simple", "bell", "keyboard", "gear-six", "magnifying-glass", "note-pencil", "plus", "export", "arrow-up", "arrow-down", "stop",
   "waveform", "minus", "dots-three", "archive", "trash", "push-pin", "push-pin-slash", "pencil-simple", "circle", "bell-slash", "link-simple",
   "x", "check", "warning-circle", "hand", "arrow-counter-clockwise", "paperclip", "image", "file", "file-pdf", "file-text", "file-code",
   "file-audio", "file-video", "file-zip", "text-align-left", "download-simple", "copy", "arrow-u-down-left", "arrows-out-simple", "arrow-square-out",

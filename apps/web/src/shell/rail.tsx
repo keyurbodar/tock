@@ -51,7 +51,7 @@ export function Rail() {
     <nav class="tds-rail" aria-label="Spaces">
       <For each={top()} keyed={(item) => item.label}>{(item) => <RailButton {...item()} />}</For>
       <span class="tds-rail-space" />
-      <RailButton icon="keyboard" label="Keyboard shortcuts" onClick={() => setShortcutsOpen(true)} />
+      <RailButton icon="keyboard" label="Keyboard Shortcuts" onClick={() => setShortcutsOpen(true)} />
       <RailButton icon="gear-six" label="Settings" />
     </nav>
   )

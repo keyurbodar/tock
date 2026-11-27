@@ -100,7 +100,7 @@ export function Home() {
   return (
     <main id="main" tabindex="-1" data-backdrop-layer class="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-main" data-pane="home">
       <h1 class="sr-only">Tock</h1>
-      <Empty art="hi" action={{ label: "New chat", run: () => navigate(`/t/${newThreadId()}`) }} />
+      <Empty art="hi" action={{ label: "New Chat", run: () => navigate(`/t/${newThreadId()}`) }} />
     </main>
   )
 }

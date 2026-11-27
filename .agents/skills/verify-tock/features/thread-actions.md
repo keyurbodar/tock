@@ -1,7 +1,7 @@
 # Thread actions
 
 ## Sub-features
-Rename (inline), Pin/Unpin, Mark as unread/read, Copy link, Archive/Unarchive, Delete with confirmation.
+Rename (inline), Pin/Unpin, Mark as Unread/Read, Copy Link, Archive/Unarchive, Delete with confirmation.
 
 ## How to get to it (user POV)
 Hover a chat in the sidebar and press the `…` button.

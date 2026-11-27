@@ -14,9 +14,12 @@ import { setShortcutsOpen } from "./shortcuts"
 const [open, setOpen] = createSignal(false)
 export const setPaletteOpen = setOpen
 
-const actions: readonly { value: string; label: string; icon: IconName; keys: readonly string[] }[] = [
-  { value: "action:new", label: "New chat", icon: "note-pencil", keys: ["⌥", "N"] },
-  { value: "action:shortcuts", label: "Keyboard shortcuts", icon: "keyboard", keys: ["?"] },
+/** SysPalette's Actions. Search Files and Open Settings stay disabled until those surfaces exist (TG-02). */
+const actions: readonly { value: string; label: string; icon: IconName; keys: readonly string[]; disabled?: boolean }[] = [
+  { value: "action:new", label: "New Chat", icon: "note-pencil", keys: ["⌥", "N"] },
+  { value: "action:files", label: "Search Files…", icon: "folder-simple", keys: ["⌘", "⇧", "F"], disabled: true },
+  { value: "action:settings", label: "Open Settings…", icon: "gear-six", keys: ["⌘", ","], disabled: true },
+  { value: "action:shortcuts", label: "Keyboard Shortcuts", icon: "keyboard", keys: ["?"] },
 ]
 
 function Keys(props: { keys: readonly string[] }) {
@@ -69,7 +72,7 @@ export function Palette() {
               <CommandGroupLabel class="tds-palette-label">Actions</CommandGroupLabel>
               <For each={actions} keyed={false}>
                 {(action) => (
-                  <CommandItem value={action().value} class="tds-palette-item" data-hit={hit() === action().value ? "" : undefined}>
+                  <CommandItem value={action().value} disabled={action().disabled} class="tds-palette-item" data-hit={hit() === action().value ? "" : undefined}>
                     <span class="tds-palette-icon">
                       <Icon name={action().icon} size="menu" />
                     </span>

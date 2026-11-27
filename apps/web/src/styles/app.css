@@ -15,6 +15,7 @@
 @import "./media.css";
 @import "./chat-surface.css";
 @import "./toasts.css";
+@import "./overlays.css";
 @import "./motion.css";
 @import "./composer.css";
 @import "./composer-sheet.css";

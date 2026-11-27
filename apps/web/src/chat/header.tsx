@@ -48,11 +48,11 @@ export function Header(props: { title: string; status: OrbStatus | undefined; lo
           <Show when={finding()}>
             <Finder onClose={() => setFinding(false)} />
           </Show>
+          <button type="button" class="tds-header-button tds-press" aria-label="Share" onClick={() => void share()}>
+            <Icon name="export" size="row" />
+          </button>
           <button type="button" class="tds-header-button tds-press" aria-label="Search in chat" aria-pressed={finding() ? "true" : "false"} onClick={() => setFinding((on) => !on)}>
             <Icon name="magnifying-glass" size="row" />
-          </button>
-          <button type="button" class="tds-header-button tds-press" aria-label="Share" onClick={() => void share()}>
-            <Icon name="link-simple" size="row" />
           </button>
         </div>
       </header>
