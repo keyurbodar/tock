@@ -167,6 +167,11 @@ function ensureRows(n: number) {
   until(liveRows, (count) => count >= n, `${n} sidebar rows`)
 }
 
+const tapSocket = () => ab("eval", "window.__frames = []; window.__drop = false; const send = WebSocket.prototype.send; WebSocket.prototype.send = function (data) { window.__ws = this; window.__frames.push(String(data)); if (!window.__drop) send.call(this, data) }; true")
+const framesOf = (type: string) => js<number>(`return window.__frames.filter((f) => f.includes('"type":"${type}"')).length`)
+const bannerText = () => js<string>("const e = document.querySelector('.tds-banner'); return e?.dataset.state === 'off' ? '' : ((e?.querySelector('[torph-sr]') ?? e)?.textContent ?? '')")
+const unreadRow = (id: string) => exists(`.tds-row-wrap[data-id="${id}"] [data-unread], .tds-row-wrap[data-id="${id}"][data-unread]`)
+
 const journeys: Record<string, () => void> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
@@ -2670,6 +2675,75 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
     until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
   },
+  hoverread() {
+    ensureRows(2)
+    ab("open", BASE)
+    until(liveRows, (n) => n >= 2, "rows")
+    const target = js<string>("return document.querySelector('.tds-row-wrap:not([data-archived])').dataset.id")
+    if (!unreadRow(target)) {
+      openRow()
+      check(js<boolean>("const e = [...document.querySelectorAll('.tds-menu-item')].find((el) => /^Mark as unread/i.test(el.textContent.trim())); e?.click(); return !!e"), "no Mark as unread item")
+      until(() => unreadRow(target), Boolean, "the row to read as unread")
+    }
+    ab("mouse", "move", "900", "450")
+    tapSocket()
+    ab("hover", `.tds-row-wrap[data-id="${target}"] .tds-row`)
+    wait(600)
+    ab("mouse", "move", "900", "450")
+    wait(400)
+    check(framesOf("chat.subscribe") === 0, "hover intent prefetches without subscribing")
+    check(framesOf("thread.update") === 0, "hover intent never marks the chat read")
+    ab("open", BASE)
+    until(liveRows, (n) => n >= 2, "rows after reload")
+    check(unreadRow(target), "the chat is still unread after hovering it and reloading")
+    shot("hoverread")
+    ab("click", `.tds-row-wrap[data-id="${target}"] .tds-row`)
+    until(() => unreadRow(target), (unread) => !unread, "opening the chat to mark it read")
+  },
+  subscriptions() {
+    ensureRows(4)
+    const id = seeded()
+    tapSocket()
+    const others = js<string[]>(`return [...document.querySelectorAll('.tds-row-wrap:not([data-archived])')].map((e) => e.dataset.id).filter((x) => x !== "${id}").slice(0, 3)`)
+    for (const other of others) {
+      ab("hover", `.tds-row-wrap[data-id="${other}"] .tds-row`)
+      wait(300)
+    }
+    ab("mouse", "move", "900", "450")
+    check(framesOf("chat.subscribe") === 0, "hovering other rows leaves the open chat as the one this socket streams")
+    ab("set", "offline", "on")
+    ab("eval", "window.dispatchEvent(new Event('offline'))")
+    try {
+      until(bannerText, (t) => t.includes("offline"), "the offline banner")
+    } finally {
+      ab("set", "offline", "off")
+    }
+    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "back online", 15000)
+    until(() => framesOf("chat.subscribe"), (n) => n >= 1, "the open chat to resubscribe")
+    wait(800)
+    check(framesOf("chat.subscribe") === 1, "a reconnect resubscribes only the open chat, got " + framesOf("chat.subscribe"))
+    check(js<string>(`return JSON.parse(window.__frames.find((f) => f.includes('"type":"chat.subscribe"'))).sessionId`) === id, "the resubscribed chat is the open one")
+    ab("eval", "new Promise((done) => { const r = indexedDB.open('tock'); r.onsuccess = () => { const q = r.result.transaction('threads').objectStore('threads').getAllKeys(); q.onsuccess = () => { window.__keys = q.result; done(1) } } })")
+    const keys = js<string[]>("return window.__keys")
+    check(keys.includes(id), "the open chat's transcript is cached under its chat id: " + JSON.stringify(keys.slice(0, 5)))
+    check(keys.every((key) => /^[0-9a-f-]{36}$/.test(key)), "every cached transcript is keyed by chat id: " + JSON.stringify(keys.slice(0, 5)))
+  },
+  halfopen() {
+    seeded()
+    tapSocket()
+    ab("eval", "document.dispatchEvent(new Event('visibilitychange')); true")
+    until(() => js<boolean>("return !!window.__ws"), Boolean, "a heartbeat ping on the live socket")
+    wait(400)
+    ab("eval", "window.__ws.dispatchEvent(new MessageEvent('message', { data: '{not json' })); true")
+    ab("eval", "window.__drop = true; document.dispatchEvent(new Event('visibilitychange')); true")
+    const text = until(bannerText, (t) => t !== "", "a silent socket to be caught by the missed pong", 12000)
+    check(text.includes("Reconnecting"), "a dropped socket on a live network says Reconnecting…, got " + text)
+    shot("halfopen-reconnecting")
+    ab("eval", "window.__drop = false; true")
+    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "the socket to come back", 15000)
+    say("Still here after a half-open socket")
+    until(() => js<number>("return document.querySelectorAll('.tds-bubble[data-side=agent]').length"), (n) => n >= 2, "a reply over the new socket", 20000)
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -2679,7 +2753,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "markdown", "keys", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

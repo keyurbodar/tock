@@ -58,16 +58,32 @@ function thread(sessionId: string, update: (state: ThreadState) => void) {
   })
 }
 
-function withEntries(state: ThreadState, entries: readonly EntryRecord[]) {
+/** The transcript is cached per chat for the next cold open, written once the run is idle rather than on every streamed delta. */
+function withEntries(sessionId: string, state: ThreadState, entries: readonly EntryRecord[]) {
   const users = userCount(entries)
   state.entries = entries
   state.pending = state.pending.filter((item) => item.seq >= users)
-  void idb.put("threads", sessionIdOf(entries) ?? "", entries)
+  if (state.live?.run === undefined) void idb.put("threads", sessionId, entries)
 }
 
-const sessionIdOf = (entries: readonly EntryRecord[]) => {
-  const first = entries[0] as (EntryRecord & { conversationId?: unknown }) | undefined
-  return first?.conversationId !== undefined ? String(first.conversationId) : undefined
+/** Chats held in memory, most recently opened or previewed first. Past limit.threads-kept the oldest are dropped, unless open, working or failed. */
+const recent: string[] = []
+const openChat = () => /^\/t\/([^/]+)$/.exec(location.pathname)?.[1]
+
+function touch(sessionId: string) {
+  const at = recent.indexOf(sessionId)
+  if (at >= 0) recent.splice(at, 1)
+  recent.unshift(sessionId)
+  const open = openChat()
+  const dropped = recent.filter((id, index) => {
+    const state = app.threads[id]
+    return index >= tokens.limit["threads-kept"] && id !== open && !isWorking(state) && !state?.error
+  })
+  if (dropped.length === 0) return
+  for (const id of dropped) recent.splice(recent.indexOf(id), 1)
+  setApp((s) => {
+    for (const id of dropped) delete s.threads[id]
+  })
 }
 
 function upsertSession(next: Session) {
@@ -83,7 +99,9 @@ socket.onState((connection) => {
   })
   if (connection !== "open") return
   void refreshSessions()
-  void Promise.all(Object.keys(app.threads).map((sessionId) => subscribe(sessionId))).then(flushOutbox)
+  const open = openChat()
+  const waiting = Object.keys(app.threads).filter((sessionId) => sessionId !== open && app.threads[sessionId]!.pending.length > 0)
+  void Promise.all([...(open ? [subscribe(open)] : []), ...waiting.map(reload)]).then(flushOutbox)
 })
 
 socket.onEvent(({ event, payload }) => {
@@ -97,9 +115,9 @@ socket.onEvent(({ event, payload }) => {
     const doc = view.docs[LIVE_DOC]
     const live = isRecord(doc) ? (doc as LiveState) : null
     thread(sessionId, (state) => {
-      if (view.before === undefined) withEntries(state, view.entries)
-      state.phase = "ready"
       state.live = live
+      if (view.before === undefined) withEntries(sessionId, state, view.entries)
+      state.phase = "ready"
       const failure = live?.runFailure && live.runFailure.reason !== "aborted" ? (live.runFailure.detail ?? live.runFailure.reason) : undefined
       if (failure) state.error = failure
     })
@@ -180,27 +198,51 @@ function noteFinished(sessionId: string, failure: LiveState["runFailure"]) {
 async function reload(sessionId: string) {
   try {
     const entries = await socket.request<readonly EntryRecord[]>("session.messages", { sessionId })
-    thread(sessionId, (state) => withEntries(state, entries))
+    thread(sessionId, (state) => withEntries(sessionId, state, entries))
   } catch {
     return
   }
 }
 
+async function warm(sessionId: string) {
+  touch(sessionId)
+  if (app.threads[sessionId]) return
+  const cached = await idb.get<readonly EntryRecord[]>("threads", sessionId)
+  thread(sessionId, (state) => {
+    if (cached?.length && state.entries.length === 0) {
+      state.entries = cached
+      state.phase = "ready"
+    }
+  })
+}
+
+/**
+ * Loads a chat ahead of opening it (hover intent) without subscribing: the server streams one chat per socket, and
+ * subscribing is what opening a chat means, so a preview neither marks it read nor steals the open chat's stream.
+ */
+export async function preload(sessionId: string) {
+  const known = app.threads[sessionId]?.phase === "ready"
+  await warm(sessionId)
+  if (known) return
+  try {
+    const entries = await socket.request<readonly EntryRecord[]>("session.messages", { sessionId })
+    thread(sessionId, (state) => {
+      withEntries(sessionId, state, entries)
+      state.phase = "ready"
+    })
+  } catch {
+    return
+  }
+}
+
+/** Opens a chat: marks it read, and makes it the one chat this socket streams. */
 export async function subscribe(sessionId: string) {
   if (app.sessions.find((session) => session.id === sessionId)?.meta.unread) queueMicrotask(() => void updateThread(sessionId, { unread: false }))
-  if (!app.threads[sessionId]) {
-    const cached = await idb.get<readonly EntryRecord[]>("threads", sessionId)
-    thread(sessionId, (state) => {
-      if (cached?.length && state.entries.length === 0) {
-        state.entries = cached
-        state.phase = "ready"
-      }
-    })
-  }
+  await warm(sessionId)
   try {
     const result = await socket.request<{ messages: readonly EntryRecord[]; thinking?: Record<string, number> }>("chat.subscribe", { sessionId })
     thread(sessionId, (state) => {
-      withEntries(state, result.messages)
+      withEntries(sessionId, state, result.messages)
       state.thinking = { ...state.thinking, ...(result.thinking ?? {}) }
       state.phase = "ready"
     })
@@ -377,6 +419,7 @@ export async function deleteThread(threadId: string) {
   try {
     await socket.request("thread.delete", { threadId })
     void idb.put("sessions", "list", snapshot(app.sessions))
+    void idb.del("threads", threadId)
   } catch {
     setApp((s) => void s.sessions.splice(index, 0, removed))
   }

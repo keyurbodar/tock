@@ -6,8 +6,16 @@ interface Progress {
   readonly times: number[]
 }
 
-/** Live replies change their key when the run commits them, so progress is remembered by the text's opening. */
+/** Live replies change their key when the run commits them, so progress is remembered by the text's opening, for at most limit.stream-kept replies. */
 const remembered = new Map<string, Progress>()
+function remember(key: string, progress: Progress) {
+  remembered.delete(key)
+  remembered.set(key, progress)
+  for (const oldest of remembered.keys()) {
+    if (remembered.size <= tokens.limit["stream-kept"]) break
+    remembered.delete(oldest)
+  }
+}
 const keyOf = (text: string) => text.slice(0, tokens.limit["stream-key"])
 
 /**
@@ -41,12 +49,15 @@ export function createReveal(text: () => string, live: () => boolean) {
     const at = performance.now()
     for (let i = burst ? shown + take - tokens.limit["stream-tail"] : shown; i < shown + take; i++) progress.times[i] = at
     progress.count = shown + take
-    remembered.set(keyOf(text()), progress)
+    remember(keyOf(text()), progress)
     setCount(progress.count)
     timer = setTimeout(step, tokens.motion.duration["word-step"])
   }
   if (progress.count !== Number.POSITIVE_INFINITY) timer = setTimeout(step, tokens.motion.duration["word-step"])
-  onCleanup(() => clearTimeout(timer))
+  onCleanup(() => {
+    clearTimeout(timer)
+    if (!untrack(live)) remembered.delete(keyOf(untrack(text)))
+  })
 
   return {
     /** Word i is laid out from the moment it arrives but stays invisible until the reveal reaches it, so layout never changes as words appear. */

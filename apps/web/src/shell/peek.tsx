@@ -7,7 +7,7 @@ import { tokens } from "@tock/tokens"
 import { morphFrom } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
 import { shortTime } from "../lib/time"
-import { now } from "../lib/clock"
+import { minute } from "../lib/clock"
 import { peekLines, titleOf, type PeekLine, type Session } from "../state/app"
 
 interface Shown {
@@ -130,7 +130,7 @@ export function Peek() {
                 <Icon name={glyphFor(peek().session.id).icon} size="toast" />
               </span>
               <b>{titleOf(peek().session)}</b>
-              <Show when={peek().session.busy} fallback={<em class="num">{shortTime(peek().session.updatedAt, now())}</em>}>
+              <Show when={peek().session.busy} fallback={<em class="num">{shortTime(peek().session.updatedAt, minute())}</em>}>
                 <Orb status="working" surface="main" size="orb-sm" />
                 <em>Working</em>
               </Show>

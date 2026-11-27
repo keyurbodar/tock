@@ -8,7 +8,7 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
 import { STATUS_LABEL, statusOf, type ChatStatus } from "../lib/status"
 import { shortTime } from "../lib/time"
-import { now } from "../lib/clock"
+import { minute } from "../lib/clock"
 import { app, titleOf, type Session } from "../state/app"
 import { hidePeek } from "./peek"
 
@@ -172,7 +172,7 @@ export function ToastRow(props: { show: boolean }) {
                     <span class="tds-stack-text">
                       <b>{titleOf(session())}</b>
                       <span>
-                        {statusName[statusOf(session())]}, in the cloud, {shortTime(session().updatedAt, now()) || "now"}
+                        {statusName[statusOf(session())]}, in the cloud, {shortTime(session().updatedAt, minute()) || "now"}
                       </span>
                     </span>
                     <Show when={statusOf(session()) !== "idle"}>

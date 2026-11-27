@@ -89,7 +89,7 @@ export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: 
           </Match>
         </Switch>
         <span class="tds-act-text" data-shimmer={state() === "live" ? "" : undefined}>
-          <Show when={state() === "live" || state() === "needs"} fallback={<>{state() === "failed" ? "Failed after " : "Worked for "}<TextMorph value={took(props.work, now())} mode="calm" /></>}>
+          <Show when={state() === "live" || state() === "needs"} fallback={<>{state() === "failed" ? "Failed after " : "Worked for "}<TextMorph value={took(props.work, props.work.active ? now() : Date.now())} mode="calm" /></>}>
             {live()}
           </Show>
         </span>
@@ -519,7 +519,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
               </Switch>
               <span class="tds-worklog-title"><TextMorph value={work().active ? "Working for" : failed(work()) ? "Failed after" : "Worked for"} mode="morph" /></span>
               <span class="tds-timer">
-                <TextMorph value={took(work(), now())} mode="swap" />
+                <TextMorph value={took(work(), work().active ? now() : Date.now())} mode="swap" />
               </span>
               <Show when={work().plan}>
                 {(plan) => (

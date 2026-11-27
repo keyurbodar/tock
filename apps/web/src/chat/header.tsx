@@ -133,9 +133,13 @@ function Finder(props: { onClose: () => void }) {
   )
 }
 
-/** Slides under the header when the socket drops, then turns green with "Back online" for a moment (px4 setOffline). */
+/** Slides under the header when the socket drops, then turns green with "Back online" for a moment (px4 setOffline). It says offline only when the browser is; a dropped socket on a live network is reconnecting. */
 function OfflineBanner() {
   const [shown, setShown] = createSignal<"off" | "on" | "ok">("off")
+  const [online, setOnline] = createSignal(navigator.onLine)
+  const network = () => setOnline(navigator.onLine)
+  addEventListener("online", network)
+  addEventListener("offline", network)
   let seen = untrack(() => app.connection) === "open"
   let timer: ReturnType<typeof setTimeout> | undefined
   const dropped = () => {
@@ -143,7 +147,7 @@ function OfflineBanner() {
     setShown("on")
   }
   addEventListener("offline", dropped)
-  onCleanup(() => (clearTimeout(timer), removeEventListener("offline", dropped)))
+  onCleanup(() => (clearTimeout(timer), removeEventListener("offline", dropped), removeEventListener("online", network), removeEventListener("offline", network)))
   createEffect(
     () => app.connection,
     (connection) => {
@@ -161,8 +165,8 @@ function OfflineBanner() {
   )
   return (
     <div class="tds-banner" data-state={shown()} role="status" aria-live="polite" aria-hidden={shown() === "off" ? "true" : undefined}>
-      <Icon name={shown() === "ok" ? "check" : "wifi-slash"} size="toast" />
-      <TextMorph value={shown() === "ok" ? "Back online" : "You’re offline. Messages and files wait, and send when you’re back."} mode="calm" />
+      <Icon name={shown() === "ok" ? "check" : online() ? "arrow-clockwise" : "wifi-slash"} size="toast" />
+      <TextMorph value={shown() === "ok" ? "Back online" : online() ? "Reconnecting…" : "You’re offline. Messages and files wait, and send when you’re back."} mode="calm" />
     </div>
   )
 }

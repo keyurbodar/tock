@@ -6,7 +6,7 @@ import { useNavigate } from "@solidjs/router"
 import type { IconName } from "@tock/ui/icon"
 import { groups, markAllRead, notes, readChat, unreadNotes, type Group, type Note, type Tone } from "../state/notes"
 import { shortTime } from "../lib/time"
-import { now } from "../lib/clock"
+import { minute } from "../lib/clock"
 import { tokens } from "@tock/tokens"
 
 const [open, setOpen] = createSignal(false)
@@ -24,7 +24,7 @@ function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void
         <b>{props.note.title}</b>
         <span>{props.note.body}</span>
       </span>
-      <i class="num"><TextMorph value={shortTime(props.note.at, now())} mode="calm" /></i>
+      <i class="num"><TextMorph value={shortTime(props.note.at, minute())} mode="calm" /></i>
     </button>
   )
 }

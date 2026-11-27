@@ -2,10 +2,13 @@ import type { ServerEvent } from "@tock/protocol"
 
 export type ConnectionState = "connecting" | "open" | "closed" | "unauthorized"
 
-type Pending = { resolve: (data: unknown) => void; reject: (error: Error) => void }
+type Pending = { resolve: (data: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }
 
 const RECONNECT_BASE_MS = 400
 const RECONNECT_MAX_MS = 8000
+const REQUEST_TIMEOUT_MS = 20000
+const HEARTBEAT_MS = 25000
+const PONG_TIMEOUT_MS = 5000
 
 export class RequestError extends Error {
   constructor(
@@ -23,6 +26,9 @@ export class Socket {
   private attempt = 0
   private nextId = 0
   private retry: ReturnType<typeof setTimeout> | undefined
+  private heartbeat: ReturnType<typeof setInterval> | undefined
+  private probing: Promise<boolean> | undefined
+  private pong: (() => void) | undefined
   private eventListeners = new Set<(event: ServerEvent) => void>()
   private stateListeners = new Set<(state: ConnectionState) => void>()
   state: ConnectionState = "closed"
@@ -31,7 +37,9 @@ export class Socket {
     addEventListener("online", () => this.reconnectNow())
     addEventListener("offline", () => this.ws && this.lost(this.ws))
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") this.reconnectNow()
+      if (document.visibilityState !== "visible") return
+      this.reconnectNow()
+      void this.alive()
     })
   }
 
@@ -44,7 +52,8 @@ export class Socket {
     const id = `${Date.now().toString(36)}-${(this.nextId++).toString(36)}`
     const frame = JSON.stringify({ ...body, id, type })
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (data: unknown) => void, reject })
+      const timer = setTimeout(() => void this.timedOut(id), REQUEST_TIMEOUT_MS)
+      this.pending.set(id, { resolve: resolve as (data: unknown) => void, reject, timer })
       if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(frame)
       else this.queue.push(frame)
     })
@@ -66,6 +75,37 @@ export class Socket {
     for (const listener of this.stateListeners) listener(state)
   }
 
+  /** A request with no reply asks the socket whether it is alive: a half-open socket is dropped and every request retries on the next open; a live one that ignored the request fails it as a timeout. */
+  private async timedOut(id: string) {
+    if (!this.pending.has(id)) return
+    const ws = this.ws
+    if (!(await this.alive()) || ws !== this.ws) return
+    const entry = this.pending.get(id)
+    if (!entry) return
+    this.pending.delete(id)
+    entry.reject(new RequestError("timeout", "The server didn’t answer. Try again."))
+  }
+
+  /** Pings over the socket (the Durable Object answers "pong" without waking); no pong in time means the socket is half-open, so it is dropped and reconnects. */
+  private alive(): Promise<boolean> {
+    const ws = this.ws
+    if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.resolve(false)
+    this.probing ??= new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => {
+        this.pong = undefined
+        if (this.ws === ws) void this.lost(ws)
+        resolve(false)
+      }, PONG_TIMEOUT_MS)
+      this.pong = () => {
+        clearTimeout(timer)
+        this.pong = undefined
+        resolve(true)
+      }
+      ws.send("ping")
+    }).finally(() => (this.probing = undefined))
+    return this.probing
+  }
+
   private reconnectNow() {
     if (this.state !== "closed") return
     clearTimeout(this.retry)
@@ -82,6 +122,8 @@ export class Socket {
       this.attempt = 0
       this.setState("open")
       for (const frame of this.queue.splice(0)) ws.send(frame)
+      clearInterval(this.heartbeat)
+      this.heartbeat = setInterval(() => void this.alive(), HEARTBEAT_MS)
     })
     ws.addEventListener("message", (message) => this.receive(String(message.data)))
     ws.addEventListener("close", () => {
@@ -92,8 +134,13 @@ export class Socket {
   /** Drops the socket at once: a close handshake over a dead network can take many seconds, so offline never waits for it. */
   private async lost(ws: WebSocket, quick = false) {
     this.ws = null
+    clearInterval(this.heartbeat)
+    this.pong?.()
     if (ws.readyState <= WebSocket.OPEN) ws.close()
-    for (const [, entry] of this.pending) entry.reject(new RequestError("disconnected", "Connection lost"))
+    for (const [, entry] of this.pending) {
+      clearTimeout(entry.timer)
+      entry.reject(new RequestError("disconnected", "Connection lost"))
+    }
     this.pending.clear()
     this.queue = []
     clearTimeout(this.retry)
@@ -108,7 +155,8 @@ export class Socket {
   }
 
   private receive(raw: string) {
-    const frame = JSON.parse(raw) as {
+    if (raw === "pong") return this.pong?.()
+    let frame: {
       id?: string
       type: string
       data?: unknown
@@ -118,6 +166,12 @@ export class Socket {
       event?: string
       payload?: unknown
     }
+    try {
+      frame = JSON.parse(raw)
+    } catch {
+      return
+    }
+    if (typeof frame !== "object" || frame === null) return
     if (frame.type === "event" && frame.event !== undefined && frame.seq !== undefined) {
       for (const listener of this.eventListeners) listener({ seq: frame.seq, event: frame.event, payload: frame.payload })
       return
@@ -126,6 +180,7 @@ export class Socket {
     const entry = this.pending.get(frame.id)
     if (!entry) return
     this.pending.delete(frame.id)
+    clearTimeout(entry.timer)
     if (frame.type === "error") entry.reject(new RequestError(frame.code ?? "error", frame.message ?? "Request failed"))
     else entry.resolve(frame.data)
   }

@@ -1,5 +1,5 @@
 const DB = "tock"
-const VERSION = 1
+const VERSION = 2
 const STORES = ["sessions", "threads", "drafts", "outbox"] as const
 export type StoreName = (typeof STORES)[number]
 
@@ -9,8 +9,9 @@ function open(): Promise<IDBDatabase | null> {
   opening ??= new Promise((resolve) => {
     if (typeof indexedDB === "undefined") return resolve(null)
     const req = indexedDB.open(DB, VERSION)
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       for (const name of STORES) if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name)
+      if (event.oldVersion === 1) req.transaction?.objectStore("threads").clear()
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => resolve(null)

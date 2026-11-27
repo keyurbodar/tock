@@ -14,7 +14,7 @@ import { statusOf } from "../lib/status"
 import { pressable } from "../lib/keys"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
-import { now } from "../lib/clock"
+import { minute } from "../lib/clock"
 import { archive, doomed, markRead, pin, remove, renaming, selected, setRenaming, setSelected, takeEntering, threadAction, threadMenu, ThreadMenu } from "./thread-menu"
 import { dropping, Pins, setDropping } from "./pins"
 import { hidePeek, Peek, peekEnter, peekLeave, peekToggle } from "./peek"
@@ -378,7 +378,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
             <RenameField session={props.session} />
           </Show>
         </span>
-        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, now())} mode="calm" /></span>
+        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, minute())} mode="calm" /></span>
         <span class="tds-row-preview">
           <Highlight text={previewOf(props.session)} query={props.query} />
         </span>
@@ -454,7 +454,7 @@ export function Sidebar() {
   const [width, setWidth] = createSignal<number>(savedWidth())
   let search!: HTMLInputElement
 
-  const visible = createMemo(() => app.sessions.filter((s) => !doomed().includes(s.id) && !((s.meta.snoozedUntil ?? 0) > now())))
+  const visible = createMemo(() => app.sessions.filter((s) => !doomed().includes(s.id) && !((s.meta.snoozedUntil ?? 0) > minute())))
   const matches = createMemo(() => {
     const q = query().trim().toLowerCase()
     if (!q) return visible().filter((s) => !s.meta.pinned || s.meta.archived)

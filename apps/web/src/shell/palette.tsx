@@ -9,7 +9,7 @@ import { tokens } from "@tock/tokens"
 import { app, newThreadId, plainText, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
 import { shortTime } from "../lib/time"
-import { now } from "../lib/clock"
+import { minute } from "../lib/clock"
 import { setShortcutsOpen } from "./shortcuts"
 import { appHotkeys, keysFor } from "./hotkeys"
 
@@ -95,7 +95,7 @@ export function Palette() {
                       </span>
                       <span class="tds-palette-title">{titleOf(session())}</span>
                       <span class="tds-palette-trail num">
-                        <Show when={session().busy} fallback={shortTime(session().updatedAt, now())}>
+                        <Show when={session().busy} fallback={shortTime(session().updatedAt, minute())}>
                           <Orb status="working" surface="side" size="orb-sm" />
                         </Show>
                       </span>
