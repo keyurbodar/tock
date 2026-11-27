@@ -1,6 +1,6 @@
-import { createEffect, createMemo } from "solid-js"
+import { createEffect, createMemo, untrack } from "solid-js"
 import { useParams } from "@solidjs/router"
-import { abort, app, isWorking, send, subscribe } from "../state/app"
+import { abort, app, isWorking, send, subscribe, titleOf } from "../state/app"
 import { Composer } from "./composer"
 import { Header } from "./header"
 import { Transcript } from "./transcript"
@@ -9,15 +9,15 @@ export function Thread() {
   const params = useParams<{ id: string }>()
   createEffect(
     () => params.id,
-    (id) => void subscribe(id),
+    (id) => void untrack(() => subscribe(id)),
   )
   const state = () => app.threads[params.id]
   const session = createMemo(() => app.sessions.find((s) => s.id === params.id))
   return (
     <section class="relative flex min-w-0 flex-1 flex-col bg-main">
-      <Header title={session()?.title || "New chat"} working={isWorking(state())} />
+      <Header title={titleOf(session())} working={isWorking(state())} />
       <Transcript state={state()} />
-      <Composer working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
+      <Composer draftKey={params.id} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
     </section>
   )
 }

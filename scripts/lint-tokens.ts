@@ -8,6 +8,8 @@ const rules: { name: string; test: RegExp; why: string }[] = [
   { name: "rgb-colour", test: /\b(rgba?|hsla?)\(/g, why: "Colours live in tokens.json." },
   { name: "raw-duration", test: /\b\d{2,4}ms\b/g, why: "Durations live in tokens.json (motion.duration)." },
   { name: "cubic-bezier", test: /cubic-bezier\(/g, why: "Curves live in tokens.json (motion.curve)." },
+  { name: "jsx-number", test: /\w=\{-?(?:[1-9]\d*(?:\.\d+)?|0?\.\d+)\}/g, why: "Numbers in JSX props are tweakable values. Read them from tokens (import { tokens } from \"@tock/tokens\")." },
+  { name: "timer-literal", test: /setTimeout\([^)]*,\s*\d+\s*\)/g, why: "Timer delays are motion durations. Use tokens.motion.duration." },
 ]
 const allow = /icons\.gen\.ts$/
 

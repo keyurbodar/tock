@@ -1,4 +1,4 @@
-import { createStore } from "solid-js"
+import { createStore, reconcile, snapshot } from "solid-js"
 import type { ConversationView, EntryRecord, LiveState, SessionSummary } from "@tock/protocol"
 import { idb } from "../lib/idb"
 import { socket, type ConnectionState } from "../lib/socket"
@@ -60,7 +60,7 @@ const sessionIdOf = (entries: readonly EntryRecord[]) => {
 
 function upsertSession(next: Session) {
   setApp((s) => {
-    s.sessions = [next, ...s.sessions.filter((session) => session.id !== next.id)]
+    reconcile([next, ...snapshot(s.sessions).filter((session) => session.id !== next.id)], "id")(s.sessions)
   })
   void idb.put("sessions", "list", app.sessions.map((session) => ({ ...session })))
 }
@@ -117,7 +117,7 @@ export async function refreshSessions() {
       .map((session) => ({ ...session, busy: Boolean(session.busy) }))
       .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
     setApp((s) => {
-      s.sessions = sessions
+      reconcile(sessions, "id")(s.sessions)
       s.sessionsLoaded = true
     })
     void idb.put("sessions", "list", sessions)
@@ -198,5 +198,7 @@ export async function createSession(): Promise<string> {
   const { id } = await socket.request<{ id: string | number }>("session.create")
   return String(id)
 }
+
+export const titleOf = (session: Session | undefined) => session?.title.replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
 
 export const isWorking = (state: ThreadState | undefined) => state !== undefined && (state.live?.run !== undefined || state.pending.length > 0)

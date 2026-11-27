@@ -3,6 +3,7 @@ import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { buildItems, type Item, type Step } from "./items"
 import { stepLabel } from "./steps"
+import { Markdown } from "./markdown"
 import type { ThreadState } from "../state/app"
 
 function StepLine(props: { step: Step }) {
@@ -29,7 +30,7 @@ function StepLine(props: { step: Step }) {
   )
 }
 
-function Bubble(props: { item: Extract<Item, { kind: "user" | "text" | "routine" }>; queued?: boolean }) {
+function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
   const mine = () => props.item.kind === "user"
   return (
     <div class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
@@ -54,8 +55,11 @@ export function Transcript(props: { state: ThreadState | undefined }) {
         <For each={items()}>
           {(item) => (
             <Switch>
-              <Match when={item.kind === "user" || item.kind === "text" || item.kind === "routine"}>
-                <Bubble item={item as Extract<Item, { kind: "user" | "text" | "routine" }>} queued={item.key.startsWith("pending:")} />
+              <Match when={item.kind === "text"}>
+                <Markdown text={(item as Extract<Item, { kind: "text" }>).text} />
+              </Match>
+              <Match when={item.kind === "user" || item.kind === "routine"}>
+                <Bubble item={item as Extract<Item, { kind: "user" | "routine" }>} queued={item.key.startsWith("pending:")} />
               </Match>
               <Match when={item.kind === "work"}>
                 <div class="tds-work">

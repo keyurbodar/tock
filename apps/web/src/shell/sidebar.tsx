@@ -3,12 +3,23 @@ import { useNavigate, useParams } from "@solidjs/router"
 import { VList } from "virtua/solid"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
+import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
-import { app, createSession, type Session } from "../state/app"
+import { app, createSession, titleOf, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
 
-const glyphs: IconName[] = ["code", "calendar-check", "graph", "hash", "globe", "lightning", "briefcase", "palette"]
+const glyphs: readonly { icon: IconName; hue: string }[] = [
+  { icon: "code", hue: "text-hue-blue" },
+  { icon: "calendar-check", hue: "text-hue-rose" },
+  { icon: "chart-line-up", hue: "text-hue-sage" },
+  { icon: "hash", hue: "text-hue-violet" },
+  { icon: "globe", hue: "text-hue-sand" },
+  { icon: "broom", hue: "text-hue-butter" },
+  { icon: "currency-dollar", hue: "text-hue-teal" },
+  { icon: "airplane-tilt", hue: "text-hue-sky" },
+  { icon: "palette", hue: "text-hue-pink" },
+]
 const glyphFor = (id: string) => glyphs[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % glyphs.length]!
 
 function Highlight(props: { text: string; query: string }) {
@@ -36,11 +47,11 @@ function Row(props: { session: Session; selected: boolean; query: string }) {
         data-status={props.session.busy ? "working" : undefined}
         aria-current={props.selected ? "page" : undefined}
       >
-        <span class="tds-row-icon text-muted">
-          <Icon name={glyphFor(props.session.id)} size="row" />
+        <span class={`tds-row-icon ${glyphFor(props.session.id).hue}`}>
+          <Icon name={glyphFor(props.session.id).icon} size="row" />
         </span>
         <span class="tds-row-title">
-          <Highlight text={props.session.title || "New chat"} query={props.query} />
+          <Highlight text={titleOf(props.session)} query={props.query} />
         </span>
         <span class="tds-row-time num">{shortTime(props.session.updatedAt, now())}</span>
         <span class="tds-row-preview">{props.session.preview || " "}</span>
@@ -79,7 +90,7 @@ export function Sidebar() {
   })
 
   return (
-    <aside class="relative flex min-h-0 w-sidebar flex-none flex-col bg-side px-12 pt-20" aria-label="Chats">
+    <aside class="relative flex min-h-0 w-sidebar-panel flex-none flex-col bg-side px-12 pt-20" aria-label="Chats">
       <div class="flex gap-6">
         <label class="tds-search" data-filled={query() ? "" : undefined}>
           <Icon name="magnifying-glass" size="menu" class="tds-search-glyph" />
@@ -112,7 +123,7 @@ export function Sidebar() {
             </div>
           }
         >
-          <VList data={visible()} class="tds-scroll h-full px-12 pb-16" itemSize={58}>
+          <VList data={visible()} class="tds-scroll h-full px-12 pb-16" itemSize={tokens.size.row}>
             {(session) => <Row session={session} selected={params.id === session.id} query={query()} />}
           </VList>
         </Show>

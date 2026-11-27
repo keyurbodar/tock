@@ -30,6 +30,8 @@
   button { cursor: default; }
   code, kbd, pre, samp { font-family: var(--tds-font-mono); }
   ::selection { background: var(--tds-accent-rose-28); }
-  :focus-visible { outline: none; box-shadow: var(--tds-focus-ring); }
+  :focus { outline: none }
+  :focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-focus-outline); outline-offset: var(--tds-size-focus-offset) }
+  input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { outline: none }
   .num { font-variant-numeric: tabular-nums; }
 }

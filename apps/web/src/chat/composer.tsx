@@ -1,30 +1,119 @@
-import { createSignal } from "solid-js"
+import { createEffect, createSignal, onCleanup } from "solid-js"
+import { Editor, type JSONContent } from "@tiptap/core"
+import Document from "@tiptap/extension-document"
+import Paragraph from "@tiptap/extension-paragraph"
+import Text from "@tiptap/extension-text"
+import HardBreak from "@tiptap/extension-hard-break"
+import { Placeholder, UndoRedo } from "@tiptap/extensions"
+import { EditorState } from "@tiptap/pm/state"
 import { Icon } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Swap } from "@tock/ui/swap"
 import { tokens } from "@tock/tokens"
+import { idb } from "../lib/idb"
 
-export function Composer(props: { working: boolean; onSend: (text: string) => void; onStop: () => void }) {
-  const [text, setText] = createSignal("")
-  const [tall, setTall] = createSignal(false)
-  let field!: HTMLTextAreaElement
-  const empty = () => text().trim() === ""
+const drafts = new Map<string, JSONContent>()
+const typing = (e: KeyboardEvent) => e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey
+const editable = (el: Element | null) => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)
+
+export function Composer(props: { draftKey: string; working: boolean; onSend: (text: string) => void; onStop: () => void }) {
+  const [empty, setEmpty] = createSignal(true)
+  const [height, setHeight] = createSignal<number>(tokens.size.composer)
+  let editor: Editor | undefined
+  let saveTimer: ReturnType<typeof setTimeout> | undefined
+  let key = ""
+  let teardown = () => {}
   const stop = () => props.working && empty()
 
-  const grow = () => {
-    field.style.height = "auto"
-    const max = tokens.size["composer-max"]
-    field.style.height = `${Math.min(field.scrollHeight, max)}px`
-    setTall(field.scrollHeight > tokens.size.composer)
+  const save = (forKey: string) => {
+    clearTimeout(saveTimer)
+    if (!editor || !forKey) return
+    if (editor.isEmpty) {
+      drafts.delete(forKey)
+      void idb.del("drafts", forKey)
+    } else {
+      const json = editor.getJSON()
+      drafts.set(forKey, json)
+      void idb.put("drafts", forKey, json)
+    }
   }
+
+  const load = (content: JSONContent | undefined) => {
+    if (!editor) return
+    const doc = content ? editor.schema.nodeFromJSON(content) : editor.schema.topNodeType.createAndFill()!
+    editor.view.updateState(EditorState.create({ doc, plugins: editor.state.plugins }))
+    setEmpty(editor.isEmpty)
+  }
+
   const submit = () => {
+    if (!editor) return
     if (stop()) return props.onStop()
-    if (empty()) return
-    props.onSend(text().trim())
-    setText("")
-    field.value = ""
-    grow()
+    const text = editor.getText({ blockSeparator: "\n" }).trim()
+    if (!text) return
+    props.onSend(text)
+    load(undefined)
+    save(key)
+    editor.view.focus()
   }
+
+  const mount = (element: HTMLDivElement) => {
+    editor = new Editor({
+      element,
+      autofocus: matchMedia("(pointer: fine)").matches ? "end" : false,
+      extensions: [Document, Paragraph, Text, HardBreak, UndoRedo, Placeholder.configure({ placeholder: "Message toast" })],
+      editorProps: {
+        attributes: { class: "tds-input", role: "textbox", "aria-multiline": "true", "aria-label": "Message toast" },
+        handleKeyDown: (_view, event) => {
+          if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return false
+          event.preventDefault()
+          submit()
+          return true
+        },
+      },
+      onUpdate: ({ editor: next }) => {
+        setEmpty(next.isEmpty)
+        clearTimeout(saveTimer)
+        const forKey = key
+        saveTimer = setTimeout(() => save(forKey), tokens.motion.duration["draft-save"])
+      },
+    })
+    const observer = new ResizeObserver(() => setHeight(Math.min(element.scrollHeight, tokens.size["composer-max"])))
+    observer.observe(element.firstElementChild ?? element)
+    const onKey = (event: KeyboardEvent) => {
+      if (!editor || event.defaultPrevented || !typing(event) || editable(document.activeElement)) return
+      editor.commands.focus("end")
+    }
+    document.addEventListener("keydown", onKey)
+    teardown = () => {
+      observer.disconnect()
+      document.removeEventListener("keydown", onKey)
+    }
+  }
+
+  onCleanup(() => {
+    save(key)
+    teardown()
+    editor?.destroy()
+    editor = undefined
+  })
+
+  createEffect(
+    () => props.draftKey,
+    (next) => {
+      if (key) save(key)
+      key = next
+      const cached = drafts.get(next)
+      load(cached)
+      if (!cached)
+        void idb.get<JSONContent>("drafts", next).then((stored) => {
+          if (stored && key === next && editor?.isEmpty) {
+            drafts.set(next, stored)
+            load(stored)
+          }
+        })
+      if (matchMedia("(pointer: fine)").matches) editor?.commands.focus("end")
+    },
+  )
 
   return (
     <div class="tds-composer-wrap">
@@ -32,30 +121,16 @@ export function Composer(props: { working: boolean; onSend: (text: string) => vo
         <button type="button" class="tds-press tds-composer-plus" aria-label="Add">
           <MorphIcon name="plus" />
         </button>
-        <div class="tds-field" data-tall={tall() ? "" : undefined}>
-          <div class="flex min-h-composer items-end pr-6 pl-18">
-            <textarea
-              ref={field}
-              rows={1}
-              class="tds-input"
-              placeholder="Message toast"
-              aria-label="Message toast"
-              value={text()}
-              onInput={(e) => (setText(e.currentTarget.value), grow())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
-                  e.preventDefault()
-                  submit()
-                }
-              }}
-            />
-            <button type="button" class="tds-press grid size-mic flex-none place-items-center rounded-pill text-muted my-6" aria-label="Dictate">
+        <div class="tds-field" data-tall={height() > tokens.size.composer ? "" : undefined} style={{ height: `${height()}px` }}>
+          <div class="tds-field-body">
+            <div ref={mount} class="tds-editor tds-scroll" onMouseDown={(e) => e.target === e.currentTarget && (e.preventDefault(), editor?.commands.focus("end"))} />
+            <button type="button" class="tds-press tds-mic" aria-label="Dictate">
               <Icon name="waveform" size="composer" />
             </button>
           </div>
         </div>
         <button type="submit" class="tds-press tds-send" data-empty={empty() && !stop() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : "Send"}>
-          <Swap on={stop()} a={<MorphIcon name="arrow-up" class="tds-optical-up" weight={1.8} />} b={<Icon name="stop:fill" size="toast" />} />
+          <Swap on={stop()} a={<MorphIcon name="arrow-up" class="tds-optical-up" weight={tokens.icon["stroke-send"]} />} b={<Icon name="stop:fill" size="toast" />} />
         </button>
       </form>
     </div>

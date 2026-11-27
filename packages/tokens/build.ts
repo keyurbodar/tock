@@ -27,6 +27,7 @@ for (const [k, val] of Object.entries(t.color.wash)) { v(`wash-${k}`, val); colo
 for (const [k, val] of Object.entries(t.color.swipe)) { v(`swipe-${k}`, val); color(`swipe-${k}`, `swipe-${k}`) }
 for (const [k, val] of Object.entries(t.color.overlay)) { v(`overlay-${k}`, val); color(k, `overlay-${k}`) }
 for (const [k, val] of Object.entries(t.color.code)) { v(`code-${k}`, val); color(`code-${k}`, `code-${k}`) }
+for (const [k, val] of Object.entries(t.color.hue)) { v(`hue-${k}`, val); color(`hue-${k}`, `hue-${k}`) }
 th("color-transparent", "transparent")
 th("color-current", "currentColor")
 
@@ -36,14 +37,14 @@ v("over-fill", m.over.fill); v("over-blur", m.over.blur); v("over-saturate", m.o
 v("cap-fill", m.cap.fill); v("cap-shadow", m.cap.shadow); v("cap-lift", m.cap.lift)
 v("key-fill", m.key.fill); v("key-shadow", m.key.shadow)
 v("key-cream-fill", m["key-cream"].fill); v("key-cream-shadow", m["key-cream"].shadow)
-v("focus-ring", m.focus.ring); v("focus-glass-ring", m.focus["glass-ring"])
+v("focus-outline", m.focus.outline)
 for (const [k, val] of Object.entries(m.lift)) v(`lift-${k}`, val)
 v("veil-blur", m.veil.blur); v("veil-saturate", m.veil.saturate)
 v("pill-blur", m.pill.blur); v("pill-saturate", m.pill.saturate)
 for (const [k, val] of Object.entries(m.ring)) { v(`ring-${k}`, val); th(`shadow-ring-${k}`, `var(--tds-ring-${k})`) }
 for (const [k, val] of Object.entries(t.optical)) if (typeof val === "number") v(`optical-${k}`, px(val))
 color("glass", "glass-fill"); color("glass-on", "glass-fill-on"); color("over", "over-fill")
-for (const [name, cssVar] of [["glass", "glass-shadow"], ["over", "over-shadow"], ["cap", "cap-shadow"], ["cap-lift", "cap-lift"], ["key", "key-shadow"], ["cream", "key-cream-shadow"], ["focus", "focus-ring"], ["focus-glass", "focus-glass-ring"], ["ghost", "lift-ghost"], ["media", "lift-media"], ["fan", "lift-fan"], ["remove", "lift-remove"]] as const)
+for (const [name, cssVar] of [["glass", "glass-shadow"], ["over", "over-shadow"], ["cap", "cap-shadow"], ["cap-lift", "cap-lift"], ["key", "key-shadow"], ["cream", "key-cream-shadow"], ["ghost", "lift-ghost"], ["media", "lift-media"], ["fan", "lift-fan"], ["remove", "lift-remove"]] as const)
   th(`shadow-${name}`, `var(--tds-${cssVar})`)
 
 v("font-sans", t.font.sans); v("font-mono", t.font.mono)
@@ -68,7 +69,7 @@ v("press", t.motion.press); v("press-row", t.motion["press-row"]); v("press-tigh
 for (const [k, b] of Object.entries(t.motion.blur)) { v(`blur-${k}`, b); th(`blur-${k}`, `var(--tds-blur-${k})`) }
 th("blur-over", "var(--tds-over-blur)"); th("blur-veil", "var(--tds-veil-blur)")
 for (const [k, z] of Object.entries(t.z)) v(`z-${k}`, z)
-for (const [k, s] of Object.entries(t.icon)) v(`icon-${k}`, k === "weight-boost" ? s : px(s))
+for (const [k, s] of Object.entries(t.icon)) v(`icon-${k}`, k === "weight-boost" || k.startsWith("stroke-") ? s : px(s))
 
 th("breakpoint-md", "48rem"); th("breakpoint-lg", "64rem"); th("breakpoint-xl", "80rem")
 th("animate-shimmer", "tds-shimmer var(--tds-dur-loop) linear infinite")

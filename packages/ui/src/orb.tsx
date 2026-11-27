@@ -1,4 +1,5 @@
 import type { ThreadStatus } from "@tock/protocol"
+import { tokens } from "@tock/tokens"
 
 export type OrbStatus = Exclude<ThreadStatus, "idle">
 export type OrbSurface = "main" | "side" | "sel"
@@ -12,8 +13,8 @@ export function Orb(props: { status: OrbStatus; surface?: OrbSurface; size?: "or
       data-status={props.status}
       src={`/brand/orbs/${file[props.status]}-on-${props.surface ?? "side"}.png`}
       alt=""
-      width={16}
-      height={16}
+      width={tokens.size.orb}
+      height={tokens.size.orb}
       style={{ width: `var(--tds-size-${props.size ?? "orb"})`, height: `var(--tds-size-${props.size ?? "orb"})` }}
       decoding="async"
       draggable={false}
