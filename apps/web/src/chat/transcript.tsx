@@ -111,7 +111,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
                 <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} />
               </Match>
               <Match when={item().kind === "user" || item().kind === "routine"}>
-                <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={item().key.startsWith("pending:")} />
+                <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} />
               </Match>
               <Match when={item().kind === "work"}>
                 <Activity work={item() as Work} open={open()?.key === item().key} onToggle={(anchor) => toggle(item().key, anchor)} />

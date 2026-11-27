@@ -829,6 +829,7 @@ const journeys: Record<string, () => void> = {
     ab("press", "Backspace")
     ab("keyboard", "type", "ask @")
     until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ list")
+    wait(300)
     const menu = rect(".tds-suggest")!
     const caret = rect(".tds-input p")!
     check(menu.y + menu.h <= caret.y && caret.y - (menu.y + menu.h) <= 8, "the @ list sits just above the caret")
@@ -1006,6 +1007,34 @@ const journeys: Record<string, () => void> = {
     const seen = until(() => js<{ opacity: string; caption: string } | null>("return window.__queued"), Boolean, "the queued bubble and its caption", 4000)!
     check(Number(seen.opacity) < 1, "queued sends are dimmed")
   },
+  baseline() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "ask @")
+    until(() => exists(".tds-suggest .tds-menu-item"), Boolean, "the @ list")
+    wait(250)
+    const glass = style(".tds-suggest", "backdropFilter") ?? ""
+    check(/blur/.test(glass), "the caret menu is glass: " + glass)
+    const g = js<{ glide: number; row: number }>("const g = document.querySelector('.tds-suggest-glide').getBoundingClientRect(); const r = document.querySelector('.tds-suggest [data-highlighted]').getBoundingClientRect(); return { glide: g.top, row: r.top }")
+    check(Math.abs(g.glide - g.row) < 1, "the highlight glides under the active row")
+    shot("baseline-menu")
+    ab("press", "Enter")
+    ab("keyboard", "type", "to check the notes")
+    js<boolean>("window.__sent = null; return true")
+    ab("press", "Enter")
+    const first = until(() => js<boolean>("const b = [...document.querySelectorAll('.tds-bubble[data-side=me]')].at(-1); if (b && b.textContent.includes('to check the notes') && !window.__sent) { window.__sent = b; b.dataset.probe = '1' } return !!window.__sent"), Boolean, "the bubble to appear at once", 600)
+    void first
+    check(js<string>("return document.querySelector('.tds-input').textContent") === "", "the composer clears on send")
+    until(() => exists(".tds-bubble[data-side='agent']"), Boolean, "the reply", 15000)
+    check(js<boolean>("return window.__sent.isConnected && window.__sent.dataset.probe === '1'"), "the sent bubble keeps its node when the server confirms it (no remount flash)")
+    const m = js<{ line: number; text: number; label: number; chip: number }>(
+      "const c = window.__sent.querySelector('.tds-chip'); const p = c.parentElement; const a = document.createRange(); a.selectNodeContents(c.querySelector('.tds-chip-label')); const l = a.getClientRects()[0]; const t = [...p.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim()); const b = document.createRange(); b.selectNodeContents(t); const x = b.getClientRects()[0]; return { line: parseFloat(getComputedStyle(p).lineHeight), text: x.bottom, label: l.bottom, chip: c.getBoundingClientRect().height }",
+    )
+    check(Math.abs(m.text - m.label) < 0.5, "bubble chips sit on the text baseline: " + JSON.stringify(m))
+    check(js<number>("return Math.round(window.__sent.getBoundingClientRect().height)") <= m.line + 16 + 1, "a bubble chip does not grow its line")
+    shot("baseline-bubble")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1015,7 +1044,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

@@ -201,8 +201,11 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const [active, setActive] = createSignal(0)
   const [caret, setCaret] = createSignal({ left: 0, bottom: 0 })
   const [preview, setPreview] = createSignal<{ key: string; left: number; bottom: number } | null>(null)
+  const [glide, setGlide] = createSignal({ top: 0, height: 0 })
   let picker!: HTMLInputElement
   let wrap!: HTMLDivElement
+  let list: HTMLDivElement | undefined
+  let editorEl: HTMLDivElement | undefined
   let tray: HTMLDivElement | undefined
   const blank = () => empty() && props.attachments.items().length === 0
   const pending = () => props.attachments.items().filter((item) => item.status === "uploading" || item.status === "reading")
@@ -268,6 +271,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     load(undefined)
     save(key)
     editor.view.focus()
+    editorEl?.animate([{ opacity: 0, translate: `0 ${tokens.space[6]}px` }, { opacity: 1, translate: "0 0" }], { duration: tokens.motion.duration.tooltip, easing: tokens.motion.curve.out })
   }
 
   createEffect(
@@ -402,7 +406,16 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     })
   }
 
+  createEffect(
+    () => [active(), suggestions().length] as const,
+    ([index]) => {
+      const row = list?.querySelectorAll<HTMLElement>(".tds-menu-item")[index]
+      if (row) setGlide({ top: row.offsetTop, height: row.offsetHeight })
+    },
+  )
+
   const mount = (element: HTMLDivElement) => {
+    editorEl = element
     editor = new Editor({
       element,
       autofocus: matchMedia("(pointer: fine)").matches ? "end" : false,
@@ -546,7 +559,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   return (
     <div ref={wrap} class="tds-composer-wrap">
       <Show when={trigger() && suggestions().length > 0}>
-        <div class="tds-menu tds-suggest" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: `${caret().left}px`, bottom: `${caret().bottom}px` }}>
+        <div ref={list} class="tds-menu tds-suggest" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: `${caret().left}px`, bottom: `${caret().bottom}px` }}>
+          <span class="tds-suggest-glide" aria-hidden="true" style={{ top: `${glide().top}px`, height: `${glide().height}px` }} />
           <span class="tds-menu-label">{trigger()?.char === "@" ? "Chats" : "Commands"}</span>
           <For each={suggestions()} keyed={(item) => item.key}>
             {(item, index) => (

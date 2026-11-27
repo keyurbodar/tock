@@ -23,7 +23,7 @@ export type Step =
     }
 
 export type Item =
-  | { readonly kind: "user"; readonly key: string; readonly text: string; readonly images: readonly ImageBlock[]; readonly at: number | null }
+  | { readonly kind: "user"; readonly key: string; readonly text: string; readonly images: readonly ImageBlock[]; readonly at: number | null; readonly queued?: boolean }
   | { readonly kind: "routine"; readonly key: string; readonly name: string; readonly text: string; readonly at: number | null }
   | {
       readonly kind: "work"
@@ -125,7 +125,7 @@ const userImages = (message: Extract<Message, { role: "user" }>) =>
 export function buildItems(
   entries: readonly EntryRecord[],
   live: LiveState | null,
-  pending: readonly { readonly text: string }[],
+  pending: readonly { readonly text: string; readonly seq: number }[],
   online = true,
   now = Date.now(),
 ): Item[] {
@@ -207,19 +207,21 @@ export function buildItems(
       items.push({ kind: "error", key: `${key}:error`, title: "The model returned an error", detail: message.errorMessage })
   }
 
+  let users = 0
   for (const entry of entries) {
     (entry.model ?? []).forEach((message, index) => {
       const key = `${entry.id}:${index}`
       if (message.role === "user") {
+        const bubble = `user:${users++}`
         const text = userText(message)
         const routine = routineName(entry)
         stamp(key, message.timestamp ?? null)
         if (routine === undefined) {
-          items.push({ kind: "user", key, text, images: userImages(message), at: message.timestamp ?? null })
+          items.push({ kind: "user", key: bubble, text, images: userImages(message), at: message.timestamp ?? null })
           startTurn(key, message.timestamp ?? null)
         } else {
           const tag = `[routine:${routine}] `
-          items.push({ kind: "routine", key, name: routine, text: text.startsWith(tag) ? text.slice(tag.length) : text, at: message.timestamp ?? null })
+          items.push({ kind: "routine", key: bubble, name: routine, text: text.startsWith(tag) ? text.slice(tag.length) : text, at: message.timestamp ?? null })
           startTurn(key, message.timestamp ?? null)
         }
       } else if (message.role === "assistant") {
@@ -231,7 +233,7 @@ export function buildItems(
   const current = turn as Work | undefined
   if (running && current) current.active = true
   if (running && !current && items.at(-1)?.kind !== "text") items.splice(turnAt, 0, { kind: "typing", key: "typing" })
-  pending.forEach(({ text }, index) => items.push({ kind: "user", key: `pending:${index}`, text, images: [], at: null }))
+  pending.forEach(({ text, seq }) => items.push({ kind: "user", key: `user:${seq}`, text, images: [], at: null, queued: true }))
   if (pending.length > 0 && !online) items.push({ kind: "caption", key: "caption:offline", text: "Sends when you're back online", side: "me" })
   else if (pending.length > 0 && running) items.push({ kind: "caption", key: "caption:queued", text: "Waiting for toast to finish this step", side: "me" })
   if (pending.length > 0 && !running && online) items.push({ kind: "typing", key: "typing" })
