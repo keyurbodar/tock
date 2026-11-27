@@ -1,0 +1,82 @@
+/* Reactions (TOCK-4): the hover rail beside a message, the glass quick-react bar and picker, and the pills on a bubble's edge. */
+@layer components {
+  .tds-msg { position: relative; display: flex; flex-direction: column; anchor-scope: --tds-msg }
+  .tds-msg > :nth-last-child(1 of :not(.tds-msg-rail, .tds-react-pills)) { anchor-name: --tds-msg }
+  .tds-msg[data-side="me"] + .tds-msg[data-side="agent"] > :first-child,
+  .tds-msg[data-side="agent"] + .tds-msg[data-side="me"] > :first-child,
+  .tds-work + .tds-msg > :first-child, .tds-msg + .tds-work { margin-top: var(--tds-space-14) }
+  .tds-act + .tds-msg > :first-child { margin-top: var(--tds-space-10) }
+  .tds-msg[data-side="me"]:has(+ .tds-msg[data-side="me"]) > .tds-bubble:nth-last-child(1 of .tds-bubble) { border-bottom-right-radius: var(--tds-radius-tail) }
+  .tds-msg:has(> .tds-react-pills) { padding-bottom: calc(var(--tds-size-react-pill) - var(--tds-size-react-pill-overlap)) }
+
+  .tds-msg-rail {
+    position: absolute; position-anchor: --tds-msg; top: anchor(center); translate: 0 -50%;
+    display: flex; align-items: center; gap: var(--tds-space-2);
+    opacity: 0; pointer-events: none; transition: opacity var(--tds-dur-hover) var(--tds-ease-out);
+  }
+  .tds-msg[data-side="agent"] > .tds-msg-rail { left: anchor(right); padding-left: var(--tds-space-8) }
+  .tds-msg[data-side="me"] > .tds-msg-rail { right: anchor(left); padding-right: var(--tds-space-8); flex-direction: row-reverse }
+  .tds-msg[data-held] > .tds-msg-rail, .tds-msg-rail:focus-within { opacity: 1; pointer-events: auto }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-msg:hover > .tds-msg-rail { opacity: 1; pointer-events: auto }
+  }
+  .tds-msg-action {
+    display: grid; place-items: center; width: var(--tds-size-react-button); height: var(--tds-size-react-button);
+    border-radius: var(--tds-radius-pill); color: var(--tds-text-muted);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
+    &[aria-expanded="true"] { background: var(--tds-overlay-hover); color: var(--tds-text-tx2) }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-msg-action:hover { background: var(--tds-overlay-hover); color: var(--tds-text-tx2) }
+  }
+  .tds-msg-time { padding: 0 var(--tds-space-4); font-size: var(--tds-type-micro-size); color: var(--tds-text-faint); white-space: nowrap }
+
+  .tds-react-pills {
+    position: absolute; position-anchor: --tds-msg; top: calc(anchor(bottom) - var(--tds-size-react-pill-overlap));
+    display: flex; gap: var(--tds-space-4); z-index: 1;
+  }
+  .tds-msg[data-side="agent"] > .tds-react-pills { right: calc(anchor(right) - var(--tds-space-4)); flex-direction: row-reverse }
+  .tds-msg[data-side="me"] > .tds-react-pills { left: calc(anchor(left) - var(--tds-space-4)) }
+  .tds-react-pill {
+    display: inline-flex; align-items: center; gap: var(--tds-space-2); height: var(--tds-size-react-pill); min-width: var(--tds-size-react-pill);
+    padding: 0 var(--tds-space-6); justify-content: center; border-radius: var(--tds-radius-pill);
+    background: var(--tds-surface-bubble); box-shadow: 0 0 0 var(--tds-space-2) var(--tds-surface-main);
+    font-size: var(--tds-type-micro-size); color: var(--tds-text-muted);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
+    &[data-mine] { background: var(--tds-accent-me); color: var(--tds-accent-rose) }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-react-pill:hover { color: var(--tds-text-tx2) }
+  }
+  .tds-react-pill-emoji { font-size: var(--tds-size-react-pill-emoji); line-height: 1 }
+  .tds-react-pill-count[data-empty] { display: none }
+
+  .tds-react-bar {
+    position: fixed; z-index: var(--tds-z-drop); padding: var(--tds-space-4);
+    border-radius: var(--tds-radius-pill); background: var(--tds-overlay-pill); box-shadow: var(--tds-glass-shadow);
+    &[data-side="me"] { translate: -100% 0 }
+    &[data-above] { translate: 0 -100% }
+    &[data-side="me"][data-above] { translate: -100% -100% }
+    &[data-mode="picker"] { padding: var(--tds-space-8); border-radius: var(--tds-radius-menu) }
+  }
+  .tds-react-quick { display: flex; align-items: center; gap: var(--tds-space-2) }
+  .tds-react-emoji, .tds-react-more {
+    display: grid; place-items: center; width: var(--tds-size-react-cell); height: var(--tds-size-react-cell);
+    border-radius: var(--tds-radius-pill); font-size: var(--tds-size-react-emoji); line-height: 1; color: var(--tds-text-muted);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out);
+    &[data-on] { background: var(--tds-accent-rose-28) }
+    &:focus-visible { outline-offset: 0 }
+  }
+  .tds-react-bar[data-mode="picker"] .tds-react-emoji { border-radius: var(--tds-radius-item) }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-react-emoji:hover, .tds-react-more:hover { background: var(--tds-overlay-hover) }
+  }
+  .tds-react-search {
+    display: block; width: 100%; height: var(--tds-size-react-search); margin-bottom: var(--tds-space-6); padding: 0 var(--tds-space-10);
+    border: 0; border-radius: var(--tds-radius-field); background: var(--tds-overlay-hover); color: var(--tds-text-tx);
+    font: inherit; font-size: var(--tds-type-menu-size);
+    &::placeholder { color: var(--tds-text-faint) }
+  }
+  .tds-react-grid { display: grid; gap: var(--tds-space-2) }
+  .tds-react-none { margin: 0; padding: var(--tds-space-8) var(--tds-space-4); font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
+}

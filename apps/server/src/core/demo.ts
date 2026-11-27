@@ -88,7 +88,7 @@ const scripted: FauxResponseFactory = (context) => {
   const cue = /^react with (\S+)/i.exec(asked)
   if (cue) {
     if (!reacted) return fauxAssistantMessage([fauxToolCall("react", { emoji: cue[1]! })], { stopReason: "toolUse" })
-    return fauxAssistantMessage(fauxText("Done, reacted to your message."))
+    return fauxAssistantMessage([])
   }
   const approval = /approve/i.test(asked)
   const question = /question|choose/i.test(asked)

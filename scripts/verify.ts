@@ -475,6 +475,76 @@ function toastClose() {
   until(rows, (n) => n === before, "Undo to restore the row")
 }
 
+/** The react journey under a hovering pointer: rail on hover, bar from the keyboard, pills, toggle off with Undo, Esc. */
+function reactRail() {
+  seeded()
+  const agent = ".tds-msg[data-side='agent']:has(.tds-msg-rail)"
+  const me = ".tds-msg[data-side='me']:has(.tds-msg-rail)"
+  steady(agent)
+  check(style(`${agent} > .tds-msg-rail`, "opacity") === "0", "the rail rests hidden")
+  ab("hover", `${agent} .tds-bubble`)
+  until(() => style(`${agent} > .tds-msg-rail`, "opacity"), (o) => o === "1", "the rail to show on hover")
+  const bubble = rect(`${agent} .tds-bubble:nth-last-child(1 of .tds-bubble)`)!
+  const rail = rect(`${agent} .tds-msg-action[aria-label='React']`)!
+  check(rail.x >= bubble.x + bubble.w && rail.x - (bubble.x + bubble.w) < 24, `the React button sits just right of the bubble (bubble ends ${bubble.x + bubble.w}, button at ${rail.x})`)
+  check(Math.abs(rail.y + rail.h / 2 - (bubble.y + bubble.h / 2)) < 4, "the rail is centred on the bubble")
+  check(/\d{1,2}:\d{2}\s?(AM|PM)/.test(text(`${agent} .tds-msg-time`)), "the rail shows the time")
+  shot("react-rail")
+  ab("click", `${agent} .tds-msg-action[aria-label='React']`)
+  until(() => exists(".tds-react-bar[role='menu']"), Boolean, "the quick-react bar")
+  check(js<number>("return document.querySelectorAll('.tds-react-bar .tds-react-emoji').length") === 6 && exists(".tds-react-bar .tds-react-more"), "six emojis and a +")
+  check(js<string>("return document.activeElement?.dataset.pick ?? ''") === "👍", "focus lands on the first emoji")
+  ab("press", "ArrowRight")
+  check(js<string>("return document.activeElement?.dataset.pick ?? ''") === "❤️", "ArrowRight moves to the heart")
+  ab("press", "ArrowLeft")
+  ab("press", "ArrowLeft")
+  check(js<string>("return document.activeElement?.getAttribute('aria-label') ?? ''") === "More Reactions", "ArrowLeft wraps to +")
+  ab("press", "Home")
+  ab("press", "ArrowRight")
+  wait(300)
+  shot("react-bar")
+  ab("press", "Enter")
+  until(() => exists(".tds-react-bar"), (open) => !open, "the bar to close after a pick")
+  const pill = `${agent} .tds-react-pill[data-id='❤️']`
+  until(() => exists(pill), Boolean, "the heart pill on the agent bubble")
+  check(exists(`${pill}[data-mine][aria-pressed='true']`), "my pill is highlighted")
+  wait(500)
+  const b = rect(`${agent} .tds-bubble:nth-last-child(1 of .tds-bubble)`)!
+  const p = rect(pill)!
+  check(p.y < b.y + b.h && p.y + p.h > b.y + b.h, `the pill overlaps the bubble's bottom edge (pill ${p.y}..${p.y + p.h}, bubble bottom ${b.y + b.h})`)
+  check(Math.abs(p.x + p.w - (b.x + b.w)) < 12, "the agent pill sits at the bubble's bottom-right")
+  ab("hover", `${me} .tds-bubble`)
+  until(() => style(`${me} > .tds-msg-rail`, "opacity"), (o) => o === "1", "my rail to show on hover")
+  const mine = rect(`${me} .tds-bubble`)!
+  check(rect(`${me} .tds-msg-action[aria-label='React']`)!.x + rect(`${me} .tds-msg-action[aria-label='React']`)!.w <= mine.x, "my rail sits left of my bubble")
+  ab("click", `${me} .tds-msg-action[aria-label='React']`)
+  until(() => exists(".tds-react-bar"), Boolean, "the bar on my bubble")
+  ab("press", "Escape")
+  until(() => exists(".tds-react-bar"), (open) => !open, "Esc to close the bar")
+  check(js<string>("return document.activeElement?.getAttribute('aria-label') ?? ''") === "React", "Esc hands focus back to React")
+  ab("click", `${me} .tds-msg-action[aria-label='React']`)
+  until(() => exists(".tds-react-bar"), Boolean, "the bar again")
+  ab("click", ".tds-react-bar [data-pick='👍']")
+  until(() => exists(`${me} .tds-react-pill[data-id='👍']`), Boolean, "the thumbs-up pill on my bubble")
+  wait(500)
+  const mb = rect(`${me} .tds-bubble`)!
+  const mp = rect(`${me} .tds-react-pill`)!
+  check(Math.abs(mp.x - mb.x) < 12 && mp.y < mb.y + mb.h, "my pill sits at my bubble's bottom-left, overlapping it")
+  shot("react-pills")
+  ab("click", pill)
+  until(() => exists(pill), (on) => !on, "clicking my pill to toggle it off")
+  until(() => exists(".tds-toast-action"), Boolean, "an Undo toast for the removal")
+  check(text(".tds-toast").includes("Reaction removed"), "the toast says Reaction removed")
+  ab("click", ".tds-toast-action")
+  until(() => exists(pill), Boolean, "Undo to put the heart back")
+}
+/** Focuses a message's React button (the rail shows on focus-within) and opens the bar. */
+function openReact(msg: string) {
+  ab("eval", `document.querySelector(${JSON.stringify(msg + " .tds-msg-action[aria-label='React']")})?.focus(); true`)
+  ab("click", `${msg} .tds-msg-action[aria-label='React']`)
+  until(() => exists(".tds-react-bar"), Boolean, "the quick-react bar")
+}
+
 const journeys: Record<string, () => void | Promise<void>> = {
   doctor() {
     for (const url of [BASE, `${BASE}/api/health`]) check(Bun.spawnSync(["curl", "-sf", "-o", "/dev/null", url]).exitCode === 0, `${url} is not answering`)
@@ -2256,6 +2326,68 @@ const journeys: Record<string, () => void | Promise<void>> = {
     shot("offline-back")
     until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "off", "the banner to hide", 15000)
     check(JSON.stringify(layout()) === JSON.stringify(before), "no gap is left behind once the banner hides")
+  },
+  /** Reactions: the hover rail beside a bubble, the quick-react bar from the keyboard, pills on the bubble's edge (agent bottom-right, mine bottom-left), toggling off with Undo, and Esc. */
+  react() {
+    const relaunch = (...args: string[]) => (ab("close"), ab("open", BASE, "--args", ["--no-sandbox", ...args].join(",")), ab("set", "viewport", "1440", "900"), unlock(), ab("open", BASE), reset())
+    relaunch("--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4")
+    try {
+      check(js<boolean>("return matchMedia('(hover: hover) and (pointer: fine)').matches"), "the browser reports a fine pointer that hovers")
+      reactRail()
+    } finally {
+      relaunch()
+    }
+  },
+  /** Reactions persist on the server: the picker's search adds a second emoji, both survive a reload, and the sidebar row reads "you reacted …". */
+  reactpersist() {
+    const id = seeded()
+    const agent = ".tds-msg[data-side='agent']:has(.tds-msg-rail)"
+    steady(agent)
+    openReact(agent)
+    ab("click", ".tds-react-bar [data-pick='👍']")
+    until(() => exists(`${agent} .tds-react-pill[data-id='👍']`), Boolean, "the thumbs-up pill")
+    openReact(agent)
+    ab("click", ".tds-react-more")
+    until(() => exists(".tds-react-bar[data-mode='picker'] .tds-react-search"), Boolean, "the picker")
+    check(js<number>("return document.querySelectorAll('.tds-react-grid .tds-react-emoji').length") >= 48, "the picker lists the curated grid")
+    check(js<boolean>("return document.activeElement?.classList.contains('tds-react-search')"), "the search field takes focus")
+    ab("keyboard", "type", "rocket")
+    until(() => js<number>("return document.querySelectorAll('.tds-react-grid .tds-react-emoji').length"), (n) => n === 1, "search to narrow to the rocket")
+    shot("react-picker")
+    ab("press", "Enter")
+    until(() => exists(`${agent} .tds-react-pill[data-id='🚀']`), Boolean, "the rocket pill")
+    check(js<number>(`return document.querySelectorAll("${agent} .tds-react-pill").length`) === 2, "two pills on the message")
+    const row = `.tds-row-wrap[data-id="${id}"] .tds-row-preview`
+    until(() => morphed(row), (t) => t.startsWith("you reacted 🚀 to “"), "the row preview to read you reacted 🚀 to “…”")
+    ab("open", `${BASE}/t/${id}`)
+    until(() => exists(`${agent} .tds-react-pill[data-id='🚀']`) && exists(`${agent} .tds-react-pill[data-id='👍']`), Boolean, "both pills after a reload", 12000)
+    until(() => morphed(row), (t) => t.startsWith("you reacted 🚀 to “"), "the row preview after a reload")
+    shot("react-persist")
+  },
+  /** The agent reacts on cue: toast's pill lands on my message, mine joins it with a rolling count, the row reads "toast reacted …", and a reaction in another chat leaves a note in the centre. */
+  reactagent() {
+    const id = fresh()
+    say("react with 👍")
+    const me = ".tds-msg[data-side='me']:has(.tds-msg-rail)"
+    const pill = `${me} .tds-react-pill[data-id='👍']`
+    until(() => exists(pill), Boolean, "toast's thumbs-up on my message", 15000)
+    check(!exists(`${pill}[data-mine]`), "toast's reaction is not highlighted as mine")
+    const row = `.tds-row-wrap[data-id="${id}"] .tds-row-preview`
+    until(() => morphed(row), (t) => t === "toast reacted 👍 to “react with 👍”", "the row to read toast reacted 👍 to “react with 👍”", 10000)
+    ab("click", pill)
+    until(() => morphed(`${pill} .tds-react-pill-count`), (t) => t === "2", "the count to roll to 2")
+    check(exists(`${pill}[data-mine]`), "the pill is mine too now")
+    wait(500)
+    shot("react-agent")
+    field()
+    ab("keyboard", "type", "react with 🎉")
+    ab("press", "Enter")
+    ab("eval", "document.querySelector(\"button[aria-label='New chat']\").click(); true")
+    until(() => js<string>("return location.pathname"), (p) => p !== `/t/${id}`, "another chat")
+    ab("click", ".tds-rail-button[data-bell]")
+    until(() => js<string>("return document.querySelector('.tds-centre')?.textContent ?? ''"), (t) => t.includes("toast reacted 🎉"), "a centre note for toast's reaction elsewhere", 15000)
+    shot("react-centre")
+    ab("click", ".tds-rail-button[data-bell]")
   },
   needsrow() {
     ab("click", "button[aria-label='New chat']")
@@ -4459,7 +4591,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

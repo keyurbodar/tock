@@ -15,6 +15,7 @@ const regular = [
   "google-drive-logo", "hash", "at", "command", "eye", "eye-slash", "info", "question", "play", "pause", "broom", "drop", "palette",
   "house", "briefcase", "airplane-tilt", "megaphone-simple", "link-break", "shield-check", "database", "graph", "flow-arrow",
   "chart-line-up", "currency-dollar", "file-doc", "file-xls", "file-ppt", "chats-circle", "git-branch", "plugs-connected", "paper-plane-tilt", "bookmark-simple", "cpu", "hourglass-medium", "cursor-click", "hand-palm", "folder-simple-plus", "bell-simple", "checks",
+  "smiley", "arrow-bend-up-left",
 ]
 const fill = ["chat-circle", "bell", "push-pin", "folder-simple", "check-circle", "warning-circle", "hand", "circle", "star", "sparkle", "lightning", "stop", "play", "pause", "arrow-up"]
 const duotone = ["chat-circle", "bookmark-simple", "paper-plane-tilt", "plugs-connected", "git-branch", "file-doc", "file-xls", "file-ppt", "bell", "folder-simple", "file", "file-pdf", "file-text", "file-code", "file-audio", "file-video", "file-zip", "globe", "terminal-window", "brain", "key", "plug", "list-checks", "browser", "desktop", "lightning", "sparkle", "image", "text-align-left", "magnifying-glass", "clock"]

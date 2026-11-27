@@ -23,6 +23,7 @@ import { ToastRow } from "./session-stack"
 import { MoveDialog } from "./move-dialog"
 import { createHotkey } from "@tanstack/solid-hotkeys"
 import { appHotkeys, typing } from "./hotkeys"
+import { reactionLine } from "../state/reactions"
 
 type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number }
 
@@ -96,6 +97,7 @@ const swallowClick = () => ((suppressClick = true), requestAnimationFrame(() => 
 const previewOf = (session: Session) => {
   const text = plainText(session.preview)
   if (statusOf(session) === "needs") return `needs you: ${plainText(session.needs ?? "") || text}`
+  if (session.reaction && session.reaction.at >= (session.updatedAt ?? 0)) return reactionLine(session.reaction)
   if (!text) return "No messages yet"
   return session.mine ? `you: ${text}` : text
 }

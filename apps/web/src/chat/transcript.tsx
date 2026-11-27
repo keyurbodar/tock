@@ -8,6 +8,7 @@ import { buildItems, type Item } from "./items"
 import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
 import { AskCard } from "./ask"
+import { Message } from "./reactions"
 import { splitFiles } from "./attachments"
 import { Attachments } from "./files"
 import { LinkMenu, openLinkMenu, shortUrl } from "./link"
@@ -174,10 +175,14 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   const view = (item: () => Item) => (
     <Switch>
       <Match when={item().kind === "text"}>
-        <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} />
+        <Message sessionId={props.sessionId} side="agent" target={(item() as Extract<Item, { kind: "text" }>).ref} at={(item() as Extract<Item, { kind: "text" }>).at} text={(item() as Extract<Item, { kind: "text" }>).text}>
+          <Markdown text={(item() as Extract<Item, { kind: "text" }>).text} streaming={(item() as Extract<Item, { kind: "text" }>).streaming} />
+        </Message>
       </Match>
       <Match when={item().kind === "user" || item().kind === "routine"}>
-        <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} />
+        <Message sessionId={props.sessionId} side={item().kind === "user" ? "me" : "agent"} target={(item() as { ref?: string }).ref} at={(item() as Extract<Item, { kind: "user" | "routine" }>).at} text={(item() as Extract<Item, { kind: "user" | "routine" }>).text}>
+          <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} />
+        </Message>
       </Match>
       <Match when={item().kind === "work"}>
         <Activity work={item() as Work} open={open()?.key === item().key} onToggle={(anchor) => toggle(item().key, anchor)} />

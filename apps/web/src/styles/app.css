@@ -34,6 +34,7 @@
 @import "./followups.css";
 @import "./text-scale.css";
 @import "./chat-column.css";
+@import "./reactions.css";
 
 @layer base {
   html {
