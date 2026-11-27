@@ -83,6 +83,9 @@
   .tds-over { --material: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate)); background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow) }
   .tds-glass { --material: blur(var(--tds-pill-blur)) saturate(var(--tds-pill-saturate)) }
   .tds-veil-glass { --material: blur(var(--tds-veil-blur)) saturate(var(--tds-veil-saturate)) }
+  /* Static blur: a glass surface in flight (grow, drive, drag) drops the live blur and takes it back at rest, so the
+     backdrop is sampled once instead of every frame. The fill alone carries the surface while it moves. */
+  :is(.tds-over, .tds-glass, .tds-veil-glass)[data-moving] { -webkit-backdrop-filter: none; backdrop-filter: none }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .tds-over { background: var(--tds-surface-main) } }
 
   .tds-dialog {

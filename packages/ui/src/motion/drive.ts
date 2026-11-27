@@ -16,6 +16,8 @@ export function drive(el: HTMLElement, opts: { preset?: Preset; property?: strin
   let target = x
   let frame = 0
   let last = 0
+  let idle: ReturnType<typeof setTimeout> | undefined
+  const moving = (on: boolean) => (clearTimeout(idle), el.toggleAttribute("data-moving", on))
   const write = () => (el.style.setProperty(property, x.toFixed(4)), opts.onFrame?.(x))
   const step = (now: number) => {
     const dt = Math.min(0.064, last ? (now - last) / 1000 : 1 / 60)
@@ -30,6 +32,7 @@ export function drive(el: HTMLElement, opts: { preset?: Preset; property?: strin
       v = 0
       frame = 0
       write()
+      moving(false)
       opts.onRest?.(x)
       return
     }
@@ -50,7 +53,7 @@ export function drive(el: HTMLElement, opts: { preset?: Preset; property?: strin
       if (preset) ({ stiffness, damping, mass } = tokens.motion.spring[preset])
       if (velocity !== undefined) v = velocity
       if (prefersReducedMotion()) return this.set(next)
-      if (!frame) ((last = 0), (frame = requestAnimationFrame(step)))
+      if (!frame) ((last = 0), moving(true), (frame = requestAnimationFrame(step)))
     },
     /** Follow a gesture directly: no spring, velocity kept for the release. */
     set(next: number, velocity = 0) {
@@ -59,6 +62,8 @@ export function drive(el: HTMLElement, opts: { preset?: Preset; property?: strin
       x = target = next
       v = velocity
       write()
+      moving(true)
+      idle = setTimeout(() => moving(false), tokens.motion.duration["wheel-idle"])
     },
     stop: () => cancelAnimationFrame(frame),
   }

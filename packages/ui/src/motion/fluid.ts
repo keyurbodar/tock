@@ -85,7 +85,7 @@ function show(scope: HTMLElement, item: HTMLElement) {
   glow.style.height = `${h}px`
   glow.style.translate = `${at.x}px ${at.y}px`
   if (was && (was.x !== at.x || was.y !== at.y || was.w !== w || was.h !== h)) {
-    animate(glow, [{ translate: `${was.x}px ${was.y}px`, scale: `${was.w / w} ${was.h / h}` }, { translate: `${at.x}px ${at.y}px`, scale: "1 1" }], { ...springEasing("glide"), id: "tds-glide" })
+    animate(glow, [{ translate: `${was.x}px ${was.y}px`, scale: `${was.w / w} ${was.h / h}` }, { translate: `${at.x}px ${at.y}px`, scale: "1 1" }], { ...springEasing("highlight"), id: "tds-glide" })
   }
   glow.style.borderRadius = getComputedStyle(item).borderRadius
   if (fresh) {

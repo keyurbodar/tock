@@ -9,7 +9,7 @@
 
   .tds-fluid {
     position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; background: var(--tds-overlay-hover);
-    transform-origin: 0 0; transition: border-radius var(--tds-dur-glide) var(--tds-ease-glide), opacity var(--tds-dur-hover) var(--tds-ease-out);
+    transform-origin: 0 0; will-change: transform; contain: paint; transition: border-radius var(--tds-dur-glide) var(--tds-ease-glide), opacity var(--tds-dur-hover) var(--tds-ease-out);
   }
   .tds-fluid[data-on] { opacity: 1 }
   .tds-fluid[data-instant] { transition: opacity var(--tds-dur-hover) var(--tds-ease-out) }

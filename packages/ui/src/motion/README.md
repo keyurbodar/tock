@@ -22,6 +22,18 @@ createEffect(() => params.id, () => morphInto(main))      // the surface, once t
 ```
 The surface never moves, so its box never jumps. One `drive()` spring (glide) drives the clip from the source's band to the full box on `--p`, and sets `[data-morphing]` so the content fades and unblurs off the same value (motion.css). A source marked `data-handoff` skips its ghost exit, so the peek card turns into the chat instead of also shrinking back into its row. A source older than two panel durations is ignored.
 
+## Enter and exit: one table per component class
+Timing lives in `motion.enter` / `motion.exit` (tokens.json); `sources` entries pick a class with `kind`.
+
+| Class | Surfaces | Enter | Exit |
+|---|---|---|---|
+| popover | peek, palette, attachment preview, tooltips | scale `enter.popover.scale` (.96) → 1 + opacity, `enter.popover.duration` (140ms), `curve.out`, origin on the trigger side, no blur | reverse to .96 + fade in place, `exit.popover` (90ms) |
+| menu | plus menu, row/thread menus | grow out of the trigger (shared element, blur in), `enter.menu` (220ms), `curve.sheet` | shrink back into the trigger, `exit.menu` (130ms) |
+| dialog | shortcuts, dialogs | as menu, `enter.dialog` (240ms) | `exit.dialog` (150ms) |
+| sheet | notification centre, composer sheet, work log pane | `drive()` spring (velocity-keeping, scrubbable) | same spring, `pop-close` preset |
+
+Exits are always faster than enters. A glass surface in flight carries `data-moving`, which drops its live backdrop blur until it rests (static blur), and the Backdrop is a single scrim fading opacity, never a blur or scale of the app.
+
 ## Flip: layout morph
 Use it when items come, go or reflow: pins, rows, chips, attachment cards.
 ```ts
@@ -61,7 +73,7 @@ scrub(grip, { axis: "y", direction: -1, area: field, distance: () => travel(), f
 - `scrub` follows the pointer outside the handle once pressed, swallows the click that ends a drag, and with `area` keeps a wheel gesture going after the handle moves out from under it. `distance` may be a function, read at the start of each gesture.
 
 ## Backdrop
-`backdrop(true | false)` (reference counted) makes every `[data-backdrop-layer]` element (the main column and the sidebar) scale to `--tds-backdrop-scale`, blur by `--tds-backdrop-blur` and dim to `--tds-backdrop-dim`. Morph sources with `backdrop: true` call it for you.
+`backdrop(true | false)` (reference counted) and `backdropTo(holder, p)` fade one static scrim (`--tds-backdrop-scrim`) behind the open surface. Opacity only: blurring or scaling the whole app every frame cost 50+ long frames per palette open on the production build. Morph sources with `backdrop: true` call it for you. `recede(el, p)` is the per-element version the composer sheet uses.
 
 `backdropTo(holder, amount)` is the same recede keyed off a 0..1 progress, for surfaces that ride `drive()` or a gesture: the layers follow the surface frame by frame and reverse with it. Holders stack and the deepest wins. The notification centre uses `drive` + `scrub` + `backdropTo`.
 

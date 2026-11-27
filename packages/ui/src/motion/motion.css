@@ -8,7 +8,6 @@
 @keyframes tds-empty-in { from { opacity: 0; translate: 0 var(--tds-space-8) } }
 @keyframes tds-stagger-in { from { opacity: 0; translate: 0 var(--tds-space-4) } }
 @keyframes tds-ask-in { from { opacity: 0; filter: blur(var(--tds-blur-swap)) } }
-@keyframes tds-peek-in { from { opacity: 0; transform: translateX(calc(var(--tds-space-8) * -1)) scale(.97); filter: blur(var(--tds-blur-exit)) } }
 @keyframes tds-attach-shake { 25% { translate: calc(var(--tds-space-4) * -1) 0 } 60% { translate: var(--tds-space-4) 0 } }
 @keyframes tds-drop-in { from { scale: .96 } }
 @keyframes tds-sq-sweep { from { background-position: 100% 0 } to { background-position: -150% 0 } }
@@ -36,16 +35,14 @@
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: var(--tds-dur-tooltip) !important; filter: none !important; translate: none !important }
 }
 
-/* Backdrop: what sits behind an expanded surface recedes. Opt a container in with data-backdrop-layer. */
+/* Backdrop: one static scrim fades in behind an expanded surface (opacity only: blurring or scaling the whole app every frame cost 50+ long frames per open). */
 @layer components {
-  [data-backdrop-layer] { transition: scale var(--tds-dur-panel) var(--tds-ease-sheet), filter var(--tds-dur-panel) var(--tds-ease-out), opacity var(--tds-dur-panel) var(--tds-ease-out) }
-  :root[data-backdrop] [data-backdrop-layer] { scale: var(--tds-backdrop-scale); filter: blur(var(--tds-backdrop-blur)) brightness(var(--tds-backdrop-dim)) }
-  :root[data-backdrop-p]:not([data-backdrop]) [data-backdrop-layer] {
-    transition: none;
-    scale: calc(1 - (1 - var(--tds-backdrop-scale)) * var(--backdrop-p));
-    filter: blur(calc(var(--tds-backdrop-blur) * var(--backdrop-p))) brightness(calc(1 - (1 - var(--tds-backdrop-dim)) * var(--backdrop-p)));
+  .tds-backdrop-scrim {
+    position: fixed; inset: 0; z-index: calc(var(--tds-z-centre) - 1); pointer-events: none; contain: strict;
+    background: var(--tds-backdrop-scrim); opacity: 0; transition: opacity var(--tds-dur-panel) var(--tds-ease-out);
   }
-  @media (prefers-reduced-motion: reduce) { :root[data-backdrop] [data-backdrop-layer] { scale: none; filter: brightness(var(--tds-backdrop-dim)) } }
+  :root[data-backdrop] .tds-backdrop-scrim { opacity: 1 }
+  :root[data-backdrop-p]:not([data-backdrop]) .tds-backdrop-scrim { transition: none; opacity: var(--backdrop-p) }
   [data-recede] {
     transform-origin: 50% 0; transition: none;
     scale: calc(1 - var(--p) * (1 - var(--tds-backdrop-scale)));
