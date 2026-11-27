@@ -45,6 +45,25 @@ const choose = (label: string) =>
     js<boolean>(`const e = [...document.querySelectorAll('.tds-menu-item, .tds-button')].find((el) => el.textContent.trim() === ${JSON.stringify(label)}); e?.click(); return !!e`),
     `no "${label}" item`,
   )
+function png(path: string, width: number, height: number, rgb: readonly [number, number, number]) {
+  const { deflateSync } = require("node:zlib") as typeof import("node:zlib")
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3).map((_, i) => rgb[i % 3]!)])
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type), data])
+    const out = Buffer.alloc(12 + data.length)
+    out.writeUInt32BE(data.length, 0)
+    body.copy(out, 4)
+    out.writeUInt32BE(Bun.hash.crc32(body), 8 + data.length)
+    return out
+  }
+  const head = Buffer.alloc(13)
+  head.writeUInt32BE(width, 0)
+  head.writeUInt32BE(height, 4)
+  head.set([8, 2, 0, 0, 0], 8)
+  Bun.write(path, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", head), chunk("IDAT", deflateSync(Buffer.concat(Array.from({ length: height }, () => row)))), chunk("IEND", Buffer.alloc(0))]))
+  return path
+}
+const lightboxCount = () => js<string>("return document.querySelector('.tds-lightbox-count')?.textContent ?? ''")
 const openRow = () => {
   ab("hover", ".tds-row-wrap")
   ab("click", ".tds-row-wrap .tds-row-more")
@@ -386,6 +405,69 @@ const journeys: Record<string, () => void> = {
     until(() => rect(".tds-field")?.h, (h) => h === 38, "the composer to shrink back after sending")
     shot("attach-sent")
   },
+  lightbox() {
+    const work = join(homedir(), ".capy/work")
+    const files = [png(join(work, "verify-rose.png"), 640, 420, [229, 143, 180]), png(join(work, "verify-teal.png"), 420, 640, [80, 190, 170]), png(join(work, "verify-gold.png"), 600, 600, [230, 190, 90])]
+    wait(200)
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+    ab("upload", ".tds-composer-wrap input[type=file]", ...files)
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 3 && s.every((x) => x === "done"), "three uploads to finish", 15000)
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Three pictures")
+    ab("press", "Enter")
+    until(() => js<boolean>("const imgs = [...document.querySelectorAll('.tds-sent-images[data-count=\"3\"] .tds-sent-image img')]; return imgs.length === 3 && imgs.every((i) => i.complete && i.naturalWidth > 0)"), Boolean, "a row of three loaded images")
+    const row = js<{ w: number; h: number; first: string; inner: string; last: string }>("const t = [...document.querySelectorAll('.tds-sent-images[data-count=\"3\"] .tds-sent-image')]; const s = (e) => getComputedStyle(e); const r = t[0].getBoundingClientRect(); return { w: r.width, h: r.height, first: s(t[0]).borderTopLeftRadius + ' ' + s(t[0]).borderTopRightRadius, inner: s(t[1]).borderTopLeftRadius, last: s(t[2]).borderBottomRightRadius }")
+    check(row.w === 130 && row.h === 130 && row.first === "18px 6px" && row.inner === "6px" && row.last === "18px", `image row of three: ${JSON.stringify(row)}`)
+    shot("media-row-3")
+    ab("click", ".tds-sent-images[data-count='3'] .tds-sent-image:nth-child(2)")
+    until(() => exists(".tds-lightbox[data-ready]"), Boolean, "the lightbox to open")
+    wait(300)
+    check(lightboxCount() === "2 of 3", `count should read 2 of 3, got "${lightboxCount()}"`)
+    check(js<number>("return document.querySelectorAll('.tds-lightbox-film button').length") === 3, "three filmstrip thumbs")
+    check(js<boolean>("return document.querySelectorAll('.tds-lightbox-film button')[1].hasAttribute('data-on')"), "the second thumb is current")
+    check(style(".tds-sent-images[data-count='3'] .tds-sent-image:nth-child(2)", "visibility") === "hidden", "the source thumbnail hides while it is grown")
+    until(() => js<string>("return document.querySelector('.tds-lightbox-bar em')?.textContent ?? ''"), (t) => /B$/.test(t), "the size in the bar")
+    shot("lightbox-open")
+    ab("press", "ArrowRight")
+    until(lightboxCount, (t) => t === "3 of 3", "ArrowRight to go to 3 of 3")
+    ab("press", "ArrowRight")
+    wait(350)
+    check(lightboxCount() === "3 of 3", "ArrowRight at the end bounces and stays on 3 of 3")
+    ab("click", ".tds-lightbox-nav[data-dir='prev']")
+    until(lightboxCount, (t) => t === "2 of 3", "the prev button")
+    ab("click", ".tds-lightbox-film button:nth-child(1)")
+    until(lightboxCount, (t) => t === "1 of 3", "the filmstrip")
+    ab("press", "ArrowRight")
+    until(lightboxCount, (t) => t === "2 of 3", "back to the opened image")
+    wait(350)
+    shot("lightbox-nav")
+    ab("press", "Escape")
+    until(() => exists(".tds-lightbox"), (open) => !open, "Escape to shrink the lightbox away")
+    check(style(".tds-sent-images[data-count='3'] .tds-sent-image:nth-child(2)", "visibility") === "visible", "the thumbnail shows again")
+    check(exists(".tds-sent-image"), "the transcript is still there")
+  },
+  finished() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Search the web for the history of toast and write a long summary")
+    ab("press", "Enter")
+    const chat = until(() => js<string>("return location.pathname.startsWith('/t/') ? location.pathname.slice(3) : ''"), Boolean, "the chat to get an id")
+    until(() => exists(`.tds-row[href="/t/${chat}"][data-status="working"]`), Boolean, "chat A to start working", 10000)
+    ab("click", "button[aria-label='New chat']")
+    until(() => !location.pathname.includes(chat) || js<string>("return location.pathname") !== `/t/${chat}`, Boolean, "leaving chat A")
+    check(js<string>("return location.pathname") !== `/t/${chat}`, "chat B is open")
+    const title = until(() => js<string>(`return [...document.querySelectorAll('.tds-toast')].map((t) => t.querySelector('.tds-toast-title')?.textContent ?? '').join('|')`), (t) => t.length > 0, "the finished toast", 60000)
+    shot("finished-toast")
+    until(() => exists(`.tds-flight-dot[data-chat="${chat}"]`), Boolean, "the dot to fly home", 6000)
+    wait(250)
+    shot("finished-flight")
+    until(() => exists(`.tds-flight-dot`), (flying) => !flying, "the dot to land", 3000)
+    until(() => exists(`.tds-row[href="/t/${chat}"][data-unread] .tds-unread`), Boolean, "chat A's row to show unread")
+    shot("finished-landed")
+    void title
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -395,7 +477,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "links", "mention", "command", "toasts", "expand", "stopped", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

@@ -3,6 +3,7 @@ import type { ConversationView, EntryRecord, LiveState, SessionSummary, ThreadMe
 import { idb } from "../lib/idb"
 import { socket, type ConnectionState } from "../lib/socket"
 import { addNote } from "./notes"
+import { finishedElsewhere } from "../shell/finished"
 
 const LIVE_DOC = "pi.live"
 
@@ -148,12 +149,10 @@ function noteFinished(sessionId: string, failure: LiveState["runFailure"]) {
   if (failure?.reason === "aborted") return
   if (!document.hidden && location.pathname === `/t/${sessionId}`) return
   const session = app.sessions.find((item) => item.id === sessionId)
-  addNote({
-    chat: sessionId,
-    tone: failure ? "failed" : "done",
-    title: titleOf(session),
-    body: failure ? (failure.detail ?? failure.reason) : plainText(session?.preview ?? "") || "Finished",
-  })
+  const title = titleOf(session)
+  const body = failure ? (failure.detail ?? failure.reason) : plainText(session?.preview ?? "") || "Finished"
+  addNote({ chat: sessionId, tone: failure ? "failed" : "done", title, body })
+  if (!failure && location.pathname !== `/t/${sessionId}`) finishedElsewhere(sessionId, title, body, () => void updateThread(sessionId, { unread: true }))
 }
 
 async function reload(sessionId: string) {

@@ -10,6 +10,7 @@ import { Gate } from "./shell/gate"
 import { Shortcuts } from "./shell/shortcuts"
 import { Toasts } from "./shell/toasts"
 import { Palette } from "./shell/palette"
+import { Lightbox } from "./chat/lightbox"
 import { Router } from "./router"
 
 function Shell(props: { children?: JSX.Element }) {
@@ -22,6 +23,7 @@ function Shell(props: { children?: JSX.Element }) {
       <Shortcuts />
       <Toasts />
       <Palette />
+      <Lightbox />
       <Show when={app.connection === "unauthorized"}>
         <Gate />
       </Show>

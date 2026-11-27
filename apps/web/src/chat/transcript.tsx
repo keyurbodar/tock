@@ -6,6 +6,7 @@ import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
 import { fileUrl, isImage, splitFiles } from "./attachments"
 import { FileCard, ThreadChip } from "./chip"
+import { openLightbox } from "./lightbox"
 import { ExternalLink, LinkMenu, openLinkMenu, shortUrl, webHost } from "./link"
 import { toast } from "../shell/toasts"
 import { app, type ThreadState } from "../state/app"
@@ -38,6 +39,15 @@ function Prose(props: { text: string }) {
   )
 }
 
+/** A plain click grows the picture into the lightbox, with every picture in this chat as its gallery; modified clicks keep the link. */
+function viewImage(event: MouseEvent) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
+  event.preventDefault()
+  const from = event.currentTarget as HTMLElement
+  const all = [...(from.closest(".tds-column") ?? from.parentElement!).querySelectorAll<HTMLElement>(".tds-sent-image[data-file]")]
+  openLightbox(all.map((el) => ({ id: el.dataset.file!, name: el.dataset.name ?? "" })), all.indexOf(from), from)
+}
+
 function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
   const mine = () => props.item.kind === "user"
   const parts = createMemo(() => splitFiles(props.item.text))
@@ -46,10 +56,10 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
   return (
     <>
       <Show when={images().length > 0}>
-        <div class="tds-sent-images" data-count={Math.min(images().length, 3)} data-queued={props.queued ? "" : undefined}>
+        <div class="tds-sent-images" data-count={Math.min(images().length, 3)} data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
           <For each={images()} keyed={(file) => file.id}>
             {(file) => (
-              <a href={fileUrl(file().id)} target="_blank" rel="noreferrer" class="tds-sent-image">
+              <a href={fileUrl(file().id)} target="_blank" rel="noreferrer" class="tds-sent-image" data-file={file().id} data-name={file().name} onClick={viewImage}>
                 <img src={fileUrl(file().id)} alt={file().name} loading="lazy" draggable={false} />
               </a>
             )}

@@ -468,21 +468,6 @@
     & i:first-child { rotate: -8deg; translate: 0 var(--tds-space-4) } & i:last-child { rotate: 8deg; translate: 0 var(--tds-space-4) } & i:nth-child(2) { z-index: 1 }
   }
 
-  .tds-sent-images {
-    align-self: flex-end; display: flex; gap: var(--tds-space-4); margin-top: var(--tds-space-14);
-    & + .tds-bubble { margin-top: var(--tds-space-4) }
-  }
-  .tds-sent-images[data-queued] { opacity: .55 }
-  .tds-sent-image { display: block; overflow: hidden; border-radius: var(--tds-radius-media-lg); background: var(--tds-surface-attach); box-shadow: var(--tds-ring-card) }
-  .tds-sent-image img { display: block; width: var(--tds-size-img2-w); height: var(--tds-size-img2-h); object-fit: cover }
-  .tds-sent-images[data-count="1"] .tds-sent-image img { width: var(--tds-size-img1-w); height: var(--tds-size-img1-h) }
-  .tds-file-card {
-    display: flex; align-items: center; gap: var(--tds-space-10); width: var(--tds-size-file-card); margin-top: var(--tds-space-6); padding: var(--tds-space-8) var(--tds-space-12) var(--tds-space-8) var(--tds-space-8);
-    border-radius: var(--tds-radius-card-sm); background: var(--tds-surface-card); box-shadow: var(--tds-ring-card); color: inherit; text-decoration: none;
-    transition: box-shadow var(--tds-dur-hover) var(--tds-ease-out);
-  }
-  .tds-file-card[data-side="me"] { align-self: flex-end } .tds-file-card[data-side="agent"] { align-self: flex-start }
-  @media (hover: hover) and (pointer: fine) { .tds-file-card:hover { box-shadow: var(--tds-ring-attach-hover) } }
 }
 
 @layer components {
