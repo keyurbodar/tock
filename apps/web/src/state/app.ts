@@ -165,7 +165,7 @@ async function reload(sessionId: string) {
 }
 
 export async function subscribe(sessionId: string) {
-  if (app.sessions.find((session) => session.id === sessionId)?.meta.unread) void updateThread(sessionId, { unread: false })
+  if (app.sessions.find((session) => session.id === sessionId)?.meta.unread) queueMicrotask(() => void updateThread(sessionId, { unread: false }))
   if (!app.threads[sessionId]) {
     const cached = await idb.get<readonly EntryRecord[]>("threads", sessionId)
     thread(sessionId, (state) => {

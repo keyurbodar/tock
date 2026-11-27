@@ -11,6 +11,7 @@ import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
+import { spring } from "../lib/spring"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
@@ -97,6 +98,8 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
   let right!: HTMLDivElement
   let icon!: HTMLSpanElement
   let start: { x: number; y: number; from: number; id: number; mouse: boolean } | undefined
+  let velocity = 0
+  let last = { x: 0, t: 0 }
   let mode: "swipe" | "drag" | undefined
   let x = 0
   let go = false
@@ -104,7 +107,8 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
 
   const setX = (next: number, animate = false) => {
     x = next
-    const ease = animate ? `${D.swap}ms ${curve.sheet}` : "0s"
+    const settle = spring()
+    const ease = animate ? `${settle.duration}ms ${settle.easing}` : "0s"
     row.style.transition = `transform ${ease}`
     for (const side of [left, right]) side.style.transition = `width ${ease}`
     row.style.transform = next ? `translateX(${next}px)` : ""
@@ -142,8 +146,10 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
     }, D.menu)
   }
   const release = () => {
-    if (go) return act(x > 0 ? "pin" : "archive")
-    if (Math.abs(x) > L["swipe-snap"]) {
+    const projected = x + velocity * D["swipe-project"]
+    const flick = Math.abs(velocity) > L["swipe-velocity"] && Math.sign(velocity) === Math.sign(x)
+    if (go || (flick && Math.abs(projected) > row.offsetWidth * L["swipe-commit"])) return act(x > 0 ? "pin" : "archive")
+    if (Math.abs(projected) > L["swipe-snap"] && Math.sign(projected) === Math.sign(x)) {
       setX(Math.sign(x) * tokens.size.swipe * 2, true)
       closeOpenSwipe = close
       return
@@ -235,6 +241,8 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
           if (e.button !== 0 || renaming() === untrack(() => props.session.id)) return
           if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe()
           start = { x: e.clientX, y: e.clientY, from: x, id: e.pointerId, mouse: e.pointerType === "mouse" }
+          velocity = 0
+          last = { x: e.clientX, t: e.timeStamp }
           mode = undefined
         }}
         onPointerMove={(e) => {
@@ -252,6 +260,9 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
               dragStart(e)
             } else return
           }
+          const dt = e.timeStamp - last.t
+          if (dt > 0) velocity = velocity * 0.4 + ((e.clientX - last.x) / dt) * 0.6
+          last = { x: e.clientX, t: e.timeStamp }
           if (mode === "swipe") drag(start.from + dx)
           else dragMove(e)
         }}
@@ -294,7 +305,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
         </span>
         <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, now())} /></span>
         <span class="tds-row-preview">
-          <Highlight text={plainText(props.session.preview) || " "} query={props.query} />
+          <Highlight text={plainText(props.session.preview) || "No messages yet"} query={props.query} />
         </span>
         <span class="tds-row-mark">
           <Show when={props.session.busy} fallback={<Show when={props.session.meta.unread}><i class="tds-unread" /></Show>}>
