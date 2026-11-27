@@ -141,7 +141,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
       const target = untrack(wanted)
       if (!target) return
       const mounted = !!untrack(key) && !!row && row.isConnected && row.getAnimations().length === 0
-      const last = handoff && performance.now() - handoff.at < tokens.motion.duration.panel * 3 ? handoff : undefined
+      const last = handoff && performance.now() - handoff.at < tokens.motion.duration["followup-handoff"] ? handoff : undefined
       handoff = undefined
       if (mounted && target.items.length <= untrack(chips).length) morph(target, untrack(chips).map((chip) => chip.cur), widths())
       else if (!mounted && last && target.items.length <= last.items.length) morph(target, last.items, last.widths)
