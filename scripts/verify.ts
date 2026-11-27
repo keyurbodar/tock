@@ -200,6 +200,17 @@ function say(text: string) {
   ab("press", "Enter")
   until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
 }
+/** After a run settles, the reveal must finish: no word left waiting or mid-fade, and no reply bubble still held invisible. */
+function revealed(where: string) {
+  const left = () => js<string[]>("return [...document.querySelectorAll('.tds-column .tds-word-wait, .tds-column .tds-word, .tds-column .tds-bubble[data-wait]')].map((e) => (e.matches('[data-wait]') ? 'held bubble: ' : e.className + ': ') + e.textContent.trim().slice(0, 30))")
+  let stuck: string[] = []
+  try {
+    until(left, (l) => l.length === 0, "the reveal to finish", 15000)
+  } catch {
+    stuck = left()
+  }
+  check(stuck.length === 0, where + ": every word is visible once streaming ends; still hidden or fading: " + JSON.stringify(stuck))
+}
 /** Waits for the run to finish: an agent reply on screen and no Stop button. */
 /** The composer editor, once its chunk has loaded over the static shell. */
 const field = () => (until(() => exists(".ProseMirror"), Boolean, "the composer editor"), ab("click", ".ProseMirror"))
@@ -2975,6 +2986,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     fresh()
     say("Show every markdown format")
     settled()
+    revealed("markdown")
     until(() => exists(".tds-bubble[data-side='agent'] table"), Boolean, "the formats reply", 20000)
     wait(800)
     const md = js<Record<string, unknown>>("const a = [...document.querySelectorAll(\".tds-bubble[data-side='agent']\")]; const q = (s) => a.flatMap((b) => [...b.querySelectorAll(s)]); const link = q('a.tds-link')[0]; return { del: q('del').map((e) => e.textContent), quote: q('blockquote').map((e) => e.textContent.trim()), hr: document.querySelectorAll('.tds-column hr.tds-rule').length, ol: q('ol').map((e) => e.getAttribute('start')), nested: q('ul > li > ul > li').map((e) => e.textContent.trim()), tasks: q('.tds-task').map((e) => e.getAttribute('aria-label')), th: q('th').map((e) => e.textContent), right: q('td[data-align=right]').length, raw: a.some((b) => /^(>|\\||---|~~)/m.test(b.textContent)), linkColor: link && getComputedStyle(link).color, tx: getComputedStyle(document.body).color, dots: link && getComputedStyle(link).backgroundImage }")
@@ -3075,24 +3087,34 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(td![2]?.text === "40 minutes later", `a 40m gap reads 40 minutes later (got ${JSON.stringify(td![2])})`)
     check(td![3]?.tone === undefined && /PM|AM/.test(td![3]?.text ?? ""), `a 5h gap shows the day and time (got ${JSON.stringify(td![3])})`)
   },
-  streamsmooth() {
-    fresh()
-    field()
-    ab("keyboard", "type", WEATHER)
-    ab("eval", readFileSync(join(import.meta.dir, "verify-stream.js"), "utf8"))
-    ab("press", "Enter")
-    settled()
-    until(() => exists(".tds-word-wait, .tds-word"), (busy) => !busy, "the reveal to finish", 15000)
-    wait(300)
-    const s = js<{ frames: number; shells: number; order: number; shrink: number; drop: number; notes: string[] }>("window.__stream.stop = true; return window.__stream")
-    console.log("      streaming frames " + s.frames + " " + JSON.stringify(s.notes))
-    check(s.frames > 60, "sampled the stream frame by frame (" + s.frames + " frames)")
-    check(s.shells === 0, "no empty bubble shell shows before its words: " + s.shells + " frames " + JSON.stringify(s.notes))
-    check(s.order === 0, "words reveal in reading order: " + JSON.stringify(s.notes))
-    check(s.shrink === 0, "no streamed bubble shrinks while it streams (reflow flicker): " + JSON.stringify(s.notes))
-    check(s.drop === 0, "the reply never vanishes or shrinks at the live-to-saved swap: " + JSON.stringify(s.notes))
-    shot("streamsmooth")
+  async streamsmooth() {
+    const cdp = await cdpPage()
+    try {
+      for (const rate of [1, 4]) {
+        fresh()
+        field()
+        ab("keyboard", "type", WEATHER)
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate })
+        ab("eval", readFileSync(join(import.meta.dir, "verify-stream.js"), "utf8"))
+        ab("press", "Enter")
+        settled()
+        revealed("streamsmooth at " + rate + "x")
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
+        const s = js<{ frames: number; shells: number; order: number; shrink: number; drop: number; notes: string[] }>("window.__stream.stop = true; return window.__stream")
+        console.log("      " + rate + "x streaming frames " + s.frames + " " + JSON.stringify(s.notes))
+        check(s.frames > 30, "sampled the stream frame by frame (" + s.frames + " frames)")
+        check(s.shells === 0, "no empty bubble shell shows before its words: " + s.shells + " frames " + JSON.stringify(s.notes))
+        check(s.order === 0, "words reveal in reading order: " + JSON.stringify(s.notes))
+        check(s.shrink === 0, "no streamed bubble shrinks while it streams (reflow flicker): " + JSON.stringify(s.notes))
+        check(s.drop === 0, "the reply never vanishes or shrinks at the live-to-saved swap: " + JSON.stringify(s.notes))
+        shot("streamsmooth-" + rate + "x")
+      }
+    } finally {
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 }).catch(() => {})
+      cdp.close()
+    }
   },
+
   revealstable() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")

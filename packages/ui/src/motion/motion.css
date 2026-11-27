@@ -29,7 +29,7 @@
   color: transparent;
   animation: tds-shimmer var(--tds-dur-loop) linear infinite;
 }
-.tds-word { opacity: 0; animation: tds-word var(--tds-dur-word) var(--tds-ease-out) forwards }
+.tds-word { animation: tds-word var(--tds-dur-word) var(--tds-ease-out) backwards }
 .tds-shake { animation: tds-shake var(--tds-dur-swap) var(--tds-ease-std) }
 .tds-flight-dot {
   position: fixed; z-index: var(--tds-z-flight); width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;

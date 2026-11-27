@@ -18,19 +18,25 @@ interface Words {
   hidden(i: number): boolean
   /** A word laid out but not yet shown; the reveal flips it in place when its turn comes, so a reveal step never re-renders. */
   wait(el: HTMLElement, i: number): void
+  /** Every span given a reveal class, so the end of the reveal can leave each one plain text. */
+  track(el: HTMLElement): void
 }
 
 /** A word whose fade has finished is plain text again. */
-const settle = (el: HTMLElement) => el.addEventListener("animationend", () => el.removeAttribute("class"), { once: true })
+const settle = (el: HTMLElement) => {
+  const plain = () => el.removeAttribute("class")
+  el.addEventListener("animationend", plain, { once: true })
+  el.addEventListener("animationcancel", plain, { once: true })
+}
 
 function words(text: string, clock: Words | undefined): JSX.Element {
   if (!clock) return text
   return text.split(/(\s+)/).map((part) => {
     if (part === "" || /^\s+$/.test(part)) return part
     const i = clock.next()
-    if (clock.hidden(i)) return <span ref={(el) => clock.wait(el, i)} class="tds-word-wait">{part}</span>
+    if (clock.hidden(i)) return <span ref={(el) => (clock.wait(el, i), clock.track(el))} class="tds-word-wait">{part}</span>
     const delay = clock.delay(i)
-    return delay ? <span ref={settle} class="tds-word" style={{ "animation-delay": delay }}>{part}</span> : part
+    return delay ? <span ref={(el) => (settle(el), clock.track(el))} class="tds-word" style={{ "animation-delay": delay }}>{part}</span> : part
   })
 }
 
@@ -176,13 +182,13 @@ const floors = new ResizeObserver((entries) => {
 })
 
 /** Blocks speak for the agent only in a reply; inside your own bubble they take no side, so selectors for agent bubbles never match your message's paragraphs. */
-function Block(props: { token: Token; clock?: () => Words | undefined; nested?: boolean; open: boolean; wait: boolean; address?: string }) {
+function Block(props: { token: Token; clock?: () => Words | undefined; nested?: boolean; open: boolean; wait: boolean; hold?: (bubble: HTMLElement) => void; address?: string }) {
   const side = () => (props.nested ? undefined : "agent")
-  const wait = untrack(() => props.wait)
+  const { wait, hold } = untrack(() => ({ wait: props.wait, hold: props.hold }))
   const bubble = (el: HTMLElement) => {
     clamp(el)
     floors.observe(el)
-    if (wait) el.dataset.wait = ""
+    if (wait) (el.dataset.wait = ""), hold?.(el)
   }
   return (
     <Switch fallback={<div ref={bubble} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-ref={props.address} data-open={props.open ? "" : undefined}>{props.token.raw.trim()}</div>}>
@@ -260,7 +266,6 @@ export function Markdown(props: { text: string; streaming?: boolean; nested?: bo
     for (const [i, el] of waiting) {
       if (i >= count) continue
       waiting.delete(i)
-      if (!el.isConnected) continue
       settle(el)
       el.className = "tds-word"
       const box = el.closest<HTMLElement>("[data-wait]")
@@ -269,7 +274,28 @@ export function Markdown(props: { text: string; streaming?: boolean; nested?: bo
       animate(box, [{ opacity: 0 }, { opacity: 1 }], tokens.motion.duration.word)
     }
   })
-  onCleanup(() => waiting.clear())
+  /**
+   * Once the reply has stopped streaming and the reveal has reached its last word, every word is plain text and every
+   * held bubble shows, whatever happened to an individual span on the way (a flip it missed while detached, a fade the
+   * browser cancelled): the end state never depends on each word's own events.
+   */
+  const tracked = new Set<HTMLElement>()
+  const held = new Set<HTMLElement>()
+  createEffect(
+    () => !reveal.revealing() && !(props.streaming ?? false),
+    (done) => {
+      if (!done) return
+      const timer = setTimeout(() => {
+        for (const el of tracked) el.removeAttribute("class")
+        for (const bubble of held) delete bubble.dataset.wait
+        tracked.clear()
+        held.clear()
+        waiting.clear()
+      }, tokens.motion.duration.word)
+      return () => clearTimeout(timer)
+    },
+  )
+  onCleanup(() => (waiting.clear(), tracked.clear(), held.clear()))
   const live = () => untrack(() => reveal.revealing() || (props.streaming ?? false))
   const clockFor = (index: number): Words | undefined => {
     if (!live()) return undefined
@@ -279,11 +305,12 @@ export function Markdown(props: { text: string; streaming?: boolean; nested?: bo
       delay: reveal.delay,
       hidden: (n) => untrack(() => reveal.hidden(n)),
       wait: (el, n) => void waiting.set(n, el),
+      track: (el) => void tracked.add(el),
     }
   }
   return (
     <For each={blocks()} keyed={false}>
-      {(token, index) => <Block token={token()} clock={() => clockFor(index)} nested={props.nested} open={(props.streaming ?? false) && index === blocks().length - 1} wait={live() && untrack(() => reveal.hidden(offsets()[index] ?? 0))} address={props.address} />}
+      {(token, index) => <Block token={token()} clock={() => clockFor(index)} nested={props.nested} open={(props.streaming ?? false) && index === blocks().length - 1} wait={live() && untrack(() => reveal.hidden(offsets()[index] ?? 0))} hold={(bubble) => void held.add(bubble)} address={props.address} />}
     </For>
   )
 }
