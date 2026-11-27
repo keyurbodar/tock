@@ -1118,6 +1118,7 @@ const journeys: Record<string, () => void> = {
     ab("keyboard", "inserttext", long)
     ab("press", "Enter")
     until(() => exists(".tds-bubble[data-side='me'][data-clamped]"), Boolean, "the long bubble to clamp")
+    wait(400)
     check(Math.round(rect(".tds-bubble[data-side='me'][data-clamped]")?.h ?? 0) === 320, `clamped bubble is 320 tall, got ${rect(".tds-bubble[data-side='me'][data-clamped]")?.h}`)
     check(style(".tds-bubble[data-side='me'][data-clamped]", "maskImage")?.includes("gradient"), "the clamp fades out")
     shot("clamp-closed")
