@@ -1,5 +1,5 @@
 import { clamp } from "./clamp"
-import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
 import { Icon } from "@tock/ui/icon"
@@ -109,12 +109,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   })
   onCleanup(() => grow.disconnect())
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
-  const [shut, setShut] = createSignal(false)
-  const toggle = (key: string, anchor: HTMLElement) => {
-    if (untrack(open)?.key === key && !untrack(shut)) return setShut(true)
-    setShut(false)
-    setOpen({ key, anchor })
-  }
+  const toggle = (key: string, anchor: HTMLElement) => setOpen((current) => (current?.key === key ? undefined : { key, anchor }))
   const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting") : []))
   createEffect(
     () => props.state?.pending.at(-1)?.id,
@@ -149,10 +144,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
                 <Bubble item={item() as Extract<Item, { kind: "user" | "routine" }>} queued={(item() as { queued?: boolean }).queued === true} />
               </Match>
               <Match when={item().kind === "work"}>
-                <Activity work={item() as Work} open={open()?.key === item().key && !shut()} onToggle={(anchor) => toggle(item().key, anchor)} />
-                <Show when={open()?.key === item().key}>
-                  <WorkLog work={item() as Work} shut={shut()} sessionId={props.sessionId} onClose={() => setOpen(undefined)} />
-                </Show>
+                <Activity work={item() as Work} open={open()?.key === item().key} onToggle={(anchor) => toggle(item().key, anchor)} />
               </Match>
               <Match when={item().kind === "ask" && (item() as Extract<Item, { kind: "ask" }>)}>
                 {(ask) => <AskCard sessionId={props.sessionId} ask={ask().ask} answer={ask().answer} pending={ask().pending} />}
@@ -185,6 +177,9 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
       Scroll to end
     </button>
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
+    <Show when={open()}>
+      {(current) => <WorkLog work={items().find((item): item is Work => item.kind === "work" && item.key === current().key)} anchor={current().anchor} sessionId={props.sessionId} onClose={() => setOpen(undefined)} />}
+    </Show>
     </>
   )
 }

@@ -5,13 +5,18 @@
   .tds-ws-fold[data-open] { grid-template-rows: 1fr }
   .tds-ws-fold > * { min-height: 0; overflow: hidden }
   .tds-ws-fold:not([data-open]) > .tds-ws-body { margin-block: 0 }
-  .tds-ws-fold > .tds-ws-body { transition-property: opacity, filter, margin; }
   .tds-ws-fold .tds-ws-body { opacity: 0; filter: blur(var(--tds-blur-enter)); transition: opacity var(--tds-dur-exit-small) var(--tds-ease-out), filter var(--tds-dur-exit-small) var(--tds-ease-out) }
   .tds-ws-fold[data-open] .tds-ws-body { opacity: 1; filter: none; transition-duration: var(--tds-dur-layout) }
   .tds-ws-caret { transition: rotate var(--tds-dur-layout) var(--tds-ease-sheet) }
   .tds-worklog-body { flex: 1 1 auto; overflow-anchor: none }
-  .tds-column .tds-worklog { position: relative; left: auto; bottom: auto; z-index: auto; width: 100%; margin-top: var(--tds-space-6); --tds-raise-ring: var(--tds-ring-card); transform-origin: top left }
-  .tds-column .tds-worklog[data-closing] { translate: none; scale: none; opacity: 0; transition-duration: var(--tds-dur-layout); transition-timing-function: var(--tds-ease-sheet) }
+  .tds-worklog-content { display: flow-root }
+  .tds-worklog { width: min(var(--tds-size-worklog-pane), calc(100% - var(--tds-space-32) * 2)); --tds-raise-ring: var(--tds-ring-card) }
+  .tds-worklog[data-down] { transform-origin: var(--tds-space-20) 0 }
+  .tds-worklog .tds-worklog-head { height: var(--tds-size-worklog-head); padding: 0 var(--tds-space-8) 0 var(--tds-space-12); gap: var(--tds-space-8) }
+  .tds-worklog .tds-worklog-body { padding: var(--tds-space-6) var(--tds-space-6) var(--tds-space-8) }
+  .tds-worklog .tds-ws-line { min-height: var(--tds-size-worklog-row); padding: var(--tds-space-4) var(--tds-space-6); column-gap: var(--tds-space-6) }
+  .tds-worklog .tds-plan { padding: var(--tds-space-2) var(--tds-space-6) var(--tds-space-8); margin-bottom: var(--tds-space-6) }
+  .tds-ws-fold > .tds-ws-body { max-height: var(--tds-size-worklog-out); overflow-y: auto; overscroll-behavior: contain }
   .tds-jump {
     position: absolute; left: 50%; bottom: var(--tds-size-column-bottom); z-index: 1;
     display: inline-flex; align-items: center; gap: var(--tds-space-6);

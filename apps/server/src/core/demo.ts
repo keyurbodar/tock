@@ -43,6 +43,17 @@ const scripted: FauxResponseFactory = (context) => {
   const done = new Set(context.messages.slice(lastUser + 1).flatMap((m) => (m.role === "toolResult" ? [m.toolName] : [])))
   const answered = context.messages.slice(lastUser + 1).find((m) => m.role === "toolResult" && m.toolName === "ask_owner")
   const plans = context.messages.slice(lastUser + 1).filter((m) => m.role === "toolResult" && m.toolName === "update_plan").length
+  if (/long job/i.test(asked)) {
+    const ran = context.messages.slice(lastUser + 1).filter((m) => m.role === "toolResult").length
+    if (ran >= 30) return fauxAssistantMessage(fauxText("The long job finished: 30 steps, nothing failed."))
+    if (ran === 0)
+      return fauxAssistantMessage([
+        fauxThinking("A long job: I'll work through it in batches and dump the full log once so you can scroll it."),
+        fauxToolCall("codemode", { code: "return Array.from({ length: 160 }, (_, i) => `line ${i + 1}: processed shard ${i}`).join(\"\\n\")" }),
+        fauxToolCall("memory_search", { query: "long job batch 1" }),
+      ], { stopReason: "toolUse" })
+    return fauxAssistantMessage([0, 1, 2].map((n) => fauxToolCall("memory_search", { query: `long job batch ${ran + n}` })), { stopReason: "toolUse" })
+  }
   const approval = /approve/i.test(asked)
   const question = /question|choose/i.test(asked)
   if (!done.size && (approval || question))

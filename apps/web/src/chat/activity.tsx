@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
+import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
@@ -201,45 +201,78 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
   )
 }
 
-export function WorkLog(props: { work: Work | undefined; shut: boolean; sessionId: string; onClose: () => void }) {
+export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | undefined; sessionId: string; onClose: () => void }) {
   const [closing, setClosing] = createSignal(false)
+  const [place, setPlace] = createSignal({ left: 0, edge: 0, up: true, max: 0 })
   const [scrolled, setScrolled] = createSignal(false)
+  let panel!: HTMLDivElement
   let head!: HTMLDivElement
   let content!: HTMLDivElement
   const [body, setBody] = createSignal<HTMLDivElement>()
-  const [height, setHeight] = createSignal(0)
+  const [height, setHeight] = createSignal<number>()
   let stick = true
 
-  const close = () => {
-    if (untrack(closing)) return
-    setClosing(true)
-    setHeight(0)
-    setTimeout(() => props.onClose(), tokens.motion.duration.layout)
+  let side: "up" | "down" | undefined
+  const measure = () => {
+    const host = panel?.offsetParent
+    if (!props.anchor || !host) return
+    const box = host.getBoundingClientRect()
+    const at = props.anchor.getBoundingClientRect()
+    const above = at.top - box.top - tokens.size["worklog-top"]
+    const below = box.bottom - at.bottom - tokens.size["column-bottom"]
+    const want = untrack(height) ?? 0
+    const pick = want > 0 && want <= below ? "down" : above > below ? "up" : "down"
+    if (want > 0) side ??= pick
+    const up = (side ?? pick) === "up"
+    setPlace({
+      left: at.left - box.left,
+      edge: up ? box.bottom - at.top + tokens.size["worklog-anchor"] : at.bottom - box.top + tokens.size["worklog-anchor"],
+      up,
+      max: up ? above : below,
+    })
   }
-  createEffect(
-    () => props.shut,
-    (shut) => {
-      if (shut) close()
-    },
-  )
+
+
+  const close = () => {
+    if (closing()) return
+    setClosing(true)
+    setTimeout(props.onClose, tokens.motion.duration.exit)
+  }
+
   const onKey = (e: KeyboardEvent) => e.key === "Escape" && close()
+  const onPointer = (e: PointerEvent) => {
+    const target = e.target as Node
+    if (!panel.contains(target) && !props.anchor?.contains(target)) close()
+  }
   const fit = () => {
     const scroller = body()
-    if (!scroller || !content || !head || untrack(closing)) return
+    if (!scroller || !content || !head) return
     const style = getComputedStyle(scroller)
     setHeight(head.offsetHeight + content.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom))
     if (stick && props.work?.active) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight))
   }
   const grow = new ResizeObserver(fit)
   const frame = requestAnimationFrame(() => {
+    fit()
+    measure()
     if (content) grow.observe(content)
+    if (props.anchor?.offsetParent) grow.observe(props.anchor.offsetParent)
     fit()
   })
+  const onScroll = (e: Event) => {
+    if (!panel.contains(e.target as Node)) measure()
+  }
   addEventListener("keydown", onKey)
+  addEventListener("pointerdown", onPointer, true)
+  addEventListener("resize", measure)
+  addEventListener("scroll", onScroll, true)
   onCleanup(() => {
     cancelAnimationFrame(frame)
     grow.disconnect()
     removeEventListener("keydown", onKey)
+    removeEventListener("pointerdown", onPointer, true)
+    removeEventListener("resize", measure)
+    removeEventListener("scroll", onScroll, true)
   })
 
   const steps = createMemo(() => props.work?.steps ?? [])
@@ -264,16 +297,18 @@ export function WorkLog(props: { work: Work | undefined; shut: boolean; sessionI
   }
   const rows = createMemo((): Row[] => [...(props.work?.plan ? [row("plan", "plan")] : []), ...steps().map((step) => row("step", step.key))])
   const byKey = createMemo(() => new Map(steps().map((step) => [step.key, step])))
-  const limit = () => Math.min(innerHeight * 0.6, tokens.size["worklog-inline"])
+  const limit = () => Math.max(place().max, tokens.size["worklog-head"])
   return (
     <div
+      ref={panel}
       class="tds-worklog tds-raise-3"
       data-material="solid"
       role="dialog"
       aria-label="Work log"
       data-closing={closing() ? "" : undefined}
       data-up={scrolled() ? "" : undefined}
-      style={{ "max-height": `${limit()}px`, height: `${Math.min(height(), limit())}px` }}
+      data-down={place().up ? undefined : ""}
+      style={{ left: `${place().left}px`, [place().up ? "bottom" : "top"]: `${place().edge}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
     >
       <Show when={props.work}>
         {(work) => (

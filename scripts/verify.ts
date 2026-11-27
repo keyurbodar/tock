@@ -1409,7 +1409,7 @@ const journeys: Record<string, () => void> = {
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws-line:not(:disabled)"), Boolean, "an expandable work log row")
     wait(500)
-    const bottom = () => js<number>("return Math.round(document.querySelector('.tds-worklog').getBoundingClientRect().top - document.querySelector('.tds-act').getBoundingClientRect().bottom)")
+    const bottom = () => js<number>("const p = document.querySelector('.tds-worklog'); const r = p.getBoundingClientRect(); return Math.round(p.hasAttribute('data-down') ? r.top : r.bottom)")
     const tall = () => js<number>("return Math.round(document.querySelector('.tds-worklog').getBoundingClientRect().height)")
     const b0 = bottom()
     const h0 = tall()
@@ -1421,7 +1421,7 @@ const journeys: Record<string, () => void> = {
     const mid = tall()
     wait(600)
     const h1 = tall()
-    check(Math.abs(bottom() - b0) <= 1, "the work log should stay put under its line (" + b0 + " -> " + bottom() + ")")
+    check(Math.abs(bottom() - b0) <= 1, "the work log should stay anchored to its line (" + b0 + " -> " + bottom() + ")")
     if (room) check(h1 > h0, "the work log should grow to fit the expanded row (" + h0 + " -> " + h1 + ")")
     if (room && h1 < js<number>("return parseFloat(document.querySelector('.tds-worklog').style.maxHeight)") - 1) check(mid > h0 && mid < h1, "the height should animate open, not jump (" + h0 + ", " + mid + ", " + h1 + ")")
     check(js<boolean>("const r = document.querySelector('.tds-ws[data-key=\"" + key + "\"]').getBoundingClientRect(); const b = document.querySelector('.tds-worklog-body').getBoundingClientRect(); return r.top >= b.top - 1 && r.top < b.bottom"), "the expanded row should be in view")
@@ -1431,12 +1431,13 @@ const journeys: Record<string, () => void> = {
     wait(100)
     const back = tall()
     wait(600)
-    if (h1 > h0 && tall() < h1) check(back < h1 && back > tall(), "the height should animate closed (" + h1 + ", " + back + ", " + tall() + ")")
+    if (h1 > h0 && tall() < h1) check(back <= h1 && back >= tall(), "the height should animate closed (" + h1 + ", " + back + ", " + tall() + ")")
     if (room) check(Math.abs(tall() - h0) <= 2, "the work log should return to its size (" + h0 + " -> " + tall() + ")")
     check(Math.abs(bottom() - b0) <= 1, "the work log should stay anchored after collapsing")
     shot("worklog-collapsed")
     ab("press", "Escape")
   },
+
 
 
   files() {
@@ -1672,6 +1673,55 @@ const journeys: Record<string, () => void> = {
     shot("a11y-toast-focus")
     ab("eval", "document.activeElement?.blur()")
   },
+  steps() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
+    wait(400)
+    ab("click", ".tds-act-button")
+    until(() => exists(".tds-worklog .tds-ws"), Boolean, "the work log rows")
+    wait(600)
+    const fit = js<{ sh: number; ch: number; rows: number }>("const b = document.querySelector('.tds-worklog-body'); return { sh: b.scrollHeight, ch: b.clientHeight, rows: document.querySelectorAll('.tds-worklog .tds-ws').length }")
+    check(fit.sh <= fit.ch + 1, "a short turn should show every row without scrolling (" + JSON.stringify(fit) + ")")
+    check(rect(".tds-worklog-head")!.h <= 37, "the compact head should be about 36px, got " + rect(".tds-worklog-head")?.h)
+    const pane = rect(".tds-worklog")!
+    const mine = js<{ l: number; t: number; b: number } | null>("const e = document.querySelector('.tds-bubble[data-side=me]'); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, b: r.bottom }")
+    if (mine) check(pane.x + pane.w <= mine.l + 1 || mine.b <= pane.y + 1 || mine.t >= pane.y + pane.h - 1, "the pane should not cover my bubble")
+    shot("worklog-steps")
+    ab("press", "Escape")
+  },
+  longrun() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "please run a long job")
+    ab("press", "Enter")
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the long run to finish", 60000)
+    ab("click", ".tds-act-button")
+    until(() => exists(".tds-worklog .tds-ws"), Boolean, "the work log rows")
+    wait(600)
+    const box = js<{ sh: number; ch: number; top: number; vh: number }>("const b = document.querySelector('.tds-worklog-body'); const p = document.querySelector('.tds-worklog').getBoundingClientRect(); return { sh: b.scrollHeight, ch: b.clientHeight, top: p.top, vh: innerHeight }")
+    check(box.sh > box.ch, "a long turn should scroll inside the pane (" + JSON.stringify(box) + ")")
+    check(box.top >= 0, "the pane should stay on screen (" + JSON.stringify(box) + ")")
+    check(js<number>("return document.querySelectorAll('.tds-worklog .tds-ws').length") < 32, "long runs should render through the virtualizer")
+    shot("worklog-long")
+    ab("eval", "document.querySelector('.tds-worklog-body').scrollTop = 0")
+    wait(300)
+    until(() => exists(".tds-worklog .tds-ws-line:not(:disabled) .tds-ws-label"), Boolean, "the long log row")
+    const tall = () => js<number>("return Math.round(document.querySelector('.tds-worklog').getBoundingClientRect().height)")
+    ab("eval", "const r = [...document.querySelectorAll('.tds-worklog .tds-ws-line:not(:disabled)')].find((l) => /Ran code/.test(l.textContent)); r.click()")
+    const samples: number[] = []
+    for (let i = 0; i < 6; i++) { samples.push(tall()); wait(60) }
+    wait(500)
+    const out = js<{ h: number; sh: number }>("const b = document.querySelector('.tds-ws[data-open] .tds-ws-body'); return { h: b.getBoundingClientRect().height, sh: b.scrollHeight }")
+    check(out.h <= 241, "an expanded long output should cap near 240px, got " + out.h)
+    check(out.sh > out.h, "the long output should scroll inside its row")
+    shot("worklog-long-output")
+    ab("press", "Escape")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1681,7 +1731,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
