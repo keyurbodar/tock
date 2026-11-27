@@ -268,7 +268,7 @@ export async function send(sessionId: string, text: string) {
   const known = app.sessions.find((session) => session.id === sessionId)
   upsertSession({
     id: sessionId,
-    busy: true,
+    busy: app.connection === "open",
     meta: known?.meta ?? noMeta,
     title: known?.title || text,
     preview: text,
@@ -482,4 +482,6 @@ if (import.meta.env.DEV || import.meta.env.VITE_TOCK_SEED)
       }),
   })
 
-export const isWorking = (state: ThreadState | undefined) => state !== undefined && (state.live?.run !== undefined || state.pending.length > 0)
+/** A run is live, or a send is on its way. A send held while offline isn't work yet: the chat stays idle until the server takes it. */
+export const isWorking = (state: ThreadState | undefined) =>
+  state !== undefined && (state.live?.run !== undefined || state.pending.some((item) => item.status !== "sending" || app.connection === "open"))

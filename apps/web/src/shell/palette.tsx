@@ -1,5 +1,6 @@
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, For, Show, untrack } from "solid-js"
 import { createHotkey } from "@tanstack/solid-hotkeys"
+import { dismissLayers } from "./layers"
 import { useNavigate } from "@solidjs/router"
 import { Command, CommandEmpty, CommandGroup, CommandGroupLabel, CommandInput, CommandItem, CommandList } from "@ui-sdk/solid/command"
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from "@ui-sdk/solid/dialog"
@@ -49,7 +50,10 @@ export function Palette() {
       navigate(`/t/${value.slice("chat:".length)}`)
     }, tokens.motion.duration["palette-hit"])
   }
-  createHotkey(appHotkeys["chats.search"], () => setOpen((current) => !current))
+  createHotkey(appHotkeys["chats.search"], () => {
+    if (!untrack(open)) dismissLayers()
+    setOpen((current) => !current)
+  })
   const sessions = () => app.sessions.filter((session) => !session.meta.archived)
   return (
     <Dialog modal="trap-focus" open={open()} onOpenChange={(next) => setOpen(next)}>

@@ -826,7 +826,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const narrow = at(tokens.size["sidebar-min"])
     check(narrow.visible === pins(), `every pin is visible at the narrowest sidebar, got ${narrow.visible} of ${pins()}`)
     check(!narrow.overlap, "pin labels never run into each other at the narrowest sidebar")
-    check(narrow.cols < wide.cols && narrow.rows === Math.ceil(pins() / narrow.cols) && wide.rows === Math.ceil(pins() / wide.cols), `pins reflow into fewer columns when the sidebar narrows (${wide.cols}x${wide.rows} → ${narrow.cols}x${narrow.rows})`)
+    check(narrow.cols <= wide.cols && narrow.cols >= Math.min(4, pins()) && narrow.rows === Math.ceil(pins() / narrow.cols) && wide.rows === Math.ceil(pins() / wide.cols), `pins reflow without dropping below four a row at the narrowest sidebar (B2-14) (${wide.cols}x${wide.rows} → ${narrow.cols}x${narrow.rows})`)
     shot("pingrid-narrow")
     ab("eval", 'localStorage.removeItem("tock.sidebar.width")')
     ab("open", BASE)
@@ -1217,7 +1217,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "?")
     until(() => exists(".tds-keys"), Boolean, "? to open the shortcuts sheet")
     const rows = js<{ label: string; ids: string; status: string; keys: string }[]>("return [...document.querySelectorAll('.tds-keys-row')].map((r) => ({ label: r.firstElementChild.textContent, ids: r.dataset.hotkeys ?? '', status: r.dataset.status ?? '', keys: [...r.querySelectorAll('kbd')].map((k) => k.textContent).join(' ') }))")
-    check(rows.length === 10, `the sheet lists the 10 GUIDE §5 shortcuts (got ${rows.length})`)
+    check(rows.length === 11, `the sheet lists the 11 shortcuts (GUIDE §5 plus Undo) (got ${rows.length})`)
     check(rows.some((r) => r.label === "Peek at a chat" && r.keys === "Space"), "the sheet has the Space, Peek row")
     const dead = rows.filter((r) => !r.ids || r.status !== "active")
     check(dead.length === 0, `every sheet row has a live binding (dead: ${dead.map((r) => `${r.label} [${r.ids}] ${r.status}`).join(", ")})`)
@@ -3717,6 +3717,118 @@ const journeys: Record<string, () => void | Promise<void>> = {
     shot("worklog-io")
     ab("press", "Escape")
   },
+  escstop() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Search the web for the history of toast and write a long summary")
+    ab("press", "Enter")
+    const chat = until(() => js<string>("return location.pathname.slice(3)"), (id) => id.length === 36, "the chat id")
+    const working = () => exists(`.tds-row[href="/t/${chat}"][data-status="working"]`)
+    until(working, Boolean, "the run to start", 10000)
+    ab("click", ".tds-search input")
+    ab("keyboard", "type", "zz")
+    ab("press", "Escape")
+    wait(400)
+    check(working(), "Esc in the sidebar search clears it and never stops the run (B2-01)")
+    check(js<string>("return document.querySelector('.tds-search input').value") === "", "Esc cleared the search")
+    ab("click", ".ProseMirror")
+    ab("press", "Escape")
+    until(working, (on) => !on, "a plain Esc in the composer still stops the run", 8000)
+  },
+  modk() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("press", "Control+k")
+    until(() => exists(".tds-palette"), Boolean, "Ctrl+K from the composer to open the palette (B2-02)", 3000)
+    ab("press", "Escape")
+    until(() => exists(".tds-palette"), (open) => !open, "the palette to close")
+    check(js<string>("return document.querySelector('.ProseMirror').textContent") === "", "no []() was typed into the draft")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "docs")
+    ab("press", "Control+a")
+    ab("press", "Control+k")
+    until(() => js<string>("return document.querySelector('.ProseMirror').textContent"), (t) => t.includes("[docs]()"), "Ctrl+K on a selection still makes a link")
+    check(!exists(".tds-palette"), "with a selection the palette stays shut")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+  },
+  archivefocus() {
+    ensureRows(2)
+    const id = js<string>("return document.querySelector('.tds-row-wrap:not([data-archived])').dataset.id")
+    ab("eval", `document.querySelector('.tds-row-wrap[data-id="${id}"] .tds-row-more').focus()`)
+    ab("press", "Enter")
+    until(() => exists(".tds-menu"), Boolean, "the row menu from the keyboard")
+    choose("Archive")
+    until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), (still) => !still, "the row to leave")
+    until(() => js<string>("const a = document.activeElement; return a === document.body ? 'body' : a?.className ?? ''"), (c) => c.includes("tds-row"), "focus to land on the next row, not <body> (A2-02)", 3000)
+    ab("press", "Control+z")
+    until(() => exists(`.tds-row-wrap[data-id="${id}"]:not([data-archived])`), Boolean, "Ctrl+Z to undo the archive")
+  },
+  overlays() {
+    ensureRows(2)
+    ab("mouse", "move", "900", "450")
+    const at = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
+    ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2))
+    ab("mouse", "down", "right")
+    ab("mouse", "up", "right")
+    until(() => exists(".tds-menu"), Boolean, "the row menu")
+    check(!exists(".tds-peek:not([data-ghost])"), "opening a menu hides the peek")
+    ab("press", "Control+k")
+    until(() => exists(".tds-palette"), Boolean, "the palette")
+    until(() => exists(".tds-menu"), (open) => !open, "the palette closes the row menu first (B2-09)", 2000)
+    ab("press", "Escape")
+    until(() => exists(".tds-palette"), (open) => !open, "Esc closes the palette")
+    check(!exists(".tds-menu"), "no stale menu comes back after Esc")
+    ab("click", ".tds-rail-button[data-bell]")
+    until(() => exists(".tds-centre[data-open]"), Boolean, "the centre")
+    ab("press", "Control+k")
+    until(() => exists(".tds-palette"), Boolean, "the palette over the centre")
+    until(() => exists(".tds-centre[data-open]"), (open) => !open, "the palette closes the centre first", 2000)
+    ab("press", "Escape")
+  },
+  altnav() {
+    ensureRows(12)
+    ab("click", ".tds-row-wrap:not([data-archived]) .tds-row")
+    until(() => js<boolean>("return location.pathname.startsWith('/t/')"), Boolean, "a chat to open")
+    ab("eval", "document.activeElement?.blur()")
+    for (let i = 0; i < 14; i++) ab("press", "Alt+ArrowDown")
+    wait(500)
+    const seen = js<{ found: boolean; visible: boolean }>("const r = document.querySelector('.tds-row[aria-current=page]'); if (!r) return { found: false, visible: false }; const b = r.getBoundingClientRect(), s = document.querySelector('.tds-roster').getBoundingClientRect(); return { found: true, visible: b.top >= s.top - 1 && b.bottom <= s.bottom + 1 }")
+    check(seen.found && seen.visible, `after 14 × Alt+↓ the open chat's row is in view (B2-06): ${JSON.stringify(seen)}`)
+  },
+  offlinesend() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("set", "offline", "on")
+    try {
+      until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "on", "the offline banner", 15000)
+      ab("click", ".ProseMirror")
+      ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+      ab("press", "Enter")
+      until(() => exists(".tds-bubble[data-side='me']"), Boolean, "the offline bubble")
+      wait(400)
+      const chat = js<string>("return location.pathname.slice(3)")
+      check(!exists(".tds-send[aria-label='Stop']") && !exists(".tds-composer [aria-label='Stop']"), "an offline send shows Send, not Stop (B2-10)")
+      check(!exists(`.tds-row[href="/t/${chat}"][data-status="working"]`), "the chat isn't counted as working while its send waits offline")
+    } finally {
+      ab("set", "offline", "off")
+    }
+    until(() => exists(".tds-bubble[data-side='agent']"), Boolean, "the send delivers once back online", 20000)
+  },
+  pins256() {
+    ab("eval", "localStorage.setItem('tock.sidebar.width', '256')")
+    ab("open", BASE)
+    until(() => exists(".tds-row, .tds-sidebar .tds-empty"), Boolean, "the sidebar")
+    try {
+      const tops = js<number[]>("return [...document.querySelectorAll('.tds-pin')].slice(0, 4).map((e) => Math.round(e.getBoundingClientRect().top))")
+      if (tops.length === 4) check(new Set(tops).size === 1, `four pins share one row at 256 (B2-14): ${tops.join(",")}`)
+      shot("pins-256")
+    } finally {
+      ab("eval", "localStorage.removeItem('tock.sidebar.width')")
+    }
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -3726,7 +3838,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

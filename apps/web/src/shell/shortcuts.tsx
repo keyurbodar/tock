@@ -5,6 +5,7 @@ import { createAppHotkeyList, createHotkey } from "@tanstack/solid-hotkeys"
 import { abort, app, isWorking, newThreadId } from "../state/app"
 import { threadAction, selected, setSelected } from "./thread-menu"
 import { hidePeek, peeking } from "./peek"
+import { undoNewest } from "./toasts"
 import { appHotkeys, keysFor, sheet, typing } from "./hotkeys"
 
 const overlayOpen = () => document.querySelector("[role=dialog], [role=menu], [role=listbox], .tds-worklog, .tds-centre[data-open], .tds-stack[data-open]") !== null
@@ -47,14 +48,20 @@ export function Shortcuts() {
   })
   /** Esc stops a run only when nothing on screen took it: overlays close themselves on the same key, so look before they do. */
   let overlayAtEscape = false
-  const onEscapeFirst = (event: KeyboardEvent) => void (event.key === "Escape" && (overlayAtEscape = overlayOpen()))
+  /** A text field other than the composer (search, rename) owns its Esc: it clears or cancels, it never stops the run. */
+  const ownField = (target: EventTarget | null) => target instanceof HTMLElement && typing(target) && !target.closest(".ProseMirror")
+  const onEscapeFirst = (event: KeyboardEvent) => void (event.key === "Escape" && (overlayAtEscape = overlayOpen() || ownField(event.target)))
   addEventListener("keydown", onEscapeFirst, { capture: true })
   onCleanup(() => removeEventListener("keydown", onEscapeFirst, { capture: true }))
   createHotkey(appHotkeys["layer.escape"], (event) => {
-    if (event.isComposing) return
+    if (event.isComposing || event.defaultPrevented) return
     if (selected().length) return setSelected([])
     if (peeking()) return hidePeek()
     if (params.id && !overlayAtEscape && isWorking(app.threads[params.id])) return event.preventDefault(), void abort(params.id)
+  })
+  createHotkey(appHotkeys["toast.undo"], (event) => {
+    if (typing(event.target) || event.shiftKey) return
+    if (undoNewest()) event.preventDefault()
   })
   createHotkey(appHotkeys["help.shortcuts"], (event) => {
     if (typing(event.target) || event.metaKey || event.ctrlKey) return

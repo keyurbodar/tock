@@ -1,9 +1,9 @@
 import { Empty } from "../chat/empty"
 import { animate, inertiaTail, lockAxis, morphFrom, Skeleton, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
-import { createMemo, createSignal, For, Show, untrack } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { useNavigate, useParams } from "@solidjs/router"
-import { VList } from "virtua/solid"
+import { VList, type VListHandle } from "virtua/solid"
 import { MenuTrigger } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
@@ -262,6 +262,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
       data-archived={props.session.meta.archived ? "" : undefined}
       onContextMenu={(e) => {
         e.preventDefault()
+        hidePeek()
         e.currentTarget.querySelector<HTMLElement>(".tds-row-more")?.click()
       }}
     >
@@ -390,7 +391,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
           </Show>
         </span>
       </a>
-      <MenuTrigger controller={threadMenu} payload={props.session} class="tds-row-more" aria-label={`Actions for ${titleOf(props.session)}`}>
+      <MenuTrigger controller={threadMenu} payload={props.session} onPointerDown={() => hidePeek()} class="tds-row-more" aria-label={`Actions for ${titleOf(props.session)}`}>
         <Icon name="dots-three" size="row" />
       </MenuTrigger>
     </div>
@@ -451,6 +452,7 @@ function ResizeHandle(props: { width: number; onWidth: (width: number) => void }
 export function Sidebar() {
   const params = useParams<{ id?: string }>()
   const navigate = useNavigate()
+  let roster!: VListHandle
   const [query, setQuery] = createSignal("")
   const [archiveOpen, setArchiveOpen] = createSignal(false)
   const [width, setWidth] = createSignal<number>(savedWidth())
@@ -470,6 +472,17 @@ export function Sidebar() {
     const open = archiveOpen() || query().trim() !== ""
     return [...rows, archiveEntry(archived.length), ...(open ? archived.map(rowEntry) : [])]
   })
+  /** The open chat's row stays in view when the chat changes by keyboard (⌥↑↓) or anywhere else; a row already visible doesn't move. */
+  let shownFor: string | undefined
+  createEffect(
+    () => ({ id: params.id, index: entries().findIndex((entry) => entry.kind === "row" && entry.session.id === params.id) }),
+    ({ id, index }) => {
+      if (id === shownFor || index < 0) return
+      shownFor = id
+      requestAnimationFrame(() => roster?.scrollToIndex(index, { align: "nearest" }))
+    },
+  )
+
   const chosen = () => app.sessions.filter((s) => selected().includes(s.id))
   const startChat = () => navigate(`/t/${newThreadId()}`)
 
@@ -509,7 +522,7 @@ export function Sidebar() {
             </div>
           }
         >
-          <VList data={entries()} class="tds-roster tds-scroll h-full px-12 pb-16" data-edge-fade="y" itemSize={tokens.size.row}>
+          <VList ref={roster} data={entries()} class="tds-roster tds-scroll h-full px-12 pb-16" tabindex="-1" data-edge-fade="y" itemSize={tokens.size.row}>
             {(entry) =>
               entry.kind === "archive" ? (
                 <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>

@@ -562,7 +562,7 @@
   }
   @media (hover: hover) and (pointer: fine) { .tds-rail-button:not([data-on]):hover { background: var(--tds-overlay-hover); color: var(--tds-text-tx2) } }
   .tds-badge {
-    position: absolute; top: var(--tds-space-4); right: var(--tds-space-3); display: grid; place-items: center; min-width: var(--tds-size-badge); height: var(--tds-size-badge); padding: 0 var(--tds-space-5);
+    position: absolute; top: var(--tds-space-4); right: var(--tds-space-3); translate: 30% -30%; display: grid; place-items: center; min-width: var(--tds-size-badge); height: var(--tds-size-badge); padding: 0 var(--tds-space-5);
     border-radius: var(--tds-radius-pill); background: var(--tds-accent-rose); color: var(--tds-text-on-rose); font-size: var(--tds-type-badge-size); font-weight: var(--tds-weight-bold); overflow: hidden;
     box-shadow: 0 0 0 2px var(--tds-surface-rail); transition: scale var(--tds-dur-layout) var(--tds-ease-out), opacity var(--tds-dur-menu) var(--tds-ease-out);
     &[data-zero] { scale: .4; opacity: 0 }

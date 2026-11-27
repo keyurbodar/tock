@@ -16,6 +16,7 @@ export const appHotkeys = defineAppHotkeys({
   "chat.unread": { hotkey: "Mod+U", meta: { name: "Mark as unread" }, options: { ignoreInputs: false, preventDefault: false } },
   "chat.peek": { hotkey: "Space", meta: { name: "Peek at a chat" }, options: { ignoreInputs: false, preventDefault: false, stopPropagation: false } },
   "composer.attach": { hotkey: "Mod+O", meta: { name: "Attach files" }, options: { ignoreInputs: false } },
+  "toast.undo": { hotkey: "Mod+Z", meta: { name: "Undo the last change" }, options: { preventDefault: false, stopPropagation: false } },
   "layer.escape": { hotkey: "Escape", meta: { name: "Stop toast" }, options: { ignoreInputs: false, preventDefault: false, stopPropagation: false } },
   "help.shortcuts": { hotkey: "?", meta: { name: "Keyboard shortcuts" }, options: { preventDefault: false, stopPropagation: false } },
 })
@@ -32,6 +33,7 @@ export const sheet: readonly { label: string; ids: readonly HotkeyId[] }[] = [
   { label: "Mark as unread", ids: ["chat.unread"] },
   { label: "Peek at a chat", ids: ["chat.peek"] },
   { label: "Attach files", ids: ["composer.attach"] },
+  { label: "Undo the last change", ids: ["toast.undo"] },
   { label: "Stop toast", ids: ["layer.escape"] },
   { label: "Keyboard shortcuts", ids: ["help.shortcuts"] },
 ]

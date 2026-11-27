@@ -75,6 +75,14 @@ function arm(id: string, full?: number) {
 
 export const isToastOpen = (id: string) => alive().some((item) => item.id === id)
 
+/** ⌘Z outside text fields runs the newest Undo, so the undo window is reachable from the keyboard (sonner's Alt+T idea). */
+export function undoNewest(): boolean {
+  const item = alive().find((entry) => entry.action?.label === "Undo")
+  if (!item?.action) return false
+  item.action.run()
+  return true
+}
+
 export function dismissToast(id: string, swiped = false) {
   const clock = clocks.get(id)
   if (!clock || !alive().some((item) => item.id === id)) return

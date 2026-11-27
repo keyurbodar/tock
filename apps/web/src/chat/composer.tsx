@@ -649,7 +649,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             return false
           }
           if (event.key === "Backspace" && selectTokenBefore(view)) return true
-          if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k" && editor) {
+          if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k" && editor && !view.state.selection.empty) {
             event.preventDefault()
             event.stopPropagation()
             return linkSelection(editor)
@@ -698,6 +698,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     requestAnimationFrame(() => setTimeout(boot))
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !typing(event) || editable(document.activeElement) || (event.key === " " && pressable(document.activeElement))) return
+      // "?" opens the shortcuts sheet, and an open dialog or menu owns the keyboard: typing-to-focus must not pull focus out of it.
+      if (event.key === "?" || document.activeElement?.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]')) return
       focusField()
     }
     const outside = (event: PointerEvent) => {

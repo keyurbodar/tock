@@ -91,6 +91,9 @@ export function ToastRow(props: { show: boolean }) {
   }
   onCleanup(() => open() && backdrop(false))
   const unpress = () => !hold && !open() && setPressed(false)
+  const dismiss = () => open() && close()
+  document.addEventListener("tds-dismiss-layers", dismiss)
+  onCleanup(() => document.removeEventListener("tds-dismiss-layers", dismiss))
   addEventListener("resize", unpress)
   onCleanup(() => removeEventListener("resize", unpress))
 

@@ -12,7 +12,7 @@ import { setShortcutsOpen } from "./shortcuts"
 function Badge(props: { count: number }) {
   return (
     <span class="tds-badge num" data-zero={props.count === 0 ? "" : undefined} aria-hidden="true">
-      <TextMorph value={String(Math.max(props.count, 1))} mode="roll" />
+      <TextMorph value={props.count > 99 ? "99+" : String(Math.max(props.count, 1))} mode="roll" />
     </span>
   )
 }

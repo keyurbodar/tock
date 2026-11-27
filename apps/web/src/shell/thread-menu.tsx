@@ -54,9 +54,23 @@ export function leaveList(ids: readonly string[], then: () => void) {
   const { layout, exit } = tokens.motion.duration
   const before = new Map([...document.querySelectorAll<HTMLElement>(".tds-row-wrap")].map((wrap) => [wrap.dataset.id, wrap.getBoundingClientRect().top]))
   let left = wraps.length
+  const order = [...before.keys()]
+  const at = Math.min(...ids.map((id) => order.indexOf(id)).filter((index) => index >= 0))
+  const neighbours = [...order.slice(at + 1), ...order.slice(0, at).reverse()].filter((id): id is string => id !== undefined && !ids.includes(id))
+  /** Focus was on the leaving row (or its menu, whose trigger leaves with it): hand it to the row that takes its place, never to <body>. */
+  const keepFocus = () => {
+    const active = document.activeElement
+    if (active && active !== document.body && active.isConnected) return
+    for (const id of neighbours) {
+      const row = document.querySelector<HTMLElement>(`.tds-row-wrap[data-id="${id}"] .tds-row`)
+      if (row) return row.focus({ preventScroll: true })
+    }
+    document.querySelector<HTMLElement>(".tds-roster")?.focus({ preventScroll: true })
+  }
   const done = () => {
     then()
     const settle = () => {
+      keepFocus()
       for (const wrap of wraps) {
         wrap.getAnimations().forEach((animation) => animation.cancel())
         wrap.removeAttribute("data-swiping")
