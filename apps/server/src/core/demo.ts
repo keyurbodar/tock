@@ -141,11 +141,16 @@ const scripted: FauxResponseFactory = (context) => {
       [
         fauxToolCall("update_plan", { steps: PLAN, current: 2 }),
         fauxToolCall("suggest_followups", {
-          suggestions: [
-            { emoji: "🔀", label: "Open the pull request", prompt: "Open a pull request for fix/login-loop with a short summary of the race and the new test." },
-            { emoji: "🧪", label: "Run the flaky suite", prompt: "Run the auth test suite 20 times in the sandbox and tell me if the overlap test ever fails." },
-            { emoji: "📝", label: "Write release notes", prompt: "Draft a two-line release note for the login loop fix that a non-engineer understands." },
-          ],
+          suggestions: /weather/i.test(asked)
+            ? [
+                { emoji: "🌦️", label: "Pack for the rain", prompt: "Make me a packing list for three rainy days in Tokyo, light enough for one carry-on." },
+                { emoji: "🗓️", label: "Weekend forecast", prompt: "Check the Tokyo forecast for Saturday and Sunday and tell me which day is better for walking." },
+              ]
+            : [
+                { emoji: "🔀", label: "Open the pull request", prompt: "Open a pull request for fix/login-loop with a short summary of the race and the new test." },
+                { emoji: "🧪", label: "Run the flaky suite", prompt: "Run the auth test suite 20 times in the sandbox and tell me if the overlap test ever fails." },
+                { emoji: "📝", label: "Write release notes", prompt: "Draft a two-line release note for the login loop fix that a non-engineer understands." },
+              ],
         }),
       ],
       { stopReason: "toolUse" },

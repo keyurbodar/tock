@@ -5,7 +5,7 @@ import { tokens } from "@tock/tokens"
 import { createAttachments, isReadable } from "./attachments"
 import { useNavigate, useParams } from "@solidjs/router"
 import { abort, app, isWorking, newThreadId, send, subscribe, titleOf } from "../state/app"
-import { attach, Composer } from "./composer"
+import { attach, Composer, fillComposer } from "./composer"
 import { Header } from "./header"
 import { glyphFor } from "../lib/glyph"
 import { Empty } from "./empty"
@@ -85,7 +85,7 @@ export function Thread() {
       </Show>
       <ChipCards />
       <Boundary surface="composer">
-        <Followups set={followupsIn(state()?.entries ?? [])} working={isWorking(state())} onPick={(prompt) => void send(params.id, prompt)} />
+        <Followups chat={params.id} set={followupsIn(state()?.entries ?? [])} working={isWorking(state())} onPick={fillComposer} />
         <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => untrack(() => sendReply(params.id, text))} onStop={() => void abort(params.id)} />
       </Boundary>
       <Show when={dragging()}>

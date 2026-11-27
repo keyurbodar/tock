@@ -78,14 +78,6 @@ export const enter = {
     animate(el, [{ opacity: 0, scale: 0.8, filter: blur(m.blur.enter) }, { opacity: 1, scale: 1, filter: clear }], { ...springEasing("soft") }),
   pane: (el: Element) =>
     animate(el, [{ opacity: 0, translate: "0 6px", filter: blur(m.blur.word) }, { opacity: 1, translate: "0 0", filter: clear }], dur.swap),
-  /** TDS KbSugg sgin: a follow-up chip rises 8px from .96, each one `followup-stagger` after the last. */
-  followup: (el: Element, index: number) =>
-    animate(el, [{ opacity: 0, translate: "0 8px", scale: 0.96 }, { opacity: 1, translate: "0 0", scale: 1 }], {
-      duration: dur["followup-in"],
-      delay: index * dur["followup-stagger"],
-      easing: ease.followup,
-      fill: "backwards",
-    }),
 }
 
 export const exit = {
@@ -94,9 +86,23 @@ export const exit = {
     animate(el, [{ opacity: 1 }, { opacity: 0, translate: swiped ? "120% 0" : "0 -6px", filter: swiped ? "none" : blur(m.blur.exit) }], { duration: swiped ? 220 : dur.exit, easing: ease.in, fill: "forwards" }),
   dialog: (el: Element) => animate(el, [{ opacity: 1 }, { opacity: 0, scale: 0.98 }], { duration: dur.tooltip, easing: ease.in, fill: "forwards" }),
   pane: (el: Element) => animate(el, [{ opacity: 1 }, { opacity: 0, filter: blur(m.blur.word) }], { duration: 110, easing: ease.in, fill: "forwards" }),
-  /** TDS KbSugg sgout: the chips drop 6px to .97 and fade together. */
-  followup: (el: Element) =>
-    animate(el, [{ opacity: 1 }, { opacity: 0, translate: "0 6px", scale: 0.97 }], { duration: dur["followup-out"], easing: ease.followup, fill: "forwards" }),
+  /** Follow-ups (Keyur's rec-b): the row just fades, in about four frames, as the picked prompt lands in the composer. */
+  followup: (el: Element) => animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: dur["followup-leave"], easing: ease.out, fill: "forwards" }),
+}
+
+/**
+ * Follow-ups swapping in place (Keyur's rec-a): the chip keeps its box and glides to the new label's width, the old
+ * label fades out linearly while the old emoji cross-fades to the new one, then the new label fades in.
+ */
+export function swapFollowup(chip: HTMLElement, from: number, to: number, parts: { out: Element[]; in: Element[]; emojiOut: Element[]; emojiIn: Element[] }) {
+  const runs = [
+    animate(chip, [{ width: `${from}px` }, { width: `${to}px` }], { duration: dur["followup-swap-width"], easing: ease.std, essential: true, fill: "forwards" }),
+    ...parts.out.map((el) => animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: dur["followup-swap-out"], easing: ease.linear, fill: "forwards" })),
+    ...parts.in.map((el) => animate(el, [{ opacity: 0 }, { opacity: 1 }], { duration: dur["followup-swap-in"], delay: dur["followup-swap-out"], easing: ease["followup-in"], fill: "backwards" })),
+    ...parts.emojiOut.map((el) => animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: dur["followup-emoji"] / 2, easing: ease.linear, fill: "forwards" })),
+    ...parts.emojiIn.map((el) => animate(el, [{ opacity: 0 }, { opacity: 1 }], { duration: dur["followup-emoji"], easing: ease.out, fill: "backwards" })),
+  ]
+  return Promise.all(runs.map((run) => run?.finished.catch(() => {}))).then(() => undefined)
 }
 
 /** Highlight: a message the reader was sent to (a quote chip's source) blooms a soft rose ring that settles, with a small lift. The ring is colour, not movement, so it stays under reduced motion. */

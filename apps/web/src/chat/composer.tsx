@@ -45,6 +45,9 @@ export function refuse(rejected: readonly Rejection[]) {
 
 export const attach = (attachments: Attachments, files: Iterable<File>, from?: DOMRect) => refuse(attachments.add(files, from))
 
+/** Puts text in the composer, replacing the draft, focused with the caret at the end (a picked follow-up). */
+export const fillComposer = (text: string) => dispatchEvent(new CustomEvent("tds-composer-fill", { detail: text }))
+
 function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; onRetry: () => void; onOpen: (el: HTMLElement) => void; onPointerDown: (event: PointerEvent, el: HTMLElement) => void; onHover: (el: HTMLElement | null) => void }) {
   let el!: HTMLDivElement
   const kind = () => fileChip(props.item.name)
@@ -215,6 +218,9 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   })
   onSettled(() => reserve.observe(wrap))
   onCleanup(() => reserve.disconnect())
+  const fill = (event: Event) => untrack(() => editor?.chain().setContent((event as CustomEvent<string>).detail, { emitUpdate: true }).focus("end").run())
+  addEventListener("tds-composer-fill", fill)
+  onCleanup(() => removeEventListener("tds-composer-fill", fill))
   let list: HTMLDivElement | undefined
   let editorEl: HTMLDivElement | undefined
   let tray: HTMLDivElement | undefined
