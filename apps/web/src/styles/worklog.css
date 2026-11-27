@@ -10,6 +10,8 @@
   .tds-worklog .tds-ws .tds-ws-caret { rotate: -90deg }
   .tds-worklog .tds-ws[data-open] > .tds-ws-line .tds-ws-caret { rotate: 0deg }
   .tds-worklog[data-folding] { transition: none }
+  .tds-ws-fold[data-instant], .tds-ws-fold[data-instant] .tds-ws-body { transition: none }
+  .tds-worklog[data-dropping] { transition: height var(--tds-dur-layout) var(--tds-ease-sheet) }
   .tds-ws-dur { flex: none; color: var(--tds-text-faint); font-size: var(--tds-type-caption-size) }
   .tds-worklog .tds-ws[data-nested] .tds-ws-line { padding-left: var(--tds-space-18) }
   .tds-worklog .tds-ws-body { margin-left: var(--tds-space-8) }

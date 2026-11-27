@@ -4,7 +4,7 @@ import { Orb } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
 import type { JSX } from "@solidjs/web"
 import { tokens } from "@tock/tokens"
-import { spring, watchLayout } from "@tock/ui/motion"
+import { animate, spring, watchLayout } from "@tock/ui/motion"
 import { Virtualizer } from "virtua/solid"
 import type { Item, Step } from "./items"
 import { stepLabel, summarize, type Plan, type StepLabel } from "./steps"
@@ -325,8 +325,9 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     fit()
   })
   let flip: { stop: () => void } | undefined
-  let fold = 0
+  let foldTimer = 0
   const [folding, setFolding] = createSignal(false)
+  const [dropping, setDropping] = createSignal(false)
   const reflow = () => {
     flip?.stop()
     const list = content?.firstElementChild as HTMLElement | null
@@ -334,7 +335,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   }
   onCleanup(() => {
     flip?.stop()
-    clearTimeout(fold)
+    clearTimeout(foldTimer)
   })
   const onScroll = (e: Event) => {
     if (!panel.contains(e.target as Node)) measure()
@@ -358,18 +359,48 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     const opening = !untrack(expanded).has(key)
     flip?.stop()
     flip = undefined
-    clearTimeout(fold)
+    clearTimeout(foldTimer)
     setFolding(true)
-    fold = window.setTimeout(() => {
+    foldTimer = window.setTimeout(() => {
       setFolding(false)
       reflow()
     }, tokens.motion.duration.spring)
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (opening) next.add(key)
-      else next.delete(key)
-      return next
-    })
+    const fold = (row.querySelector(":scope > .tds-ws-fold .tds-ws-body") as HTMLElement | null)
+    const flipTo = () =>
+      setExpanded((current) => {
+        const next = new Set(current)
+        if (opening) next.add(key)
+        else next.delete(key)
+        return next
+      })
+    const scroller = untrack(body)
+    if (!opening && fold && scroller && content && head) {
+      const view = scroller.getBoundingClientRect()
+      const box = fold.getBoundingClientRect()
+      const seen = Math.max(0, Math.min(box.bottom, view.bottom) - Math.max(box.top, view.top))
+      if (box.height - seen > 1) {
+        const style = getComputedStyle(scroller)
+        const pads = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+        clearTimeout(foldTimer)
+        setFolding(false)
+        const fade = animate(fold, [{ opacity: 1 }, { opacity: 0 }], { duration: tokens.motion.duration.layout, fill: "forwards" })
+        setDropping(true)
+        setHeight(head.offsetHeight + content.offsetHeight - box.height + pads)
+        foldTimer = window.setTimeout(() => {
+          const shell = fold.closest(".tds-ws-fold") as HTMLElement | null
+          shell?.setAttribute("data-instant", "")
+          flipTo()
+          requestAnimationFrame(() => {
+            fade.cancel()
+            shell?.removeAttribute("data-instant")
+            setDropping(false)
+            reflow()
+          })
+        }, tokens.motion.duration.spring)
+        return
+      }
+    }
+    flipTo()
     if (!opening) return
     stick = false
     setTimeout(() => row.scrollIntoView({ block: "nearest", behavior: "smooth" }), tokens.motion.duration.layout)
@@ -460,6 +491,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
       data-down={place().up ? undefined : ""}
       data-ready={ready() ? "" : undefined}
       data-folding={folding() ? "" : undefined}
+      data-dropping={dropping() ? "" : undefined}
       style={{ width: place().width ? `${place().width}px` : undefined, left: `${place().left}px`, [place().up ? "bottom" : "top"]: `${place().edge}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
     >
       <Show when={props.work}>
