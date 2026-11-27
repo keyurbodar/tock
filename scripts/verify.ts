@@ -3477,6 +3477,27 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(js<string>("return [...document.querySelectorAll('.tds-sq-pill')].map((e) => e.textContent).join('|')").includes("SWIFT"), "a five-letter extension keeps its type pill")
     js<boolean>("document.querySelectorAll('.tds-attach-remove').forEach((b) => b.click()); return true")
   },
+  badmedia() {
+    fresh()
+    const dir = join(FIXTURES, "odd")
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, "broken.png"), "this is not a png")
+    writeFileSync(join(dir, "vector.svg"), '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#E58FB4"/></svg>')
+    ab("upload", ".tds-composer-wrap input[type=file]", join(dir, "broken.png"), join(dir, "vector.svg"))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 2 && s.every((x) => x === "done"), "both uploads")
+    until(() => exists(".tds-attach .tds-media-broken"), Boolean, "the broken picture to show a placeholder in the tray")
+    check(js<boolean>("return [...document.querySelectorAll('.tds-attach img')].every((i) => i.naturalWidth > 0)"), "no broken-image glyph stays in the tray")
+    say("Two pictures")
+    until(() => js<number>("return document.querySelectorAll(\".tds-files[data-side='me'] .tds-media-tile\").length"), (n) => n === 2, "both as media tiles after sending (SVG included)", 10000)
+    until(() => exists(".tds-files[data-side='me'] .tds-media-tile[data-broken] .tds-media-broken"), Boolean, "the sent broken picture to show the placeholder")
+    check(js<boolean>("return [...document.querySelectorAll(\".tds-files[data-side='me'] .tds-media-tile img\")].every((i) => !i.complete || i.naturalWidth > 0)"), "no broken-image glyph in the gallery")
+    wait(300)
+    shot("badmedia")
+    ab("click", ".tds-files[data-side='me'] .tds-media-tile:not([data-broken])")
+    until(() => exists(".tds-lightbox"), Boolean, "the SVG to open in the lightbox like any picture")
+    ab("press", "Escape")
+    until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -3486,7 +3507,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

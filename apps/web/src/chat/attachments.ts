@@ -27,7 +27,7 @@ const MB = 1024 * 1024
 const READABLE = /\.(png|jpe?g|gif|webp|heic|heif|avif|pdf|md|markdown|mdx|m?[jt]sx?|py|sql|json|css|html?|go|rs|rb|swift|sh|ya?ml|toml|mp3|wav|m4a|aac|mp4|mov|webm|zip|tar|gz|txt|csv|log)$/i
 const TEXTUAL = /\.(md|markdown|mdx|m?[jt]sx?|py|sql|json|css|html?|go|rs|rb|swift|sh|ya?ml|toml|txt|csv|log)$/i
 
-export const isImage = (name: string, mime = "") => mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif)$/i.test(name)
+export const isImage = (name: string, mime = "") => mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(name)
 const READABLE_MIME = /^(image|audio|video|text)\/|^application\/(pdf|zip|x-zip-compressed|gzip|x-gzip|x-tar|json|javascript|x-javascript|typescript|xml|x-sh|x-python|sql|toml|yaml|x-yaml)$/
 export const isReadable = (name: string, mime = "") => READABLE.test(name) || READABLE_MIME.test(mime)
 export const extension = (name: string) => (/\.([a-z0-9]{1,8})$/i.exec(name)?.[1] ?? "file").toUpperCase()

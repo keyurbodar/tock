@@ -17,6 +17,7 @@ import { linkToken, linkTyped, triggerAt, type TokenAttrs, type Trigger } from "
 import { extension, formatSize, readingLabel, withFiles, type Attachment, type createAttachments, type Rejection } from "./attachments"
 import { fileChip } from "./chip"
 import { openLightbox } from "./lightbox-state"
+import { MediaBroken } from "./files"
 import { createHotkey } from "@tanstack/solid-hotkeys"
 import { appHotkeys } from "../shell/hotkeys"
 import { hasTable, htmlToMarkdown } from "./markdown-clipboard"
@@ -68,6 +69,7 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
     props.onRetry()
   }
   let open!: HTMLButtonElement
+  const [broken, setBroken] = createSignal(false)
   const label = () => (props.item.status === "uploading" ? `${props.item.name}, uploading ${formatSize(props.item.size * props.item.progress)} of ${formatSize(props.item.size)}` : props.item.status === "failed" ? `${props.item.name}, upload failed` : `Open ${props.item.name}`)
   return (
     <div
@@ -98,7 +100,11 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
             </>
           }
         >
-          {(src) => <img src={src()} alt="" draggable={false} />}
+          {(src) => (
+            <Show when={!broken()} fallback={<MediaBroken />}>
+              <img src={src()} alt="" draggable={false} onError={() => setBroken(true)} />
+            </Show>
+          )}
         </Show>
       </button>
       <Show when={props.item.status === "failed"}>

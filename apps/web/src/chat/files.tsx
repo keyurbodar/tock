@@ -69,12 +69,30 @@ const typeName = (name: string) => {
 
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`
 
+/** A picture that won't decode: a quiet placeholder instead of the browser's broken-image glyph and its alt text. */
+export function MediaBroken() {
+  return (
+    <span class="tds-media-broken">
+      <Icon name="image" size="menu" />
+      <span>Can’t show this image</span>
+    </span>
+  )
+}
+
 function MediaTile(props: { file: SentFile; more: number; onOpen: (el: HTMLElement) => void }) {
   const [duration, setDuration] = createSignal<number | null>(null)
+  const [broken, setBroken] = createSignal(false)
   const video = () => kindOf(props.file.name) === "video"
   return (
-    <button type="button" class="tds-media-tile" data-kind={video() ? "video" : "image"} data-file={props.file.id} aria-label={`Open ${props.file.name}`} onClick={(event) => props.onOpen(event.currentTarget)}>
-      <Show when={video()} fallback={<img src={fileUrl(props.file.id)} alt={props.file.name} loading="lazy" draggable={false} />}>
+    <button type="button" class="tds-media-tile" data-kind={video() ? "video" : "image"} data-broken={broken() ? "" : undefined} data-file={props.file.id} aria-label={broken() ? `${props.file.name} can’t be shown` : `Open ${props.file.name}`} onClick={(event) => props.onOpen(event.currentTarget)}>
+      <Show
+        when={video()}
+        fallback={
+          <Show when={!broken()} fallback={<MediaBroken />}>
+            <img src={fileUrl(props.file.id)} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} />
+          </Show>
+        }
+      >
         <video src={`${fileUrl(props.file.id)}#t=0.1`} preload="metadata" muted playsinline onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} />
         <span class="tds-media-play" aria-hidden="true">
           <Icon name="play:fill" size="menu" />
