@@ -69,6 +69,15 @@ export async function authenticateRequest(
     return { ok: true, owner: devOwner };
   }
 
+  const accessKey = env.TOCK_ACCESS_KEY?.trim();
+  if (accessKey) {
+    const presented = presentedKeyDigest(request);
+    if (presented && constantTimeEqual(presented, await accessKeyDigest(accessKey))) {
+      return { ok: true, owner: env.EMAIL_OWNER?.trim() || "owner@local" };
+    }
+    if (!env.ACCESS_TEAM_DOMAIN) return { ok: false, reason: "invalid_access_key" };
+  }
+
   const teamDomain = env.ACCESS_TEAM_DOMAIN?.trim();
   const aud = env.ACCESS_AUD?.trim();
   if (!teamDomain || !aud) {
@@ -135,6 +144,26 @@ export async function authenticateRequest(
     return { ok: false, reason: "missing_identity" };
   }
   return { ok: true, owner };
+}
+
+export const ACCESS_COOKIE = "tock_key";
+
+export async function accessKeyDigest(key: string): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`tock-access:${key}`));
+  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function presentedKeyDigest(request: Request): string | null {
+  const cookie = request.headers.get("cookie") ?? "";
+  for (const part of cookie.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name === ACCESS_COOKIE) return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
+
+export function accessCookie(digest: string, maxAgeSeconds: number): string {
+  return `${ACCESS_COOKIE}=${digest}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSeconds}`;
 }
 
 export function constantTimeEqual(a: string, b: string): boolean {

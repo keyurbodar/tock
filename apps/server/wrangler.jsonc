@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "tock",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": { "bindings": [{ "name": "TOCK_DO", "class_name": "TockDO" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TockDO"] }],
+  "rules": [{ "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true }],
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "html_handling": "auto-trailing-slash",
+    "run_worker_first": ["/api/*", "/ws", "/mcp/*"]
+  },
+  "observability": { "enabled": true },
+  "vars": { "DEFAULT_TIMEZONE": "UTC" }
+}

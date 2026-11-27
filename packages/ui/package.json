@@ -1,0 +1,32 @@
+{
+  "name": "@tock/ui",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./*": "./src/*.tsx",
+    "./styles.css": "./src/styles.css"
+  },
+  "dependencies": {
+    "@tock/tokens": "workspace:*",
+    "@tock/motion": "workspace:*",
+    "torph": "0.1.4",
+    "skullet": "0.0.3"
+  },
+  "peerDependencies": {
+    "solid-js": "2.0.4",
+    "@solidjs/web": "2.0.4",
+    "@ui-sdk/solid": "0.1.0-beta.17",
+    "@ui-sdk/core": "0.1.0-beta.17"
+  },
+  "devDependencies": {
+    "@phosphor-icons/core": "2.1.1"
+  },
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "icons": "bun scripts/icons.ts"
+  }
+}

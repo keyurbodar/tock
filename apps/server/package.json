@@ -1,0 +1,28 @@
+{
+  "name": "@tock/server",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@earendil-works/chord": "1.6.0",
+    "@earendil-works/djs": "^0.2.0",
+    "@earendil-works/pi-ai": "~1.6.0",
+    "@earendil-works/pi-durable": "~1.6.0",
+    "@earendil-works/pi-schema": "~1.6.0",
+    "@modelcontextprotocol/client": "2.4.0",
+    "agents": "^0.34.0",
+    "@tock/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.9.1",
+    "@cloudflare/workers-types": "latest",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.167.0"
+  }
+}

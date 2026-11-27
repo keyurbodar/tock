@@ -1,0 +1,19 @@
+{
+  "name": "@tock/tokens",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./tokens.json": "./tokens.json",
+    "./tokens.css": "./dist/tokens.css",
+    "./theme.css": "./dist/theme.css",
+    ".": "./dist/tokens.ts"
+  },
+  "scripts": {
+    "build": "bun build.ts",
+    "typecheck": "tsgo --noEmit"
+  }
+}

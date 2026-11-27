@@ -1,0 +1,24 @@
+@keyframes tds-shimmer { from { background-position: 100% 0 } to { background-position: 0 0 } }
+@keyframes tds-breathe { 50% { opacity: .5; scale: .88 } }
+@keyframes tds-spin { to { rotate: 360deg } }
+@keyframes tds-word { to { opacity: 1; filter: none } }
+@keyframes tds-shake { 20%, 60% { translate: -4px 0 } 40%, 80% { translate: 4px 0 } }
+
+.tds-shimmer {
+  background: linear-gradient(90deg, var(--tds-text-muted) 0%, var(--tds-text-muted) 40%, var(--tds-text-tx) 50%, var(--tds-text-muted) 60%, var(--tds-text-muted) 100%);
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: tds-shimmer var(--tds-dur-loop) linear infinite;
+}
+.tds-word { opacity: 0; filter: blur(var(--tds-blur-word)); animation: tds-word var(--tds-dur-word) var(--tds-ease-out) forwards }
+.tds-shake { animation: tds-shake var(--tds-dur-swap) var(--tds-ease-std) }
+.tds-flight-dot {
+  position: fixed; z-index: var(--tds-z-flight); width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  background: var(--tds-accent-rose); box-shadow: 0 0 0 3px var(--tds-wash-rose); pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 150ms !important; filter: none !important; translate: none !important }
+}

@@ -4,6 +4,8 @@ export interface Env {
   TOCK_DO: DurableObjectNamespace<TockDO>;
   FILES?: R2Bucket;
   VAULT_MASTER_KEY: string;
+  TOCK_ACCESS_KEY?: string;
+  ASSETS?: Fetcher;
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
   DEV_ALLOW_ANON?: string;

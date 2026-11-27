@@ -1,4 +1,4 @@
-import { authenticateRequest } from "./core/auth.js";
+import { accessCookie, accessKeyDigest, authenticateRequest, constantTimeEqual } from "./core/auth.js";
 import { parseJsonBody, validators } from "./core/schemas.js";
 import type { Env } from "./types.js";
 
@@ -79,7 +79,24 @@ export default {
       return Response.json(res, { status: res.accepted ? 202 : 401 });
     }
 
+    if (url.pathname === "/api/auth" && request.method === "POST") {
+      const expected = env.TOCK_ACCESS_KEY?.trim();
+      const body = (await request.json().catch(() => null)) as { key?: unknown } | null;
+      const key = typeof body?.key === "string" ? body.key.trim() : "";
+      if (!expected || !key || !constantTimeEqual(await accessKeyDigest(key), await accessKeyDigest(expected))) {
+        return Response.json({ ok: false, error: "invalid_access_key" }, { status: 401 });
+      }
+      return Response.json({ ok: true }, { headers: { "set-cookie": accessCookie(await accessKeyDigest(key), 60 * 60 * 24 * 400) } });
+    }
+
+    if (url.pathname === "/api/auth" && request.method === "DELETE") {
+      return Response.json({ ok: true }, { headers: { "set-cookie": accessCookie("", 0) } });
+    }
+
     const auth = await authenticateRequest(request, env);
+    if (url.pathname === "/api/auth" && request.method === "GET") {
+      return Response.json({ ok: auth.ok }, { status: auth.ok ? 200 : 401, headers: { "cache-control": "no-store" } });
+    }
     if (!auth.ok) {
       return Response.json({ ok: false, error: auth.reason }, { status: 401 });
     }

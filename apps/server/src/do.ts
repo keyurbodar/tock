@@ -28,6 +28,7 @@ import { constantTimeEqual } from "./core/auth.js";
 import { parseClientFrame } from "./core/schemas.js";
 import { buildModels, parseModelSpec, resolveModel } from "./core/models.js";
 import { createTockExtension } from "./core/tools.js";
+import { DEMO_MODEL } from "./core/demo.js";
 import { DjsRuntime, type DjsRunResult } from "./dev/djs.js";
 import type {
   NotificationUrgency, NotifyResult, QueuedNotificationRecord,
@@ -444,7 +445,7 @@ export class TockDO extends DurableObject<Env> {
   }
 
   private async syncSessionModel(sessionId: string): Promise<void> {
-    const parsed = parseModelSpec(this.settingsStore.get().model);
+    const parsed = parseModelSpec(this.settingsStore.get().model ?? DEMO_MODEL);
     if (!parsed) return;
     await this.harness.session(sessionId).setModel(parsed);
   }

@@ -1,34 +1,32 @@
 {
   "name": "tock",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "typecheck": "tsgo --noEmit",
-    "lint": "oxlint src test",
-    "fmt": "oxfmt src test",
-    "test": "vitest run",
-    "check": "bun run typecheck && bun run lint && bun run test"
-  },
-  "dependencies": {
-    "@earendil-works/chord": "1.6.0",
-    "@earendil-works/djs": "^0.2.0",
-    "@earendil-works/pi-ai": "~1.6.0",
-    "@earendil-works/pi-durable": "~1.6.0",
-    "@earendil-works/pi-schema": "~1.6.0",
-    "@modelcontextprotocol/client": "2.4.0",
-    "agents": "^0.34.0"
+    "dev": "bun run --filter @tock/server dev & bun run --filter @tock/web dev",
+    "dev:server": "bun run --cwd apps/server dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "tokens": "bun run --cwd packages/tokens build",
+    "build": "bun run tokens && bun run --cwd apps/web build",
+    "deploy": "bun run build && bun run --cwd apps/server deploy",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "oxlint --deny-warnings apps packages && bun scripts/lint-tokens.ts",
+    "fmt": "oxfmt apps packages scripts",
+    "fmt:check": "oxfmt --check apps packages scripts",
+    "test": "bun run --cwd apps/server test",
+    "budget": "bun scripts/budget.ts",
+    "check": "bun run typecheck && bun run lint && bun run test && bun run build && bun run budget"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.9.1",
-    "@cloudflare/workers-types": "latest",
-    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
-    "oxfmt": "^0.80.0",
     "oxlint": "^1.95.0",
-    "vitest": "^5.1.1",
-    "wrangler": "^4.167.0"
+    "oxfmt": "^0.80.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
+    "typescript": "7.0.2"
   },
   "patchedDependencies": {
     "agents@0.34.0": "patches/agents@0.34.0.patch"

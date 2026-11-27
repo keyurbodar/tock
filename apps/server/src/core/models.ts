@@ -9,6 +9,7 @@ import type {
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import type { Env } from "../types.js";
 import type { Vault } from "./vault.js";
+import { installDemoModel } from "./demo.js";
 
 const CREDENTIAL_PREFIX = "llm:";
 
@@ -53,6 +54,7 @@ export function createVaultCredentialStore(vault: Vault): CredentialStore {
 export function buildModels(vault: Vault): { models: Models; credentials: CredentialStore } {
   const credentials = createVaultCredentialStore(vault);
   const models = builtinModels({ credentials });
+  installDemoModel(models);
   return { models, credentials };
 }
 

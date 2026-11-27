@@ -1,0 +1,33 @@
+@layer ui-sdk, theme, base, components, utilities;
+@import "tailwindcss";
+@import "@tock/tokens/theme.css";
+@import "@tock/tokens/tokens.css";
+@import "@tock/motion/motion.css";
+@import "./fonts.css";
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--tds-surface-backdrop);
+    color: var(--tds-text-tx);
+    font-family: var(--tds-font-sans);
+    font-size: var(--tds-type-body-size);
+    line-height: var(--tds-type-body-leading);
+    letter-spacing: var(--tds-type-body-tracking);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-optical-sizing: auto;
+    font-synthesis: none;
+    font-kerning: normal;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body { margin: 0; height: 100dvh; overflow: hidden; }
+  #app { height: 100%; }
+  button { cursor: default; }
+  code, kbd, pre, samp { font-family: var(--tds-font-mono); }
+  ::selection { background: var(--tds-accent-rose-28); }
+  :focus-visible { outline: none; box-shadow: var(--tds-focus-ring); }
+  .num { font-variant-numeric: tabular-nums; }
+}
