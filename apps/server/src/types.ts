@@ -43,6 +43,12 @@ export interface QueuedNotificationRecord {
   createdAt: number;
 }
 
+/** A send pi holds queued behind the running work, keyed by the client's operationId. */
+export interface QueuedSend {
+  operationId: string;
+  text: string;
+}
+
 export interface NotifyResult {
   delivered: boolean;
   queued: boolean;

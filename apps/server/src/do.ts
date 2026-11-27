@@ -5,7 +5,7 @@ import { PiHarness, ROOT_SESSION } from "agents/harness/pi";
 import { isThreadId, ThreadIds } from "./core/threads.js";
 import { summarizeEntries } from "./core/summary.js";
 import { MCPClientManager } from "agents/mcp/client";
-import { createRegistry, Harness, type ConversationWatch, type TaskId } from "@earendil-works/pi-durable";
+import { createRegistry, Harness, type ConversationWatch, type InboxItem, type TaskId } from "@earendil-works/pi-durable";
 import {
   getSupportedThinkingLevels,
   type CredentialStore,
@@ -34,6 +34,7 @@ import { DjsRuntime, type DjsRunResult } from "./dev/djs.js";
 import type {
   NotificationUrgency, NotifyResult, QueuedNotificationRecord,
   ClientFrame,
+  QueuedSend,
   Env,
   FileMeta,
   OwnerSettings,
@@ -44,6 +45,13 @@ import type {
 } from "./types.js";
 
 const MAX_STORED_EVENTS = 200;
+
+const inputText = (content: unknown): string =>
+  typeof content === "string"
+    ? content
+    : Array.isArray(content)
+      ? content.map((part) => (part && typeof part === "object" && part.type === "text" ? String(part.text) : "")).join("")
+      : "";
 
 export class TockDO extends DurableObject<Env> {
   private readonly settingsStore: SettingsStore;
@@ -61,6 +69,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly credentials: CredentialStore;
   private readonly activeWatches = new Map<string, ConversationWatch>();
   private readonly runningSessions = new Set<string>();
+  private readonly queuedSessions = new Set<string>();
   private readonly lastUserQuery = new Map<string, string>();
   private readonly backgroundSessions = new Set<string>();
   private readonly pendingAsks = new Map<string, { taskId: TaskId; ask: OwnerAsk }>();
@@ -273,10 +282,37 @@ export class TockDO extends DurableObject<Env> {
           false,
         );
         this.announceRun(sessionId, call.value);
+        if (this.queuedSessions.has(sessionId)) await this.announceQueue(sessionId);
       } else {
         this.broadcastSession(sessionId, "session.error", { sessionId, error: String(call.error) });
       }
     });
+  }
+
+  /**
+   * Sends pi still holds queued in the chat's durable inbox, oldest first, keyed by the client's operationId. Read
+   * straight from pi's inbox document, so the queue costs no writes of its own and survives a restart with pi.
+   */
+  private async queuedSends(sessionId: string): Promise<QueuedSend[]> {
+    const conversationId = (await this.harness.conversation(sessionId)).id;
+    const storage = await this.harness.storage();
+    const record = await storage.findDocument({ kind: "pi.inbox", scope: { kind: "conversation", conversationId } }, "current", BACKGROUND_CONTEXT);
+    const doc = record && (await storage.document(record.id, "current", BACKGROUND_CONTEXT));
+    const items = ((doc?.value as { items?: InboxItem[] } | undefined)?.items ?? []).filter((item) => item.mode !== "write");
+    const sends = await Promise.all(
+      items.map(async (item) => ({ requestId: (await storage.submission(item.id, BACKGROUND_CONTEXT))?.requestId, text: inputText(item.content) })),
+    );
+    return sends.flatMap(({ requestId, text }) => (requestId === undefined ? [] : [{ operationId: requestId, text }]));
+  }
+
+  /** Tells the chat's sockets which sends are still queued, by operationId, so clients settle bubbles by id. */
+  private async announceQueue(sessionId: string): Promise<QueuedSend[]> {
+    const queued = await this.queuedSends(sessionId);
+    const had = this.queuedSessions.has(sessionId);
+    if (queued.length > 0) this.queuedSessions.add(sessionId);
+    else this.queuedSessions.delete(sessionId);
+    if (had || queued.length > 0) this.broadcastSession(sessionId, "chat.queue", { sessionId, queued }, false);
+    return queued;
   }
 
   /** Every socket hears when a chat starts or stops working, not only the one watching it, so other tabs and the notification centre stay true. */
@@ -359,6 +395,7 @@ export class TockDO extends DurableObject<Env> {
           cursor: this.latestEventSeq(),
           messages: await this.harness.session(sessionId).messages(),
           ask: this.pendingAsks.get(sessionId)?.ask,
+          queued: await this.queuedSends(sessionId),
         };
       }
       case "ask.answer":
@@ -384,18 +421,23 @@ export class TockDO extends DurableObject<Env> {
         const receipt = await this.harness.submit(frame.text, {
           session: sessionId,
           operationId: frame.operationId,
+          onAbort: "keep",
         });
         await this.scheduler.set(300, "consolidateMemory", { sessionId }, { idempotent: true });
         this.broadcastSession(sessionId, "chat.accepted", receipt, false);
+        await this.announceQueue(sessionId);
         return receipt;
       }
-      case "chat.abort":
-        return {
-          aborted: await this.harness.abort({
-            session: frame.sessionId ?? ROOT_SESSION,
-            operationId: frame.operationId,
-          }),
-        };
+      case "chat.abort": {
+        const sessionId = frame.sessionId ?? ROOT_SESSION;
+        const aborted = await this.harness.abort({ session: sessionId, operationId: frame.operationId });
+        const ask = this.pendingAsks.get(sessionId);
+        if (ask && frame.operationId === undefined) this.trackAsk(sessionId, ask.taskId, null);
+        if (frame.operationId === undefined && (await this.queuedSends(sessionId)).length > 0) {
+          await this.harness.session(sessionId).continue();
+        }
+        return { aborted, queued: await this.announceQueue(sessionId) };
+      }
       case "session.list":
         return await this.listSessionSummaries();
       case "session.create": {
