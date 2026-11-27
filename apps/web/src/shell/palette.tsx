@@ -52,7 +52,7 @@ export function Palette() {
   createHotkey(appHotkeys["chats.search"], () => setOpen((current) => !current))
   const sessions = () => app.sessions.filter((session) => !session.meta.archived)
   return (
-    <Dialog open={open()} onOpenChange={(next) => setOpen(next)}>
+    <Dialog modal="trap-focus" open={open()} onOpenChange={(next) => setOpen(next)}>
       <DialogBackdrop class="tds-palette-scrim" />
       <DialogContent class="tds-palette tds-over">
         <DialogTitle class="sr-only">Search or run a command</DialogTitle>

@@ -65,7 +65,7 @@ export function Shortcuts() {
   const status = (ids: readonly string[]) => (ids.every((id) => live().find((item) => item.appHotkey.id === id)?.status === "active") ? "active" : "inactive")
 
   return (
-    <Dialog open={open()} onOpenChange={(next) => setOpen(next)}>
+    <Dialog modal="trap-focus" open={open()} onOpenChange={(next) => setOpen(next)}>
       <DialogBackdrop class="tds-scrim" />
       <DialogContent class="tds-keys tds-over">
         <div class="tds-keys-head">

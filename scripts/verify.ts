@@ -225,10 +225,7 @@ const JANK_FRAME_MS = 50
 const JANK_P95_MS = 34
 const JANK_KNOWN: Record<string, string> = {
   streaming: "frame: each streamed token re-renders the reply and reflows the column under 4x throttle",
-  "composer sheet": "frame and forced: the sheet animates the field's height (layout every frame) and the transcript's scroll handler reads scrollHeight inside it",
   "work log": "forced: the pane's ResizeObserver fit() reads heights after other observers wrote",
-  palette: "frame (not yet traced to a cause): one 67-83ms frame after open or close; both are backdrop sources, and backdrop() toggles :root[data-backdrop], which restyles the whole document",
-  dialog: "frame (not yet traced to a cause): one 67ms frame after open or close; same backdrop path as the palette",
   centre: "frame: since b25f77d the sidebar and main scale back as two viewport-sized layers promoted at open; on this VM's software compositor each frame of that scale costs 50-130ms (2 dropped frames before it, 43 after)",
 }
 
@@ -555,10 +552,10 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
   writesheet() {
     seeded()
-    const h = () => rect(".tds-field")!.h
+    const h = () => js<number>("return ((f) => { const r = f.getBoundingClientRect(); return r.height - (parseFloat(getComputedStyle(f).clipPath.replace('inset(', '')) || 0) })(document.querySelector('.tds-field'))")
     const base = h()
     const expanded = () => js<string | null>("return document.querySelector('.tds-sheet-grip')?.getAttribute('aria-expanded') ?? null")
-    const receded = () => js<{ on: boolean; scale: number; filter: string }>("const t = document.querySelector('main .tds-transcript'); const s = getComputedStyle(t); return { on: t.hasAttribute('data-recede'), scale: parseFloat(s.scale) || 1, filter: s.filter }")
+    const receded = () => js<{ on: boolean; scale: number; opacity: number }>("const t = document.querySelector('main .tds-transcript'); const s = getComputedStyle(t); return { on: t.hasAttribute('data-recede'), scale: parseFloat(s.scale) || 1, opacity: +s.opacity }")
     const closed = (what: string) => {
       until(h, (v) => Math.abs(v - base) < 1, what)
       until(receded, (r) => !r.on, "the transcript to come back")
@@ -571,7 +568,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const open = h()
     const back = receded()
     check(expanded() === "true", "the grip says expanded")
-    check(back.on && back.scale < 0.995 && back.filter.includes("blur"), `the transcript scales back, dims and blurs (${JSON.stringify(back)})`)
+    check(back.on && back.scale < 0.995 && back.opacity < 0.95, `the transcript scales back and dims (${JSON.stringify(back)})`)
     check(js<boolean>("return !!document.activeElement?.closest('.tds-editor')"), "the editor keeps focus in the sheet")
     ab("keyboard", "type", "A longer thought")
     shot("sheet-open")
@@ -579,7 +576,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     closed("Escape to collapse the sheet")
     check(js<string>("return document.querySelector('.ProseMirror').textContent") === "A longer thought", "the draft survives the round trip")
 
-    ab("eval", "(() => { window.__peak = 0; const f = document.querySelector('.tds-field'); const tick = () => { window.__peak = Math.max(window.__peak, f.getBoundingClientRect().height); if (!window.__stopPeak) requestAnimationFrame(tick) }; window.__stopPeak = false; requestAnimationFrame(tick) })()")
+    ab("eval", "(() => { window.__peak = 0; const f = document.querySelector('.tds-field'); const tick = () => { window.__peak = Math.max(window.__peak, ((f) => { const r = f.getBoundingClientRect(); return r.height - (parseFloat(getComputedStyle(f).clipPath.replace('inset(', '')) || 0) })(f)); if (!window.__stopPeak) requestAnimationFrame(tick) }; window.__stopPeak = false; requestAnimationFrame(tick) })()")
     ab("eval", "document.querySelector('.tds-sheet-grip').click()")
     wait(90)
     ab("eval", "document.querySelector('.tds-sheet-grip').click()")
@@ -677,9 +674,9 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "Backspace")
     wait(500)
     ab("hover", ".tds-field")
-    probe("sheet open", ".tds-field", () => (ab("click", ".tds-sheet-grip"), wait(900), ab("press", "Escape")), 1000)
+    probe("sheet open", ".tds-sheet-grip", () => (ab("click", ".tds-sheet-grip"), wait(900), ab("press", "Escape")), 1000)
     probe("sheet recede", "main .tds-transcript", () => (ab("click", ".tds-sheet-grip"), wait(900), ab("press", "Escape")), 1000)
-    probe("sheet retarget", ".tds-field", () => (ab("eval", "document.querySelector('.tds-sheet-grip').click()"), wait(140), ab("eval", "document.querySelector('.tds-sheet-grip').click()")), 1000)
+    probe("sheet retarget", ".tds-sheet-grip", () => (ab("eval", "document.querySelector('.tds-sheet-grip').click()"), wait(140), ab("eval", "document.querySelector('.tds-sheet-grip').click()")), 1000)
     probe("bell centre", ".tds-centre", () => (ab("click", ".tds-rail-button[data-bell]"), wait(600), ab("click", ".tds-rail-button[data-bell]")))
     const at = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
     ab("mouse", "move", "5", "5")
@@ -3411,6 +3408,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
         if (line) (ab("mouse", "move", String(line.x + 40), String(line.y + line.h / 2)), ab("mouse", "down"), ab("mouse", "up"), wait(700), ab("mouse", "down"), ab("mouse", "up"), wait(700))
         ab("press", "Escape")
       })
+      wait(1200)
       ab("mouse", "move", ...center(".tds-field"))
       wait(300)
       await probe("composer sheet", () => (tap(".tds-sheet-grip"), wait(900), ab("press", "Escape")), 900)

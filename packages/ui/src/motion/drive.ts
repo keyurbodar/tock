@@ -173,11 +173,10 @@ export function drive(el: HTMLElement, opts: { preset?: Preset; property?: strin
 export function recede(el: Track["el"]): Track {
   const m = tokens.material.backdrop
   const scale = 1 - Number(m.scale)
-  const blur = parseFloat(m.blur)
   const dim = 1 - Number(m.dim)
   return {
     el,
     mark: "data-recede",
-    at: (p) => ({ transformOrigin: "50% 0", scale: String(1 - p * scale), filter: "blur(" + (p * blur).toFixed(3) + "px) brightness(" + (1 - p * dim).toFixed(4) + ")" }),
+    at: (p) => ({ transformOrigin: "50% 0", scale: String(1 - p * scale), opacity: String(1 - p * dim) }),
   }
 }

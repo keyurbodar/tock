@@ -228,28 +228,42 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   const resting = () => untrack(height) + (untrack(props.attachments.items).length > 0 ? tokens.size["attach-tray"] : 0)
   const reach = () => field.getBoundingClientRect().bottom - (wrap.parentElement?.getBoundingClientRect().top ?? 0) - tokens.size.header - tokens.size["sheet-top"]
   let full = 0
+  let span = 0
+  let lift = 0
+  let corner = ""
+  let gripEl: HTMLButtonElement | undefined
   let sheetDrive: ReturnType<typeof drive> | undefined
+  const below = (p: number) => ((1 - Math.min(1, Math.max(0, p))) * span).toFixed(2)
   const mountField = (el: HTMLDivElement) => {
     field = el
     sheetDrive = drive(el, {
       preset: "glide",
-      tracks: [recede(() => wrap.parentElement?.querySelector(".tds-transcript"))],
+      tracks: [
+        recede(() => wrap.parentElement?.querySelector(".tds-transcript")),
+        { el: () => field, at: (p) => ({ clipPath: "inset(" + below(p) + "px 0 0 0 round " + corner + ")" }) },
+        { el: () => [...field.children], at: (p) => ({ translate: "0 " + ((1 - Math.min(1, Math.max(0, p))) * (span + lift)).toFixed(2) + "px" }) },
+        { el: () => gripEl, at: (p) => ({ translate: "-50% " + below(p) + "px" }) },
+      ],
       onRest: (progress) => {
         if (progress > 0) return
-        el.style.transition = "none"
+        el.dataset.settling = ""
         delete el.dataset.sheet
-        for (const name of ["--sheet-from", "--sheet-to"]) el.style.removeProperty(name)
-        requestAnimationFrame(() => el.style.removeProperty("transition"))
+        el.style.removeProperty("--sheet-to")
+        requestAnimationFrame(() => requestAnimationFrame(() => delete el.dataset.settling))
       },
     })
   }
+  /** The sheet takes its full height once, then reveals upward: a clip on the field and a counter-translate on its content, so no frame lays out. */
   const prime = () => {
-    if (!("sheet" in field.dataset)) {
-      full = reach()
-      field.dataset.sheet = ""
-    }
-    field.style.setProperty("--sheet-from", `${resting()}px`)
-    field.style.setProperty("--sheet-to", `${full}px`)
+    if ("sheet" in field.dataset) return
+    const text = () => (field.querySelector(".tds-editor") ?? field.lastElementChild)!.getBoundingClientRect().top - field.getBoundingClientRect().top
+    const before = text()
+    full = reach()
+    span = Math.max(0, full - resting())
+    field.dataset.sheet = ""
+    field.style.setProperty("--sheet-to", full + "px")
+    corner = getComputedStyle(field).borderTopLeftRadius
+    lift = before - text()
   }
   const expand = (open: boolean, velocity?: number) => {
     setSheet(open)
@@ -259,7 +273,8 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   }
   const unbind: (() => void)[] = []
   const range = () => ("sheet" in field.dataset ? full : reach()) - resting()
-  const grip = (el: HTMLButtonElement) =>
+  const grip = (el: HTMLButtonElement) => (
+    (gripEl = el),
     unbind.push(
       scrub(el, {
         axis: "y",
@@ -270,7 +285,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         onProgress: (progress) => (prime(), sheetDrive?.set(progress)),
         onRelease: (open, velocity) => expand(open, (velocity * 1000) / Math.max(1, range())),
       }),
-    )
+    ))
   let saveTimer: ReturnType<typeof setTimeout> | undefined
   let hoverTimer: ReturnType<typeof setTimeout> | undefined
   let key = ""

@@ -1,13 +1,15 @@
 @layer components {
   .tds-field { position: relative }
   .tds-field[data-sheet] {
-    height: calc(var(--sheet-from) + (var(--sheet-to) - var(--sheet-from)) * var(--p)) !important; border-radius: var(--tds-radius-composer-tall);
+    height: var(--sheet-to) !important; border-radius: var(--tds-radius-composer-tall);
     transition: background-color var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out);
     & .tds-field-body { min-height: 0; align-items: stretch; padding-top: var(--tds-size-sheet-grip-hit) }
     & .tds-editor { max-height: none }
     & .tds-mic { align-self: flex-end }
   }
   .tds-composer-row { position: relative }
+  /* Leaving sheet mode snaps the field back to its resting height under the clip, so its height transition sits out one style pass. */
+  .tds-field[data-settling] { transition: none !important }
   .tds-sheet-grip {
     position: absolute; z-index: 2; top: calc(var(--tds-size-sheet-grip-hit) / -2); left: 50%; translate: -50% 0; display: grid; place-items: center;
     width: calc(var(--tds-size-sheet-grip) + var(--tds-space-24)); height: var(--tds-size-sheet-grip-hit);
