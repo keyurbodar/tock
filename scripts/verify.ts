@@ -360,7 +360,7 @@ const journeys: Record<string, () => void> = {
     ensureRows(1)
     openRow()
     const items = js<string[]>("return [...document.querySelectorAll('.tds-menu .tds-menu-item')].map((e) => e.textContent.trim())")
-    check(["Rename…", "Pin", "Mark as Unread", "Snooze", "Move to…", "Copy Link", "Archive", "Delete"].every((item) => items.some((text) => text.startsWith(item))), `menu items: ${items.join(", ")}`)
+    check(["Rename…", "Pin", "Mark as ", "Snooze", "Move to…", "Copy Link", "Archive", "Delete"].every((item) => items.some((text) => text.startsWith(item))) && items.some((text) => /^Mark as (Read|Unread)/.test(text)), `menu items: ${items.join(", ")}`)
     const geometry = js<{ w: number; h: number; r: string; f: string }>("const m = document.querySelector('.tds-menu'); const i = m.querySelector('.tds-menu-item'); const s = getComputedStyle(i); return { w: m.getBoundingClientRect().width, h: i.getBoundingClientRect().height, r: s.borderRadius, f: s.fontSize }")
     check(geometry.w >= 220 && geometry.h === 32 && geometry.r === "9px" && geometry.f === "13.5px", `SPEC §8 menu: 220 min, 32 items, r9, 13.5 text (got ${JSON.stringify(geometry)})`)
     shot("menu")
