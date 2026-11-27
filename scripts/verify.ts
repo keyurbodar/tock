@@ -467,6 +467,58 @@ const journeys: Record<string, () => void> = {
     until(() => exists(`.tds-row[href="/t/${chat}"][data-unread] .tds-unread`), Boolean, "chat A's row to show unread")
     shot("finished-landed")
     void title
+  empty() {
+    ab("open", BASE)
+    until(() => exists(".tds-empty img[src*='toast-hi']"), Boolean, "the home empty state")
+    check(js<string>("return document.querySelector('.tds-empty b')?.textContent") === "Say hi to toast", "home empty title")
+    shot("empty-home")
+    ab("click", ".tds-empty-button")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a new thread url")
+    until(() => exists(".tds-empty img[src*='toast-hi']") && !exists(".tds-empty-button"), Boolean, "the empty thread state")
+    shot("empty-thread")
+    ab("click", ".tds-search input")
+    ab("keyboard", "type", "zzqx nothing here")
+    until(() => exists(".tds-sidebar .tds-empty img[src*='obj-search']"), Boolean, "the sidebar no-results state")
+    check(js<string>("return document.querySelector('.tds-sidebar .tds-empty b')?.textContent") === "Nothing matches that", "no-results title")
+    shot("empty-search")
+    ab("press", "Escape")
+  },
+  header() {
+    until(() => exists(".tds-row"), Boolean, "sidebar rows")
+    ab("click", ".tds-row")
+    until(() => exists(".tds-bubble[data-side='agent']"), Boolean, "a thread with a reply", 15000)
+    check(rect(".tds-header-pill")?.h === 31, `header pill should be 31 tall, got ${rect(".tds-header-pill")?.h}`)
+    check(style(".tds-header-pill", "fontSize") === "14px", "header title is 14px")
+    check(rect(".tds-header .size-header-avatar")?.w === 50, "header avatar is 50")
+    ab("click", "button[aria-label='Share']")
+    until(() => js<string>("return document.body.innerText"), (t) => t.includes("Link copied"), "the link copied toast")
+    ab("click", "button[aria-label='Search in chat']")
+    until(() => exists(".tds-find input"), Boolean, "the find bar")
+    const word = js<string>("return (document.querySelector('.tds-bubble[data-side=agent]')?.textContent ?? '').trim().split(/\\s+/).find((w) => /^[a-z]{5,}$/i.test(w)) ?? ''")
+    check(word, "no word to search for")
+    ab("keyboard", "type", word.slice(0, 5))
+    until(() => js<string>("return document.querySelector('.tds-find-count [torph-sr]')?.textContent ?? ''"), (t) => /^1 of \d+$/.test(t), "a match count")
+    check(js<number>("return CSS.highlights.get('tds-find-on')?.size ?? 0") === 1, "the current match is highlighted")
+    shot("header-find")
+    ab("keyboard", "type", "zzqx")
+    until(() => js<string>("return document.querySelector('.tds-find-count [torph-sr]')?.textContent ?? ''"), (t) => t === "No matches", "no matches")
+    ab("press", "Escape")
+    until(() => exists(".tds-find"), (open) => !open, "the find bar to close")
+    check(js<number>("return CSS.highlights.size") === 0, "highlights cleared on close")
+  },
+  offline() {
+    check(js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''") === "off", "the banner starts hidden")
+    ab("set", "offline", "on")
+    try {
+      until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "on", "the offline banner", 12000)
+      wait(400)
+      check(rect(".tds-banner")?.y === 96, `banner sits 96 from the top, got ${rect(".tds-banner")?.y}`)
+      shot("offline-banner")
+    } finally {
+      ab("set", "offline", "off")
+    }
+    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "back online", 15000)
+    shot("offline-back")
   },
   diagnostics() {
     const logs = ab("console")
@@ -477,7 +529,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

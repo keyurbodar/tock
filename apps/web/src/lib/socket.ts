@@ -29,6 +29,7 @@ export class Socket {
 
   constructor(private readonly url: string) {
     addEventListener("online", () => this.reconnectNow())
+    addEventListener("offline", () => this.ws?.close())
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") this.reconnectNow()
     })

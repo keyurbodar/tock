@@ -9,7 +9,7 @@ const regular = [
   "waveform", "dots-three", "archive", "trash", "push-pin", "push-pin-slash", "pencil-simple", "circle", "bell-slash", "link-simple",
   "x", "check", "warning-circle", "hand", "arrow-counter-clockwise", "paperclip", "image", "file", "file-pdf", "file-text", "file-code",
   "file-audio", "file-video", "file-zip", "text-align-left", "download-simple", "copy", "arrows-out-simple", "arrow-square-out",
-  "prohibit", "wifi-slash", "sidebar-simple", "caret-down", "caret-right", "caret-left", "arrow-left", "arrow-right", "globe",
+  "prohibit", "wifi-slash", "sidebar-simple", "caret-down", "caret-up", "caret-right", "caret-left", "arrow-left", "arrow-right", "globe",
   "terminal-window", "code", "lightning", "brain", "browser", "desktop", "cloud", "key", "lock-simple", "plug", "puzzle-piece",
   "list-checks", "clock", "calendar-check", "sparkle", "arrow-clockwise", "camera", "clipboard-text", "github-logo", "notion-logo",
   "google-drive-logo", "hash", "at", "command", "eye", "eye-slash", "info", "question", "play", "pause", "broom", "drop", "palette",

@@ -2,10 +2,12 @@ import { createEffect, createMemo, createSignal, Show, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { createAttachments } from "./attachments"
-import { useParams } from "@solidjs/router"
-import { abort, app, isWorking, send, subscribe, titleOf } from "../state/app"
+import { useNavigate, useParams } from "@solidjs/router"
+import { abort, app, isWorking, newThreadId, send, subscribe, titleOf } from "../state/app"
 import { Composer } from "./composer"
 import { Header } from "./header"
+import { Empty } from "./empty"
+import type { OrbStatus } from "@tock/ui/orb"
 import { Transcript } from "./transcript"
 
 export function Thread() {
@@ -16,6 +18,12 @@ export function Thread() {
   )
   const state = () => app.threads[params.id]
   const session = createMemo(() => app.sessions.find((s) => s.id === params.id))
+  const status = (): OrbStatus | undefined => {
+    const s = state()
+    if (isWorking(s)) return "working"
+    if (s?.live?.runFailure && s.live.runFailure.reason !== "aborted") return "failed"
+    return undefined
+  }
   const attachments = createAttachments()
   const [dragging, setDragging] = createSignal(false)
   let depth = 0
@@ -34,8 +42,10 @@ export function Thread() {
         attachments.add([...(e.dataTransfer?.files ?? [])])
       }}
     >
-      <Header title={titleOf(session())} working={isWorking(state())} />
-      <Transcript state={state()} />
+      <Header title={titleOf(session())} status={status()} />
+      <Show when={state()?.phase !== "ready" || state()!.entries.length > 0 || state()!.pending.length > 0} fallback={<div class="tds-transcript grid"><Empty art="hi" /></div>}>
+        <Transcript state={state()} />
+      </Show>
       <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
       <Show when={dragging()}>
         <div class="tds-drop" aria-hidden="true">
@@ -53,11 +63,10 @@ export function Thread() {
 }
 
 export function Home() {
+  const navigate = useNavigate()
   return (
-    <section class="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-12 bg-main text-center">
-      <img src="/brand/toast-mascot-128.svg" alt="" class="size-pin" draggable={false} />
-      <b class="text-title">Pick a chat, or start one</b>
-      <span class="text-secondary text-muted">Everything toast is working on lives in the sidebar.</span>
+    <section class="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-main">
+      <Empty art="hi" action={{ label: "New thread", run: () => navigate(`/t/${newThreadId()}`) }} />
     </section>
   )
 }

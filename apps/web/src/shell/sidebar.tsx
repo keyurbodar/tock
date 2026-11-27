@@ -1,3 +1,4 @@
+import { Empty } from "../chat/empty"
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
@@ -220,9 +221,8 @@ export function Sidebar() {
           when={entries().length > 0}
           fallback={
             <Show when={app.sessionsLoaded || query()} fallback={<RowSkeletons />}>
-              <div class="px-12 py-36 text-center text-secondary text-muted">
-                <b class="mb-4 block text-body text-tx2">{query() ? "No chats match" : "No chats yet"}</b>
-                {query() ? "Try fewer words." : "Start one with the pencil."}
+              <div class="px-12 py-36">
+                <Empty art={query() ? "search" : "hi"} small />
               </div>
             </Show>
           }

@@ -8,6 +8,7 @@
 @import "./shell.css";
 @import "./chat-extras.css";
 @import "./media.css";
+@import "./chat-surface.css";
 
 @layer base {
   html {
