@@ -29,4 +29,11 @@
   .tds-divider-wave path { fill: none; stroke: currentColor; stroke-width: var(--tds-size-divider-wave-stroke) }
   .tds-divider[data-tone="new"] .tds-divider-rule { background: var(--tds-accent-rose-55) }
   .tds-divider[data-tone="new"] .tds-divider-text { color: var(--tds-accent-rose); font-weight: var(--tds-weight-medium) }
+
+  /* SysFields .s-fl > label: every field has a label above it */
+  .tds-field-label { align-self: stretch; padding-inline-start: var(--tds-space-12); text-align: left; font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx2) }
+
+  /* EmptyObjects: the burnt-toast object on error states, the moon on a quiet notification centre */
+  .tds-fault-art { width: var(--tds-size-empty-art-sm); height: auto; margin-bottom: var(--tds-space-4) }
+  .tds-centre-body > .tds-empty { padding-block: var(--tds-space-32) }
 }

@@ -6,6 +6,7 @@ import { useNavigate } from "@solidjs/router"
 import type { IconName } from "@tock/ui/icon"
 import { groups, markAllRead, notes, readChat, unreadNotes, type Group, type Note, type Tone } from "../state/notes"
 import { shortTime } from "../lib/time"
+import { Empty } from "../chat/empty"
 import { minute } from "../lib/clock"
 import { tokens } from "@tock/tokens"
 
@@ -109,7 +110,7 @@ export function Centre() {
         </button>
       </div>
       <div class="tds-centre-body tds-scroll" data-edge-fade="y">
-        <Show when={notes.list.length > 0} fallback={<p class="tds-centre-empty">Nothing yet. When toast finishes something while you’re elsewhere, it lands here.</p>}>
+        <Show when={notes.list.length > 0} fallback={<Empty art="quiet" small />}>
           <Show when={sections().needs.length > 0}>
             <div class="tds-centre-sec">Needs you</div>
             <For each={sections().needs} keyed={(group) => group.key}>

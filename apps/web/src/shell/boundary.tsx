@@ -1,11 +1,11 @@
-import { Errored } from "solid-js"
+import { Errored, Show } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { Icon } from "@tock/ui/icon"
 
 type Surface = "transcript" | "sidebar" | "composer"
 
 const COPY: Record<Surface, { title: string; body: string }> = {
-  transcript: { title: "This chat didn’t load", body: "Something broke while drawing it. Try again, or open another chat." },
+  transcript: { title: "That one got burnt", body: "toast couldn’t draw this chat. Your messages are safe. Try again in a moment." },
   sidebar: { title: "Your chats didn’t load", body: "Something broke while drawing the list. Try again." },
   composer: { title: "The composer hit a problem", body: "Your draft is saved. Try again to keep typing." },
 }
@@ -25,7 +25,9 @@ export function Boundary(props: { surface: Surface; children: JSX.Element }) {
     <Errored
       fallback={(_, reset) => (
         <div class="tds-fault" role="alert" data-surface={props.surface}>
-          <Icon name="warning-circle" size="menu" />
+          <Show when={props.surface === "composer"} fallback={<img class="tds-fault-art" src="/brand/empty/obj-error.svg" alt="" draggable={false} />}>
+            <Icon name="warning-circle" size="menu" />
+          </Show>
           <b>{COPY[props.surface].title}</b>
           <span>{COPY[props.surface].body}</span>
           <button type="button" class="tds-empty-button tds-press" onClick={() => reset()}>

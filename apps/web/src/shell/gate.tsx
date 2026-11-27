@@ -20,10 +20,13 @@ export function Gate() {
         <img src="/brand/toast-mascot-128.svg" alt="" class="size-mascot-dialog mb-8 rounded-small" />
         <b class="text-dialog text-tx">Unlock Tock</b>
         <span>Enter your access key to open your chats.</span>
-        <label class="tds-key-field mt-14">
-          <Icon name="key" size="menu" class="text-muted" />
-          <input type="password" name="key" autocomplete="current-password" aria-label="Access key" placeholder="Access key" aria-invalid={state() === "wrong" || state() === "empty" ? "true" : undefined} aria-describedby={state() === "wrong" || state() === "empty" ? "gate-error" : undefined} value={key()} onInput={(e) => (setKey(e.currentTarget.value), setState("idle"))} autofocus />
+        <label for="gate-key" class="tds-field-label mt-14">
+          Access key
         </label>
+        <div class="tds-key-field">
+          <Icon name="key" size="menu" class="text-muted" />
+          <input id="gate-key" type="password" name="key" autocomplete="current-password" placeholder="Paste your key" aria-invalid={state() === "wrong" || state() === "empty" ? "true" : undefined} aria-describedby={state() === "wrong" || state() === "empty" ? "gate-error" : undefined} value={key()} onInput={(e) => (setKey(e.currentTarget.value), setState("idle"))} autofocus />
+        </div>
         <Show when={state() === "wrong" || state() === "empty"}>
           <span id="gate-error" role="alert" class="text-caption text-failed">{state() === "empty" ? "Enter your access key." : "That key didn’t work. Check it and try again."}</span>
         </Show>

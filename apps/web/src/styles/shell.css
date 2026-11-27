@@ -597,7 +597,6 @@
   @media (hover: hover) and (pointer: fine) { .tds-centre-read:not(:disabled):hover { background: var(--tds-overlay-hover); color: var(--tds-text-tx) } }
   .tds-centre-body[data-edge-fade] { display: flex; flex-direction: column; gap: var(--tds-space-10); min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none }
   .tds-centre-sec { padding: var(--tds-space-6) var(--tds-space-8) 0; font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
-  .tds-centre-empty { margin: 0; padding: var(--tds-space-24) var(--tds-space-12); text-align: center; font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-lh); color: var(--tds-text-muted); text-wrap: balance }
 
   .tds-note-group { position: relative; cursor: pointer; &[data-stacked] { padding-bottom: var(--tds-space-12) } }
   .tds-note {
