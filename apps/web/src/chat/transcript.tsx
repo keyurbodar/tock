@@ -56,8 +56,10 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   const toEnd = (smooth = false) => {
     following = true
     setAway(false)
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "instant" })
-    baseline = { top: scroller.scrollTop, height: scroller.scrollHeight }
+    const height = scroller.scrollHeight
+    const top = smooth ? scroller.scrollTop : Math.max(0, height - scroller.clientHeight)
+    scroller.scrollTo({ top: height, behavior: smooth ? "smooth" : "instant" })
+    baseline = { top, height }
   }
   const onScroll = () => {
     if (scroller.scrollTop < tokens.limit["transcript-edge"] && untrack(depth) < untrack(items).length) {

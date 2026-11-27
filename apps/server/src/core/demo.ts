@@ -59,6 +59,8 @@ const FORMATS = `Every format, in one reply.
 | Apples | 3 |
 | Pears | 12 |`
 
+const STORY = [REPLY, REPLY.replace("Here's what I found, and the change is small.", "One more pass, on the retry path."), REPLY.replace("Here's what I found, and the change is small.", "And the last one, on logout.")].join("\n\n")
+
 const PLAN = ["Check what I already know", "Test it in the sandbox", "Write up the answer"]
 
 const scripted: FauxResponseFactory = (context) => {
@@ -108,6 +110,7 @@ const scripted: FauxResponseFactory = (context) => {
   if (!done.size) {
     if (asked.startsWith("Show a long code block")) return fauxAssistantMessage(fauxText(LONG))
     if (asked.startsWith("Show every markdown format")) return fauxAssistantMessage(fauxText(FORMATS))
+    if (asked.startsWith("Stream a long answer")) return fauxAssistantMessage(fauxText(STORY))
     if (asked.startsWith("Send the files back")) {
       const files = asked.match(/\[[^\]\n]+\]\(tock-file:[\w-]+\)/g) ?? []
       return fauxAssistantMessage(fauxText(files.length ? `Here they are, cleaned up and ready.\n\n${files.join("\n")}\n\nShout if any of them needs another pass.` : "There were no files to send back."))

@@ -102,14 +102,16 @@ socket.onState((connection) => {
   void Promise.all([...(open ? [subscribe(open)] : []), ...waiting.map(reload)]).then(flushOutbox)
 })
 
-socket.onEvent(({ event, payload }) => {
-  if (event === "notification.push" && isRecord(payload) && typeof payload.title === "string") {
-    return addNote({ chat: undefined, tone: payload.urgency === "urgent" ? "needs" : "done", title: payload.title, body: typeof payload.body === "string" ? payload.body : "" })
-  }
-  if (!isRecord(payload) || typeof payload.sessionId !== "string") return
-  const sessionId = payload.sessionId
-  if (event === "session.delta" && isRecord(payload.value)) {
-    const view = payload.value as unknown as ConversationView
+/**
+ * Live deltas arrive per token; the store takes them in order on a frame, at most once per word-step (the reveal's own
+ * cadence), so a streaming reply renders and lays out once per reveal step instead of once per token. Arrived words are
+ * hidden until the reveal reaches them, so applying them a step later never shows.
+ */
+const deltas: { sessionId: string; value: ConversationView }[] = []
+let appliedAt = 0
+function applyDeltas() {
+  appliedAt = performance.now()
+  for (const { sessionId, value: view } of deltas.splice(0)) {
     const doc = view.docs[LIVE_DOC]
     const live = isRecord(doc) ? (doc as LiveState) : null
     thread(sessionId, (state) => {
@@ -125,6 +127,21 @@ socket.onEvent(({ event, payload }) => {
       if (known) Object.assign(known, { busy: live?.run !== undefined })
     })
     if (live?.run === undefined) void refreshSessions()
+  }
+}
+
+socket.onEvent(({ event, payload }) => {
+  if (event === "notification.push" && isRecord(payload) && typeof payload.title === "string") {
+    return addNote({ chat: undefined, tone: payload.urgency === "urgent" ? "needs" : "done", title: payload.title, body: typeof payload.body === "string" ? payload.body : "" })
+  }
+  if (!isRecord(payload) || typeof payload.sessionId !== "string") return
+  const sessionId = payload.sessionId
+  if (event === "session.delta" && isRecord(payload.value)) {
+    if (deltas.length === 0) {
+      if (document.hidden) queueMicrotask(applyDeltas)
+      else setTimeout(() => requestAnimationFrame(applyDeltas), Math.max(0, appliedAt + tokens.motion.duration["word-step"] - performance.now()))
+    }
+    deltas.push({ sessionId, value: payload.value as unknown as ConversationView })
     return
   }
   if (event === "session.needs") {

@@ -252,7 +252,7 @@ function scrollUp() {
 const JANK_FRAME_MS = 50
 const JANK_P95_MS = 34
 const JANK_KNOWN: Record<string, string> = {
-  streaming: "frame: each streamed token re-renders the reply and reflows the column under 4x throttle",
+  streaming: "frame: deltas now land once per word-step and reveal steps flip words in place (no re-render), but per-word opacity fades still cost compositor commit and paint (Commit 177ms, Paint 78ms over 2.5s at 4x); worst 67-83ms. forced: the transcript's follow-to-end (ResizeObserver) and onScroll read after other observers wrote",
   centre: "frame: since b25f77d the sidebar and main scale back as two viewport-sized layers promoted at open; on this VM's software compositor each frame of that scale costs 50-130ms (2 dropped frames before it, 43 after)",
 }
 
@@ -303,7 +303,7 @@ async function cdpPage() {
   }
 }
 type TraceEvent = { name: string; ph: string; ts: number; dur?: number; pid: number; tid: number; args?: any }
-type JankRow = { name: string; frames: number; dropped: number; worst: number; p95: number; mount: number; long: number; forced: number; forcedAtInput: number; vendor: number; paint: number; culprits: string[] }
+type JankRow = { name: string; frames: number; dropped: number; worst: number; p95: number; mount: number; long: number; reflows: number; forced: number; forcedAtInput: number; vendor: number; paint: number; culprits: string[] }
 
 /** Reads one interaction's trace and in-page frame intervals into the numbers the jank budget checks. */
 function jankOf(name: string, events: TraceEvent[], intervals: number[]): Omit<JankRow, "mount"> {
@@ -320,11 +320,23 @@ function jankOf(name: string, events: TraceEvent[], intervals: number[]): Omit<J
     const top = e.args?.beginData?.stackTrace?.[0]
     return top && /\/assets\/|\/src\//.test(top.url ?? "") ? top : undefined
   }
+  if (process.env.JANK_TOP === name) {
+    const cost = new Map<string, number>()
+    for (const e of main) {
+      if (!e.dur || e.dur < 1000) continue
+      const d = e.args?.data ?? {}
+      const key = e.name + " " + (d.functionName || d.type || "") + " " + String(d.url ?? "").split("/").pop() + ":" + (d.lineNumber ?? "") + ":" + (d.columnNumber ?? "")
+      cost.set(key, (cost.get(key) ?? 0) + e.dur / 1000)
+    }
+    for (const [key, ms] of [...cost].sort((a, b) => b[1] - a[1]).slice(0, 14)) console.log("        " + Math.round(ms) + "ms " + key)
+  }
   const forced = main.filter((e) => e.name === "Layout" && jsSpans.some((s) => within(e, s)) && app(e))
   const atInput = forced.filter((e) => inputs.some((s) => within(e, s)))
   const vendor = forced.filter((e) => !atInput.includes(e) && /\/ui-[\w-]+\.js/.test(app(e)!.url))
   const late = forced.filter((e) => !atInput.includes(e) && !vendor.includes(e))
   const culprits = [...new Set(late.map((e) => { const f = app(e)!; return (f.functionName || "?") + "@" + String(f.url).split("/").pop() + ":" + f.lineNumber + ":" + f.columnNumber }))]
+  const spanS = main.length ? (Math.max(...main.map((e) => e.ts + (e.dur ?? 0))) - Math.min(...main.map((e) => e.ts))) / 1e6 : 1
+  const reflows = Math.round(main.filter((e) => e.name === "Layout").length / spanS)
   const long = main.filter((e) => (e.name === "RunTask" || e.name === "ThreadControllerImpl::RunTask") && (e.dur ?? 0) > 50000).length
   let paint = 0
   for (const e of main) {
@@ -343,6 +355,7 @@ function jankOf(name: string, events: TraceEvent[], intervals: number[]): Omit<J
     worst: Math.round(sorted.at(-1) ?? 0),
     p95: Math.round(sorted[Math.floor(sorted.length * 0.95)] ?? 0),
     long,
+    reflows,
     forced: late.length,
     forcedAtInput: atInput.length,
     vendor: vendor.length,
@@ -2650,6 +2663,24 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(td![2]?.text === "40 minutes later", `a 40m gap reads 40 minutes later (got ${JSON.stringify(td![2])})`)
     check(td![3]?.tone === undefined && /PM|AM/.test(td![3]?.text ?? ""), `a 5h gap shows the day and time (got ${JSON.stringify(td![3])})`)
   },
+  streamsmooth() {
+    fresh()
+    field()
+    ab("keyboard", "type", WEATHER)
+    ab("eval", readFileSync(join(import.meta.dir, "verify-stream.js"), "utf8"))
+    ab("press", "Enter")
+    settled()
+    until(() => exists(".tds-word-wait, .tds-word"), (busy) => !busy, "the reveal to finish", 15000)
+    wait(300)
+    const s = js<{ frames: number; shells: number; order: number; shrink: number; drop: number; notes: string[] }>("window.__stream.stop = true; return window.__stream")
+    console.log("      streaming frames " + s.frames + " " + JSON.stringify(s.notes))
+    check(s.frames > 60, "sampled the stream frame by frame (" + s.frames + " frames)")
+    check(s.shells === 0, "no empty bubble shell shows before its words: " + s.shells + " frames " + JSON.stringify(s.notes))
+    check(s.order === 0, "words reveal in reading order: " + JSON.stringify(s.notes))
+    check(s.shrink === 0, "no streamed bubble shrinks while it streams (reflow flicker): " + JSON.stringify(s.notes))
+    check(s.drop === 0, "the reply never vanishes or shrinks at the live-to-saved swap: " + JSON.stringify(s.notes))
+    shot("streamsmooth")
+  },
   revealstable() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
@@ -3933,8 +3964,13 @@ const journeys: Record<string, () => void | Promise<void>> = {
       ab("mouse", "move", "900", "450")
       fresh()
       ab("click", ".ProseMirror")
-      ab("keyboard", "type", WEATHER)
+      ab("keyboard", "type", "Stream a long answer")
       await probe("streaming", () => (ab("press", "Enter"), wait(400)), 2500)
+      settled()
+      fresh()
+      ab("click", ".ProseMirror")
+      ab("keyboard", "type", WEATHER)
+      ab("press", "Enter")
       settled()
       until(() => exists(".tds-act-button"), Boolean, "a work log", 10000)
       steady(".tds-act-button")
@@ -3986,7 +4022,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 }).catch(() => {})
       cdp.close()
     }
-    const cols = ["name", "frames", "dropped", "worst", "p95", "mount", "long", "forced", "forcedAtInput", "vendor", "paint"] as const
+    const cols = ["name", "frames", "dropped", "worst", "p95", "mount", "long", "reflows", "forced", "forcedAtInput", "vendor", "paint"] as const
     console.log("      " + cols.join("\t"))
     for (const r of rows) console.log("      " + cols.map((c) => r[c]).join("\t") + (r.culprits.length ? "\t" + r.culprits.join(" ") : ""))
     writeFileSync(join(OUT, "jank.json"), JSON.stringify(rows, null, 1))
@@ -4178,7 +4214,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

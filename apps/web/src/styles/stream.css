@@ -1,0 +1,4 @@
+@layer components {
+  .tds-bubble[data-open] { contain: layout paint; min-height: var(--stream-floor, 0) }
+  .tds-bubble[data-wait] { visibility: hidden }
+}

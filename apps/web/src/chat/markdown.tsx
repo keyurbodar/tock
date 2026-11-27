@@ -1,9 +1,10 @@
 import { clamp } from "./clamp"
-import { createMemo, For, Match, Switch } from "solid-js"
+import { createEffect, createMemo, For, Match, onCleanup, Switch, untrack } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { Lexer, type Token, type Tokens } from "marked"
 import { tokens } from "@tock/tokens"
 import { Icon } from "@tock/ui/icon"
+import { animate } from "@tock/ui/motion"
 import { FileChip, ThreadChip } from "./chip"
 import { CodeBlock } from "./code"
 import { Attachments, type SentFile } from "./files"
@@ -15,16 +16,21 @@ interface Words {
   next(): number
   delay(i: number): string | undefined
   hidden(i: number): boolean
+  /** A word laid out but not yet shown; the reveal flips it in place when its turn comes, so a reveal step never re-renders. */
+  wait(el: HTMLElement, i: number): void
 }
+
+/** A word whose fade has finished is plain text again. */
+const settle = (el: HTMLElement) => el.addEventListener("animationend", () => el.removeAttribute("class"), { once: true })
 
 function words(text: string, clock: Words | undefined): JSX.Element {
   if (!clock) return text
   return text.split(/(\s+)/).map((part) => {
     if (part === "" || /^\s+$/.test(part)) return part
     const i = clock.next()
-    if (clock.hidden(i)) return <span class="tds-word-wait">{part}</span>
+    if (clock.hidden(i)) return <span ref={(el) => clock.wait(el, i)} class="tds-word-wait">{part}</span>
     const delay = clock.delay(i)
-    return delay ? <span class="tds-word" style={{ "animation-delay": delay }}>{part}</span> : part
+    return delay ? <span ref={settle} class="tds-word" style={{ "animation-delay": delay }}>{part}</span> : part
   })
 }
 
@@ -151,17 +157,39 @@ function blocks(list: readonly Token[], clock?: Words): JSX.Element[] {
   })
 }
 
+/** The open block of a streaming reply only grows: its tallest height so far is its floor until the stream ends (released with data-open). */
+const raised = new Map<HTMLElement, number>()
+/** Floors are written on the next frame, with that frame's other writes, so the observers after this one still read a clean layout. */
+const raise = () => {
+  for (const [el, height] of raised) if (height > parseFloat(el.style.getPropertyValue("--stream-floor") || "0")) el.style.setProperty("--stream-floor", `${height}px`)
+  raised.clear()
+}
+const floors = new ResizeObserver((entries) => {
+  for (const { target, borderBoxSize } of entries) {
+    const el = target as HTMLElement
+    if (el.dataset.open === undefined) continue
+    if (raised.size === 0) requestAnimationFrame(raise)
+    raised.set(el, borderBoxSize[0]?.blockSize ?? 0)
+  }
+})
+
 /** Blocks speak for the agent only in a reply; inside your own bubble they take no side, so selectors for agent bubbles never match your message's paragraphs. */
-function Block(props: { token: Token; clock?: () => Words | undefined; nested?: boolean }) {
+function Block(props: { token: Token; clock?: () => Words | undefined; nested?: boolean; open: boolean; wait: boolean }) {
   const side = () => (props.nested ? undefined : "agent")
+  const wait = untrack(() => props.wait)
+  const bubble = (el: HTMLElement) => {
+    clamp(el)
+    floors.observe(el)
+    if (wait) el.dataset.wait = ""
+  }
   return (
-    <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()}>{props.token.raw.trim()}</div>}>
+    <Switch fallback={<div ref={bubble} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-open={props.open ? "" : undefined}>{props.token.raw.trim()}</div>}>
       <Match when={props.token.type === "code"}>
         <CodeCard token={props.token as Tokens.Code} />
       </Match>
       <Match when={filesOnly(props.token)}>{(files) => <Attachments files={files()} side="agent" />}</Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-heading={props.token.type === "heading" ? "" : undefined} data-level={props.token.type === "heading" ? (props.token as Tokens.Heading).depth : undefined}>
+        <div ref={bubble} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-open={props.open ? "" : undefined} data-heading={props.token.type === "heading" ? "" : undefined} data-level={props.token.type === "heading" ? (props.token as Tokens.Heading).depth : undefined}>
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
         </div>
       </Match>
@@ -169,7 +197,7 @@ function Block(props: { token: Token; clock?: () => Words | undefined; nested?: 
         <hr class="tds-rule" />
       </Match>
       <Match when={props.token.type === "list" || props.token.type === "blockquote" || props.token.type === "table" || props.token.type === "html"}>
-        <div ref={(el) => clamp(el)} class="tds-bubble" dir={side() && "auto"} data-side={side()}>
+        <div ref={bubble} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-open={props.open ? "" : undefined}>
           {blocks([props.token], props.clock?.())}
         </div>
       </Match>
@@ -183,6 +211,8 @@ function Block(props: { token: Token; clock?: () => Words | undefined; nested?: 
  * blocks above it never re-render.
  */
 const lexed = new Map<string, Token[]>()
+/** A streaming reply's last line while it is only markdown syntax (a lone bullet, a quote mark, a half fence): held back until it says what block it opens, so it never flashes as text and then turns into a list or code block. */
+const PARTIAL = /\n?[ \t]*([-*+>#|]|\d+[.)]|`{1,2}|~{1,2})[ \t]*$/
 function lexBlocks(text: string, open: boolean): Token[] {
   const parts: string[] = []
   let fence: string | undefined
@@ -209,10 +239,10 @@ function lexBlocks(text: string, open: boolean): Token[] {
   })
 }
 
-/** A reply. While it streams, words arrive one at a time and each fades in from a slight blur (TDS streaming words). */
+/** A reply. While it streams, words arrive one at a time and each fades in softly; a reveal step flips waiting words in place, and the open block only grows. */
 export function Markdown(props: { text: string; streaming?: boolean; nested?: boolean }) {
   const reveal = createReveal(() => props.text, () => props.streaming ?? false)
-  const blocks = createMemo(() => lexBlocks(props.text, props.streaming ?? false))
+  const blocks = createMemo(() => (props.streaming ? lexBlocks(props.text.replace(PARTIAL, ""), true) : lexBlocks(props.text, false)))
   /** Word numbers restart for every render pass; blocks render in order, so block i counts after the blocks before it. */
   const offsets = createMemo(() => {
     let total = 0
@@ -222,10 +252,36 @@ export function Markdown(props: { text: string; streaming?: boolean; nested?: bo
       return start
     })
   })
+  /** Laid-out words still waiting for their turn. A reveal step only flips these in place: nothing re-renders, so nothing reflows. */
+  const waiting = new Map<number, HTMLElement>()
+  createEffect(reveal.shown, (count) => {
+    for (const [i, el] of waiting) {
+      if (i >= count) continue
+      waiting.delete(i)
+      if (!el.isConnected) continue
+      settle(el)
+      el.className = "tds-word"
+      const box = el.closest<HTMLElement>("[data-wait]")
+      if (!box) continue
+      delete box.dataset.wait
+      animate(box, [{ opacity: 0 }, { opacity: 1 }], tokens.motion.duration.word)
+    }
+  })
+  onCleanup(() => waiting.clear())
+  const live = () => untrack(() => reveal.revealing() || (props.streaming ?? false))
   const clockFor = (index: number): Words | undefined => {
-    if (!reveal.revealing() && !props.streaming) return undefined
+    if (!live()) return undefined
     let i = offsets()[index] ?? 0
-    return { next: () => i++, delay: reveal.delay, hidden: reveal.hidden }
+    return {
+      next: () => i++,
+      delay: reveal.delay,
+      hidden: (n) => untrack(() => reveal.hidden(n)),
+      wait: (el, n) => void waiting.set(n, el),
+    }
   }
-  return <For each={blocks()} keyed={false}>{(token, index) => <Block token={token()} clock={() => clockFor(index)} nested={props.nested} />}</For>
+  return (
+    <For each={blocks()} keyed={false}>
+      {(token, index) => <Block token={token()} clock={() => clockFor(index)} nested={props.nested} open={(props.streaming ?? false) && index === blocks().length - 1} wait={live() && untrack(() => reveal.hidden(offsets()[index] ?? 0))} />}
+    </For>
+  )
 }

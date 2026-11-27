@@ -3,7 +3,7 @@
 @keyframes tds-spin { to { rotate: 360deg } }
 @keyframes tds-spin-turn { to { transform: rotate(360deg) } }
 @keyframes tds-dot { 0%, 70%, 100% { opacity: .35; translate: 0 } 35% { opacity: 1; translate: 0 calc(var(--tds-space-2) * -1) } }
-@keyframes tds-word { from { opacity: 0; filter: blur(var(--tds-blur-word)) } }
+@keyframes tds-word { from { opacity: 0 } }
 @keyframes tds-word-fade { from { opacity: 0 } }
 @keyframes tds-empty-in { from { opacity: 0; translate: 0 var(--tds-space-8) } }
 @keyframes tds-stagger-in { from { opacity: 0; translate: 0 var(--tds-space-4) } }
@@ -29,7 +29,7 @@
   color: transparent;
   animation: tds-shimmer var(--tds-dur-loop) linear infinite;
 }
-.tds-word { opacity: 0; filter: blur(var(--tds-blur-word)); animation: tds-word var(--tds-dur-word) var(--tds-ease-out) forwards }
+.tds-word { opacity: 0; animation: tds-word var(--tds-dur-word) var(--tds-ease-out) forwards }
 .tds-shake { animation: tds-shake var(--tds-dur-swap) var(--tds-ease-std) }
 .tds-flight-dot {
   position: fixed; z-index: var(--tds-z-flight); width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;

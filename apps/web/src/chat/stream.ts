@@ -20,7 +20,7 @@ const keyOf = (text: string) => text.slice(0, tokens.limit["stream-key"])
 
 /**
  * Streamed text, revealed a word at a time. Every word that has arrived already takes its final space; the reveal only
- * fades words in (opacity and blur), so the text block's height is final the moment text lands.
+ * fades words in (opacity only), so the text block's height is final the moment text lands.
  * Words are revealed one at a time (TDS motion.stream): words arrive at a steady pace and catch up when the model
  * runs ahead. When the backlog passes stream-burst words (a long reply arriving in bulk), everything but the last few
  * words lands at once and only that tail fades in, so big outputs never crawl. Text that was already finished when it
@@ -62,6 +62,8 @@ export function createReveal(text: () => string, live: () => boolean) {
   return {
     /** Word i is laid out from the moment it arrives but stays invisible until the reveal reaches it, so layout never changes as words appear. */
     hidden: (i: number) => i >= count(),
+    /** How many words are revealed so far. */
+    shown: count,
     /** How far into its fade word i is, as a negative delay, so re-rendering never restarts a word. */
     delay: (i: number) => {
       const at = progress.times[i]
