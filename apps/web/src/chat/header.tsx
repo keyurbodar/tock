@@ -7,6 +7,7 @@ import type { glyphFor } from "../lib/glyph"
 import { Skeleton } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app } from "../state/app"
+import { visibleTimeout } from "../lib/socket"
 import { STATUS_LABEL } from "../lib/status"
 import { dirOf } from "../lib/dir"
 import { toast } from "../shell/toasts"
@@ -158,16 +159,21 @@ function OfflineBanner() {
   addEventListener("offline", network)
   let seen = untrack(() => app.connection) === "open"
   let timer: ReturnType<typeof setTimeout> | undefined
+  let grace: (() => void) | undefined
+  /** Offline shows at once. A dropped socket on a live network shows only after reconnect-grace of visible time, so a quick silent reconnect (often after the tab comes back) never flashes the banner. */
   const dropped = () => {
     clearTimeout(timer)
-    setShown("on")
+    grace?.()
+    if (!navigator.onLine) return setShown("on")
+    grace = visibleTimeout(tokens.motion.duration["reconnect-grace"], () => untrack(() => app.connection) !== "open" && setShown("on"))
   }
   addEventListener("offline", dropped)
-  onCleanup(() => (clearTimeout(timer), removeEventListener("offline", dropped), removeEventListener("online", network), removeEventListener("offline", network)))
+  onCleanup(() => (clearTimeout(timer), grace?.(), removeEventListener("offline", dropped), removeEventListener("online", network), removeEventListener("offline", network)))
   createEffect(
     () => app.connection,
     (connection) => {
       if (connection === "open") {
+        grace?.()
         if (untrack(shown) === "on") {
           clearTimeout(timer)
           setShown("ok")

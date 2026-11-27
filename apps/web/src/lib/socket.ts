@@ -2,13 +2,41 @@ import type { ServerEvent } from "@tock/protocol"
 
 export type ConnectionState = "connecting" | "open" | "closed" | "unauthorized"
 
-type Pending = { resolve: (data: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }
+type Pending = { resolve: (data: unknown) => void; reject: (error: Error) => void; cancel: () => void }
 
 const RECONNECT_BASE_MS = 400
 const RECONNECT_MAX_MS = 8000
 const REQUEST_TIMEOUT_MS = 20000
 const HEARTBEAT_MS = 25000
 const PONG_TIMEOUT_MS = 5000
+
+/**
+ * Time the tab has been visible since a mark. Background tabs throttle or freeze timers (Chrome to about once a
+ * minute, Safari entirely), so a deadline measured in wall time expires while a healthy socket waits for the tab to
+ * come back, and the app tore down good connections ("Back online" after merely switching tabs). Every socket
+ * deadline therefore counts visible time only.
+ */
+let hiddenTotal = 0
+let hiddenAt: number | undefined = document.hidden ? performance.now() : undefined
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) hiddenAt ??= performance.now()
+  else if (hiddenAt !== undefined) (hiddenTotal += performance.now() - hiddenAt), (hiddenAt = undefined)
+})
+const hiddenSoFar = () => hiddenTotal + (hiddenAt === undefined ? 0 : performance.now() - hiddenAt)
+
+/** Calls `expired` once `ms` of visible time has passed since now; returns a cancel. */
+export function visibleTimeout(ms: number, expired: () => void): () => void {
+  const at = performance.now()
+  const hidden = hiddenSoFar()
+  let timer: ReturnType<typeof setTimeout>
+  const check = () => {
+    const left = ms - (performance.now() - at - (hiddenSoFar() - hidden))
+    if (left > 0 || document.hidden) return void (timer = setTimeout(check, Math.max(left, ms / 4)))
+    expired()
+  }
+  timer = setTimeout(check, ms)
+  return () => clearTimeout(timer)
+}
 
 export class RequestError extends Error {
   constructor(
@@ -36,8 +64,10 @@ export class Socket {
   constructor(private readonly url: string) {
     addEventListener("online", () => this.reconnectNow())
     addEventListener("offline", () => this.ws && this.lost(this.ws))
+    /** Hidden: the heartbeat rests. Visible again: one ping decides; only a missed pong (in visible time) reconnects. */
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState !== "visible") return
+      if (document.hidden) return clearInterval(this.heartbeat)
+      if (this.state === "open") this.beat()
       this.reconnectNow()
       void this.alive()
     })
@@ -52,8 +82,8 @@ export class Socket {
     const id = `${Date.now().toString(36)}-${(this.nextId++).toString(36)}`
     const frame = JSON.stringify({ ...body, id, type })
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => void this.timedOut(id), REQUEST_TIMEOUT_MS)
-      this.pending.set(id, { resolve: resolve as (data: unknown) => void, reject, timer })
+      const cancel = visibleTimeout(REQUEST_TIMEOUT_MS, () => void this.timedOut(id))
+      this.pending.set(id, { resolve: resolve as (data: unknown) => void, reject, cancel })
       if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(frame)
       else this.queue.push(frame)
     })
@@ -91,19 +121,24 @@ export class Socket {
     const ws = this.ws
     if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.resolve(false)
     this.probing ??= new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => {
+      const cancel = visibleTimeout(PONG_TIMEOUT_MS, () => {
         this.pong = undefined
         if (this.ws === ws) void this.lost(ws)
         resolve(false)
-      }, PONG_TIMEOUT_MS)
+      })
       this.pong = () => {
-        clearTimeout(timer)
+        cancel()
         this.pong = undefined
         resolve(true)
       }
       ws.send("ping")
     }).finally(() => (this.probing = undefined))
     return this.probing
+  }
+
+  private beat() {
+    clearInterval(this.heartbeat)
+    if (!document.hidden) this.heartbeat = setInterval(() => !document.hidden && void this.alive(), HEARTBEAT_MS)
   }
 
   private reconnectNow() {
@@ -122,8 +157,7 @@ export class Socket {
       this.attempt = 0
       this.setState("open")
       for (const frame of this.queue.splice(0)) ws.send(frame)
-      clearInterval(this.heartbeat)
-      this.heartbeat = setInterval(() => void this.alive(), HEARTBEAT_MS)
+      this.beat()
     })
     ws.addEventListener("message", (message) => {
       const slow = import.meta.env.DEV ? Number(sessionStorage.getItem("tock.slow")) : 0
@@ -142,7 +176,7 @@ export class Socket {
     this.pong?.()
     if (ws.readyState <= WebSocket.OPEN) ws.close()
     for (const [, entry] of this.pending) {
-      clearTimeout(entry.timer)
+      entry.cancel()
       entry.reject(new RequestError("disconnected", "Connection lost"))
     }
     this.pending.clear()
@@ -184,7 +218,7 @@ export class Socket {
     const entry = this.pending.get(frame.id)
     if (!entry) return
     this.pending.delete(frame.id)
-    clearTimeout(entry.timer)
+    entry.cancel()
     if (frame.type === "error") entry.reject(new RequestError(frame.code ?? "error", frame.message ?? "Request failed"))
     else entry.resolve(frame.data)
   }
@@ -193,3 +227,6 @@ export class Socket {
 const scheme = location.protocol === "https:" ? "wss" : "ws"
 
 export const socket = new Socket(`${scheme}://${location.host}/ws`)
+
+/** Dev-only handle for journeys that freeze or probe the live socket (tabhide). */
+if (import.meta.env.DEV) Object.assign(window, { __tockSocket: socket })

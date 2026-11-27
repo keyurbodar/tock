@@ -3888,12 +3888,13 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => js<boolean>("return !!window.__ws"), Boolean, "a heartbeat ping on the live socket")
     wait(400)
     ab("eval", "window.__ws.dispatchEvent(new MessageEvent('message', { data: '{not json' })); true")
+    const first = js<boolean>("window.__first = window.__ws; return true")
+    void first
     ab("eval", "window.__drop = true; document.dispatchEvent(new Event('visibilitychange')); true")
-    const text = until(bannerText, (t) => t !== "", "a silent socket to be caught by the missed pong", 12000)
-    check(text.includes("Reconnecting"), "a dropped socket on a live network says Reconnecting…, got " + text)
-    shot("halfopen-reconnecting")
+    until(() => js<boolean>("return !!window.__ws && window.__ws !== window.__first && window.__ws.readyState === 1"), Boolean, "a silent socket to be caught by the missed pong and replaced", 15000)
     ab("eval", "window.__drop = false; true")
-    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "the socket to come back", 15000)
+    check(bannerText() === "", "a quick reconnect stays silent: no Reconnecting or Back online banner (fb-1627)")
+    shot("halfopen-reconnected")
     say("Still here after a half-open socket")
     until(() => js<number>("return document.querySelectorAll('.tds-bubble[data-side=agent]').length"), (n) => n >= 2, "a reply over the new socket", 20000)
   },
@@ -4243,6 +4244,30 @@ const journeys: Record<string, () => void | Promise<void>> = {
       ab("eval", "localStorage.removeItem('tock.sidebar.width')")
     }
   },
+  tabhide() {
+    seeded()
+    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? 'off'"), (s) => s === "off", "no banner to start")
+    ab("eval", `(async () => {
+      const Native = window.WebSocket; window.__sockets = 0
+      window.WebSocket = class extends Native { constructor(...a) { super(...a); if (new URL(String(a[0]), location.href).pathname === '/ws') window.__sockets++ } }
+      window.__banner = false
+      new MutationObserver(() => { if (document.querySelector('.tds-banner[data-state=on], .tds-banner[data-state=ok]')) window.__banner = true }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-state'] })
+      const set = (hidden) => { Object.defineProperty(document, 'hidden', { get: () => hidden, configurable: true }); Object.defineProperty(document, 'visibilityState', { get: () => (hidden ? 'hidden' : 'visible'), configurable: true }); document.dispatchEvent(new Event('visibilitychange')) }
+      window.__setHidden = set
+      set(true)
+      sessionStorage.setItem('tock.slow', '9000')
+      window.__tockSocket.alive()
+      setTimeout(() => sessionStorage.removeItem('tock.slow'), 12000)
+      return 'a ping in flight whose pong the hidden tab only sees 9s later (a throttled or frozen background tab)'
+    })()`)
+    console.log("      tabhide: hidden for 2 minutes…")
+    wait(120_000)
+    ab("eval", "window.__setHidden(false)")
+    wait(6000)
+    const after = js<{ sockets: number; banner: boolean; state: string }>("return { sockets: window.__sockets, banner: window.__banner, state: document.querySelector('.tds-banner')?.dataset.state ?? 'off' }")
+    check(after.sockets === 0, `a healthy socket is not torn down by a hidden tab (reconnects: ${after.sockets})`)
+    check(!after.banner && after.state === "off", `no Reconnecting or Back online banner after switching tabs (${JSON.stringify(after)})`)
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -4252,13 +4277,14 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
  */
 const requires: Record<string, { mode: "dev" | "build" | "preview"; why: string }> = {
   newdivider: { mode: "dev", why: "imports /src/chat/items.ts to build its fixtures" },
+  tabhide: { mode: "dev", why: "freezes the dev socket module (/src/lib/socket.ts) while the tab is emulated hidden" },
   faults: { mode: "dev", why: "uses the dev-only sessionStorage tock.fault switch" },
   orb: { mode: "dev", why: "reads the Orb card on the dev-only /__motion route" },
   longchat: { mode: "dev", why: "seeds 650 bubbles with the dev-only window.__tockSeed" },
