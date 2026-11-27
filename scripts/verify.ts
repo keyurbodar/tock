@@ -249,6 +249,28 @@ const journeys: Record<string, () => void> = {
     check(sent.lang === "ts" && sent.text.includes("compute(42)") && sent.text.includes("const more = 1") && sent.keyword, "the fence round-trips through send, highlighted: " + JSON.stringify(sent))
     shot("sent-fence")
   },
+  mdpreview() {
+    const work = join(homedir(), ".capy/work")
+    writeFileSync(join(work, "verify-fence.md"), "# Fence\n\nA markdown file with code.\n\n```ts\nexport const answer = (n: number) => n * 42\n```\n")
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(work, "verify-fence.md"))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 1 && s[0] === "done", "the upload to finish", 15000)
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Here is a file")
+    ab("press", "Enter")
+    until(() => exists(".tds-files[data-side='me'] .tds-doc[data-state='ready']"), Boolean, "the sent file card to resolve")
+    wait(300)
+    ab("click", ".tds-files[data-side='me'] .tds-doc")
+    until(() => exists(".tds-lightbox[data-ready] .tds-lightbox-doc .tds-lightbox-md .tds-code"), Boolean, "the markdown preview with its fence")
+    const c = js<{ lang: string; text: string; keyword: string }>("const c = document.querySelector('.tds-lightbox-md .tds-code'); const k = c.querySelector('.sh__token--keyword'); return { lang: c.dataset.language, text: c.querySelector('.tds-code-body').textContent, keyword: k ? getComputedStyle(k).color : '' }")
+    check(c.lang === "ts" && c.text.includes("n * 42") && c.keyword === "rgb(255, 103, 141)", "the .md preview highlights its fence with the shared block: " + JSON.stringify(c))
+    check(js<string>("return document.querySelector('.tds-lightbox-md')?.textContent ?? ''").includes("A markdown file with code."), "the preview renders the prose too")
+    wait(300)
+    shot("md-preview")
+    ab("press", "Escape")
+    until(() => exists(".tds-lightbox"), (open) => !open, "Escape to close")
+  },
   stopped() {
     ab("click", "button[aria-label='New chat']")
     until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a thread url")
@@ -1952,7 +1974,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
