@@ -1,10 +1,12 @@
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 import { Portal } from "@solidjs/web"
 import { useNavigate } from "@solidjs/router"
+import { backdrop } from "@tock/ui/motion"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
+import { edgeFade } from "../lib/edge-fade"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
 import { app, titleOf, type Session } from "../state/app"
@@ -14,23 +16,28 @@ type Status = "working" | "needs" | "failed" | "idle"
 
 const statusOf = (session: Session): Status => (session.busy ? "working" : app.threads[session.id]?.error ? "failed" : "idle")
 const statusName: Record<Status, string> = { working: "Working", needs: "Needs you", failed: "Failed", idle: "Idle" }
+const gap = tokens.size["session-gap"]
+const edge = tokens.size["edge-fade"]
 
 /**
- * The toast row, TDS px2 .me: mascot 36, "toast" 15/600 and a live status line. Holding it fans out the
- * session stack (px4 Stack): a blurred veil, glass pills with a stagger; slide to a pill and let go to open it.
+ * The toast row, TDS px2 .me: mascot 36, "toast" 15/600 and a live status line. Holding it fans out the session
+ * stack (px4 Stack) over the shared backdrop (the app scales back, blurs and dims). The stack scrolls when there are
+ * more chats than fit, fades at the edge that has more, and scrolls itself while you hold near that edge.
  */
 export function ToastRow(props: { show: boolean }) {
   const navigate = useNavigate()
   const [open, setOpen] = createSignal(false)
   const [hot, setHot] = createSignal<string>()
   const [pressed, setPressed] = createSignal(false)
-  const [origin, setOrigin] = createSignal({ left: 0, top: 0 })
+  const [place, setPlace] = createSignal({ left: 0, top: 0, height: 0 })
   let row!: HTMLButtonElement
-  let pills!: HTMLDivElement
+  let scroller!: HTMLDivElement
   let hold: ReturnType<typeof setTimeout> | undefined
   let dragging = false
+  let pointerY = 0
+  let frame = 0
 
-  const live = createMemo(() => app.sessions.filter((session) => !session.meta.archived))
+  const live = createMemo(() => app.sessions.filter((session) => !session.meta.archived).slice(0, tokens.limit["stack-max"]))
   const line = createMemo(() => {
     const count = (status: Status) => live().filter((session) => statusOf(session) === status).length
     const parts = [
@@ -41,22 +48,46 @@ export function ToastRow(props: { show: boolean }) {
     return parts.length ? parts.join(", ") : "here when you need me"
   })
 
+  const pillAt = (y: number) =>
+    [...scroller.querySelectorAll<HTMLElement>(".tds-stack-pill")].find((pill) => {
+      const box = pill.getBoundingClientRect()
+      return y >= box.top - tokens.space[4]! && y <= box.bottom + tokens.space[4]!
+    })?.dataset.id
+
+  /** Holding near the top or bottom edge scrolls the stack, faster the closer you are, and keeps the hot pill under the finger. */
+  const autoScroll = () => {
+    cancelAnimationFrame(frame)
+    if (!open() || !dragging) return
+    const box = scroller.getBoundingClientRect()
+    const reach = edge * 2
+    const into = pointerY < box.top + reach ? pointerY - (box.top + reach) : pointerY > box.bottom - reach ? pointerY - (box.bottom - reach) : 0
+    if (!into) return
+    scroller.scrollTop += Math.max(-reach, Math.min(reach, into)) / tokens.space[4]!
+    setHot(pillAt(pointerY))
+    frame = requestAnimationFrame(autoScroll)
+  }
+
   const openStack = () => {
     const box = row.getBoundingClientRect()
-    setOrigin({ left: box.left + tokens.space[4]!, top: box.bottom + tokens.space[23]! })
+    const count = live().length
+    const want = count * gap + edge
+    const room = innerHeight - box.bottom - tokens.space[23]! - tokens.space[24]!
+    const least = Math.min(want, gap * 3 + edge)
+    const top = room >= least ? box.bottom + tokens.space[23]! : Math.max(tokens.space[24]! * 3, innerHeight - tokens.space[24]! - least)
+    setPlace({ left: box.left, top, height: Math.min(want, innerHeight - top - tokens.space[24]!) })
+    scroller.scrollTop = 0
     hidePeek()
+    if (!open()) backdrop(true)
     setOpen(true)
   }
   const close = (pick?: string) => {
+    cancelAnimationFrame(frame)
+    if (open()) backdrop(false)
     setOpen(false)
     setHot(undefined)
     if (pick) navigate(`/t/${pick}`)
   }
-  const pillAt = (y: number) =>
-    [...pills.querySelectorAll<HTMLElement>(".tds-stack-pill")].find((pill) => {
-      const box = pill.getBoundingClientRect()
-      return y >= box.top - tokens.space[4]! && y <= box.bottom + tokens.space[4]!
-    })?.dataset.id
+  onCleanup(() => open() && backdrop(false))
 
   return (
     <>
@@ -72,18 +103,23 @@ export function ToastRow(props: { show: boolean }) {
             if (e.button !== 0) return
             setPressed(true)
             dragging = false
+            pointerY = e.clientY
             e.currentTarget.setPointerCapture(e.pointerId)
             hold = setTimeout(() => ((hold = undefined), openStack(), (dragging = true)), tokens.motion["hover-intent"].hold)
           }}
           onPointerMove={(e) => {
-            if (open() && dragging) setHot(pillAt(e.clientY))
+            pointerY = e.clientY
+            if (!open() || !dragging) return
+            setHot(pillAt(e.clientY))
+            autoScroll()
           }}
           onPointerUp={() => {
             setPressed(false)
+            cancelAnimationFrame(frame)
             if (hold) return clearTimeout(hold), (hold = undefined), openStack()
             if (dragging) (dragging = false), close(hot())
           }}
-          onPointerCancel={() => (setPressed(false), clearTimeout(hold), (hold = undefined))}
+          onPointerCancel={() => (setPressed(false), clearTimeout(hold), (hold = undefined), cancelAnimationFrame(frame))}
         >
           <img src="/brand/toast-mascot-36.svg" alt="" class="size-mascot flex-none rounded-small" draggable={false} />
           <span class="min-w-0 flex-1 pl-6 text-left">
@@ -97,46 +133,53 @@ export function ToastRow(props: { show: boolean }) {
         </button>
       </Show>
       <Portal>
-        <div class="tds-veil tds-veil-glass" aria-hidden="true" data-open={open() ? "" : undefined} onClick={() => close()} />
+        <div class="tds-veil" aria-hidden="true" data-open={open() ? "" : undefined} onClick={() => close()} />
         <div
-          ref={pills}
           class="tds-stack"
-          data-material="solid"
           data-open={open() ? "" : undefined}
           role={open() ? "dialog" : undefined}
           aria-label={open() ? "Sessions" : undefined}
           aria-hidden={open() ? undefined : "true"}
-          style={{ left: `${origin().left}px`, top: `${origin().top}px` }}
+          style={{ left: `${place().left}px`, top: `${place().top}px` }}
           onKeyDown={(e) => e.key === "Escape" && close()}
         >
           <div class="tds-stack-label">Hold and slide to a chat, let go to open it</div>
-          <For each={live().slice(0, tokens.limit["stack-pills"])} keyed={(session) => session.id}>
-            {(session, index) => (
-              <button
-                type="button"
-                class="tds-stack-pill tds-glass"
-                data-id={session().id}
-                data-hot={hot() === session().id ? "" : undefined}
-                tabindex={open() ? 0 : -1}
-                style={{ top: `${index() * tokens.size["session-gap"]}px`, "--stack-i": index() }}
-                onPointerEnter={() => !dragging && setHot(session().id)}
-                onClick={() => close(session().id)}
-              >
-                <span class={`tds-stack-icon ${glyphFor(session().id).hue}`}>
-                  <Icon name={glyphFor(session().id).icon} size="pin" />
-                </span>
-                <span class="min-w-0">
-                  <b>{titleOf(session())}</b>
-                  <span>
-                    {statusName[statusOf(session())]}, in the cloud, {shortTime(session().updatedAt, now()) || "now"}
-                  </span>
-                </span>
-                <Show when={statusOf(session()) !== "idle"}>
-                  <i class="tds-stack-dot" data-status={statusOf(session())} />
-                </Show>
-              </button>
-            )}
-          </For>
+          <div
+            ref={(el) => ((scroller = el), edgeFade(el))}
+            class="tds-stack-scroll tds-edge-fade"
+            style={{ height: `${place().height}px` }}
+            onScroll={() => dragging && setHot(pillAt(pointerY))}
+          >
+            <div class="tds-stack-track" style={{ height: `${live().length * gap}px` }}>
+              <For each={live()} keyed={(session) => session.id}>
+                {(session, index) => (
+                  <button
+                    type="button"
+                    class="tds-stack-pill"
+                    data-id={session().id}
+                    data-hot={hot() === session().id ? "" : undefined}
+                    tabindex={open() ? 0 : -1}
+                    style={{ top: `${index() * gap}px`, "--stack-i": Math.min(index(), tokens.limit["stack-pills"]) }}
+                    onPointerEnter={() => !dragging && setHot(session().id)}
+                    onClick={() => close(session().id)}
+                  >
+                    <span class={`tds-stack-icon ${glyphFor(session().id).hue}`}>
+                      <Icon name={glyphFor(session().id).icon} size="pin" />
+                    </span>
+                    <span class="tds-stack-text">
+                      <b>{titleOf(session())}</b>
+                      <span>
+                        {statusName[statusOf(session())]}, in the cloud, {shortTime(session().updatedAt, now()) || "now"}
+                      </span>
+                    </span>
+                    <Show when={statusOf(session()) !== "idle"}>
+                      <i class="tds-stack-dot" data-status={statusOf(session())} />
+                    </Show>
+                  </button>
+                )}
+              </For>
+            </div>
+          </div>
         </div>
       </Portal>
     </>

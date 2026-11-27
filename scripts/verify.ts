@@ -795,6 +795,52 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>("return location.pathname"), (p) => p === `/t/${target}`, "release to open the hot chat")
     until(() => exists(".tds-stack[data-open]"), (open) => !open, "the stack to close")
   },
+  stackscroll() {
+    ensureRows(2)
+    ab("mouse", "move", "5", "5")
+    ab("set", "viewport", "1440", "520")
+    const at = rect(".tds-toast-row")!
+    ab("mouse", "move", String(at.x + 40), String(at.y + at.h / 2))
+    ab("mouse", "down")
+    until(() => exists(".tds-stack[data-open]"), Boolean, "the session stack", 2000)
+    check(js<boolean>("return document.documentElement.hasAttribute('data-backdrop')"), "the stack recedes the app through the shared backdrop")
+    wait(450)
+    const layer = style(".tds-sidebar", "filter") ?? ""
+    check(/blur\(/.test(layer) && /brightness\(/.test(layer), `the app behind blurs and dims (${layer})`)
+    const box = js<{ top: number; bottom: number; scroll: number; height: number }>("const s = document.querySelector('.tds-stack-scroll'); const r = s.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, scroll: s.scrollHeight, height: s.clientHeight }")
+    check(box.bottom <= 520, `the stack stays on screen (bottom ${box.bottom})`)
+    if (box.scroll > box.height + 2) {
+      check(exists(".tds-stack-scroll[data-fade-bottom]") && !exists(".tds-stack-scroll[data-fade-top]"), "only the edge with more chats fades")
+      ab("mouse", "move", String(at.x + 120), String(box.bottom - 6), "--steps", "4")
+      until(() => js<number>("return document.querySelector('.tds-stack-scroll').scrollTop"), (top) => top > 20, "holding near the bottom edge scrolls the stack")
+      check(exists(".tds-stack-scroll[data-fade-top]"), "the top edge fades once scrolled")
+      check(exists(".tds-stack-pill[data-hot]"), "a pill stays hot while it scrolls")
+    }
+    shot("stack-scroll")
+    ab("mouse", "move", String(at.x + 40), String(at.y + at.h / 2))
+    ab("mouse", "up")
+    until(() => js<boolean>("return document.documentElement.hasAttribute('data-backdrop')"), (on) => !on, "the backdrop to clear")
+    ab("press", "Escape")
+    ab("set", "viewport", "1440", "900")
+  },
+  pinactive() {
+    ensureRows(1)
+    ab("mouse", "move", "5", "5")
+    let id = js<string>("return document.querySelector('.tds-pin')?.dataset.id ?? ''")
+    if (!id) {
+      id = js<string>("return document.querySelector('.tds-row-wrap:not([data-archived])').dataset.id")
+      js<number>("document.querySelector('.tds-row-wrap:not([data-archived]) .tds-row-more').click(); return 1")
+      until(() => exists(".tds-menu"), Boolean, "the row menu")
+      choose("Pin")
+      until(() => exists(`.tds-pin[data-id="${id}"]`), Boolean, "the pin")
+    }
+    ab("click", `.tds-pin[data-id="${id}"]`)
+    until(() => js<string>("return location.pathname"), (p) => p === `/t/${id}`, "the pinned chat to open")
+    until(() => js<string>(`return getComputedStyle(document.querySelector('.tds-pin[data-id="${id}"]'), '::before').opacity`), (o) => o === "1", "the open pin's tile")
+    check(js<number>("return document.querySelectorAll('.tds-pin[data-active]').length") === 1, "exactly one pin is highlighted")
+    shot("pin-active")
+    check(exists(".tds-edge-fade[data-fade-bottom]") || js<boolean>("const s = document.querySelector('.tds-sidebar .tds-scroll'); return s.scrollHeight <= s.clientHeight"), "the roster fades at its bottom edge when it overflows")
+  },
   type() {
     seeded()
     const root = js<{ smooth: string; synth: string; lh: string; size: string }>("const s = getComputedStyle(document.documentElement); return { smooth: s.webkitFontSmoothing, synth: s.fontSynthesisStyle, lh: s.getPropertyValue('--tds-type-bubble-lh').trim(), size: s.getPropertyValue('--tds-type-bubble-size').trim() }")
@@ -2238,7 +2284,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

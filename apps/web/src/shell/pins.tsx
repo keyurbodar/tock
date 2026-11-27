@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js"
-import { useNavigate } from "@solidjs/router"
+import { useNavigate, useParams } from "@solidjs/router"
 import { createMenuController, Menu, MenuContent, MenuContextTrigger, MenuItem, MenuItemIcon } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
@@ -79,6 +79,7 @@ function PinLabel(props: { session: Session }) {
 /** Pinned chats above the list, after TDS px2 renderPins (48 shaded circles, a 12 label, a 9 rose dot when unread) in a wrapping grid that reflows with the sidebar. */
 export function Pins(props: { show: boolean }) {
   const navigate = useNavigate()
+  const params = useParams<{ id?: string }>()
   const out = (session: Session, el: HTMLElement) => {
     animate(el, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.6)" }], { duration: ms.exit, easing: tokens.motion.curve.in, fill: "forwards" }).onfinish = () => unpin(session)
   }
@@ -100,7 +101,7 @@ export function Pins(props: { show: boolean }) {
           <For each={pinnedSessions()} keyed={(session) => session.id}>
             {(session) => (
               <MenuContextTrigger payload={session()} class="tds-pin-slot">
-                <button type="button" class="tds-pin" data-id={session().id} aria-label={titleOf(session())} onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${session().id}`))}>
+                <button type="button" class="tds-pin" data-id={session().id} data-active={params.id === session().id ? "" : undefined} aria-current={params.id === session().id ? "page" : undefined} aria-label={titleOf(session())} onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${session().id}`))}>
                   <i class={`tds-pin-circle ${glyphFor(session().id).hue}`} ref={(el) => land(el, session().id)}>
                     <Icon name={glyphFor(session().id).icon} size="pin" />
                   </i>
