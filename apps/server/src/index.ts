@@ -59,6 +59,12 @@ export default {
       return Response.json({ ok: true, service: "tock" });
     }
 
+    if (url.pathname === "/api/vitals" && request.method === "POST") {
+      const body = (await request.text()).slice(0, 512);
+      console.log("vitals", body);
+      return new Response(null, { status: 204 });
+    }
+
     if (url.pathname.startsWith("/api/hooks/") && request.method === "POST") {
       const hookId = url.pathname.slice("/api/hooks/".length);
       const owner = url.searchParams.get("owner") || "owner@local";

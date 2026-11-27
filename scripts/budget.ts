@@ -22,16 +22,36 @@ const rows = readdirSync(join(DIST, "assets"))
 
 const initialJs = rows.filter((row) => row.initial && row.file.endsWith(".js")).reduce((sum, row) => sum + row.gz, 0)
 const css = rows.filter((row) => row.file.endsWith(".css")).reduce((sum, row) => sum + row.gz, 0)
-const fat = rows.filter((row) => !row.initial && row.file.endsWith(".js") && row.gz > BUDGET.lazyChunk)
+/** Decoders that load only when a file needs them (a HEIC photo, a PDF) carry their own wasm or worker and are exempt from the lazy budget. */
+const ON_DEMAND = /^(heic-to|pdf)/
+const fat = rows.filter((row) => !row.initial && row.file.endsWith(".js") && !ON_DEMAND.test(row.file) && row.gz > BUDGET.lazyChunk)
 const kb = (bytes: number) => (bytes / KB).toFixed(1).padStart(7) + " KB"
 
-for (const row of rows) console.log(`${kb(row.gz)}  ${row.initial ? "initial" : "lazy   "}  ${row.file}`)
+for (const row of rows) console.log(`${kb(row.gz)}  ${row.initial ? "initial " : ON_DEMAND.test(row.file) ? "on demand" : "lazy    "}  ${row.file}`)
 console.log(`initial JS ${kb(initialJs)} gz (budget ${kb(BUDGET.initialJs)}), CSS ${kb(css)} gz (budget ${kb(BUDGET.css)})`)
 
-const blown = [
+const blown: string[] = [
   initialJs > BUDGET.initialJs && `initial JS is ${kb(initialJs)} gz, over ${kb(BUDGET.initialJs)}`,
   css > BUDGET.css && `CSS is ${kb(css)} gz, over ${kb(BUDGET.css)}`,
   ...fat.map((row) => `lazy chunk ${row.file} is ${kb(row.gz)} gz, over ${kb(BUDGET.lazyChunk)}`),
-].filter(Boolean)
+].filter((line): line is string => Boolean(line))
+/** With TOCK_URL set (a running app), also budget Core Web Vitals as the app reports them through web-vitals (window.__tockVitals). */
+const url = process.env.TOCK_URL
+if (url) {
+  const ab = (...args: string[]) => Bun.spawnSync(["agent-browser", ...args]).stdout.toString().trim()
+  ab("open", url)
+  Bun.sleepSync(3000)
+  ab("click", "body")
+  Bun.sleepSync(1000)
+  ab("open", url)
+  Bun.sleepSync(1500)
+  const vitals = JSON.parse(JSON.parse(ab("eval", "JSON.stringify(window.__tockVitals ?? {})") || '"{}"')) as Record<string, { value: number }>
+  const limits: Record<string, number> = { LCP: 2500, CLS: 0.1, INP: 200 }
+  for (const [name, limit] of Object.entries(limits)) {
+    const value = vitals[name]?.value
+    console.log(`${name.padEnd(4)} ${value === undefined ? "not reported" : value.toFixed(name === "CLS" ? 3 : 0)} (budget ${limit})`)
+    if (value !== undefined && value > limit) blown.push(`${name} is ${value.toFixed(3)}, over ${limit}`)
+  }
+}
 for (const line of blown) console.error("budget: " + line)
 process.exit(blown.length ? 1 : 0)
