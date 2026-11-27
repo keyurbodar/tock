@@ -30,7 +30,9 @@ const TEXTUAL = /\.(md|markdown|mdx|m?[jt]sx?|py|sql|json|css|html?|go|rs|rb|swi
 export const isImage = (name: string, mime = "") => mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|avif)$/i.test(name)
 const READABLE_MIME = /^(image|audio|video|text)\/|^application\/(pdf|zip|x-zip-compressed|gzip|x-gzip|x-tar|json|javascript|x-javascript|typescript|xml|x-sh|x-python|sql|toml|yaml|x-yaml)$/
 export const isReadable = (name: string, mime = "") => READABLE.test(name) || READABLE_MIME.test(mime)
-export const extension = (name: string) => (/\.([a-z0-9]{1,4})$/i.exec(name)?.[1] ?? "file").toUpperCase()
+export const extension = (name: string) => (/\.([a-z0-9]{1,8})$/i.exec(name)?.[1] ?? "file").toUpperCase()
+/** Lines as an editor counts them: a trailing newline ends the last line instead of starting another, and an empty file has none. */
+export const lineCount = (text: string) => (text === "" ? 0 : text.replace(/\r?\n$/, "").split("\n").length)
 export const fileUrl = (id: string) => `/api/files/${encodeURIComponent(id)}`
 
 export function formatSize(bytes: number) {
@@ -94,7 +96,8 @@ const plural = (count: number, forms: Record<"one" | "other", string>) => (plura
 
 /** What the card says once the file is read (TDS px3 meta): lines for text, pages for PDFs, the size for the rest. */
 async function describe(file: File): Promise<string> {
-  if (TEXTUAL.test(file.name) || file.type.startsWith("text/")) return `${formatSize(file.size)} · ${plural((await file.text()).split("\n").length, { one: "# line", other: "# lines" })}`
+  if (file.size === 0) return "Empty"
+  if (TEXTUAL.test(file.name) || file.type.startsWith("text/")) return `${formatSize(file.size)} · ${plural(lineCount(await file.text()), { one: "# line", other: "# lines" })}`
   if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
     const pages = ((await file.text()).match(/\/Type\s*\/Page(?!s)/g) ?? []).length
     if (pages > 0) return `${formatSize(file.size)} · ${plural(pages, { one: "# page", other: "# pages" })}`
@@ -162,7 +165,7 @@ export function createAttachments() {
     for (const file of files) {
       const name = file.name || "pasted"
       if (!isReadable(name, file.type)) {
-        rejected.push({ title: `Tock can’t read .${extension(name).toLowerCase()} files`, hint: "Try a PDF, image, text or code file" })
+        rejected.push({ title: /\.[a-z0-9]{1,8}$/i.test(name) ? `Tock can’t read .${extension(name).toLowerCase()} files` : `Tock can’t tell what ${name} is`, hint: "Try a PDF, image, text or code file" })
         continue
       }
       if (file.size > tokens.limit["file-mb"] * MB) {

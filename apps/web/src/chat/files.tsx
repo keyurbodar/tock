@@ -2,7 +2,7 @@ import { createSignal, For, Show, untrack } from "solid-js"
 import { createStore } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/text-morph"
-import { extension, fileUrl, formatSize, isImage } from "./attachments"
+import { extension, fileUrl, formatSize, isImage, lineCount } from "./attachments"
 import { fileChip } from "./chip"
 import { openLightbox, type LightboxItem } from "./lightbox-state"
 import { pdfThumb } from "../lib/pdf"
@@ -42,7 +42,7 @@ async function load(id: string, name: string) {
     if (kindOf(name) === "text" && (size ?? 0) < TEXT_LIMIT) {
       const bytes = await response.arrayBuffer()
       size = bytes.byteLength
-      lines = new TextDecoder().decode(bytes).split("\n").length
+      lines = lineCount(new TextDecoder().decode(bytes))
     } else controller.abort()
     setMetas((all) => void (all[id] = { state: "ready", size, lines }))
   } catch {

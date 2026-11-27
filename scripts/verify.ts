@@ -3392,6 +3392,24 @@ const journeys: Record<string, () => void | Promise<void>> = {
     if (process.env.JANK_SOFT) return
     check(over.every((r) => JANK_KNOWN[r.name]), "over the jank budget: " + over.filter((r) => !JANK_KNOWN[r.name]).map((r) => r.name + " (worst animated frame " + r.worst + "ms, " + r.forced + " forced layouts" + (r.culprits.length ? ": " + r.culprits.join(" ") : "") + ")").join("; "))
   },
+  oddfiles() {
+    fresh()
+    const dir = join(FIXTURES, "odd")
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, "noext"), "plain text\n")
+    writeFileSync(join(dir, "empty.txt"), "")
+    writeFileSync(join(dir, "three.md"), "one\ntwo\nthree\n")
+    writeFileSync(join(dir, "Package.swift"), "let a = 1\n")
+    ab("upload", ".tds-composer-wrap input[type=file]", join(dir, "noext"), join(dir, "empty.txt"), join(dir, "three.md"), join(dir, "Package.swift"))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 3 && s.every((x) => x === "done"), "three readable files")
+    const toasts = () => js<string>("return [...document.querySelectorAll('.tds-toast-title')].map((e) => e.textContent).join('|')")
+    until(toasts, (t) => t.includes("can’t tell what noext is"), "a file without an extension to be refused by name, not as .file")
+    const line = (name: string) => js<string>(`const c = [...document.querySelectorAll('.tds-attach')].find((e) => e.querySelector('.tds-attach-open')?.getAttribute('aria-label') === 'Open ${name}'); const m = c?.querySelector('.tds-attach-line')?.cloneNode(true); m?.querySelectorAll('[aria-hidden=true]').forEach((x) => x.remove()); return m?.textContent.trim() ?? ''`)
+    check(line("empty.txt") === "Empty", "an empty file reads Empty, got " + line("empty.txt"))
+    check(/· 3 lines$/.test(line("three.md")), "a trailing newline does not count as a line, got " + line("three.md"))
+    check(js<string>("return [...document.querySelectorAll('.tds-sq-pill')].map((e) => e.textContent).join('|')").includes("SWIFT"), "a five-letter extension keeps its type pill")
+    js<boolean>("document.querySelectorAll('.tds-attach-remove').forEach((b) => b.click()); return true")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -3401,7 +3419,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
