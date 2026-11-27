@@ -3191,6 +3191,8 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
   async streamsmooth() {
     const cdp = await cdpPage()
+    const latency = Number(process.env.STREAM_LATENCY ?? 0)
+    if (latency) await cdp.send("Network.enable"), await cdp.send("Network.emulateNetworkConditions", { offline: false, latency, downloadThroughput: -1, uploadThroughput: -1 })
     try {
       for (const rate of [1, 4]) {
         fresh()
@@ -3202,8 +3204,9 @@ const journeys: Record<string, () => void | Promise<void>> = {
         settled()
         revealed("streamsmooth at " + rate + "x")
         await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 })
-        const s = js<{ frames: number; shells: number; order: number; shrink: number; drop: number; notes: string[] }>("window.__stream.stop = true; return window.__stream")
+        const s = js<{ frames: number; shells: number; order: number; shrink: number; drop: number; notes: string[] }>("window.__stream.stop = true; return { ...window.__stream, events: undefined }")
         console.log("      " + rate + "x streaming frames " + s.frames + " " + JSON.stringify(s.notes))
+        if (process.env.STREAM_EVENTS) console.log("      events " + JSON.stringify(js<string[]>("return window.__stream.events")))
         check(s.frames > 30, "sampled the stream frame by frame (" + s.frames + " frames)")
         check(s.shells === 0, "no empty bubble shell shows before its words: " + s.shells + " frames " + JSON.stringify(s.notes))
         check(s.order === 0, "words reveal in reading order: " + JSON.stringify(s.notes))
@@ -3212,6 +3215,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
         shot("streamsmooth-" + rate + "x")
       }
     } finally {
+      if (latency) await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 }).catch(() => {})
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 }).catch(() => {})
       cdp.close()
     }

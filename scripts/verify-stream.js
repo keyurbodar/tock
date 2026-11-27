@@ -4,10 +4,14 @@
   const heights = new WeakMap()
   let lastTexts = []
   let lastScroll = 0
+  let lastCol
+  S.events = []
   const step = () => {
     S.frames++
-    const col = document.querySelector(".tds-column")
+    const col = [...document.querySelectorAll(".tds-transcript .tds-column")].find((c) => !c.closest("skullet-reveal, [aria-busy]"))
     if (!col) return
+    if (col !== lastCol) S.events.push(Math.round(performance.now()) + " column " + (col.closest("skullet-reveal, [aria-busy]") ? "inside skeleton" : "plain") + (col.hasAttribute("data-sample") ? " (sample)" : "") + ": " + JSON.stringify([...col.querySelectorAll(".tds-bubble")].map((b) => b.textContent.slice(0, 20))))
+    lastCol = col
     const bubbles = [...col.querySelectorAll(".tds-bubble[data-side='agent']")].filter((b) => !b.closest("[data-side='me']"))
     for (const b of bubbles) {
       const cs = getComputedStyle(b)
