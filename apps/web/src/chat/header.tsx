@@ -130,14 +130,19 @@ function Finder(props: { onClose: () => void }) {
 /** Slides under the header when the socket drops, then turns green with "Back online" for a moment (px4 setOffline). */
 function OfflineBanner() {
   const [shown, setShown] = createSignal<"off" | "on" | "ok">("off")
-  let seen = false
+  let seen = app.connection === "open"
   let timer: ReturnType<typeof setTimeout> | undefined
-  onCleanup(() => clearTimeout(timer))
+  const dropped = () => {
+    clearTimeout(timer)
+    setShown("on")
+  }
+  addEventListener("offline", dropped)
+  onCleanup(() => (clearTimeout(timer), removeEventListener("offline", dropped)))
   createEffect(
     () => app.connection,
     (connection) => {
       if (connection === "open") {
-        if (seen && untrack(shown) === "on") {
+        if (untrack(shown) === "on") {
           clearTimeout(timer)
           setShown("ok")
           timer = setTimeout(() => setShown("off"), tokens.motion.duration.confirm + tokens.motion.duration.exit * 4)
@@ -145,10 +150,7 @@ function OfflineBanner() {
         seen = true
         return
       }
-      if (seen && connection !== "unauthorized") {
-        clearTimeout(timer)
-        setShown("on")
-      }
+      if ((seen || !navigator.onLine) && connection !== "unauthorized") dropped()
     },
   )
   return (
