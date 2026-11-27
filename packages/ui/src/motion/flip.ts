@@ -12,9 +12,13 @@ export function watchLayout(box: HTMLElement, item: string, key: (el: HTMLElemen
     const [x = "0", y = "0"] = getComputedStyle(el).translate.split(" ")
     return { x: parseFloat(x) || 0, y: parseFloat(y) || 0 }
   }
+  const within = (el: HTMLElement) => {
+    const shared = el.offsetParent !== box && el.offsetParent === box.offsetParent
+    return { x: el.offsetLeft - (shared ? box.offsetLeft : 0), y: el.offsetTop - (shared ? box.offsetTop : 0) }
+  }
   const read = () => {
     at.clear()
-    for (const el of items()) at.set(key(el), { x: el.offsetLeft, y: el.offsetTop })
+    for (const el of items()) at.set(key(el), within(el))
   }
   const move = () => {
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -22,8 +26,9 @@ export function watchLayout(box: HTMLElement, item: string, key: (el: HTMLElemen
       const was = at.get(key(el))
       if (!was || reduce) continue
       const now = shift(el)
-      const dx = was.x + now.x - el.offsetLeft
-      const dy = was.y + now.y - el.offsetTop
+      const slot = within(el)
+      const dx = was.x + now.x - slot.x
+      const dy = was.y + now.y - slot.y
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue
       for (const running of el.getAnimations()) if ((running as CSSAnimation).animationName === undefined && "translate" in ((running.effect as KeyframeEffect).getKeyframes()[0] ?? {})) running.cancel()
       el.animate([{ translate: `${dx}px ${dy}px` }, { translate: "0 0" }], { duration: tokens.motion.duration.layout, easing: tokens.motion.curve.sheet })

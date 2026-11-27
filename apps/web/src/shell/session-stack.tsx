@@ -128,7 +128,7 @@ export function ToastRow(props: { show: boolean }) {
           <span class="min-w-0 flex-1 pl-6 text-left">
             <b class="block text-name">toast</b>
             <span class="tds-toast-status block truncate text-preview text-muted">
-              <TextMorph value={line()} />
+              <TextMorph value={line()} mode="calm" />
             </span>
           </span>
           <span class="tds-toast-hint">Hold</span>

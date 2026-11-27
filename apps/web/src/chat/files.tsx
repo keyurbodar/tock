@@ -109,7 +109,7 @@ function DocCard(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
       <span class="tds-doc-text">
         <b>{props.file.name}</b>
         <span class="tds-doc-meta num">
-          <TextMorph value={line()} />
+          <TextMorph value={line()} mode="calm" />
         </span>
       </span>
     </a>

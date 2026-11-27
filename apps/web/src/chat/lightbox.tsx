@@ -321,10 +321,10 @@ function Viewer(props: { opening: Opening }) {
         <em class="num">
           <Show when={items.length > 1}>
             <span class="tds-lightbox-count" aria-live="polite" aria-atomic="true">
-              <TextMorph value={index() + 1 + " of " + items.length} />
+              <TextMorph value={index() + 1 + " of " + items.length} mode="calm" />
             </span>
           </Show>
-          <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} /></span>}</Show>
+          <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} mode="calm" /></span>}</Show>
         </em>
         <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />
@@ -355,7 +355,7 @@ function Viewer(props: { opening: Opening }) {
           <button type="button" aria-label="Zoom out" disabled={zoom() <= 1} onClick={() => zoomTo(untrack(zoom) / limit["zoom-step"])}>
             <Icon name="minus" size="chip" />
           </button>
-          <span class="num"><TextMorph value={Math.round(zoom() * 100) + "%"} /></span>
+          <span class="num"><TextMorph value={Math.round(zoom() * 100) + "%"} mode="calm" /></span>
           <button type="button" aria-label="Zoom in" onClick={() => zoomTo(untrack(zoom) * limit["zoom-step"])}>
             <Icon name="plus" size="chip" />
           </button>

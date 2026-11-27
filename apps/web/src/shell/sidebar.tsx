@@ -365,7 +365,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
             <RenameField session={props.session} />
           </Show>
         </span>
-        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, now())} /></span>
+        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, now())} mode="calm" /></span>
         <span class="tds-row-preview">
           <Highlight text={plainText(props.session.preview) || "No messages yet"} query={props.query} />
         </span>
@@ -506,7 +506,7 @@ export function Sidebar() {
                 <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>
                   <Icon name="archive" size="chip" />
                   <span>Archive</span>
-                  <span class="tds-archive-count num"><TextMorph value={entry.count} /></span>
+                  <span class="tds-archive-count num"><TextMorph value={entry.count} mode="roll" /></span>
                   <Icon name="caret-down" size="chip" class="tds-archive-caret" />
                 </button>
               ) : (
@@ -526,7 +526,7 @@ export function Sidebar() {
 
       <div class="tds-bulk tds-over" data-open={selected().length > 1 ? "" : undefined} role="toolbar" aria-label="Selected chats" inert={selected().length > 1 ? undefined : true}>
         <b class="num">
-          <TextMorph value={`${selected().length} selected`} />
+          <TextMorph value={`${selected().length} selected`} mode="roll" />
         </b>
         <button type="button" class="tds-press" onClick={() => (markRead(chosen()), setSelected([]))}>
           <Icon name="circle" size="menu" />

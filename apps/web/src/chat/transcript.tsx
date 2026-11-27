@@ -214,7 +214,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     </div>
     <button type="button" class="tds-jump tds-glass" data-on={away() ? "" : undefined} data-count={unseen() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} aria-label={unseen() ? `Scroll to end, ${unseen()} new` : "Scroll to end"} onClick={() => toEnd(true)}>
       <MorphIcon name="arrow-down" size="chip" class="tds-optical-down" weight={tokens.icon["stroke-send"]} />
-      <span class="tds-jump-count"><TextMorph value={unseen() ? `${unseen()} new` : ""} /></span>
+      <span class="tds-jump-count"><TextMorph value={unseen() ? `${unseen()} new` : ""} mode="roll" /></span>
     </button>
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
     <Show when={open()}>

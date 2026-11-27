@@ -74,7 +74,9 @@ function png(path: string, width: number, height: number, rgb: readonly [number,
   Bun.write(path, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", head), chunk("IDAT", deflateSync(Buffer.concat(Array.from({ length: height }, () => row)))), chunk("IEND", Buffer.alloc(0))]))
   return path
 }
-const lightboxCount = () => js<string>("const e = document.querySelector('.tds-lightbox-count'); return (e?.querySelector('[torph-sr]') ?? e)?.textContent ?? ''")
+/** The value a TextMorph shows, whatever its mode: torph's screen-reader copy for roll and morph, the plain text for calm and swap. */
+const morphed = (sel: string) => js<string>(`const e = document.querySelector(${JSON.stringify(sel)}); const t = e?.matches('.tds-morph-text') ? e : (e?.querySelector('.tds-morph-text') ?? e); return (t?.querySelector('[torph-sr]') ?? t)?.textContent ?? ''`)
+const lightboxCount = () => morphed(".tds-lightbox-count")
 const openRow = () => {
   until(() => exists(".tds-row-wrap[data-leaving]"), (busy) => !busy, "leaving rows to go")
   ab("hover", ".tds-row-wrap .tds-row")
@@ -510,6 +512,44 @@ const journeys: Record<string, () => void> = {
     probe("centre retarget", ".tds-centre", () => (ab("click", ".tds-rail-button[data-bell]"), wait(90), ab("click", ".tds-rail-button[data-bell]"), wait(90), ab("click", ".tds-rail-button[data-bell]"), wait(700), ab("press", "Escape")), 900)
     for (const line of problems) console.log("  jank  " + line)
     check(problems.length === 0, `${problems.length} motion jumps`)
+  },
+  calmtext() {
+    const work = join(homedir(), ".capy/work")
+    fresh()
+    until(() => exists(".tds-composer-wrap input[type=file]"), Boolean, "the composer")
+    ab("upload", ".tds-composer-wrap input[type=file]", png(join(work, "verify-calm.png"), 900, 600, [120, 160, 230]))
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === 1 && s[0] === "done", "the upload to finish", 15000)
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Calm zoom")
+    ab("press", "Enter")
+    until(() => js<boolean>("const i = document.querySelector('.tds-media-tile img'); return !!i && i.complete && i.naturalWidth > 0"), Boolean, "the sent image")
+    ab("click", ".tds-media-tile")
+    until(() => exists(".tds-lightbox[data-ready]"), Boolean, "the lightbox to open")
+    wait(400)
+    const zoomMode = js<string>("return document.querySelector('.tds-lightbox-zoom .tds-morph-text')?.dataset.mode ?? (document.querySelectorAll('.tds-lightbox').length + ' lightbox, zoom ' + !!document.querySelector('.tds-lightbox-zoom') + ', count ' + document.querySelector('.tds-lightbox-count')?.textContent + ', ' + location.pathname)")
+    check(zoomMode === "calm", `the zoom % is a calm TextMorph (${zoomMode})`)
+    js<boolean>("const box = document.querySelector('.tds-lightbox-zoom .num'); const frames = (window.__calm = []); let on = true; window.__calmStop = () => (on = false); const tick = () => { const all = [box, ...box.querySelectorAll('*')]; frames.push({ ys: all.map((e) => e.getBoundingClientRect().y), tr: all.map((e) => getComputedStyle(e).transform + ' ' + getComputedStyle(e).translate).filter((t) => !/^none none$/.test(t)), rolled: box.querySelectorAll('[torph-item]').length, op: Math.min(...[...box.querySelectorAll('.tds-morph-text > span')].map((e) => +getComputedStyle(e).opacity)), text: box.textContent }); if (on) requestAnimationFrame(tick) }; requestAnimationFrame(tick); return true")
+    ab("click", "button[aria-label='Zoom in']")
+    wait(450)
+    ab("click", "button[aria-label='Zoom in']")
+    wait(450)
+    ab("click", "button[aria-label='Zoom out']")
+    wait(450)
+    const frames = js<{ ys: number[]; tr: string[]; rolled: number; op: number; text: string }[]>("window.__calmStop(); return window.__calm")
+    const texts = [...new Set(frames.map((f) => f.text))]
+    const drift = Math.max(0, ...frames.flatMap((f) => f.ys.map((y, i) => Math.abs(y - (frames[0]!.ys[i] ?? y)))))
+    check(texts.length >= 3, `the zoom % changed across ${frames.length} frames: ${texts.join(" → ")}`)
+    check(drift < 0.5, `no vertical digit movement while the zoom % changes (max drift ${drift.toFixed(2)}px)`)
+    check(frames.every((f) => f.tr.length === 0 && f.rolled === 0), "no rolling digits or translated glyphs in the zoom %")
+    check(frames.some((f) => f.op < 0.9), "the new value cross-fades in")
+    check(morphed(".tds-lightbox-zoom .num") === frames.at(-1)!.text, `the plain render reads the final value (${morphed(".tds-lightbox-zoom .num")})`)
+    shot("calm-zoom")
+    ab("click", "button[aria-label='Reset zoom']")
+    wait(400)
+    ab("eval", "const w = document.querySelector('.tds-lightbox-stage'); const m = document.querySelector('.tds-lightbox-zoom .tds-morph-text'); const seen = (window.__burst = []); let k = 0; const step = () => { if (k >= 3) seen.push(m.textContent + (m.dataset.was ? ' fading' : '')); w.dispatchEvent(new WheelEvent('wheel', { deltaY: -6, ctrlKey: true, clientX: 700, clientY: 400, bubbles: true, cancelable: true })); if (++k < 8) requestAnimationFrame(step) }; requestAnimationFrame(step)")
+    wait(300)
+    const burst = js<string[]>("return window.__burst")
+    check(burst.length === 5 && new Set(burst).size > 2 && burst.every((t) => !t.endsWith("fading")), `a burst of Ctrl-wheel zoom swaps the % instantly instead of stacking cross-fades: ${burst.join(", ")}`)
   },
   rowmorph() {
     ensureRows(2)
@@ -1283,7 +1323,7 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>("return document.querySelector('.tds-lightbox-bar em')?.textContent ?? ''"), (t) => /B$/.test(t), "the size in the bar")
     shot("lightbox-open")
     ab("click", ".tds-lightbox-picture")
-    until(() => js<string>("const e = document.querySelector('.tds-lightbox-zoom'); return (e?.querySelector('[torph-sr]') ?? e)?.textContent ?? ''"), (t) => t === "200%", "a click to zoom to 200%")
+    until(() => morphed(".tds-lightbox-zoom .num"), (t) => t === "200%", "a click to zoom to 200%")
     check(exists(".tds-lightbox[data-zoomed]"), "the lightbox marks itself zoomed")
     const pic = rect(".tds-lightbox-stage")!
     ab("mouse", "move", String(pic.x + pic.w / 2), String(pic.y + pic.h / 2))
@@ -1368,11 +1408,11 @@ const journeys: Record<string, () => void> = {
     const word = js<string>("return (document.querySelector('.tds-bubble[data-side=agent]')?.textContent ?? '').trim().split(/\\s+/).find((w) => /^[a-z]{5,}$/i.test(w)) ?? ''")
     check(word, "no word to search for")
     ab("keyboard", "type", word.slice(0, 5))
-    until(() => js<string>("const e = document.querySelector('.tds-find-count .tds-morph-text'); return (e?.querySelector('[torph-sr]') ?? e)?.textContent ?? ''"), (t) => /^1 of \d+$/.test(t), "a match count")
+    until(() => morphed(".tds-find-count"), (t) => /^1 of \d+$/.test(t), "a match count")
     check(js<number>("return CSS.highlights.get('tds-find-on')?.size ?? 0") === 1, "the current match is highlighted")
     shot("header-find")
     ab("keyboard", "type", "zzqx")
-    until(() => js<string>("const e = document.querySelector('.tds-find-count .tds-morph-text'); return (e?.querySelector('[torph-sr]') ?? e)?.textContent ?? ''"), (t) => t === "No matches", "no matches")
+    until(() => morphed(".tds-find-count"), (t) => t === "No matches", "no matches")
     ab("press", "Escape")
     until(() => exists(".tds-find"), (open) => !open, "the find bar to close")
     check(js<number>("return CSS.highlights.size") === 0, "highlights cleared on close")
@@ -2374,7 +2414,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

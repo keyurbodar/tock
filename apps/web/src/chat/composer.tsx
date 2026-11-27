@@ -118,7 +118,7 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
             <>
               <b class="tds-attach-name">{props.item.name}</b>
               <span class="tds-attach-line num" data-shimmer={props.item.status === "reading" ? "" : undefined}>
-                <TextMorph value={props.item.status === "failed" ? (props.item.error ?? "Upload failed") : props.item.status === "uploading" ? `${formatSize(props.item.size * props.item.progress)} of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))} />
+                <TextMorph value={props.item.status === "failed" ? (props.item.error ?? "Upload failed") : props.item.status === "uploading" ? `${formatSize(props.item.size * props.item.progress)} of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))} mode="swap" />
               </span>
               <span class="tds-sq-pill">{extension(props.item.name)}</span>
             </>
@@ -682,7 +682,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       <Show when={held() && pending().length > 0}>
         <div class="tds-held tds-over" role="status" aria-live="polite">
           <span class="tds-spinner" />
-          <b><TextMorph value={heldLabel()} /></b>
+          <b><TextMorph value={heldLabel()} mode="calm" /></b>
           <span>Edit or press Esc to cancel</span>
           <button type="button" class="tds-held-cancel tds-press" onMouseDown={(e) => e.preventDefault()} onClick={() => setHeld(false)}>
             Cancel
@@ -691,7 +691,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       </Show>
       <Show when={tooLong()}>
         <p class="tds-composer-alert" role="alert">
-          <TextMorph value={(length() - tokens.limit["prompt-chars"]).toLocaleString()} /> characters over the limit. Attach long text as a file instead.
+          <TextMorph value={(length() - tokens.limit["prompt-chars"]).toLocaleString()} mode="swap" /> characters over the limit. Attach long text as a file instead.
         </p>
       </Show>
       <form class="tds-composer-row" onSubmit={(e) => (e.preventDefault(), submit())}>

@@ -39,7 +39,7 @@ export function animate(el: Element | null | undefined, frames: Keyframe[], opts
   if (prefersReducedMotion() && !essential) {
     const from = frames[0]?.opacity ?? 1
     const to = frames.at(-1)?.opacity ?? 1
-    return el.animate([{ opacity: from }, { opacity: to }], { duration: dur.tooltip, fill: o.fill ?? "auto" })
+    return el.animate([{ opacity: from }, { opacity: to }], { duration: dur.tooltip, fill: o.fill ?? "auto", pseudoElement: o.pseudoElement })
   }
   return el.animate(frames, o)
 }

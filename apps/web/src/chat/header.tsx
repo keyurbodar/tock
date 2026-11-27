@@ -32,10 +32,10 @@ export function Header(props: { title: string; status: OrbStatus | undefined }) 
             <img src="/brand/toast-face-center.svg" alt="" class="size-header-face" draggable={false} />
           </span>
           <span class="tds-header-pill tds-glass">
-            <span class="tds-header-title" title={props.title} role="heading" aria-level="1"><TextMorph value={props.title} /></span>
+            <span class="tds-header-title" title={props.title} role="heading" aria-level="1"><TextMorph value={props.title} mode="morph" /></span>
             <span class="tds-header-status" data-on={status() ? "" : undefined}>
               <Show when={status()}>{(s) => <Orb status={s()} surface="main" size="orb-sm" />}</Show>
-              <TextMorph value={status() ? LABEL[status()!] : ""} />
+              <TextMorph value={status() ? LABEL[status()!] : ""} mode="morph" />
             </span>
           </span>
         </div>
@@ -112,7 +112,7 @@ function Finder(props: { onClose: () => void }) {
         }}
       />
       <span class="tds-find-count num" data-empty={query().trim() && count() === 0 ? "" : undefined}>
-        <TextMorph value={!query().trim() ? "" : count() ? `${at() + 1} of ${count()}` : "No matches"} />
+        <TextMorph value={!query().trim() ? "" : count() ? `${at() + 1} of ${count()}` : "No matches"} mode="calm" />
       </span>
       <button type="button" class="tds-find-step tds-press" aria-label="Previous match" disabled={count() === 0} onClick={() => step(-1)}>
         <Icon name="caret-up" size="chip" />
@@ -156,7 +156,7 @@ function OfflineBanner() {
   return (
     <div class="tds-banner" data-state={shown()} role="status" aria-live="polite" aria-hidden={shown() === "off" ? "true" : undefined}>
       <Icon name={shown() === "ok" ? "check" : "wifi-slash"} size="toast" />
-      <TextMorph value={shown() === "ok" ? "Back online" : "You’re offline. Messages and files wait, and send when you’re back."} />
+      <TextMorph value={shown() === "ok" ? "Back online" : "You’re offline. Messages and files wait, and send when you’re back."} mode="calm" />
     </div>
   )
 }

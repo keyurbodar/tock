@@ -39,7 +39,7 @@ Use it when items come, go or reflow: pins, rows, chips, attachment cards.
 ```ts
 <div ref={(el) => watchLayout(el, ".tds-pin")}>…</div>   // keyed by data-id; returns { move, stop }
 ```
-It watches child-list changes and resizes. Moved items glide from their drawn position on `curve.sheet` / `duration.layout`, and a move during a flight retargets from the current translate. If you change layout yourself without a DOM mutation (for example, a CSS variable for column count), call `move()`. `flip(els, change)` is the one-shot version.
+It watches child-list changes and resizes. Moved items glide from their drawn position on `curve.sheet` / `duration.layout`, and a move during a flight retargets from the current translate. Positions are measured inside the container, so the container itself moving (a composer field growing above its tray) never reads as an item move. If you change layout yourself without a DOM mutation (for example, a CSS variable for column count), call `move()`. `flip(els, change)` is the one-shot version.
 
 ## Presence: enter / exit
 Use it for an element appearing or leaving in place.
@@ -78,7 +78,43 @@ scrub(grip, { axis: "y", direction: -1, area: field, distance: () => travel(), f
 `backdropTo(holder, amount)` is the same recede keyed off a 0..1 progress, for surfaces that ride `drive()` or a gesture: the layers follow the surface frame by frame and reverse with it. Holders stack and the deepest wins. The notification centre uses `drive` + `scrub` + `backdropTo`.
 
 ## Text and icon morphs
-- `<TextMorph value={n} numbers />` morphs titles, statuses and counters (torph). In journeys, read the value through `[torph-sr]`.
+- `<TextMorph value={v} mode="roll" | "morph" | "calm" | "swap" />`. The mode is required, so every site picks one:
+  - `roll`: torph with odometer digits. Only for counts that genuinely tick: badges, unread and selection counts.
+  - `morph`: torph letter morph, digits treated as letters (no rolling). Titles, statuses and short labels.
+  - `calm`: the old value cross-fades out (on `::after`, from `data-was`) while the new one fades in, both with `blur.calm` over `duration.calm`, and nothing moves. A change inside `duration.calm` of the previous one swaps instantly, so a scrub (Ctrl-wheel zoom) reads as a tabular swap and a click cross-fades. Use it for numbers a user reads: zoom %, find counts, relative times, file meta.
+  - `swap`: instant tabular swap, no animation. Live timers, upload progress and anything that changes several times a second.
+- In journeys read the value with `morphed(sel)` in scripts/verify.ts: torph's `[torph-sr]` copy for roll and morph, the plain text for calm and swap (the outgoing calm copy is a pseudo-element, so `textContent` is always the current value). The `calmtext` journey proves the zoom % never moves a digit vertically.
+
+| Site | Value | Mode |
+| --- | --- | --- |
+| chat/header.tsx | chat title | morph |
+| chat/header.tsx | header status (Working, Needs you…) | morph |
+| chat/header.tsx | find count "2 of 5" / "No matches" | calm |
+| chat/header.tsx | offline / back online banner | calm |
+| chat/activity.tsx | step verb | morph |
+| chat/activity.tsx | tool group sentence "Searched memory 3 times" | morph |
+| chat/transcript.tsx | jump pill "3 new" | roll |
+| chat/activity.tsx | "Worked for 2s" on a finished turn | calm |
+| chat/activity.tsx | plan title | morph |
+| chat/activity.tsx | work log "Working for / Worked for" | morph |
+| chat/activity.tsx | work log live timer | swap |
+| chat/activity.tsx | plan progress "3 of 5" | calm |
+| chat/composer.tsx | attachment line: upload progress "0.4 MB of 1.2 MB", reading, meta, error | swap |
+| chat/composer.tsx | "Sending when … finishes" | calm |
+| chat/composer.tsx | characters over the limit | swap |
+| chat/files.tsx | sent document meta "Markdown · 54 B · 4 lines" | calm |
+| chat/lightbox.tsx | position "2 of 3" | calm |
+| chat/lightbox.tsx | file size | calm |
+| chat/lightbox.tsx | zoom % | calm |
+| shell/centre.tsx | notification relative time | calm |
+| shell/sidebar.tsx | row relative time | calm |
+| shell/sidebar.tsx | archive group count | roll |
+| shell/sidebar.tsx | "N selected" | roll |
+| shell/session-stack.tsx | "2 working, 1 needs you" | calm |
+| shell/rail.tsx | unread badge | roll |
+| shell/toasts.tsx | toast title | calm |
+| shell/toasts.tsx | toast repeat count ×N | roll |
+| dev/motion-demo.tsx | place label; one counter per mode | morph; all four |
 - `<MorphIcon name={busy ? "stop" : "arrow-up"} />` morphs line shapes stroke by stroke, and uses a blur and scale swap otherwise. Add new line shapes to `shapes` in morph-icon.tsx.
 
 ## Edge fade: scroll boxes

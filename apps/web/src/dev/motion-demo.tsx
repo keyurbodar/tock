@@ -34,7 +34,7 @@ export default function MotionDemo() {
       <section class="tds-raise-1">
         <h2>Container morph</h2>
         <For each={["Tokyo", "Lisbon", "Oslo"]}>{(city) => <button type="button" class="tds-motion-chip tds-raise-2" onClick={(e) => (morphFrom(e.currentTarget), setPlace(city), requestAnimationFrame(() => pane && morphInto(pane)))}>{city}</button>}</For>
-        <div ref={pane} class="tds-motion-card tds-over"><TextMorph value={place()} /></div>
+        <div ref={pane} class="tds-motion-card tds-over"><TextMorph value={place()} mode="morph" /></div>
       </section>
       <section class="tds-raise-1">
         <h2>Flip</h2>
@@ -84,7 +84,7 @@ export default function MotionDemo() {
       </section>
       <section class="tds-raise-1">
         <h2>Text and icon morphs</h2>
-        <button type="button" class="tds-motion-chip tds-raise-2" onClick={() => setCount((n) => n + 7)}><TextMorph value={count()} numbers /></button>
+        <For each={["roll", "morph", "calm", "swap"] as const}>{(mode) => <button type="button" class="tds-motion-chip tds-raise-2" onClick={() => setCount((n) => n + 7)}>{mode} <TextMorph value={count() + "%"} mode={mode} /></button>}</For>
         <button type="button" class="tds-motion-chip tds-raise-2" aria-label="Toggle icon" onClick={() => setIcon((on) => !on)}><MorphIcon name={icon() ? "stop" : "arrow-up"} /></button>
         <button type="button" class="tds-motion-chip tds-raise-2 tds-motion-step" aria-label="Toggle step" onClick={() => setBusy((on) => !on)}><MorphIcon name={busy() ? "spinner" : "check"} /></button>
       </section>

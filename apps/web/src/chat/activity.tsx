@@ -39,7 +39,7 @@ const planAt = (work: Work) => (work.plan ? (work.active ? work.plan.current : w
 function Label(props: { label: StepLabel; live?: boolean }) {
   return (
     <Show when={!props.live} fallback={props.label.live}>
-      <span class="tds-step-verb"><TextMorph value={props.label.verb} /></span>
+      <span class="tds-step-verb"><TextMorph value={props.label.verb} mode="morph" /></span>
       <Show when={props.label.object}>
         {(object) => <b class="tds-step-object"> {object()}</b>}
       </Show>
@@ -82,7 +82,7 @@ export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: 
           </Match>
         </Switch>
         <span class="tds-act-text" data-shimmer={state() === "live" ? "" : undefined}>
-          <Show when={state() === "live" || state() === "needs"} fallback={<>{state() === "failed" ? "Failed after " : "Worked for "}<TextMorph value={took(props.work, now())} /></>}>
+          <Show when={state() === "live" || state() === "needs"} fallback={<>{state() === "failed" ? "Failed after " : "Worked for "}<TextMorph value={took(props.work, now())} mode="calm" /></>}>
             {live()}
           </Show>
         </span>
@@ -112,7 +112,7 @@ function PlanList(props: { plan: Plan; at: number }) {
                   </Match>
                 </Switch>
               </span>
-              <span class="tds-plan-title"><TextMorph value={title()} /></span>
+              <span class="tds-plan-title"><TextMorph value={title()} mode="morph" /></span>
             </div>
           )
         }}
@@ -224,7 +224,7 @@ function GroupRow(props: { key: string; steps: readonly Step[]; ms: number; live
       }}>
         <span class="tds-ws-text">
           <span class="tds-ws-label" data-shimmer={props.live ? "" : undefined}>
-            <TextMorph value={props.live ? live() : label()} />
+            <TextMorph value={props.live ? live() : label()} mode="morph" />
           </span>
           <Show when={!props.live && spent(props.ms)}>{(time) => <span class="tds-ws-dur num">{time()}</span>}</Show>
           <span class="tds-ws-caret">
@@ -509,14 +509,14 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
                   <Orb status="failed" surface="main" size="orb-row" />
                 </Match>
               </Switch>
-              <span class="tds-worklog-title"><TextMorph value={work().active ? "Working for" : failed(work()) ? "Failed after" : "Worked for"} /></span>
+              <span class="tds-worklog-title"><TextMorph value={work().active ? "Working for" : failed(work()) ? "Failed after" : "Worked for"} mode="morph" /></span>
               <span class="tds-timer">
-                <TextMorph value={took(work(), now())} />
+                <TextMorph value={took(work(), now())} mode="swap" />
               </span>
               <Show when={work().plan}>
                 {(plan) => (
                   <span class="tds-worklog-count num">
-                    <TextMorph value={`${Math.min(planAt(work()) + 1, plan().steps.length)} of ${plan().steps.length}`} />
+                    <TextMorph value={`${Math.min(planAt(work()) + 1, plan().steps.length)} of ${plan().steps.length}`} mode="calm" />
                   </span>
                 )}
               </Show>

@@ -49,6 +49,8 @@
   .tds-orb[data-status="working"] { animation: tds-breathe var(--tds-dur-loop) ease-in-out infinite }
 
   .tds-morph-text { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums }
+  .tds-morph-text[data-was] { position: relative }
+  .tds-morph-text[data-was]::after { content: attr(data-was); position: absolute; inset-block-start: 0; inset-inline-start: 0; opacity: 0; pointer-events: none }
 
   .tds-hoverfill { transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out) }
   .tds-press { transition: scale var(--tds-dur-spring) var(--tds-ease-spring) }

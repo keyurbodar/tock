@@ -24,7 +24,7 @@ function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void
         <b>{props.note.title}</b>
         <span>{props.note.body}</span>
       </span>
-      <i class="num"><TextMorph value={shortTime(props.note.at, now())} /></i>
+      <i class="num"><TextMorph value={shortTime(props.note.at, now())} mode="calm" /></i>
     </button>
   )
 }

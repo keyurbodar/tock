@@ -9,7 +9,7 @@
  * Spring     spring, springEasing                            presets from tokens.motion.spring
  * Drive      drive, recede                                   one velocity-keeping 0..1 progress (--p), retargetable; recede one element by it
  * Backdrop   backdrop, backdropTo                            dim / scale / blur behind an expanded surface (on/off or by progress)
- * Text/Icon  TextMorph, MorphIcon                            text, number and glyph morphs
+ * Text/Icon  TextMorph (roll|morph|calm|swap), MorphIcon     text, number and glyph morphs
  * Edge       edgeFade, installEdgeFade                      scroll-edge mask fade, only where content continues past an edge
  * Material   raise                                           shade classes (tds-raise-1/2/3) beside tds-over / tds-glass
  */
@@ -22,7 +22,7 @@ export { scrub, type ScrubOptions } from "./gesture"
 export { inertiaTail, lockAxis, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeDecision, type SwipeSide, type SwipeStage, type SwipeThresholds } from "./swipe"
 export { drive, recede } from "./drive"
 export { edgeFade, installEdgeFade, type EdgeAxis } from "./edge"
-export { TextMorph } from "../text-morph"
+export { TextMorph, type TextMode } from "../text-morph"
 export { MorphIcon, type GlyphName, type MorphIconName } from "../morph-icon"
 
 export const raise = { 1: "tds-raise-1", 2: "tds-raise-2", 3: "tds-raise-3", hover: "tds-shade" } as const

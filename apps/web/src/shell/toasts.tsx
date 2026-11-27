@@ -199,11 +199,11 @@ function Card(props: { item: Item; index: number; offset: number }) {
       <span class="tds-toast-body">
         <b class="tds-toast-head">
           <span class="tds-toast-title">
-            <TextMorph value={props.item.title} />
+            <TextMorph value={props.item.title} mode="calm" />
           </span>
           <Show when={props.item.count > 1 && !props.item.plural}>
             <span class="tds-toast-count num">
-              <TextMorph value={props.item.count} />
+              <TextMorph value={props.item.count} mode="roll" />
             </span>
           </Show>
         </b>
