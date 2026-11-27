@@ -1,9 +1,8 @@
 import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { backdropTo, drive, scrub } from "@tock/ui/motion"
 import { TextMorph } from "@tock/ui/text-morph"
-import { MorphIcon } from "@tock/ui/morph-icon"
+import { Orb } from "@tock/ui/orb"
 import { useNavigate } from "@solidjs/router"
-import type { IconName } from "@tock/ui/icon"
 import { groups, markAllRead, notes, readChat, unreadNotes, type Group, type Note, type Tone } from "../state/notes"
 import { shortTime } from "../lib/time"
 import { Empty } from "../chat/empty"
@@ -13,13 +12,11 @@ import { tokens } from "@tock/tokens"
 const [open, setOpen] = createSignal(false)
 export { open as centreOpen, setOpen as setCentreOpen }
 
-const glyph: Record<Tone, IconName> = { needs: "hand", failed: "warning-circle", done: "check" }
-
 function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void }) {
   return (
     <button type="button" class="tds-note" data-read={props.note.read ? "" : undefined} style={{ "--i": props.index }} onClick={() => props.onOpen()}>
       <span class="tds-note-tint" data-tone={props.tone}>
-        <MorphIcon name={glyph[props.tone]} size="chip" />
+        <Orb status={props.tone} />
       </span>
       <span class="tds-note-text">
         <b dir="auto">{props.note.title}</b>

@@ -1917,7 +1917,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => exists(".tds-ask .tds-key[data-option='Approve']"), Boolean, "the approval card", 15000)
     const row = `.tds-row-wrap[data-id="${id}"] .tds-row`
     until(() => js<string>(`return document.querySelector('${row}')?.dataset.status ?? ''`), (s) => s === "needs", "the row in needs state")
-    check(exists(`${row} .tds-row-mark img[src*='needs']`), "the row carries the amber needs orb")
+    check(exists(`${row} .tds-row-mark .tds-orb[data-status='needs']`), "the row carries the amber needs orb")
     check(js<string>(`return document.querySelector('${row} .tds-row-preview').textContent`).startsWith("needs you: "), "the preview reads needs you: <question>")
     until(() => js<string>("return document.querySelector('.tds-toast-status [torph-sr]')?.textContent ?? document.querySelector('.tds-toast-status')?.textContent ?? ''"), (t) => t.includes("needs you"), "the toast row counts the chat as needs you")
     check(js<string>("return document.querySelector('.tds-header-status')?.textContent ?? ''").includes("Needs you"), "the header label reads Needs you")
@@ -1938,7 +1938,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => exists(".tds-ask .tds-key[data-option='Approve']"), Boolean, "the approval card", 15000)
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "needs", "the activity line in needs state")
     check(js<string>("return document.querySelector('.tds-act-text')?.textContent ?? ''").includes("Deploy the fix"), "the activity line should show the question")
-    until(() => exists(".tds-header-status img[src*='needs']"), Boolean, "the header pill to show the needs orb")
+    until(() => exists(".tds-header-status .tds-orb[data-status='needs']"), Boolean, "the header pill to show the needs orb")
     check(rect(".tds-ask")!.w <= 460, `the card should be at most 460px wide, got ${rect(".tds-ask")?.w}`)
     shot("ask-card")
     steady(".tds-act-button")
@@ -2747,6 +2747,37 @@ const journeys: Record<string, () => void | Promise<void>> = {
       ab("set", "viewport", "1440", "900")
     }
   },
+  orb() {
+    if (!devServer()) return console.log("      orb: skipped, /__motion exists only on the dev server")
+    ab("set", "media", "dark")
+    ab("open", BASE + "/__motion")
+    until(() => exists(".tds-motion-orbs .tds-orb"), Boolean, "the Orb demo card")
+    const read = () => js<{ status: string; size: string; box: number; dots: number; color: string; dotColor: string; running: number; lit: number }[]>(`return [...document.querySelectorAll('.tds-motion-orbs .tds-orb')].map((o) => { const dots = [...o.children]; const r = o.getBoundingClientRect(); return { status: o.dataset.status, size: o.dataset.size, box: Math.round(r.width), dots: dots.length, color: getComputedStyle(o).color, dotColor: getComputedStyle(dots[0]).backgroundColor, running: o.getAnimations({ subtree: true }).filter((a) => a.playState === 'running').length, lit: dots.filter((d) => parseFloat(getComputedStyle(d).opacity) > .95).length } })`)
+    const token = js<Record<string, string>>("const s = getComputedStyle(document.documentElement); const probe = document.createElement('i'); document.body.append(probe); const out = {}; for (const k of ['working', 'thinking', 'needs', 'failed', 'done']) { probe.style.color = s.getPropertyValue('--tds-status-' + k); out[k] = getComputedStyle(probe).color } probe.remove(); return out")
+    const orbs = read()
+    check(orbs.length === 10, `five states at two sizes (${orbs.length} orbs)`)
+    for (const o of orbs) {
+      check(o.dots === 9, `${o.status}/${o.size}: a 3×3 grid (${o.dots} dots)`)
+      check(o.color === token[o.status] && o.dotColor === token[o.status], `${o.status}/${o.size}: tinted with --tds-status-${o.status} (${o.color})`)
+      check(o.running > 0, `${o.status}/${o.size}: its grid animation runs (${o.running} dot animations)`)
+      check(o.box === (o.size === "corner" ? 16 : 12), `${o.status}/${o.size}: ${o.box}px box`)
+    }
+    const props = js<string[]>("return [...new Set(document.querySelector('.tds-motion-orbs').getAnimations({ subtree: true }).flatMap((a) => a.effect.getKeyframes().flatMap((k) => Object.keys(k).filter((p) => !['offset', 'easing', 'composite', 'computedOffset'].includes(p)))))]")
+    check(props.every((p) => p === "opacity" || p === "scale"), `orb dots animate only opacity and scale (${props.join(", ")})`)
+    js<boolean>("document.querySelector('.tds-motion-orbs').scrollIntoView({ block: 'center' }); return true")
+    wait(300)
+    shot("orb-states")
+    ab("set", "media", "dark", "reduced-motion")
+    wait(300)
+    const still = read()
+    check(still.every((o) => o.running === 0), `reduced motion stops every orb (${still.map((o) => o.running).join(",")})`)
+    check(new Set(still.filter((o) => o.size === "row").map((o) => o.lit)).size >= 4, `reduced motion keeps a distinct still pattern per state (lit dots ${still.filter((o) => o.size === "row").map((o) => o.status + ":" + o.lit).join(" ")})`)
+    shot("orb-reduced")
+    ab("set", "media", "dark")
+    ab("open", BASE)
+    until(() => exists(".tds-sidebar, .tds-row"), Boolean, "the app")
+    check(js<number>("return document.querySelectorAll('img.tds-orb, .tds-stack-dot:not(.tds-orb)').length") === 0, "no image orbs or plain status dots left in the app")
+  },
   motion() {
     seeded()
     ab("set", "media", "dark")
@@ -2762,7 +2793,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(!/\btop\b/.test(glide.t), `suggest highlight still animates top (${glide.t})`)
     ab("press", "Escape")
     ab("press", "Backspace")
-    until(() => js<number>("return document.getAnimations().filter((a) => a.effect?.getTiming().iterations === Infinity && a.playState === 'running').length"), (n) => n === 0, "no infinite loops running on an idle chat")
+    until(() => js<number>("return document.getAnimations().filter((a) => a.effect?.getTiming().iterations === Infinity && a.playState === 'running' && !a.effect.target?.closest?.('.tds-orb')).length"), (n) => n === 0, "no infinite loops running on an idle chat besides status orbs, which loop for as long as their state lasts")
     ab("set", "media", "dark", "reduced-motion")
     const dur = js<number>("return Math.max(...getComputedStyle(document.querySelector('.tds-composer button') ?? document.body).transitionDuration.split(',').map(parseFloat))")
     check(dur <= 0.15, `reduced motion leaves ${dur}s transitions`)
@@ -3920,7 +3951,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
@@ -3928,6 +3959,7 @@ const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog"
 const requires: Record<string, { mode: "dev" | "build" | "preview"; why: string }> = {
   newdivider: { mode: "dev", why: "imports /src/chat/items.ts to build its fixtures" },
   faults: { mode: "dev", why: "uses the dev-only sessionStorage tock.fault switch" },
+  orb: { mode: "dev", why: "reads the Orb card on the dev-only /__motion route" },
   longchat: { mode: "dev", why: "seeds 650 bubbles with the dev-only window.__tockSeed" },
   offlinereload: { mode: "build", why: "the service worker registers only in a production build" },
   swdeploy: { mode: "preview", why: "swaps the files of a local production build (vite preview + TOCK_DIST), so it cannot run against a deploy" },

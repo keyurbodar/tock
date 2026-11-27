@@ -12,6 +12,11 @@
 @keyframes tds-drop-in { from { scale: .96 } }
 @keyframes tds-sq-sweep { from { background-position: 100% 0 } to { background-position: -150% 0 } }
 @keyframes tds-breathe { 50% { opacity: .5; scale: .88 } }
+@keyframes tds-orb-orbit { 0% { opacity: 1; scale: 1 } 45%, 100% { opacity: .3; scale: .8 } }
+@keyframes tds-orb-wave { 0%, 55%, 100% { opacity: .3; scale: .8 } 25% { opacity: 1; scale: 1 } }
+@keyframes tds-orb-pulse { 0%, 100% { opacity: .3; scale: .8 } 50% { opacity: 1; scale: 1 } }
+@keyframes tds-orb-blink { 0%, 100% { opacity: 1; scale: 1 } 50% { opacity: .45; scale: .85 } }
+@keyframes tds-orb-shine { 0%, 30%, 100% { opacity: .6; scale: .9 } 12% { opacity: 1; scale: 1 } }
 
 
 @keyframes tds-shake { 20%, 60% { translate: -4px 0 } 40%, 80% { translate: 4px 0 } }

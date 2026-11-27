@@ -141,6 +141,19 @@ Use it for anything that shows a placeholder while data loads: sidebar rows, the
 - `fill` makes the host and its panes fill a sized slot (scrollers, virtual lists); `inline` sizes to its text (titles).
 - Bones use `--skullet-base` / `--skullet-highlight` from TDS overlays (motion.css). The `skeleton` journey proves key elements move less than 1px between first paint and loaded data.
 
+## Orb: status grid
+Use it for every status mark: header, activity line and work log, notifications, session stack, palette, peek, sidebar rows and pins. Never draw a status dot or ship an orb image.
+```tsx
+import { Orb, type OrbStatus, type OrbSize } from "@tock/ui/orb"
+<Orb status="working" />                                  // row size: a 12px 3×3 grid (size.orb-grid, dot size.orb-grid-dot), trails a row's preview line
+<Orb status="needs" size="corner" class="tds-pin-status" /> // pin corner: the grid on a 16px dark plate (size.orb-corner, -corner-grid, -corner-dot); place it on the tile's bottom-right
+<Orb status="failed" label="Failed" />                     // decorative (aria-hidden) unless you pass a label
+```
+- `status`: `working` (blue, a dot orbits the ring), `thinking` (purple, a diagonal wave), `needs` (yellow, the centre holds while corners and edges breathe in turn), `failed` (red, an X that dims slowly), `done` (green, rests lit with a slow shine). Colours are `--tds-status-*`; loop lengths are `motion.duration.orb-*`.
+- Pure CSS: nine `<i>` dots animate opacity and scale only, staggered by grid position, so no script runs per frame. Keyframes `tds-orb-*` live in motion.css.
+- Reduced motion stops every dot on a distinct still pattern per state (ring, diagonal, plus, X, full), so state never relies on colour alone.
+- The `orb` journey (`bun scripts/verify.ts orb`) checks the grid, tint, sizes, animated properties and the reduced-motion stills on the /__motion card.
+
 ## Material: Raise
 `tds-raise-1` (fields, chips, cards), `tds-raise-2` (buttons, selected states, pin circles) and `tds-raise-3` (panes and floating cards) add a top highlight, a gradient sheen and a small plus a large shadow. When a state adds a ring, set `--tds-raise-ring` rather than `box-shadow`. Glass overlays keep `tds-over` and `tds-glass`. `tds-raise-glass` is the round composer buttons' material (send and stop, plus, scroll to end): a soft top highlight, an inner rim and a darker foot over the button's own fill, so a solid fill reads as a glass bead. `raise` exports the class names.
 

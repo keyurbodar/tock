@@ -45,8 +45,50 @@
   .tds-swap > .tds-swap-b, .tds-swap[data-on] > .tds-swap-a { opacity: 0; scale: .25; filter: blur(var(--tds-blur-swap)) }
   .tds-swap[data-on] > .tds-swap-b { opacity: 1; scale: 1; filter: none }
 
-  .tds-orb { flex: none; display: block; user-select: none }
-  .tds-orb[data-status="working"] { animation: tds-breathe var(--tds-dur-loop) ease-in-out infinite }
+  /* Orb: Capy's 3×3 status grid. Dots rest dim and light up per state with opacity and scale only, staggered by grid position (--r, --c, ring step --k), so it runs on the compositor with no script. */
+  .tds-orb {
+    --orb-grid: var(--tds-size-orb-grid); --orb-dot: var(--tds-size-orb-grid-dot);
+    flex: none; display: grid; grid-template: repeat(3, var(--orb-dot)) / repeat(3, var(--orb-dot)); place-content: space-between;
+    box-sizing: content-box; width: var(--orb-grid); height: var(--orb-grid); color: var(--tds-status-working); pointer-events: none; user-select: none;
+  }
+  .tds-orb[data-size="corner"] {
+    --orb-grid: var(--tds-size-orb-corner-grid); --orb-dot: var(--tds-size-orb-corner-dot);
+    padding: calc((var(--tds-size-orb-corner) - var(--tds-size-orb-corner-grid)) / 2); border-radius: var(--tds-radius-kbd); background: var(--tds-surface-side);
+  }
+  .tds-orb[data-status="thinking"] { color: var(--tds-status-thinking) }
+  .tds-orb[data-status="needs"] { color: var(--tds-status-needs) }
+  .tds-orb[data-status="failed"] { color: var(--tds-status-failed) }
+  .tds-orb[data-status="done"] { color: var(--tds-status-done) }
+  .tds-orb > i { display: block; border-radius: var(--tds-radius-pill); background: currentColor; opacity: .3; scale: .8 }
+  .tds-orb > i:nth-child(1) { --r: 0; --c: 0; --k: 0 }
+  .tds-orb > i:nth-child(2) { --r: 0; --c: 1; --k: 1 }
+  .tds-orb > i:nth-child(3) { --r: 0; --c: 2; --k: 2 }
+  .tds-orb > i:nth-child(4) { --r: 1; --c: 0; --k: 7 }
+  .tds-orb > i:nth-child(5) { --r: 1; --c: 1; --k: 0 }
+  .tds-orb > i:nth-child(6) { --r: 1; --c: 2; --k: 3 }
+  .tds-orb > i:nth-child(7) { --r: 2; --c: 0; --k: 6 }
+  .tds-orb > i:nth-child(8) { --r: 2; --c: 1; --k: 5 }
+  .tds-orb > i:nth-child(9) { --r: 2; --c: 2; --k: 4 }
+  /* working: one lit dot orbits the ring with a fading tail */
+  .tds-orb[data-status="working"] > i:not(:nth-child(5)) { animation: tds-orb-orbit var(--tds-dur-orb-working) linear calc((var(--k) - 8) * var(--tds-dur-orb-working) / 8) infinite }
+  /* thinking: a soft wave rolls diagonally across the grid */
+  .tds-orb[data-status="thinking"] > i { animation: tds-orb-wave var(--tds-dur-orb-thinking) var(--tds-ease-std) calc((var(--r) + var(--c)) * var(--tds-dur-orb-thinking) / 10 - var(--tds-dur-orb-thinking)) infinite }
+  /* needs you: the centre holds, corners and edges breathe in turn */
+  .tds-orb[data-status="needs"] > i:nth-child(5) { opacity: 1; scale: 1 }
+  .tds-orb[data-status="needs"] > i:nth-child(odd):not(:nth-child(5)) { animation: tds-orb-pulse var(--tds-dur-orb-needs) var(--tds-ease-std) infinite }
+  .tds-orb[data-status="needs"] > i:nth-child(even) { animation: tds-orb-pulse var(--tds-dur-orb-needs) var(--tds-ease-std) calc(var(--tds-dur-orb-needs) / -2) infinite }
+  /* failed: a steady X that dims slowly */
+  .tds-orb[data-status="failed"] > i:nth-child(odd) { animation: tds-orb-blink var(--tds-dur-orb-failed) var(--tds-ease-std) infinite }
+  /* done: the grid rests lit, a slow shine passes now and then */
+  .tds-orb[data-status="done"] > i { animation: tds-orb-shine var(--tds-dur-orb-done) var(--tds-ease-std) calc((var(--r) + var(--c)) * var(--tds-dur-orb-done) / 16) infinite both }
+  @media (prefers-reduced-motion: reduce) {
+    .tds-orb > i { animation: none !important }
+    .tds-orb[data-status="working"] > i:not(:nth-child(5)),
+    .tds-orb[data-status="thinking"] > i:is(:nth-child(1), :nth-child(5), :nth-child(9)),
+    .tds-orb[data-status="needs"] > i:nth-child(even),
+    .tds-orb[data-status="failed"] > i:nth-child(odd),
+    .tds-orb[data-status="done"] > i { opacity: 1; scale: 1 }
+  }
 
   .tds-morph-text { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums }
   .tds-morph-text[data-was] { position: relative }

@@ -164,7 +164,7 @@ export function Peek() {
               </span>
               <b>{titleOf(peek().session)}</b>
               <Show when={peek().session.busy} fallback={<em class="num">{shortTime(peek().session.updatedAt, minute())}</em>}>
-                <Orb status="working" surface="main" size="orb-sm" />
+                <Orb status="working" />
                 <em>Working</em>
               </Show>
             </div>

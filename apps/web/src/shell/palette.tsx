@@ -101,7 +101,7 @@ export function Palette() {
                       <span class="tds-palette-title" dir={dirOf(titleOf(session()))}>{titleOf(session())}</span>
                       <span class="tds-palette-trail num">
                         <Show when={session().busy} fallback={shortTime(session().updatedAt, minute())}>
-                          <Orb status="working" surface="side" size="orb-sm" />
+                          <Orb status="working" />
                         </Show>
                       </span>
                     </CommandItem>

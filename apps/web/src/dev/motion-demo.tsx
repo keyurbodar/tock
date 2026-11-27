@@ -1,7 +1,10 @@
 import "../styles/motion-demo.css"
 import { createSignal, For, Show } from "solid-js"
 import { tokens } from "@tock/tokens"
+import { Orb, type OrbStatus } from "@tock/ui/orb"
 import { backdrop, drive, edgeFade, growFrom, MorphIcon, morphFrom, morphInto, raise, recede, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
+
+const ORB_STATES: OrbStatus[] = ["working", "thinking", "needs", "failed", "done"]
 
 /** Dev-only catalogue of the motion primitives (route /__motion). Each card is the smallest working use of one primitive. */
 export default function MotionDemo() {
@@ -102,6 +105,20 @@ export default function MotionDemo() {
         <h2>Raise and Backdrop</h2>
         <For each={[raise[1], raise[2], raise[3]]}>{(cls) => <div class={`tds-motion-tile ${cls}`}>{cls}</div>}</For>
         <button type="button" class="tds-motion-chip tds-raise-2" onClick={() => (backdrop(!dim()), setDim((on) => !on))}>Backdrop</button>
+      </section>
+      <section class="tds-raise-1 tds-motion-orbs">
+        <h2>Orb (row and pin corner)</h2>
+        <For each={ORB_STATES}>
+          {(status) => (
+            <div class="tds-motion-orb" data-status={status}>
+              <Orb status={status} label={status} />
+              <span class="tds-motion-tile tds-raise-2">
+                <Orb status={status} size="corner" />
+              </span>
+              <span>{status}</span>
+            </div>
+          )}
+        </For>
       </section>
     </main>
   )

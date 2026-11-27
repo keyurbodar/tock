@@ -4,7 +4,7 @@ import { app, type Session } from "../state/app"
 /** One status per chat, the same on every surface: a chat waiting on you outranks a run, which outranks a failure. */
 export type ChatStatus = "needs" | "working" | "failed" | "idle"
 
-export const STATUS_LABEL: Record<ChatStatus | "done", string> = { needs: "Needs you", working: "Working", failed: "Failed", done: "Done", idle: "Idle" }
+export const STATUS_LABEL: Record<ChatStatus | "done" | "thinking", string> = { needs: "Needs you", working: "Working", thinking: "Thinking", failed: "Failed", done: "Done", idle: "Idle" }
 
 export function statusOf(session: Session | undefined): ChatStatus {
   if (!session) return "idle"

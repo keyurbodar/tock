@@ -128,10 +128,7 @@
   .tds-stack-text > span { display: block; overflow: hidden; text-overflow: ellipsis; font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
   .tds-stack-pill[data-hot] .tds-stack-text > span { color: var(--tds-text-rose-tint) }
   .tds-stack-icon { width: var(--tds-size-session-icon); height: var(--tds-size-session-icon); flex: none; border-radius: var(--tds-radius-pill); display: grid; place-items: center; background: var(--tds-overlay-fill-8) }
-  .tds-stack-dot { width: var(--tds-size-dot); height: var(--tds-size-dot); border-radius: var(--tds-radius-pill); margin-left: var(--tds-space-6) }
-  .tds-stack-dot[data-status="working"] { background: var(--tds-status-working) }
-  .tds-stack-dot[data-status="needs"] { background: var(--tds-status-needs) }
-  .tds-stack-dot[data-status="failed"] { background: var(--tds-status-failed) }
+  .tds-stack-dot { margin-left: var(--tds-space-6) }
 
   .tds-bulk {
     position: absolute; left: var(--tds-space-12); right: var(--tds-space-12); bottom: var(--tds-space-14); z-index: var(--tds-z-bulk);

@@ -54,7 +54,7 @@ export function Header(props: { title: string; glyph: ReturnType<typeof glyphFor
             </span>
             <span class="tds-header-status" data-on={status() ? "" : undefined}>
               <span class="tds-header-orb">
-                <Show when={shown()}>{(s) => <Orb status={s()} surface="main" size="orb-header" />}</Show>
+                <Show when={shown()}>{(s) => <Orb status={s()} />}</Show>
               </span>
               <TextMorph value={status() ? LABEL[status()!] : ""} mode="calm" />
             </span>

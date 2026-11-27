@@ -388,7 +388,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
         </span>
         <span class="tds-row-mark" skullet-ignore="">
           <Show when={orbOf(props.session)}>
-            {(status) => <Orb status={status()} surface={props.selected ? "sel" : "side"} />}
+            {(status) => <Orb status={status()} />}
           </Show>
         </span>
       </a>

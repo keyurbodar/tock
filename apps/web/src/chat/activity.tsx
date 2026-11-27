@@ -98,6 +98,10 @@ export function Typing() {
 /** The one line under the user's message: live step while it runs, a muted "Worked for" once it's done. */
 export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: HTMLElement) => void }) {
   const state = () => (needs(props.work) ? "needs" : props.work.active ? "live" : failed(props.work) ? "failed" : "done")
+  const thinking = () => {
+    const step = props.work.steps.at(-1)
+    return !step || step.kind === "thinking" || statusOf(step) !== "running"
+  }
   const live = () => {
     const step = props.work.steps.at(-1)
     if (step?.kind === "tool" && needs(props.work)) return askOf(step.call).question || labelOf(step).live
@@ -110,13 +114,13 @@ export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: 
       <button type="button" class="tds-act-button" aria-expanded={props.open ? "true" : "false"} aria-label="Open the work log" onClick={(e) => props.onToggle(e.currentTarget)}>
         <Switch>
           <Match when={state() === "needs"}>
-            <Orb status="needs" surface="main" size="orb-act" />
+            <Orb status="needs" />
           </Match>
           <Match when={state() === "live"}>
-            <Orb status="working" surface="main" size="orb-act" />
+            <Orb status={thinking() ? "thinking" : "working"} />
           </Match>
           <Match when={state() === "failed"}>
-            <Orb status="failed" surface="main" size="orb-act" />
+            <Orb status="failed" />
           </Match>
         </Switch>
         <span class="tds-act-text" data-shimmer={state() === "live" ? "" : undefined}>
@@ -146,7 +150,7 @@ function PlanList(props: { plan: Plan; at: number }) {
                     <Icon name="check" size="chip" />
                   </Match>
                   <Match when={state() === "cur"}>
-                    <Orb status="working" surface="main" size="orb-act" />
+                    <Orb status="working" />
                   </Match>
                 </Switch>
               </span>
@@ -187,7 +191,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
       }}>
         <Show when={status() === "failed" || status() === "needs"}>
           <span class="tds-ws-slot">
-            <Orb status={status() === "failed" ? "failed" : "needs"} surface="main" size="orb-row" />
+            <Orb status={status() === "failed" ? "failed" : "needs"} />
           </span>
         </Show>
         <span class="tds-ws-text">
@@ -558,13 +562,13 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
             <div ref={head} class="tds-worklog-head">
               <Switch fallback={<Icon name="check" size="menu" class="tds-worklog-ok" />}>
                 <Match when={needs(work())}>
-                  <Orb status="needs" surface="main" size="orb-row" />
+                  <Orb status="needs" />
                 </Match>
                 <Match when={work().active}>
-                  <Orb status="working" surface="main" size="orb-row" />
+                  <Orb status="working" />
                 </Match>
                 <Match when={failed(work())}>
-                  <Orb status="failed" surface="main" size="orb-row" />
+                  <Orb status="failed" />
                 </Match>
               </Switch>
               <span class="tds-worklog-title"><TextMorph value={work().active ? "Working for" : failed(work()) ? "Failed after" : "Worked for"} mode="morph" /></span>

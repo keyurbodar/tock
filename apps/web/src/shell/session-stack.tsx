@@ -3,6 +3,7 @@ import { Portal } from "@solidjs/web"
 import { useNavigate } from "@solidjs/router"
 import { backdrop } from "@tock/ui/motion"
 import { Icon } from "@tock/ui/icon"
+import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
@@ -14,6 +15,7 @@ import { hidePeek } from "./peek"
 
 type Status = ChatStatus
 const statusName = STATUS_LABEL
+const orbOf = (status: ChatStatus) => (status === "idle" ? undefined : status)
 const gap = tokens.size["session-gap"]
 const edge = tokens.size["edge-fade"]
 
@@ -182,9 +184,7 @@ export function ToastRow(props: { show: boolean }) {
                         {statusName[statusOf(session())]}, in the cloud, {shortTime(session().updatedAt, minute()) || "now"}
                       </span>
                     </span>
-                    <Show when={statusOf(session()) !== "idle"}>
-                      <i class="tds-stack-dot" data-status={statusOf(session())} />
-                    </Show>
+                    <Show when={orbOf(statusOf(session()))}>{(status) => <Orb status={status()} class="tds-stack-dot" />}</Show>
                   </button>
                 )}
               </For>

@@ -125,7 +125,7 @@ export function Pins(props: { show: boolean }) {
                 <button type="button" class="tds-pin" onPointerEnter={(e) => peekEnter(untrack(session), e.currentTarget, "below")} onPointerLeave={() => peekLeave()} onPointerDown={() => hidePeek()} data-id={session().id} data-active={params.id === session().id ? "" : undefined} data-unread={session().meta.unread ? "" : undefined} aria-current={params.id === session().id ? "page" : undefined} aria-label={titleOf(session())} onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${session().id}`))}>
                   <i class={`tds-pin-circle ${glyphFor(session().id).hue}`} ref={(el) => land(el, session().id)}>
                     <Icon name={glyphFor(session().id).icon} size="pin" />
-                    <Show when={pinStatus(session())}>{(status) => <Orb status={status()} surface="side" size="orb-sm" class="tds-pin-status" />}</Show>
+                    <Show when={pinStatus(session())}>{(status) => <Orb status={status()} size="corner" class="tds-pin-status" />}</Show>
                   </i>
                   <PinLabel session={session()} />
                 </button>

@@ -1,23 +1,26 @@
-import type { ThreadStatus } from "@tock/protocol"
-import { tokens } from "@tock/tokens"
+export type OrbStatus = "working" | "thinking" | "needs" | "failed" | "done"
+export type OrbSize = "row" | "corner"
 
-export type OrbStatus = Exclude<ThreadStatus, "idle">
-export type OrbSurface = "main" | "side" | "sel"
-
-const file: Record<OrbStatus, string> = { working: "working", needs: "needs", failed: "failed", done: "done" }
-
-export function Orb(props: { status: OrbStatus; surface?: OrbSurface; size?: "orb" | "orb-sm" | "orb-act" | "orb-row" | "orb-header"; class?: string }) {
+/** A 3×3 dot grid tinted and animated per status (Capy's status grid). Decorative unless `label` names it. */
+export function Orb(props: { status: OrbStatus; size?: OrbSize; label?: string; class?: string }) {
   return (
-    <img
-      class={`tds-orb ${props.class ?? ""}`}
+    <span
+      class={props.class ? `tds-orb ${props.class}` : "tds-orb"}
       data-status={props.status}
-      src={`/brand/orbs/${file[props.status]}-on-${props.surface ?? "side"}.png`}
-      alt=""
-      width={tokens.size.orb}
-      height={tokens.size.orb}
-      style={{ width: `var(--tds-size-${props.size ?? "orb"})`, height: `var(--tds-size-${props.size ?? "orb"})` }}
-      decoding="async"
-      draggable={false}
-    />
+      data-size={props.size ?? "row"}
+      role={props.label ? "img" : undefined}
+      aria-label={props.label}
+      aria-hidden={props.label ? undefined : "true"}
+    >
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
   )
 }
