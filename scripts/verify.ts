@@ -3313,7 +3313,13 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done" || s === "failed", "the clip to upload")
     say("A broken clip")
     until(() => exists(".tds-files[data-side='me'] .tds-media-tile, .tds-files[data-side='me'] .tds-doc"), Boolean, "the sent clip")
-    ab("click", ".tds-files[data-side='me'] :is(.tds-media-tile, .tds-doc)")
+    for (let tries = 0; tries < 3 && !exists(".tds-lightbox"); tries++) {
+      wait(300)
+      ab("click", ".tds-files[data-side='me'] :is(.tds-media-tile, .tds-doc)")
+      try {
+        until(() => exists(".tds-lightbox"), Boolean, "the lightbox", 2000)
+      } catch {}
+    }
     until(() => exists(".tds-lightbox[data-failed] .tds-lightbox-failed"), Boolean, "the failure state", 10000)
     wait(400)
     const copy = text(".tds-lightbox-failed")
