@@ -8,6 +8,7 @@ export default function MotionDemo() {
   const [items, setItems] = createSignal([1, 2, 3, 4, 5, 6])
   const [count, setCount] = createSignal(12)
   const [icon, setIcon] = createSignal(false)
+  const [busy, setBusy] = createSignal(true)
   const [dim, setDim] = createSignal(false)
   let trigger: HTMLButtonElement | undefined
   let sheet: HTMLDivElement | undefined
@@ -60,6 +61,7 @@ export default function MotionDemo() {
         <h2>Text and icon morphs</h2>
         <button type="button" class="tds-motion-chip tds-raise-2" onClick={() => setCount((n) => n + 7)}><TextMorph value={count()} numbers /></button>
         <button type="button" class="tds-motion-chip tds-raise-2" aria-label="Toggle icon" onClick={() => setIcon((on) => !on)}><MorphIcon name={icon() ? "stop" : "arrow-up"} /></button>
+        <button type="button" class="tds-motion-chip tds-raise-2 tds-motion-step" aria-label="Toggle step" onClick={() => setBusy((on) => !on)}><MorphIcon name={busy() ? "spinner" : "check"} /></button>
       </section>
       <section class="tds-raise-1">
         <h2>Raise and Backdrop</h2>

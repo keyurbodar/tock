@@ -21,6 +21,7 @@
     overflow: visible;
     transition: rotate var(--tds-dur-swap) var(--tds-ease-sheet);
   }
+  .tds-morph[data-spin] { animation: tds-spin-turn var(--tds-dur-spin) linear infinite }
   .tds-morph line {
     transition-property: opacity;
     transition-duration: var(--tds-dur-swap);

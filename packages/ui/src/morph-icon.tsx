@@ -4,7 +4,7 @@ import { tokens } from "@tock/tokens"
 import { Icon, type IconName, type IconSize } from "./icon"
 
 type Line = readonly [number, number, number, number]
-type Shape = { readonly lines: readonly [Line, Line, Line, Line]; readonly rotate?: number; readonly weight?: number }
+type Shape = { readonly lines: readonly [Line, Line, Line, Line]; readonly rotate?: number; readonly weight?: number; readonly spin?: boolean }
 
 const C: Line = [7, 7, 7, 7]
 const arrow: Shape["lines"] = [[7, 12, 7, 2.5], [2.8, 6.5, 7, 2.3], [11.2, 6.5, 7, 2.3], C]
@@ -24,6 +24,7 @@ const shapes = {
   "chevron-up": { lines: chevron, rotate: 180 },
   pause: { lines: [[4.5, 3, 4.5, 11], [9.5, 3, 9.5, 11], C, C] },
   play: { lines: [[4, 2.5, 4, 11.5], [4, 2.5, 11.5, 7], [4, 11.5, 11.5, 7], C] },
+  spinner: { lines: [[7, 1.5, 7, 4], [12.5, 7, 10, 7], [7, 12.5, 7, 10], [1.5, 7, 4, 7]], rotate: 0, spin: true },
 } satisfies Record<string, Shape>
 
 export type MorphIconName = keyof typeof shapes
@@ -41,7 +42,7 @@ function Lines(props: { name: MorphIconName; size: string; weight?: number }) {
   let svg!: SVGSVGElement
   const target = () => {
     const shape: Shape = shapes[props.name]
-    return { points: shape.lines.flat(), weight: shape.weight ?? props.weight ?? 1.6, rotate: shape.rotate ?? 0 }
+    return { points: shape.lines.flat(), weight: shape.weight ?? props.weight ?? 1.6, rotate: shape.rotate ?? 0, spin: shape.spin ?? false }
   }
   let now = untrack(target)
   let frame = 0
@@ -60,6 +61,14 @@ function Lines(props: { name: MorphIconName; size: string; weight?: number }) {
   createEffect(target, (next) => {
     if (!svg) return
     svg.style.rotate = `${next.rotate}deg`
+    if (svg.hasAttribute("data-spin") && !next.spin) {
+      const m = new DOMMatrix(getComputedStyle(svg).transform)
+      const at = (Math.atan2(m.b, m.a) * 180) / Math.PI
+      const from = at < 0 ? at + 360 : at
+      svg.removeAttribute("data-spin")
+      animate(svg, [{ transform: `rotate(${from}deg)` }, { transform: "rotate(360deg)" }], { duration: tokens.motion.duration.swap, easing: tokens.motion.curve.out })
+    }
+    if (next.spin) svg.setAttribute("data-spin", "")
     const from = now
     cancelAnimationFrame(frame)
     clock?.cancel()
@@ -74,7 +83,7 @@ function Lines(props: { name: MorphIconName; size: string; weight?: number }) {
       const k = clock?.playState === "finished" ? 1 : (t ?? 1)
       const points = next.points.map((p, i) => from.points[i]! + (p - from.points[i]!) * k)
       const weight = from.weight + (next.weight - from.weight) * k
-      now = { points, weight, rotate: next.rotate }
+      now = { points, weight, rotate: next.rotate, spin: next.spin }
       paint(points, weight)
       if (k < 1) frame = requestAnimationFrame(step)
     }
@@ -83,7 +92,7 @@ function Lines(props: { name: MorphIconName; size: string; weight?: number }) {
   onCleanup(() => (cancelAnimationFrame(frame), clock?.cancel()))
   const first = untrack(target)
   return (
-    <svg ref={svg} class="tds-morph" viewBox="0 0 14 14" style={{ width: props.size, height: props.size, rotate: `${first.rotate}deg`, "stroke-width": first.weight }} aria-hidden="true">
+    <svg ref={svg} class="tds-morph" data-spin={first.spin ? "" : undefined} viewBox="0 0 14 14" style={{ width: props.size, height: props.size, rotate: `${first.rotate}deg`, "stroke-width": first.weight }} aria-hidden="true">
       {[0, 1, 2, 3].map((i) => {
         const [x1, y1, x2, y2] = first.points.slice(i * 4, i * 4 + 4) as [number, number, number, number]
         return <line ref={(el) => (lines[i] = el)} x1={x1} y1={y1} x2={x2} y2={y2} style={{ opacity: x1 === x2 && y1 === y2 ? 0 : 1 }} />

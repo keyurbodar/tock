@@ -1,6 +1,7 @@
 /* Keyframes: the only place @keyframes may live (lint: primitives). */
 @keyframes tds-shimmer { from { background-position: 100% 0 } to { background-position: 0 0 } }
 @keyframes tds-spin { to { rotate: 360deg } }
+@keyframes tds-spin-turn { to { transform: rotate(360deg) } }
 @keyframes tds-dot { 0%, 70%, 100% { opacity: .35; translate: 0 } 35% { opacity: 1; translate: 0 calc(var(--tds-space-2) * -1) } }
 @keyframes tds-word { from { opacity: 0; filter: blur(var(--tds-blur-word)) } }
 @keyframes tds-word-fade { from { opacity: 0 } }
