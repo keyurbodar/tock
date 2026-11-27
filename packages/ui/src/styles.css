@@ -30,7 +30,7 @@
   .tds-glyph { display: inline-grid; place-items: center; flex: none }
   .tds-glyph-layer { grid-area: 1 / 1; display: inline-grid; place-items: center }
   .tds-glyph-layer[data-phase="in"] { animation: tds-glyph-in var(--tds-dur-swap) var(--tds-ease-out) both }
-  .tds-glyph-layer[data-phase="out"] { animation: tds-glyph-out var(--tds-dur-swap) var(--tds-ease-out) both; pointer-events: none }
+  .tds-glyph-layer[data-phase="out"] { animation: tds-glyph-out var(--tds-dur-exit) var(--tds-ease-in) both; pointer-events: none }
   @keyframes tds-glyph-in { from { opacity: 0; scale: .25; filter: blur(var(--tds-blur-swap)) } }
   @keyframes tds-glyph-out { to { opacity: 0; scale: .25; filter: blur(var(--tds-blur-swap)) } }
 
@@ -50,8 +50,8 @@
   .tds-morph-text { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums }
 
   .tds-hoverfill { transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out) }
-  .tds-press { transition: scale var(--tds-dur-press) var(--tds-ease-out) }
-  .tds-press:not(:disabled, [data-disabled]):active { scale: var(--tds-press) }
+  .tds-press { transition: scale var(--tds-dur-spring) var(--tds-ease-spring) }
+  .tds-press:not(:disabled, [data-disabled]):active { scale: var(--tds-press); transition-duration: var(--tds-dur-press); transition-timing-function: var(--tds-ease-out) }
 }
 
 @layer components {

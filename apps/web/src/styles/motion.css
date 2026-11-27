@@ -1,5 +1,11 @@
 @layer components {
-  :where(button):not(:disabled, [data-disabled]):active { scale: var(--tds-press) }
+  :where(button) { transition: scale var(--tds-dur-spring) var(--tds-ease-spring) }
+  :where(button, .tds-press):not(:disabled, [data-disabled]):active { scale: var(--tds-press); transition: scale var(--tds-dur-press) var(--tds-ease-out) }
+
+  .tds-lift { transition: translate var(--tds-dur-spring) var(--tds-ease-spring), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
+  @media (hover: hover) and (pointer: fine) { .tds-lift:hover { translate: 0 calc(var(--tds-space-1) * -1) } }
+
+  .tds-morph-text, .num { font-variant-numeric: tabular-nums }
 
   .tds-stagger > * { animation: tds-stagger-in var(--tds-dur-layout) var(--tds-ease-out) both; animation-delay: calc(var(--i, 0) * var(--tds-stagger)) }
   @keyframes tds-stagger-in { from { opacity: 0; translate: 0 var(--tds-space-4) } }

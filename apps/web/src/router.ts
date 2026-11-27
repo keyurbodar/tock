@@ -5,7 +5,7 @@ import { subscribe } from "./state/app"
 export const Router = createRouter({
   routes: [
     { path: "/", component: Home },
-    { path: "/t/:id", component: Thread, preload: ({ params }) => void subscribe(String(params.id)) },
+    { path: "/t/:id", component: Thread, preload: ({ params }) => queueMicrotask(() => void subscribe(String(params.id))) },
   ],
   preloadLinks: intentPreload({ delay: 0 }),
 })
