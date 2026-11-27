@@ -2035,6 +2035,10 @@ const journeys: Record<string, () => void> = {
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws"), Boolean, "the work log rows")
     wait(600)
+    const summary = js<string>("return document.querySelector('.tds-worklog .tds-ws[data-kind=group] .tds-ws-label')?.textContent ?? ''")
+    check(/searched memory \d+ times/i.test(summary), "a run of tool calls folds into one sentence, got: " + summary)
+    ab("click", ".tds-worklog .tds-ws[data-kind='group'] > .tds-ws-line")
+    wait(700)
     const box = js<{ sh: number; ch: number; top: number; vh: number }>("const b = document.querySelector('.tds-worklog-body'); const p = document.querySelector('.tds-worklog').getBoundingClientRect(); return { sh: b.scrollHeight, ch: b.clientHeight, top: p.top, vh: innerHeight }")
     check(box.sh > box.ch, "a long turn should scroll inside the pane (" + JSON.stringify(box) + ")")
     check(box.top >= 0, "the pane should stay on screen (" + JSON.stringify(box) + ")")
@@ -2046,16 +2050,17 @@ const journeys: Record<string, () => void> = {
     wait(300)
     until(() => exists(".tds-worklog .tds-ws-line:not(:disabled) .tds-ws-label"), Boolean, "the long log row")
     const tall = () => js<number>("return Math.round(document.querySelector('.tds-worklog').getBoundingClientRect().height)")
-    ab("eval", "const r = [...document.querySelectorAll('.tds-worklog .tds-ws-line:not(:disabled)')].find((l) => /Ran code/.test(l.textContent)); r.click()")
+    ab("eval", "const r = [...document.querySelectorAll('.tds-worklog .tds-ws-line:not(:disabled)')].filter((l) => l.closest('.tds-ws[data-nested]')).find((l) => /Ran code/.test(l.textContent)); r.click()")
     const samples: number[] = []
     for (let i = 0; i < 6; i++) { samples.push(tall()); wait(60) }
     wait(500)
-    const out = js<{ h: number; sh: number }>("const b = document.querySelector('.tds-ws[data-open] .tds-ws-body'); return { h: b.getBoundingClientRect().height, sh: b.scrollHeight }")
+    const out = js<{ h: number; sh: number }>("const b = document.querySelector('.tds-ws[data-nested][data-open] .tds-ws-body'); return { h: b.getBoundingClientRect().height, sh: b.scrollHeight }")
     check(out.h <= 241, "an expanded long output should cap near 240px, got " + out.h)
     check(out.sh > out.h, "the long output should scroll inside its row")
     shot("worklog-long-output")
     ab("press", "Escape")
   },
+
   growopen() {
     seeded()
     until(() => exists(".tds-act-button"), Boolean, "a thread with a work log", 10000)
@@ -2203,6 +2208,27 @@ const journeys: Record<string, () => void> = {
     check(nav.frames > 0, "the chat never opened")
     check(nav.skeleton === 0 && nav.blank === 0, "a chat prefetched on hover opens with its messages in the first painted frame, no skeleton or blank: " + JSON.stringify(nav))
   },
+  thoughts() {
+    seeded()
+    steady(".tds-act-button")
+    ab("click", ".tds-act-button")
+    until(() => exists(".tds-worklog .tds-ws[data-kind='thinking']"), Boolean, "a thought row")
+    wait(500)
+    const label = js<string>("return document.querySelector(\".tds-worklog .tds-ws[data-kind='thinking'] .tds-ws-label\").textContent.trim()")
+    check(/^Thought( for \d+(\.\d+)?s)?$/.test(label), "a finished thought reads 'Thought for Ns', got: " + label)
+    check(!exists(".tds-worklog .tds-ws[data-kind='thinking'] .tds-ws-slot"), "thought rows carry no icon")
+    ab("click", ".tds-worklog .tds-ws[data-kind='thinking'] .tds-ws-line")
+    until(() => exists(".tds-worklog .tds-ws[data-kind='thinking'][data-open] .tds-ws-thought p"), Boolean, "the thought prose")
+    wait(700)
+    const look = js<{ bg: string; bubbles: number; rule: string; color: string; muted: string }>("const t = document.querySelector('.tds-worklog .tds-ws-thought'); const probe = document.createElement('span'); probe.style.color = 'var(--tds-text-muted)'; document.body.append(probe); const muted = getComputedStyle(probe).color; probe.remove(); return { bg: getComputedStyle(t).backgroundColor, bubbles: t.querySelectorAll('.tds-bubble, .tds-md-bubble, pre').length, rule: getComputedStyle(t).boxShadow, color: getComputedStyle(t.querySelector('p')).color, muted }")
+    check(transparent(look.bg) && look.bubbles === 0, "thoughts render as plain prose with no bubble or container: " + JSON.stringify(look))
+    check(look.rule.includes("inset"), "thoughts sit under a thin left rule: " + look.rule)
+    check(look.color === look.muted, "thought prose uses the muted text colour: " + look.color + " vs " + look.muted)
+    shot("worklog-thought")
+    const bg = js<string[]>("const a = getComputedStyle(document.querySelector('.tds-worklog')).backgroundColor; const b = getComputedStyle(document.querySelector('.tds-field')).backgroundColor; return [a, b]")
+    check(bg[0] === bg[1], "the work log takes the composer's surface: " + bg.join(" vs "))
+    ab("press", "Escape")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -2212,7 +2238,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

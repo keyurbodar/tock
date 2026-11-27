@@ -11,7 +11,7 @@ import type {
 import { isPlan, planOf, type Plan } from "./steps"
 
 export type Step =
-  | { readonly kind: "thinking"; readonly key: string; readonly text: string; readonly active: boolean }
+  | { readonly kind: "thinking"; readonly key: string; readonly text: string; readonly active: boolean; readonly at: number | null }
   | {
       readonly kind: "tool"
       readonly key: string
@@ -20,6 +20,7 @@ export type Step =
       readonly status: "running" | "done" | "failed" | "cancelled"
       /** Output the tool is printing while it runs. */
       readonly output: string | undefined
+      readonly at: number | null
     }
 
 export type Item =
@@ -176,7 +177,7 @@ export function buildItems(
         if (block.thinking.trim() === "") return
         const group = work()
         const active = streaming && index === message.content.length - 1
-        group.steps.push({ kind: "thinking", key: blockKey, text: block.thinking, active })
+        group.steps.push({ kind: "thinking", key: blockKey, text: block.thinking, active, at: message.timestamp ?? null })
         group.active ||= active
         return
       }
@@ -191,6 +192,7 @@ export function buildItems(
       }
       group.steps.push({
         output: unfinished ? slot?.output : undefined,
+        at: message.timestamp ?? null,
         kind: "tool",
         key: blockKey,
         call: block,

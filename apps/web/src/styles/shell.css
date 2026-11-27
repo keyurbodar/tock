@@ -584,7 +584,7 @@
   .tds-centre {
     position: absolute; top: 0; bottom: 0; left: var(--tds-size-rail); z-index: var(--tds-z-centre); display: flex; flex-direction: column; gap: var(--tds-space-10);
     width: var(--tds-size-centre); padding: var(--tds-space-18) var(--tds-space-14); border-radius: var(--tds-radius-centre);
-    background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow);
+    background: var(--tds-surface-field); box-shadow: var(--tds-over-shadow);
     translate: calc((var(--p, 0) - 1) * (100% + var(--tds-size-rail) + var(--tds-space-24))) 0; visibility: hidden; touch-action: pan-y;
     &[data-moving], &[data-open] { visibility: visible }
   }

@@ -1,0 +1,18 @@
+@layer components {
+  /* Work log v2 (CDS Chat UX 02 work-group panel): the same material as the composer and menus, text rows, prose thoughts. */
+  .tds-worklog.tds-over, .tds-centre.tds-over { background-color: var(--tds-surface-field); background-image: none }
+  .tds-worklog .tds-ws-line { display: flex; align-items: center; gap: var(--tds-space-6); min-height: var(--tds-size-worklog-row); padding: var(--tds-space-4) var(--tds-space-8) }
+  .tds-worklog .tds-ws-text { flex: 1; min-width: 0; gap: var(--tds-space-6) }
+  .tds-worklog .tds-ws-slot { width: auto; height: auto }
+  .tds-worklog .tds-ws-label { color: var(--tds-text-tx2) }
+  .tds-worklog .tds-ws[data-kind="thinking"] .tds-ws-label, .tds-worklog .tds-step-verb { color: var(--tds-text-muted) }
+  .tds-worklog .tds-step-object { color: var(--tds-text-tx); font-weight: var(--tds-weight-regular) }
+  .tds-ws-dur { flex: none; color: var(--tds-text-faint); font-size: var(--tds-type-caption-size) }
+  .tds-worklog .tds-ws[data-nested] .tds-ws-line { padding-left: var(--tds-space-18) }
+  .tds-worklog .tds-ws-body { margin-left: var(--tds-space-8) }
+  .tds-worklog .tds-ws-clip > .tds-ws-group { max-height: none; overflow: visible; margin: 0 }
+  .tds-worklog .tds-ws-thought { max-height: none; overflow: visible; margin-left: var(--tds-space-4); padding: var(--tds-space-2) 0 var(--tds-space-2) var(--tds-space-14); background: none; color: var(--tds-text-muted) }
+  .tds-worklog .tds-ws-thought p { margin: 0 }
+  .tds-worklog .tds-ws-thought p + p { margin-top: var(--tds-space-8) }
+  .tds-worklog .tds-ws[data-status="failed"] .tds-ws-label { color: var(--tds-status-failed) }
+}

@@ -75,6 +75,34 @@ export function stepLabel(call: ToolCallBlock): StepLabel {
   return { kind: entry[0], verb: entry[2], object, live: object ? `${entry[1]}${entry[0] === "memory" || entry[0] === "browse" ? " for" : ""} ${object}`.replace(" for for", " for") : entry[1] }
 }
 
+const counted: Record<string, (n: number) => string> = {
+  memory_search: (n) => `Searched memory ${n} times`,
+  memory_save: (n) => `Saved ${n} memories`,
+  codemode: (n) => `Ran code ${n} times`,
+  dev_plugin_run: (n) => `Ran ${n} plugins`,
+  http_request: (n) => `Fetched ${n} pages`,
+  file_read: (n) => `Read ${n} files`,
+  file_write: (n) => `Wrote ${n} files`,
+  skill_read: (n) => `Read ${n} skills`,
+  mcp_call: (n) => `Used apps ${n} times`,
+}
+
+const plural = new Intl.PluralRules("en")
+const sentence = (label: StepLabel) => (label.object ? `${label.verb} ${label.object}` : label.verb)
+
+/** One clause per kind of call, the two biggest first-come, the rest counted: "Searched memory 3 times and ran code". */
+export function summarize(calls: readonly ToolCallBlock[]): string {
+  const groups = new Map<string, ToolCallBlock[]>()
+  for (const call of calls) groups.set(call.name, [...(groups.get(call.name) ?? []), call])
+  const kinds = [...groups.values()]
+  const shown = kinds.slice(0, 2)
+  const clauses = shown.map((group) => (group.length === 1 ? sentence(stepLabel(group[0]!)) : (counted[group[0]!.name]?.(group.length) ?? `${stepLabel(group[0]!).verb} ${group.length} times`)))
+  const rest = calls.length - shown.reduce((n, group) => n + group.length, 0)
+  if (rest > 0) clauses.push(plural.select(rest) === "one" ? "performed 1 other action" : `performed ${rest} other actions`)
+  const lower = clauses.map((clause, index) => (index === 0 ? clause : clause.charAt(0).toLowerCase() + clause.slice(1)))
+  return lower.length > 1 ? `${lower.slice(0, -1).join(", ")} and ${lower.at(-1)}` : (lower[0] ?? "")
+}
+
 export interface Plan {
   readonly steps: readonly string[]
   readonly current: number

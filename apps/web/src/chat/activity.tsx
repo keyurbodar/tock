@@ -1,14 +1,13 @@
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
-import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
+import type { JSX } from "@solidjs/web"
 import { tokens } from "@tock/tokens"
 import { spring, watchLayout } from "@tock/ui/motion"
 import { Virtualizer } from "virtua/solid"
 import type { Item, Step } from "./items"
-import { kinds, stepLabel, type Plan, type StepLabel } from "./steps"
-import { Markdown } from "./markdown"
+import { stepLabel, summarize, type Plan, type StepLabel } from "./steps"
 import { AskButtons } from "./ask"
 import { askOf } from "./items"
 import { elapsed } from "../lib/time"
@@ -16,11 +15,12 @@ import { now } from "../lib/clock"
 
 export type Work = Extract<Item, { kind: "work" }>
 
-type Row = { kind: "plan" | "step"; key: string }
+type Row = { kind: "plan" | "step" | "group"; key: string }
 
 type Status = "running" | "done" | "failed" | "cancelled"
 
-const clock = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" })
+const spent = (ms: number | undefined) => (ms !== undefined && ms >= 1000 ? elapsed(ms) : "")
+const toolMs = (step: Step) => (step.kind === "tool" ? (step.result as { durationMs?: number } | undefined)?.durationMs : undefined)
 const statusOf = (step: Step): Status => (step.kind === "thinking" ? (step.active ? "running" : "done") : step.status)
 const labelOf = (step: Step): StepLabel =>
   step.kind === "thinking" ? { kind: "think", verb: step.active ? "Thinking" : "Thought", live: "Thinking" } : stepLabel(step.call)
@@ -121,20 +121,19 @@ function PlanList(props: { plan: Plan; at: number }) {
   )
 }
 
-function StepRow(props: { step: Step; live: boolean; sessionId: string; open: boolean; onToggle: (row: HTMLElement) => void }) {
+/** CDS work-group row: plain text, the verb muted, the object bright, the time faint, a caret when there is more. Thoughts open into prose under a rule. */
+function StepRow(props: { step: Step; live: boolean; sessionId: string; open: boolean; ms: number | undefined; nested?: boolean; onToggle: (row: HTMLElement) => void }) {
   let row!: HTMLDivElement
   const open = () => props.open
   const [seen, setSeen] = createSignal(false)
-  const [ran, setRan] = createSignal(false)
-  createEffect(
-    () => statusOf(props.step) === "running",
-    (running) => {
-      if (running) setRan(true)
-    },
-  )
   const status = () => (asking(props.step) ? "needs" : statusOf(props.step))
-  const label = createMemo(() => labelOf(props.step))
-  const kind = () => kinds[label().kind]
+  const label = createMemo((): StepLabel => {
+    const base = labelOf(props.step)
+    if (props.step.kind !== "thinking" || props.step.active) return base
+    const took = spent(props.ms)
+    return { ...base, verb: took ? `Thought for ${took}` : "Thought" }
+  })
+  const took = () => (props.step.kind === "tool" && props.step.status !== "running" ? spent(props.ms) : "")
   const body = createMemo(() => {
     const step = props.step
     if (step.kind === "thinking") return step.text.trim() ? { kind: "think" as const, text: step.text.trim() } : undefined
@@ -143,34 +142,28 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
     if (code !== undefined) return { kind: "code" as const, code, out, bad: step.status === "failed" }
     return out ? { kind: "out" as const, text: out, bad: step.status === "failed" } : undefined
   })
-  const at = () => (props.step.kind === "tool" ? props.step.result?.timestamp : undefined)
   return (
-    <div ref={row} class="tds-ws" data-key={props.step.key} data-status={status()} data-open={open() ? "" : undefined}>
+    <div ref={row} class="tds-ws" data-key={props.step.key} data-kind={props.step.kind} data-nested={props.nested ? "" : undefined} data-status={status()} data-open={open() ? "" : undefined}>
       <button type="button" class="tds-ws-line" disabled={!body()} aria-expanded={body() ? (open() ? "true" : "false") : undefined} onClick={() => {
         setSeen(true)
         props.onToggle(row)
       }}>
-        <span class="tds-ws-slot" style={{ color: status() === "failed" ? undefined : kind().hue }}>
-          <Switch fallback={<MorphIcon name={status() === "running" ? "spinner" : ran() ? "check" : kind().icon} size="menu" class="tds-ws-kind" />}>
-            <Match when={status() === "failed"}>
-              <Orb status="failed" surface="main" size="orb-row" />
-            </Match>
-            <Match when={status() === "needs"}>
-              <Orb status="needs" surface="main" size="orb-row" />
-            </Match>
-          </Switch>
-        </span>
+        <Show when={status() === "failed" || status() === "needs"}>
+          <span class="tds-ws-slot">
+            <Orb status={status() === "failed" ? "failed" : "needs"} surface="main" size="orb-row" />
+          </span>
+        </Show>
         <span class="tds-ws-text">
           <span class="tds-ws-label" data-shimmer={props.live && status() !== "needs" ? "" : undefined}>
             <Label label={label()} live={props.live && status() !== "needs"} />
           </span>
+          <Show when={took()}>{(time) => <span class="tds-ws-dur num">{time()}</span>}</Show>
           <Show when={body()}>
             <span class="tds-ws-caret">
               <Icon name="caret-down" size="chip" />
             </span>
           </Show>
         </span>
-        <span class="tds-ws-time num">{at() ? clock.format(at()!) : ""}</span>
       </button>
       <Show when={status() === "needs" && props.step.kind === "tool" ? props.step.call : undefined}>
         {(call) => <AskButtons sessionId={props.sessionId} ask={askOf(call())} />}
@@ -183,7 +176,9 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
             <Switch>
               <Match when={shown().kind === "think"}>
                 <div class="tds-ws-thought">
-                  <Markdown text={(shown() as { text: string }).text} streaming={props.live} />
+                  <For each={(shown() as { text: string }).text.split(/\n{2,}/)} keyed={false}>
+                    {(para) => <p>{para()}</p>}
+                  </For>
                 </div>
               </Match>
               <Match when={shown().kind === "code"}>
@@ -206,6 +201,43 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
         )}
       </Show>
       </div>
+      </div>
+    </div>
+  )
+}
+
+/** Consecutive tool calls fold into one sentence ("Searched memory 3 times and ran code 2s"); open it to see each call. */
+function GroupRow(props: { key: string; steps: readonly Step[]; ms: number; live: boolean; open: boolean; onToggle: (row: HTMLElement) => void; children: JSX.Element }) {
+  let row!: HTMLDivElement
+  const [seen, setSeen] = createSignal(false)
+  const label = createMemo(() => summarize(props.steps.flatMap((step) => (step.kind === "tool" ? [step.call] : []))))
+  const live = () => {
+    const step = props.steps.findLast((s) => statusOf(s) === "running")
+    return step ? labelOf(step).live : label()
+  }
+  const failed = () => props.steps.some((step) => statusOf(step) === "failed")
+  return (
+    <div ref={row} class="tds-ws" data-key={props.key} data-kind="group" data-status={props.live ? "running" : failed() ? "failed" : "done"} data-open={props.open ? "" : undefined}>
+      <button type="button" class="tds-ws-line" aria-expanded={props.open ? "true" : "false"} onClick={() => {
+        setSeen(true)
+        props.onToggle(row)
+      }}>
+        <span class="tds-ws-text">
+          <span class="tds-ws-label" data-shimmer={props.live ? "" : undefined}>
+            <TextMorph value={props.live ? live() : label()} />
+          </span>
+          <Show when={!props.live && spent(props.ms)}>{(time) => <span class="tds-ws-dur num">{time()}</span>}</Show>
+          <span class="tds-ws-caret">
+            <Icon name="caret-down" size="chip" />
+          </span>
+        </span>
+      </button>
+      <div class="tds-ws-fold" data-open={props.open ? "" : undefined}>
+        <div class="tds-ws-clip">
+          <Show when={seen() || props.open}>
+            <div class="tds-ws-body tds-ws-group">{props.children}</div>
+          </Show>
+        </div>
       </div>
     </div>
   )
@@ -344,24 +376,77 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     return known
   }
   const [full, setFull] = createSignal(false)
+  const grouped = createMemo(() => {
+    const groups = new Map<string, Step[]>()
+    const order: Row[] = []
+    let run: Step[] = []
+    const flush = () => {
+      if (run.length > 1) {
+        const key = `g:${run[0]!.key}`
+        groups.set(key, run)
+        order.push(row("group", key))
+      } else for (const step of run) order.push(row("step", step.key))
+      run = []
+    }
+    for (const step of steps()) {
+      if (step.kind === "tool" && !asking(step)) {
+        run.push(step)
+        continue
+      }
+      flush()
+      order.push(row("step", step.key))
+    }
+    flush()
+    return { groups, order }
+  })
+  const msOf = createMemo(() => {
+    const list = steps()
+    const out = new Map<string, number | undefined>()
+    list.forEach((step, index) => {
+      if (step.kind === "tool") return out.set(step.key, toolMs(step))
+      if (step.at === null) return out.set(step.key, undefined)
+      const next = list.slice(index + 1).find((later) => later.at !== null && later.at > step.at!)?.at ?? props.work?.endedAt ?? undefined
+      out.set(step.key, next !== undefined && next !== null ? next - step.at : undefined)
+    })
+    return out
+  })
   const rows = createMemo((): Row[] => {
-    const all = [...(props.work?.plan ? [row("plan", "plan")] : []), ...steps().map((step) => row("step", step.key))]
+    const all = [...(props.work?.plan ? [row("plan", "plan")] : []), ...grouped().order]
     if (full()) return all
     const first = tokens.limit["worklog-first"]
     return props.work?.active ? all.slice(-first) : all.slice(0, first)
   })
   const byKey = createMemo(() => new Map(steps().map((step) => [step.key, step])))
-  const renderRow = (row: Row) =>
-    row.kind === "plan" ? (
-      <Show when={props.work?.plan}>{(plan) => <PlanList plan={plan()} at={planAt(props.work!)} />}</Show>
-    ) : (
-      <Show when={byKey().get(row.key)}>{(step) => <StepRow step={step()} sessionId={props.sessionId} open={expanded().has(row.key)} onToggle={(el) => toggleRow(row.key, el)} live={!!props.work?.active && row.key === steps().at(-1)?.key && statusOf(step()) === "running"} />}</Show>
+  const stepRow = (key: string, nested?: boolean) => (
+    <Show when={byKey().get(key)}>{(step) => <StepRow step={step()} nested={nested} ms={msOf().get(key)} sessionId={props.sessionId} open={expanded().has(key)} onToggle={(el) => toggleRow(key, el)} live={!!props.work?.active && key === steps().at(-1)?.key && statusOf(step()) === "running"} />}</Show>
+  )
+  const renderRow = (row: Row) => {
+    if (row.kind === "plan") return <Show when={props.work?.plan}>{(plan) => <PlanList plan={plan()} at={planAt(props.work!)} />}</Show>
+    if (row.kind === "step") return stepRow(row.key)
+    return (
+      <Show when={grouped().groups.get(row.key)}>
+        {(members) => (
+          <GroupRow
+            key={row.key}
+            steps={members()}
+            ms={members().reduce((sum, step) => sum + (toolMs(step) ?? 0), 0)}
+            live={!!props.work?.active && members().some((step) => statusOf(step) === "running")}
+            open={expanded().has(row.key)}
+            onToggle={(el) => toggleRow(row.key, el)}
+          >
+            <For each={members()} keyed={(step) => step.key}>
+              {(step) => stepRow(untrack(step).key, true)}
+            </For>
+          </GroupRow>
+        )}
+      </Show>
     )
+  }
   const limit = () => Math.max(place().max, tokens.size["worklog-head"])
   return (
     <div
       ref={panel}
-      class="tds-worklog tds-raise-3"
+      class="tds-worklog tds-over"
       data-material="solid"
       role="dialog"
       aria-label="Work log"
