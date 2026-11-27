@@ -11,3 +11,5 @@ Always visible left of the chat. The resize handle is the right edge of the side
 
 ## Gotchas
 Width bounds come from `size.sidebar-min`, `sidebar-max` and `sidebar-panel` tokens; the journey assumes 320 default and a 16px keyboard step.
+
+- `rowmorph`: clicking a row, then another, then a peek card opens the chat out of its source: #main never moves, its clip springs open from the source band to full (sampled every frame), and the peek hands off without a ghost shrink.

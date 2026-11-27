@@ -4,6 +4,7 @@ import { useNavigate } from "@solidjs/router"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
+import { morphFrom } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
@@ -122,7 +123,7 @@ export function Peek() {
             style={{ left: `${peek().left}px`, top: `${peek().top}px` }}
             onPointerEnter={() => ((apex = undefined), clearTimeout(leaveTimer))}
             onPointerLeave={() => peekLeave()}
-            onClick={() => (navigate(`/t/${peek().session.id}`), hidePeek())}
+            onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${peek().session.id}`), hidePeek())}
           >
             <div class="tds-peek-head">
               <span class={glyphFor(peek().session.id).hue}>

@@ -132,6 +132,7 @@ export function installGrow(root: Document = document) {
     const last = open.get(el)
     if (!last) return
     open.delete(el)
+    if (el.hasAttribute("data-handoff")) return
     shrinkInto(el.cloneNode(true) as HTMLElement, last.box, last.trigger, last.display)
   }
   const selector = sources.map((s) => s.surface).join(", ")

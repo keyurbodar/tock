@@ -342,6 +342,9 @@ const journeys: Record<string, () => void> = {
     const at = rect(".tds-row-wrap:not([data-archived]) .tds-row")!
     ab("mouse", "move", "5", "5")
     probe("peek", ".tds-peek", () => (ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2)), wait(1200), ab("mouse", "move", "900", "450")), 900)
+    const next = js<string>("return [...document.querySelectorAll('.tds-row-wrap:not([data-archived])')].find((e) => !e.querySelector('[aria-current]'))?.dataset.id ?? ''")
+    ab("mouse", "move", "900", "450")
+    probe("row to chat", "#main", () => ab("click", `.tds-row-wrap[data-id="${next}"] .tds-row`), 900)
     probe("toast", ".tds-toast[data-front]", () => (ab("hover", ".tds-row-wrap .tds-row"), ab("click", ".tds-row-wrap .tds-row-more"), wait(300), choose("Copy Link")), 900)
     ab("click", ".tds-row-wrap .tds-row")
     until(() => exists(".tds-act-button"), Boolean, "a thread with a work log", 10000)
@@ -364,6 +367,46 @@ const journeys: Record<string, () => void> = {
     probe("centre retarget", ".tds-centre", () => (ab("click", ".tds-rail-button[data-bell]"), wait(90), ab("click", ".tds-rail-button[data-bell]"), wait(90), ab("click", ".tds-rail-button[data-bell]"), wait(700), ab("press", "Escape")), 900)
     for (const line of problems) console.log("  jank  " + line)
     check(problems.length === 0, `${problems.length} motion jumps`)
+  },
+  rowmorph() {
+    ensureRows(2)
+    ab("open", BASE)
+    until(liveRows, (n) => n >= 2, "rows")
+    ab("mouse", "move", "900", "450")
+    const record = `(() => { const out = []; window.__morph = out; const t0 = performance.now(); const tick = () => { const m = document.getElementById("main"); if (m) out.push([performance.now() - t0, m.getBoundingClientRect().x, getComputedStyle(m).clipPath, location.pathname]); if (performance.now() - t0 < 1000) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()`
+    type Sample = [number, number, string, string]
+    const morphs = (what: string, to: string) => {
+      const frames = until(() => js<Sample[]>("return window.__morph"), (f) => f.length > 0 && f.at(-1)![0] > 900, `the ${what} frames`, 3000)
+      const settled = frames.at(-1)!
+      check(settled[3] === `/t/${to}`, `${what} opens the chat (${settled[3]})`)
+      const moving = frames.filter((f) => f[3] === settled[3])
+      check(moving.every((f) => Math.abs(f[1] - settled[1]) < 1), `${what}: the chat's box never jumps, only its clip grows`)
+      check(moving.some((f) => /^inset\((?!0px 0px 0px 0px)/.test(f[2])), `${what}: the chat is clipped to the source box while it grows`)
+      check(settled[2] === "none" && Math.abs(moving.at(-1)![1] - settled[1]) < 1, `${what}: the chat settles full size, unclipped (${settled[2]})`)
+    }
+    const ids = js<string[]>("return [...document.querySelectorAll('.tds-row-wrap:not([data-archived])')].slice(0, 2).map((e) => e.dataset.id)")
+    for (const id of [ids[0]!, ids[1]!]) {
+      ab("eval", record)
+      ab("click", `.tds-row-wrap[data-id="${id}"] .tds-row`)
+      morphs("row → chat", id)
+      ab("mouse", "move", "900", "450")
+      wait(300)
+    }
+    const other = ids[0]!
+    const at = rect(`.tds-row-wrap[data-id="${other}"] .tds-row`)!
+    ab("mouse", "move", "5", "5")
+    ab("mouse", "move", String(at.x + 60), String(at.y + at.h / 2))
+    until(() => exists(".tds-peek"), Boolean, "the peek card", 3000)
+    wait(500)
+    const card = rect(".tds-peek")!
+    ab("eval", 'window.__ghost = false; new MutationObserver(() => { if (document.querySelector(".tds-peek[data-ghost]")) window.__ghost = true }).observe(document.body, { childList: true })')
+    ab("mouse", "move", String(card.x + card.w / 2), String(card.y + card.h / 2), "--steps", "6")
+    ab("eval", record)
+    ab("mouse", "down")
+    ab("mouse", "up")
+    morphs("peek → chat", other)
+    check(!js<boolean>("return window.__ghost"), "the peek hands off to the chat instead of also shrinking back into its row")
+    shot("rowmorph")
   },
   pingrid() {
     const pins = () => js<number>("return document.querySelectorAll('.tds-pin').length")
@@ -1802,7 +1845,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

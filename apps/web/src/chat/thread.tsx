@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, Show, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
+import { morphInto } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { createAttachments, isReadable } from "./attachments"
 import { useNavigate, useParams } from "@solidjs/router"
@@ -16,6 +17,11 @@ export function Thread() {
   createEffect(
     () => params.id,
     (id) => void untrack(() => subscribe(id)),
+  )
+  let main!: HTMLElement
+  createEffect(
+    () => params.id,
+    () => morphInto(main),
   )
   const state = () => app.threads[params.id]
   const session = createMemo(() => app.sessions.find((s) => s.id === params.id))
@@ -43,6 +49,7 @@ export function Thread() {
   }
   return (
     <main
+      ref={main}
       id="main"
       tabindex="-1"
       data-backdrop-layer

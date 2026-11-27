@@ -14,6 +14,7 @@
  */
 export * from "./core"
 export { backdrop, backdropTo, growFrom, installGrow, shrinkInto, sources } from "./grow"
+export { morphFrom, morphInto } from "./morph"
 export { installFluidHover, lanes } from "./fluid"
 export { watchLayout } from "./flip"
 export { scrub, type ScrubOptions } from "./gesture"

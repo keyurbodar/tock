@@ -3,7 +3,7 @@ import { useNavigate } from "@solidjs/router"
 import { createMenuController, Menu, MenuContent, MenuContextTrigger, MenuItem, MenuItemIcon } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { watchLayout, animate } from "@tock/ui/motion"
+import { animate, morphFrom, watchLayout } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
 import { pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
 import { takeFlight, unpin } from "./thread-menu"
@@ -100,7 +100,7 @@ export function Pins(props: { show: boolean }) {
           <For each={pinnedSessions()} keyed={(session) => session.id}>
             {(session) => (
               <MenuContextTrigger payload={session()} class="tds-pin-slot">
-                <button type="button" class="tds-pin" data-id={session().id} aria-label={titleOf(session())} onClick={() => navigate(`/t/${session().id}`)}>
+                <button type="button" class="tds-pin" data-id={session().id} aria-label={titleOf(session())} onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${session().id}`))}>
                   <i class={`tds-pin-circle ${glyphFor(session().id).hue}`} ref={(el) => land(el, session().id)}>
                     <Icon name={glyphFor(session().id).icon} size="pin" />
                   </i>

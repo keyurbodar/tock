@@ -1,5 +1,5 @@
 import { Empty } from "../chat/empty"
-import { animate } from "@tock/ui/motion"
+import { animate, morphFrom } from "@tock/ui/motion"
 import { createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Dynamic } from "@solidjs/web"
@@ -331,6 +331,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
             return
           }
           if (selected().length) setSelected([])
+          if (id !== props.current) morphFrom(e.currentTarget)
         }}
         onDblClick={(e) => (e.target as HTMLElement).closest(".tds-row-title") && setRenaming(untrack(() => props.session.id))}
       >

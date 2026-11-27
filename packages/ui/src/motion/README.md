@@ -14,6 +14,14 @@ Use it when a surface opens from something on screen: a menu from its button, th
 - **Imperative.** `growFrom(surface, triggerOrRect)` returns the Animation. It is interruptible: calling it again mid-flight starts from the current frame. `shrinkInto(copy, box, triggerRect)` is the reverse.
 - The first frame is held invisible until the grow starts, so a surface never flashes at full size.
 
+## Morph: open in place from a source (row → chat)
+Use it when an always-mounted surface changes what it shows because something else was clicked: a sidebar row, a pin or the peek card opens its chat in `#main`.
+```ts
+onClick={(e) => morphFrom(e.currentTarget)}               // the source: remembers its box, marks it data-handoff
+createEffect(() => params.id, () => morphInto(main))      // the surface, once the new content rendered
+```
+The surface never moves, so its box never jumps. One `drive()` spring (glide) drives the clip from the source's band to the full box on `--p`, and sets `[data-morphing]` so the content fades and unblurs off the same value (motion.css). A source marked `data-handoff` skips its ghost exit, so the peek card turns into the chat instead of also shrinking back into its row. A source older than two panel durations is ignored.
+
 ## Flip: layout morph
 Use it when items come, go or reflow: pins, rows, chips, attachment cards.
 ```ts

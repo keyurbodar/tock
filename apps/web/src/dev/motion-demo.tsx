@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js"
 import { tokens } from "@tock/tokens"
-import { backdrop, drive, growFrom, MorphIcon, raise, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
+import { backdrop, drive, growFrom, MorphIcon, morphFrom, morphInto, raise, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
 
 /** Dev-only catalogue of the motion primitives (route /__motion). Each card is the smallest working use of one primitive. */
 export default function MotionDemo() {
@@ -10,6 +10,8 @@ export default function MotionDemo() {
   const [icon, setIcon] = createSignal(false)
   const [busy, setBusy] = createSignal(true)
   const [dim, setDim] = createSignal(false)
+  const [place, setPlace] = createSignal("Pick a city")
+  let pane: HTMLDivElement | undefined
   let trigger: HTMLButtonElement | undefined
   let sheet: HTMLDivElement | undefined
   const close = () => {
@@ -25,6 +27,11 @@ export default function MotionDemo() {
         <Show when={open()}>
           <div ref={(el) => ((sheet = el), requestAnimationFrame(() => trigger && growFrom(el, trigger)))} class="tds-motion-card tds-over" onClick={close}>Grown from its trigger. Click to shrink back.</div>
         </Show>
+      </section>
+      <section class="tds-raise-1">
+        <h2>Container morph</h2>
+        <For each={["Tokyo", "Lisbon", "Oslo"]}>{(city) => <button type="button" class="tds-motion-chip tds-raise-2" onClick={(e) => (morphFrom(e.currentTarget), setPlace(city), requestAnimationFrame(() => pane && morphInto(pane)))}>{city}</button>}</For>
+        <div ref={pane} class="tds-motion-card tds-over"><TextMorph value={place()} /></div>
       </section>
       <section class="tds-raise-1">
         <h2>Flip</h2>
