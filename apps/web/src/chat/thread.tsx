@@ -11,6 +11,7 @@ import { glyphFor } from "../lib/glyph"
 import { Empty } from "./empty"
 import type { OrbStatus } from "@tock/ui/orb"
 import { Transcript } from "./transcript"
+import { ChipCards } from "./chip-card"
 import { Boundary } from "../shell/boundary"
 import { hasPendingAsk } from "./items"
 
@@ -74,6 +75,7 @@ export function Thread() {
           <Transcript state={state()} sessionId={params.id} />
         </Boundary>
       </Show>
+      <ChipCards />
       <Boundary surface="composer">
         <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
       </Boundary>

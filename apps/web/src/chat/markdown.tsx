@@ -5,7 +5,7 @@ import { Lexer, type Token, type Tokens } from "marked"
 import { tokens } from "@tock/tokens"
 import { Icon } from "@tock/ui/icon"
 import { animate } from "@tock/ui/motion"
-import { FileChip, ThreadChip } from "./chip"
+import { FileChip, SkillChip, ThreadChip } from "./chip"
 import { CodeBlock } from "./code"
 import { Attachments, type SentFile } from "./files"
 import { ExternalLink, isAddressLabel, shortUrl, webHost } from "./link"
@@ -67,6 +67,8 @@ export function Reference(props: { href: string; text: string; raw: string; chil
   if (file) return <FileChip id={file[1]!} name={plainLabel(props.text)} />
   const thread = /^tock-thread:([\w-]+)$/.exec(props.href)
   if (thread) return <ThreadChip id={thread[1]!} label={plainLabel(props.text).replace(/^@/, "")} />
+  const skill = /^tock-skill:([\w-]+)$/.exec(props.href)
+  if (skill) return <SkillChip name={skill[1]!} />
   const host = webHost(props.href)
   if (!host) return <span>{props.children}</span>
   const label = /[*_`~]/.test(props.raw) ? null : plainLabel(props.text)

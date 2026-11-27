@@ -12,7 +12,6 @@
   .tds-menu-soon { margin-left: auto; padding-left: var(--tds-space-18); font-size: var(--tds-type-label-size); color: var(--tds-text-faint) }
   .tds-plus-menu .tds-menu-item[data-disabled], .tds-plus-menu .tds-menu-item[aria-disabled="true"] { color: var(--tds-text-muted); & .tds-menu-icon { opacity: .6 } }
 
-  .tds-input .tds-chip { vertical-align: top; margin-block: calc((var(--tds-type-composer-leading) - var(--tds-size-token)) / 2) }
   .tds-input .tds-chip.ProseMirror-selectednode { box-shadow: var(--tds-ring-token-selected) }
   .tds-attach { cursor: grab; touch-action: pan-x; transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-std) }
   .tds-attach[data-dragging] { z-index: 5; cursor: grabbing; scale: 1.05; box-shadow: var(--tds-lift-fan); transition: scale var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
@@ -43,7 +42,6 @@
 
 @layer components {
   .tds-bubble { transition: opacity var(--tds-dur-layout) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-out), scale var(--tds-dur-layout) var(--tds-ease-out) }
-  .tds-bubble .tds-chip { vertical-align: top; margin-block: calc((var(--tds-type-bubble-leading) - var(--tds-size-token)) / 2) }
 
   .tds-suggest {
     background: var(--tds-overlay-pill); box-shadow: var(--tds-glass-shadow);

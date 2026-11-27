@@ -15,9 +15,14 @@ export { Fragment, Slice } from "@tiptap/pm/model"
 export { CodeHighlight } from "./code-highlight"
 export { convertCodeFenceOnEnter, exitCodeBlockOnClosingFence, linkSelection, RichTextExtensions, splitOrLiftListItem } from "./rich-text"
 
-const icons: Record<TokenAttrs["kind"], `${IconName}` | `${IconName}:duotone`> = { thread: "chat-circle:duotone", command: "lightning:duotone", link: "link-simple", file: "file-text:duotone" }
+const SVG = "http://www.w3.org/2000/svg svg"
 
-/** An inline chip in the draft (TDS PxChips "Tokens"): one atom, so it moves and deletes as a unit. */
+const icons: Record<Exclude<TokenAttrs["kind"], "link">, `${IconName}:duotone`> = { thread: "chat-circle:duotone", command: "lightning:duotone", file: "file-text:duotone", skill: "sparkle:duotone" }
+
+/**
+ * An inline chip in the draft (TDS PxChips "Tokens"): one atom, so it moves and deletes as a unit. Same markup as a sent
+ * chip (chip.tsx): the 14px slot, then the label; every kind but a command opens the shared hover card.
+ */
 export const Token = Node.create({
   name: "token",
   group: "inline",
@@ -29,21 +34,17 @@ export const Token = Node.create({
   parseHTML: () => [{ tag: "span[data-token]", getAttrs: (el) => ({ kind: el.dataset.kind, id: el.dataset.id, label: el.textContent ?? "" }) }],
   renderHTML: ({ node, HTMLAttributes }) => {
     const attrs = node.attrs as TokenAttrs
-    if (attrs.kind === "link") {
-      const host = attrs.label.split("/")[0] ?? ""
-      return [
-        "span",
-        mergeAttributes(HTMLAttributes, { "data-token": "", "data-kind": "link", "data-id": attrs.id, class: "tds-chip tds-link-token", contenteditable: "false" }),
-        ["span", { class: "tds-link-fav", "aria-hidden": "true" }, ["svg", { class: "tds-icon tds-link-fav-glyph" }, ["use", { href: "#i-globe" }]], ["img", { src: iconUrl(host), alt: "", draggable: "false", decoding: "async", "data-host": host }]],
-        ["span", { class: "tds-chip-label" }, attrs.label],
-      ]
-    }
-    const label = attrs.kind === "command" ? `/${attrs.label}` : attrs.label
+    const host = attrs.kind === "link" ? (attrs.label.split("/")[0] ?? "") : ""
+    const slot =
+      attrs.kind === "link"
+        ? ["span", { class: "tds-chip-slot", "aria-hidden": "true" }, [SVG, { class: "tds-icon tds-link-fav-glyph" }, ["use", { href: "#i-globe" }]], ["img", { src: iconUrl(host), alt: "", draggable: "false", decoding: "async", "data-host": host }]]
+        : ["span", { class: "tds-chip-slot", "aria-hidden": "true" }, [SVG, { class: "tds-icon" }, ["use", { href: `#i-${icons[attrs.kind]}` }]]]
+    const card = attrs.kind === "command" ? {} : { "data-card": attrs.kind, "data-card-id": attrs.id, "data-card-label": attrs.label }
     return [
       "span",
-      mergeAttributes(HTMLAttributes, { "data-token": "", "data-kind": attrs.kind, "data-id": attrs.id, class: "tds-chip", contenteditable: "false", style: `--tds-chip-accent: var(--tds-chip-${attrs.kind})` }),
-      ["svg", { class: "tds-icon tds-chip-icon", "aria-hidden": "true" }, ["use", { href: `#i-${icons[attrs.kind]}` }]],
-      ["span", { class: "tds-chip-label" }, label],
+      mergeAttributes(HTMLAttributes, { "data-token": "", "data-kind": attrs.kind, "data-id": attrs.id, ...card, class: attrs.kind === "link" ? "tds-chip tds-link-token" : "tds-chip", contenteditable: "false", style: `--tds-chip-accent: var(--tds-chip-${attrs.kind})` }),
+      slot,
+      ["span", { class: "tds-chip-label" }, attrs.kind === "command" ? `/${attrs.label}` : attrs.label],
     ]
   },
   renderText: ({ node }) => tokenText(node.attrs as TokenAttrs),

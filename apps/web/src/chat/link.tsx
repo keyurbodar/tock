@@ -1,10 +1,10 @@
 import { createSignal, For, Show, untrack } from "solid-js"
 import type { JSX } from "@solidjs/web"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@ui-sdk/solid/hover-card"
 import { createMenuController, Menu, MenuContent, MenuItem, MenuItemIcon, MenuSeparator } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { animate, dur } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
+import { Chip, ChipSlot } from "./chip"
 
 export const webHost = (href: string | undefined): string | null => {
   if (!href) return null
@@ -61,15 +61,24 @@ export function brokenFavicon(img: HTMLImageElement, host: string) {
   img.remove()
 }
 
-function Favicon(props: { host: string }) {
+/** The globe and, once its bytes arrive, the favicon over it: both fill whatever 14px box holds them. */
+function FaviconMarks(props: { host: string }) {
   return (
-    <span class="tds-link-fav" aria-hidden="true">
+    <>
       <svg class="tds-icon tds-link-fav-glyph">
         <use href="#i-globe" />
       </svg>
       <Show when={!failed.has(props.host)}>
         <img src={iconUrl(props.host)} alt="" decoding="async" draggable={false} onLoad={(event) => fadeFavicon(event.currentTarget)} onError={(event) => brokenFavicon(event.currentTarget, untrack(() => props.host))} />
       </Show>
+    </>
+  )
+}
+
+function Favicon(props: { host: string }) {
+  return (
+    <span class="tds-link-fav" aria-hidden="true">
+      <FaviconMarks host={props.host} />
     </span>
   )
 }
@@ -80,14 +89,16 @@ export function LinkCardBody(props: { href: string; host: string }) {
   const site = () => preview()?.site ?? props.host.replace(/^www\./, "")
   return (
     <>
-      <span class="tds-link-card-head">
-        <Favicon host={props.host} />
-        <b class="tds-link-card-title" data-loading={preview() === undefined ? "" : undefined}>
+      <span class="tds-chip-card-head">
+        <ChipSlot>
+          <FaviconMarks host={props.host} />
+        </ChipSlot>
+        <b class="tds-chip-card-title" data-loading={preview() === undefined ? "" : undefined}>
           {preview()?.title ?? site()}
         </b>
       </span>
-      <span class="tds-link-card-site">{site()}</span>
-      <span class="tds-link-card-url">{props.href}</span>
+      <span class="tds-chip-card-site">{site()}</span>
+      <span class="tds-chip-card-url">{props.href}</span>
     </>
   )
 }
@@ -118,45 +129,39 @@ export function isAddressLabel(label: string | null, href: string) {
 }
 
 /**
- * An external link in prose, after T3Code's MarkdownExternalLink: the site's favicon glued to the first characters, then
- * text that wraps. A pause on it opens the link card, the way the thread chip opens its card.
+ * An external link in prose, after T3Code's MarkdownExternalLink. An address is a link chip (the shared chip, its slot
+ * holding the favicon); words keep their flow with the favicon glued to the first characters. Both open the shared card.
  */
 export function ExternalLink(props: { href: string; host: string; text: string | null; chip: boolean; children?: JSX.Element }) {
   return (
-    <HoverCard delay={tokens.motion["hover-intent"].open} closeDelay={tokens.motion["hover-intent"].leave}>
-      <HoverCardTrigger class="tds-link" data-link="web" data-shape={props.chip ? "chip" : "words"} href={props.href} target="_blank" rel="noopener noreferrer">
-        <ExternalLinkText {...props} />
-      </HoverCardTrigger>
-      <HoverCardContent class="tds-link-card tds-over" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
-        <LinkCardBody href={props.href} host={props.host} />
-      </HoverCardContent>
-    </HoverCard>
-  )
-}
-
-function ExternalLinkText(props: { host: string; text: string | null; chip: boolean; children?: JSX.Element }) {
-  return (
-    <>
-      {props.chip && props.text ? (
-        <span class="tds-link-lead">
-          <Favicon host={props.host} />
-          {props.text}
-        </span>
-      ) : props.text ? (
-        <>
-          <span class="tds-link-lead">
-            <Favicon host={props.host} />
-            {props.text.slice(0, lead(props.text))}
-          </span>
-          {breakable(props.text.slice(lead(props.text)))}
-        </>
-      ) : (
-        <span class="tds-link-break">
-          <Favicon host={props.host} />
-          {props.children}
-        </span>
-      )}
-    </>
+    <Show
+      when={props.chip && props.text}
+      fallback={
+        <a class="tds-link" data-link="web" data-shape="words" data-card="link" data-card-id={props.href} href={props.href} target="_blank" rel="noopener noreferrer">
+          <Show
+            when={props.text}
+            fallback={
+              <span class="tds-link-break">
+                <Favicon host={props.host} />
+                {props.children}
+              </span>
+            }
+          >
+            {(text) => (
+              <>
+                <span class="tds-link-lead">
+                  <Favicon host={props.host} />
+                  {text().slice(0, lead(text()))}
+                </span>
+                {breakable(text().slice(lead(text())))}
+              </>
+            )}
+          </Show>
+        </a>
+      }
+    >
+      {(text) => <Chip kind="link" label={text()} href={props.href} slot={<FaviconMarks host={props.host} />} card={{ kind: "link", id: props.href }} attrs={{ "data-link": "web", "data-shape": "chip" }} />}
+    </Show>
   )
 }
 

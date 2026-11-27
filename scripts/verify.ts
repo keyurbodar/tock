@@ -172,7 +172,7 @@ const linkFixtures = () => ab("eval", LOCAL ? "document.cookie = 'tock-link-fixt
 const WORDS = LOCAL
   ? { label: "the docs", href: "https://example.com/docs", title: "Example Docs & Guides" as string | null, site: "example.com" as string | null }
   : { label: "the MDN docs", href: "https://developer.mozilla.org/en-US/docs/Web/HTML", title: null, site: null }
-const FAVICONS = (scope: string) => JSON.stringify(`${scope} .tds-link-fav, ${scope} .tds-chip-slot:has(img, [data-icon-failed])`)
+const FAVICONS = (scope: string) => JSON.stringify(`${scope} .tds-link-fav, ${scope} .tds-chip-slot:has(img), ${scope} .tds-chip-slot[data-icon-failed]`)
 /** Every favicon box in scope has settled: its icon faded in, or the proxy failed and the globe stays. */
 const faviconsSettled = (scope: string, count: number) =>
   js<boolean>(`const boxes = [...document.querySelectorAll(${FAVICONS(scope)})]; return boxes.length >= ${count} && boxes.every((b) => b.dataset.iconFailed !== undefined || Number(getComputedStyle(b.querySelector('img')).opacity) === 1)`)
@@ -1612,15 +1612,15 @@ const journeys: Record<string, () => void | Promise<void>> = {
     shot("links-typed")
     ab("keyboard", "type", "for the repo")
     ab("press", "Enter")
-    until(() => exists(".tds-bubble[data-side='me'] a.tds-link[data-link='web']"), Boolean, "the sent link")
-    const link = ".tds-bubble[data-side='me'] a.tds-link[data-link='web']"
-    check(exists(`${link} .tds-link-fav`), "the link leads with the site's mark")
+    until(() => exists(".tds-bubble[data-side='me'] a[data-link='web']"), Boolean, "the sent link")
+    const link = ".tds-bubble[data-side='me'] a[data-link='web']"
+    check(exists(`${link} .tds-chip-slot`), "the link leads with the site's mark")
     favicons(link, 1, "the sent link's favicon")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).textContent`) === "github.com/keyurbodar/tock", "the link reads host and path")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).getAttribute('href')`) === "https://github.com/keyurbodar/tock", "the link keeps the full URL")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).dataset.shape`) === "chip", "a bare URL is a chip")
     ab("hover", link)
-    until(() => text(".tds-link-card-title"), (t) => t.includes("keyurbodar/tock"), "the link card after hover intent")
+    until(() => text(".tds-link-card .tds-chip-card-title"), (t) => t.includes("keyurbodar/tock"), "the link card after hover intent")
     shot("links-hover")
     ab("mouse", "move", "5", "5")
     until(() => exists(".tds-link-card"), (open) => !open, "the link card to leave", 2500)
@@ -1649,7 +1649,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
       const abs = (el) => { let x = 0, y = 0; for (let e = el; e; e = e.offsetParent) (x += e.offsetLeft), (y += e.offsetTop); return [x, y] }
       const tick = () => {
         const b = document.querySelector('.tds-bubble[data-side=me]'); const words = b?.querySelector('a.tds-link[data-shape=words]')
-        if (b && words) { const boxes = [...b.querySelectorAll('.tds-link-fav')]; const [bx, by] = abs(b), [wx, wy] = abs(words)
+        if (b && words) { const boxes = [...b.querySelectorAll('.tds-chip-slot:has(img), .tds-chip-slot[data-icon-failed], .tds-link-fav')]; const [bx, by] = abs(b), [wx, wy] = abs(words)
           const ops = boxes.map((x) => (x.dataset.iconFailed !== undefined ? -1 : Number(getComputedStyle(x.querySelector('img')).opacity)))
           window.__linkSamples.push({ h: b.offsetHeight, w: b.offsetWidth, wx: wx - bx, wy: wy - by, ops })
           if (boxes.length === 2 && ops.every((o) => o === 1 || o === -1)) { window.__linkDone = true; return } }
@@ -1669,14 +1669,14 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const moved = samples.filter((s) => Math.abs(s.h - first.h) > 0.5 || Math.abs(s.w - first.w) > 0.5 || Math.abs(s.wx - first.wx) > 0.5 || Math.abs(s.wy - first.wy) > 0.5)
     check(moved.length === 0, `no layout shift while the favicons load (${moved.length} of ${samples.length} frames moved: ${JSON.stringify(samples.map((s) => [s.h, s.w, s.wx, s.wy, s.ops.join("/")].join(" ")).filter((s, i, a) => s !== a[i - 1]))})`)
     const bubble = ".tds-bubble[data-side='me']"
-    const chip = `${bubble} a.tds-link[data-shape='chip']`
+    const chip = `${bubble} a[data-link='web'][data-shape='chip']`
     const words = `${bubble} a.tds-link[data-shape='words']`
     check(text(chip) === "github.com/keyurbodar/tock", "the bare URL is a chip reading host and path")
-    check(exists(`${chip} .tds-link-fav img`), "the chip leads with the site's favicon")
+    check(exists(`${chip} .tds-chip-slot img`), "the chip leads with the site's favicon")
     check(text(words) === WORDS.label, `the linked words stay words (${text(words)})`)
     check(js<boolean>(`const a = document.querySelector(${JSON.stringify(words)}); return a.querySelector('.tds-link-fav') !== null && a.getAttribute('href') === ${JSON.stringify(WORDS.href)}`), "the linked words carry a favicon prefix and keep the URL")
     for (const sel of [chip, words]) {
-      const box = js<{ w: number; h: number; bottom: number; baseline: number }>(`const a = document.querySelector(${JSON.stringify(sel)}); const fav = a.querySelector('.tds-link-fav').getBoundingClientRect()
+      const box = js<{ w: number; h: number; bottom: number; baseline: number }>(`const a = document.querySelector(${JSON.stringify(sel)}); const fav = a.querySelector('.tds-chip-slot, .tds-link-fav').getBoundingClientRect()
         const walker = document.createTreeWalker(a, NodeFilter.SHOW_TEXT); let node; while ((node = walker.nextNode()) && !node.textContent.trim()) {}
         const range = document.createRange(); range.selectNodeContents(node); const line = range.getClientRects()[0]
         const ctx = document.createElement('canvas').getContext('2d'); ctx.font = getComputedStyle(node.parentElement).font
@@ -1689,16 +1689,16 @@ const journeys: Record<string, () => void | Promise<void>> = {
     settled()
     steady(words)
     ab("hover", words)
-    until(() => (exists(".tds-link-card-title[data-loading]") ? "" : text(".tds-link-card-title")), (t) => (WORDS.title ? t === WORDS.title : t.length > 0), "the link card's page title")
-    const site = text(".tds-link-card-site")
-    check((WORDS.site ? site === WORDS.site : site.length > 0) && text(".tds-link-card-url") === WORDS.href, `the card shows the site and the URL (site "${site}", title "${text(".tds-link-card-title")}")`)
+    until(() => (exists(".tds-link-card .tds-chip-card-title[data-loading]") ? "" : text(".tds-link-card .tds-chip-card-title")), (t) => (WORDS.title ? t === WORDS.title : t.length > 0), "the link card's page title")
+    const site = text(".tds-link-card .tds-chip-card-site")
+    check((WORDS.site ? site === WORDS.site : site.length > 0) && text(".tds-link-card .tds-chip-card-url") === WORDS.href, `the card shows the site and the URL (site "${site}", title "${text(".tds-link-card .tds-chip-card-title")}")`)
     wait(250)
     shot("linkchips-card-words")
     ab("mouse", "move", "5", "5")
     until(() => exists(".tds-link-card"), (open) => !open, "the card to leave", 2500)
     ab("hover", chip)
-    until(() => text(".tds-link-card-title"), (t) => t.includes("keyurbodar/tock"), "the chip's card title")
-    check(text(".tds-link-card-site") === "GitHub", "the chip's card names the site from og:site_name")
+    until(() => text(".tds-link-card .tds-chip-card-title"), (t) => t.includes("keyurbodar/tock"), "the chip's card title")
+    check(text(".tds-link-card .tds-chip-card-site") === "GitHub", "the chip's card names the site from og:site_name")
     wait(250)
     shot("linkchips-card-chip")
     ab("mouse", "move", "5", "5")
@@ -1707,9 +1707,94 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("keyboard", "type", `${WORDS.href} `)
     until(() => exists(".tds-input .tds-link-token"), Boolean, "a composer link chip")
     ab("hover", ".tds-input .tds-link-token")
-    until(() => (exists(".tds-composer-wrap .tds-link-card-title[data-loading]") ? "" : text(".tds-composer-wrap .tds-link-card-title")), (t) => (WORDS.title ? t === WORDS.title : t.length > 0), "the composer chip's link card")
+    until(() => (exists(".tds-link-card .tds-chip-card-title[data-loading]") ? "" : text(".tds-link-card .tds-chip-card-title")), (t) => (WORDS.title ? t === WORDS.title : t.length > 0), "the composer chip's link card")
     wait(250)
     shot("linkchips-card-composer")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+  },
+  chipcards() {
+    ensureRows(1)
+    const other = js<string>("return document.querySelector('.tds-row-wrap[data-id]')?.dataset.id ?? ''")
+    check(other !== "", "a chat to mention")
+    fresh()
+    linkFixtures()
+    ab("eval", "fetch('/api/skills', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'verify-skill', description: 'Checks the chip cards', bodyMd: 'Say hi.' }) }).then((r) => r.status)")
+    field()
+    ab("keyboard", "type", `see https://example.com/docs and [@Chat](tock-thread:${other}) and [verify-skill](tock-skill:verify-skill) today`)
+    ab("press", "Enter")
+    const bubble = ".tds-bubble[data-side='me']"
+    until(() => js<number>(`return document.querySelectorAll("${bubble} .tds-chip[data-card]").length`), (n) => n === 3, "three chips in the bubble")
+    settled()
+    steady(bubble)
+    // Every kind shares one chip: a 14px slot whose bottom is the label's baseline, the label on the sentence's baseline,
+    // the TDS token height, and no line growth.
+    const geo = js<Record<string, { slot: number[]; slotBottom: number; label: number; text: number | null; h: number }>>(`
+      const b = document.querySelector("${bubble}"); const ctx = document.createElement('canvas').getContext('2d')
+      const base = (node, from = 0, to = node.textContent.length) => { const r = document.createRange(); r.setStart(node, from); r.setEnd(node, to); const box = r.getClientRects()[0]; ctx.font = getComputedStyle(node.parentElement).font; return box.bottom - ctx.measureText(node.textContent).fontBoundingBoxDescent }
+      // The words beside each chip on its own line: the first letter after it, or the last one before it.
+      // The words beside each chip on its own line: the nearest letter after or before it that shares the chip's line.
+      const charRange = (node, i) => { const r = document.createRange(); r.setStart(node, i); r.setEnd(node, i + 1); return r }
+      const beside = (chip) => { const box = chip.getBoundingClientRect(); const picks = []
+        const next = chip.nextSibling; if (next?.nodeType === 3 && next.textContent.trim()) picks.push([next, next.textContent.search(/\\S/)])
+        const prev = chip.previousSibling; if (prev?.nodeType === 3 && prev.textContent.trim()) picks.push([prev, prev.textContent.trimEnd().length - 1])
+        for (const [node, i] of picks) { const r = charRange(node, i).getClientRects()[0]; if (r && r.bottom > box.top && r.top < box.bottom) return base(node, i, i + 1) }
+        return null }
+      const out = {}
+      for (const chip of b.querySelectorAll('.tds-chip[data-card]')) {
+        const slot = chip.querySelector('.tds-chip-slot').getBoundingClientRect(); const label = chip.querySelector('.tds-chip-label').firstChild
+        out[chip.dataset.card] = { slot: [slot.width, slot.height], slotBottom: slot.bottom, label: base(label), text: beside(chip), h: chip.getBoundingClientRect().height }
+      }
+      return out`)
+    // A user bubble lifts file links into attachment cards, so the file chip (the same Chip) is covered where agents write it.
+    for (const kind of ["link", "thread", "skill"]) {
+      const g = geo[kind]
+      check(g, `a ${kind} chip`)
+      check(g.slot[0] === 14 && g.slot[1] === 14, `the ${kind} chip's icon slot is 14px (${g.slot})`)
+      check(Math.abs(g.slotBottom - g.label) <= 1, `the ${kind} icon sits on its label's baseline (slot ${g.slotBottom.toFixed(1)}, label ${g.label.toFixed(1)})`)
+      check(g.text !== null && Math.abs(g.label - g.text) <= 0.5, `the ${kind} label shares the baseline of the words beside it (label ${g.label.toFixed(1)}, text ${g.text?.toFixed(1)})`)
+      check(g.h === 22, `the ${kind} chip is the 22px token (${g.h})`)
+    }
+    shot("chipcards-bubble")
+    // t3code's tooltip timing, measured in the page: open after a 600ms rest, swap at once while one is open, close after a 100ms grace.
+    ab("eval", `window.__card = []; new MutationObserver(() => { const c = document.querySelector('.tds-chip-card'); const last = window.__card.at(-1)
+      if ((c?.dataset.kind ?? null) !== (last?.kind ?? null)) { window.__card.push({ kind: c?.dataset.kind ?? null, at: performance.now() }); if (c) requestAnimationFrame(() => (window.__cardScale = getComputedStyle(c).scale)) } }).observe(document.body, { childList: true, subtree: true })
+      window.__over = []; document.addEventListener('pointerover', (e) => { const t = e.target.closest?.('[data-card]'); if (t) window.__over.push({ kind: t.dataset.card, at: performance.now() }) }); true`)
+    const chip = (kind: string) => `${bubble} .tds-chip[data-card='${kind}']`
+    ab("hover", chip("thread"))
+    wait(300)
+    check(!exists(".tds-chip-card"), "the card waits for a rest")
+    until(() => exists(".tds-chip-card.tds-thread-card"), Boolean, "the chat card")
+    const delay = js<number>("const o = window.__over.findLast((e) => e.kind === 'thread'); const c = window.__card.find((e) => e.kind === 'thread'); return c.at - o.at")
+    check(delay >= 550 && delay <= 900, `the card opens after the 600ms rest (${Math.round(delay)}ms)`)
+    check(Number(js<string>("return window.__cardScale ?? '1'")) < 1, "the card enters scaled from .98")
+    wait(250)
+    shot("chipcards-thread")
+    ab("hover", chip("skill"))
+    until(() => text(".tds-chip-card .tds-chip-card-title"), (t) => t === "verify-skill", "the skill card")
+    const swap = js<number>("const o = window.__over.findLast((e) => e.kind === 'skill'); const c = window.__card.find((e) => e.kind === 'skill'); return c.at - o.at")
+    check(swap < 250, `moving between chips swaps the card at once (${Math.round(swap)}ms)`)
+    check(text(".tds-chip-card .tds-chip-card-site") === "Checks the chip cards", "the skill card shows the description")
+    wait(250)
+    shot("chipcards-skill")
+    ab("mouse", "move", "5", "5")
+    until(() => exists(".tds-chip-card"), (open) => !open, "the skill card to close", 2000)
+    ab("hover", chip("link"))
+    until(() => text(".tds-link-card .tds-chip-card-title"), (t) => t === "Example Docs & Guides", "the link card")
+    wait(250)
+    shot("chipcards-link")
+    ab("mouse", "move", "5", "5")
+    until(() => exists(".tds-chip-card"), (open) => !open, "the card to close", 2000)
+    field()
+    ab("keyboard", "type", "@verify")
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-suggest .tds-menu-label')].map((e) => e.textContent)"), (g) => g.includes("Skills"), "a Skills group in the @ menu")
+    ab("eval", "[...document.querySelectorAll('.tds-suggest .tds-menu-item')].find((e) => e.querySelector('.tds-suggest-label')?.textContent === 'verify-skill')?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); true")
+    until(() => exists(".tds-input .tds-chip[data-kind='skill'] .tds-chip-slot"), Boolean, "a skill token with the shared slot")
+    ab("hover", ".tds-input .tds-chip[data-kind='skill']")
+    until(() => text(".tds-chip-card .tds-chip-card-title"), (t) => t === "verify-skill", "the composer skill token's card")
+    wait(250)
+    shot("chipcards-composer")
+    ab("mouse", "move", "5", "5")
     ab("press", "Control+a")
     ab("press", "Backspace")
   },
@@ -2278,7 +2363,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => exists(".ProseMirror"), Boolean, "the composer")
     field()
     ab("keyboard", "type", "see https://github.com/keyurbodar/tock and")
-    until(() => exists(".tds-input .tds-link-token .tds-token-fav"), Boolean, "the typed link chip with its favicon")
+    until(() => exists(".tds-input .tds-link-token .tds-chip-slot img"), Boolean, "the typed link chip with its favicon")
     const m = js<{ line: number; text: number[]; label: number[]; chip: number[] }>(
       "const p = document.querySelector('.tds-input p'); const t = [...p.childNodes].find((n) => n.nodeType === 3); const a = document.createRange(); a.selectNodeContents(t); const tr = a.getClientRects()[0]; const b = document.createRange(); b.selectNodeContents(p.querySelector('.tds-chip-label')); const lr = b.getClientRects()[0]; const c = p.querySelector('.tds-chip').getBoundingClientRect(); return { line: p.getBoundingClientRect().height, text: [tr.top, tr.bottom], label: [lr.top, lr.bottom], chip: [c.top, c.height] }",
     )
@@ -2937,7 +3022,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(!spill.length, `an unbreakable message stays inside its bubble and column; overflowing: ${spill.join(", ")}`)
     const hidden = js<string[]>("return [...document.querySelectorAll('*')].filter((e) => getComputedStyle(e).textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth + 1 && !e.closest('[title], [aria-label]')).map((e) => e.className.split(' ')[0])")
     check(!hidden.length, `truncated text keeps a way to the full value (title or aria-label); bare: ${hidden.join(", ")}`)
-    const small = js<string[]>("return [...document.querySelectorAll('button, [role=button], a[href]:not(.tds-link)')].filter((e) => { const r = e.getBoundingClientRect(); return r.width && (r.width < 24 || r.height < 24) && !e.classList.contains('tds-sidebar-handle') }).map((e) => e.className.split(' ')[0] + ' ' + (e.getAttribute('aria-label') ?? ''))")
+    const small = js<string[]>("return [...document.querySelectorAll('button, [role=button], a[href]:not(.tds-link, .tds-bubble .tds-chip)')].filter((e) => { const r = e.getBoundingClientRect(); return r.width && (r.width < 24 || r.height < 24) && !e.classList.contains('tds-sidebar-handle') }).map((e) => e.className.split(' ')[0] + ' ' + (e.getAttribute('aria-label') ?? ''))")
     check(!small.length, `every control is at least 24×24 (WCAG 2.5.8); small: ${small.join(", ")}`)
     shot("ui")
     ab("set", "viewport", "320", "700")
@@ -4329,7 +4414,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

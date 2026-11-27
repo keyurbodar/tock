@@ -430,38 +430,6 @@
 }
 
 @layer components {
-  .tds-chip {
-    --tds-chip-ink: color-mix(in oklab, var(--tds-chip-accent) 82%, var(--tds-text-tx));
-    display: inline-flex; align-items: center; gap: var(--tds-space-3); max-width: 100%; height: var(--tds-size-token);
-    padding: 0 var(--tds-space-2); border-radius: var(--tds-radius-kbd); vertical-align: calc(var(--tds-space-4) * -1);
-    background: transparent; color: var(--tds-chip-ink);
-    font-size: var(--tds-type-bubble-size); font-weight: var(--tds-weight-medium); line-height: 1; text-decoration: none; white-space: nowrap; cursor: pointer;
-    transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
-  }
-  .tds-chip[data-kind="command"] { font-weight: var(--tds-weight-medium) }
-  .tds-chip-label { text-decoration: underline transparent; text-decoration-thickness: var(--tds-size-focus-width); text-underline-offset: .2em; transition: text-decoration-color var(--tds-dur-hover) var(--tds-ease-out) }
-  @media (hover: hover) and (pointer: fine) { .tds-chip:is(a, button, [data-open]):hover .tds-chip-label { text-decoration-color: currentColor } }
-  .tds-chip[data-state="invalid"] { --tds-chip-accent: var(--tds-text-faint); color: var(--tds-text-faint); & .tds-chip-label { text-decoration: line-through } }
-  .tds-chip-icon { display: block; flex: none; width: var(--tds-icon-chip); height: var(--tds-icon-chip) }
-  .tds-chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis }
-  .tds-chip-action {
-    display: grid; place-items: center; flex: none; margin-inline: var(--tds-space-1) calc(var(--tds-space-3) * -1); width: var(--tds-size-badge); height: var(--tds-size-badge);
-    border-radius: var(--tds-radius-kbd); color: inherit; opacity: .7; & .tds-chip-icon { width: var(--tds-space-10); height: var(--tds-space-10) }
-  }
-  @media (hover: hover) and (pointer: fine) { .tds-chip-action:hover { opacity: 1; background: color-mix(in oklab, var(--tds-chip-accent) 22%, transparent) } }
-  .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-text-me) }
-
-  .tds-thread-card {
-    z-index: var(--tds-z-lay); display: flex; flex-direction: column; gap: var(--tds-space-6); width: var(--tds-size-thread-card); padding: var(--tds-space-12);
-    border-radius: var(--tds-radius-card-sm); background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow);
-    font-size: var(--tds-type-caption-size); color: var(--tds-text-muted); transform-origin: var(--transform-origin, 0 100%);
-    transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-tooltip) var(--tds-ease-out);
-    &[data-starting-style], &[data-ending-style] { opacity: 0; scale: var(--tds-press) }
-  }
-  .tds-thread-card-head { display: flex; align-items: center; gap: var(--tds-space-8); min-width: 0;
-    & b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) } }
-  .tds-thread-card-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--tds-text-tx2) }
-  .tds-thread-card-line { color: var(--tds-text-faint) }
 
 }
 

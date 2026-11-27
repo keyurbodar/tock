@@ -2,7 +2,7 @@ import type { EditorView } from "@tiptap/pm/view"
 import type { ChipKind } from "./chip"
 
 export interface TokenAttrs {
-  readonly kind: Extract<ChipKind, "thread" | "command" | "link" | "file">
+  readonly kind: Extract<ChipKind, "thread" | "command" | "link" | "file" | "skill">
   readonly id: string
   readonly label: string
 }
@@ -11,6 +11,7 @@ export interface TokenAttrs {
 export function tokenText(attrs: TokenAttrs) {
   if (attrs.kind === "thread") return `[@${attrs.label.replace(/[[\]]/g, "")}](tock-thread:${attrs.id})`
   if (attrs.kind === "link") return attrs.id
+  if (attrs.kind === "skill") return `[${attrs.label}](tock-skill:${attrs.id})`
   return attrs.label
 }
 

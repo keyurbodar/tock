@@ -1,14 +1,14 @@
 import { Show } from "solid-js"
 import type { JSX } from "@solidjs/web"
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@ui-sdk/solid/hover-card"
 import type { IconName } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { app, titleOf } from "../state/app"
-import { glyphFor } from "../lib/glyph"
-import { shortTime } from "../lib/time"
 import { extension, fileUrl, isImage } from "./attachments"
 
 export type ChipKind = keyof typeof tokens.color.chip
+
+/** The chips that open the shared hover card (chip-card.tsx); the trigger carries what the card needs as data attributes. */
+export type CardKind = "link" | "thread" | "file" | "skill"
 
 const documents: readonly { test: RegExp; kind: ChipKind; icon: IconName }[] = [
   { test: /\.pdf$/i, kind: "pdf", icon: "file-pdf" },
@@ -26,13 +26,45 @@ export function fileChip(name: string): { kind: ChipKind; icon: IconName } {
   return documents.find((entry) => entry.test.test(name)) ?? { kind: "file", icon: "file-text" }
 }
 
-/** One inline chip for every reference kind: the accent comes from the kind, the label truncates, the icon sits at 1em on the text's baseline. */
-export function Chip(props: { kind: ChipKind; icon: IconName; label: string; href?: string; state?: "invalid"; class?: string; children?: JSX.Element; onRemove?: () => void; title?: string }) {
+/** The 14px icon box every chip leads with. Its children are out of flow, so its bottom edge is the label's baseline and a late icon never moves the line. */
+export function ChipSlot(props: { icon?: `${IconName}` | `${IconName}:duotone`; children?: JSX.Element }) {
+  return (
+    <span class="tds-chip-slot" aria-hidden="true">
+      <Show when={props.icon} fallback={props.children}>
+        {(icon) => (
+          <svg class="tds-icon">
+            <use href={`#i-${icon()}`} />
+          </svg>
+        )}
+      </Show>
+    </span>
+  )
+}
+
+/**
+ * One inline chip for every reference kind, as T3Code's ContextChip: an inline-flex row aligned on the baseline, the icon
+ * slot, then a label that truncates and underlines on hover. The accent comes from the kind. A chip with a card opens the
+ * shared hover card after hover intent.
+ */
+export function Chip(props: {
+  kind: ChipKind
+  icon?: IconName
+  slot?: JSX.Element
+  label: string
+  href?: string
+  state?: "invalid"
+  class?: string
+  children?: JSX.Element
+  onRemove?: () => void
+  title?: string
+  card?: { kind: CardKind; id: string }
+  attrs?: Record<string, string>
+}) {
   const body = () => (
     <>
-      <svg class="tds-icon tds-chip-icon" aria-hidden="true">
-        <use href={`#i-${props.icon}:duotone`} />
-      </svg>
+      <Show when={props.icon} fallback={<ChipSlot>{props.slot}</ChipSlot>}>
+        {(icon) => <ChipSlot icon={`${icon()}:duotone`} />}
+      </Show>
       <span class="tds-chip-label">{props.label}</span>
       {props.children}
       <Show when={props.onRemove}>
@@ -46,11 +78,21 @@ export function Chip(props: { kind: ChipKind; icon: IconName; label: string; hre
       </Show>
     </>
   )
-  const attrs = () => ({ class: `tds-chip ${props.class ?? ""}`, "data-kind": props.kind, "data-state": props.state, title: props.title, style: { "--tds-chip-accent": `var(--tds-chip-${props.kind})` } })
+  const attrs = () => ({
+    ...props.attrs,
+    class: `tds-chip ${props.class ?? ""}`,
+    "data-kind": props.kind,
+    "data-state": props.state,
+    "data-card": props.card?.kind,
+    "data-card-id": props.card?.id,
+    "data-card-label": props.card ? props.label : undefined,
+    title: props.title,
+    style: { "--tds-chip-accent": `var(--tds-chip-${props.kind})` },
+  })
   return (
     <Show when={props.href} fallback={<span {...attrs()}>{body()}</span>}>
       {(href) => (
-        <a {...attrs()} href={href()} target="_blank" rel="noreferrer noopener">
+        <a {...attrs()} href={href()} target={href().startsWith("/t/") ? undefined : "_blank"} rel={href().startsWith("/t/") ? undefined : "noreferrer noopener"}>
           {body()}
         </a>
       )}
@@ -60,49 +102,21 @@ export function Chip(props: { kind: ChipKind; icon: IconName; label: string; hre
 
 export function FileChip(props: { id: string; name: string }) {
   const meta = () => fileChip(props.name)
-  return <Chip kind={meta().kind} icon={meta().icon} label={props.name} href={fileUrl(props.id)} title={props.name} />
+  return <Chip kind={meta().kind} icon={meta().icon} label={props.name} href={fileUrl(props.id)} card={{ kind: "file", id: props.id }} />
 }
 
 /** The thread's file card (TDS PxChips "Files"): the kind's glyph with its type under it, the name, and what opening does. */
 
 export const threadHref = (id: string) => `/t/${id}`
 
-/** A thread reference: the chip navigates in place, and a pause on it previews the thread, the one hover card in chat (as T3Code's ThreadChipHoverCard). */
+/** A thread reference: the chip navigates in place, and a pause on it previews the thread in the shared card. */
 export function ThreadChip(props: { id: string; label?: string }) {
   const session = () => app.sessions.find((entry) => entry.id === props.id)
-  const glyph = () => glyphFor(props.id)
   const title = () => (session() ? titleOf(session()) : (props.label ?? "Chat"))
-  return (
-    <HoverCard delay={tokens.motion["hover-intent"].open} closeDelay={tokens.motion["hover-intent"].leave}>
-      <HoverCardTrigger href={threadHref(props.id)} aria-label={title()} class="tds-chip" data-kind="thread" data-state={session() ? undefined : "invalid"} style={{ "--tds-chip-accent": "var(--tds-chip-thread)" }}>
-        <svg class="tds-icon tds-chip-icon" aria-hidden="true">
-          <use href="#i-chat-circle:duotone" />
-        </svg>
-        <span class="tds-chip-label">{title()}</span>
-      </HoverCardTrigger>
-      <HoverCardContent class="tds-thread-card tds-over" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
-        <div class="tds-thread-card-head">
-          <span class={`tds-row-icon ${glyph().hue}`}>
-            <svg class="tds-icon tds-chip-icon" aria-hidden="true">
-              <use href={`#i-${glyph().icon}`} />
-            </svg>
-          </span>
-          <b>{title()}</b>
-        </div>
-        <Show when={session()} fallback={<span class="tds-thread-card-line">This chat was deleted or isn’t on this device yet.</span>}>
-          {(current) => (
-            <>
-              <Show when={current().preview}>
-                <span class="tds-thread-card-preview">{current().preview}</span>
-              </Show>
-              <span class="tds-thread-card-line">
-                {current().busy ? "Working" : `${current().messageCount} messages`}
-                <Show when={current().updatedAt}> · {shortTime(current().updatedAt)}</Show>
-              </span>
-            </>
-          )}
-        </Show>
-      </HoverCardContent>
-    </HoverCard>
-  )
+  return <Chip kind="thread" icon="chat-circle" label={title()} href={threadHref(props.id)} state={session() ? undefined : "invalid"} card={{ kind: "thread", id: props.id }} attrs={{ "aria-label": title() }} />
+}
+
+/** A skill reference (`[$name](tock-skill:name)`): the chip names the skill, and its card shows what the skill is for. */
+export function SkillChip(props: { name: string }) {
+  return <Chip kind="skill" icon="sparkle" label={props.name} card={{ kind: "skill", id: props.name }} />
 }
