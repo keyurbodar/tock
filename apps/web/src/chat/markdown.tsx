@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Match, Switch, onCleanup } from "solid-js"
+import { createMemo, createSignal, For, Match, Show, Switch, onCleanup } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { Lexer, type Token, type Tokens } from "marked"
 import { highlight } from "sugar-high"
@@ -68,6 +68,9 @@ function CodeCard(props: { token: Tokens.Code }) {
   let timer: ReturnType<typeof setTimeout> | undefined
   onCleanup(() => clearTimeout(timer))
   const html = createMemo(() => highlight(props.token.text))
+  const lines = createMemo(() => props.token.text.split("\n").length)
+  const long = () => lines() * tokens.type.code[1] > tokens.size["code-collapsed"]
+  const [expanded, setExpanded] = createSignal(false)
   const copy = async () => {
     await navigator.clipboard.writeText(props.token.text)
     setCopied(true)
@@ -79,10 +82,18 @@ function CodeCard(props: { token: Tokens.Code }) {
       <figcaption class="tds-code-head">
         <span>{props.token.lang || "code"}</span>
         <button type="button" class="tds-code-action tds-press" aria-label={copied() ? "Copied" : "Copy code"} onClick={copy}>
-          <Icon name={copied() ? "check" : "copy"} size="code-action" />
+          <span class="tds-swap" data-on={copied() ? "" : undefined}>
+            <span class="tds-swap-a"><Icon name="copy" size="code-action" /></span>
+            <span class="tds-swap-b"><Icon name="check" size="code-action" /></span>
+          </span>
         </button>
       </figcaption>
-      <pre class="tds-scroll"><code innerHTML={html()} /></pre>
+      <pre class="tds-scroll" data-collapsed={long() && !expanded() ? "" : undefined}><code innerHTML={html()} /></pre>
+      <Show when={long()}>
+        <button type="button" class="tds-code-more tds-press" aria-expanded={expanded() ? "true" : "false"} onClick={() => setExpanded((open) => !open)}>
+          {expanded() ? "Show less" : `Show all ${lines()} lines`}
+        </button>
+      </Show>
     </figure>
   )
 }

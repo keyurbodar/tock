@@ -100,6 +100,50 @@ const journeys: Record<string, () => void> = {
     check(js<string>("return location.pathname") === path, "the thread url changed after sending")
     shot("send")
   },
+  code() {
+    until(() => exists(".tds-code .tds-code-action"), Boolean, "a code block", 15000)
+    check(js<string>("return document.querySelector('.tds-code-head span')?.textContent ?? ''") === "ts", "the code block should be labelled with its language")
+    ab("eval", "Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.resolve() }, configurable: true })")
+    ab("click", ".tds-code .tds-code-action")
+    until(() => exists(".tds-code .tds-swap[data-on]"), Boolean, "the copy icon to morph into a check")
+    wait(150)
+    const mid = js<{ a: number; b: number }>("const s = document.querySelector('.tds-swap[data-on]'); return { a: +getComputedStyle(s.children[0]).opacity, b: +getComputedStyle(s.children[1]).opacity }")
+    check(mid.a < 1 && mid.b > 0, `both icons should be mid-morph, got ${JSON.stringify(mid)}`)
+    shot("code-copied")
+    until(() => exists(".tds-code .tds-swap[data-on]"), (on) => !on, "the check to morph back", 4000)
+  },
+  divider() {
+    until(() => exists(".tds-divider"), Boolean, "a time divider")
+    check(js<string>("return document.querySelector('.tds-divider-text')?.textContent ?? ''") === "Today", "the first divider should read Today")
+    shot("divider")
+  },
+  expand() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Show a long code block please")
+    ab("press", "Enter")
+    until(() => exists(".tds-code-more"), Boolean, "the show-all button", 15000)
+    const collapsed = rect(".tds-code pre")!.h
+    const pre = js<{ sw: number; cw: number }>("const p = document.querySelector('.tds-code pre'); return { sw: p.scrollWidth, cw: p.clientWidth }")
+    check(pre.sw > pre.cw, "long lines should scroll sideways, not wrap")
+    shot("code-collapsed")
+    ab("click", ".tds-code-more")
+    until(() => rect(".tds-code pre")!.h, (h) => h > collapsed + 100, "the block to expand")
+    check(js<string>("return document.querySelector('.tds-code-more').textContent") === "Show less", "the button should offer Show less")
+    shot("code-expanded")
+  },
+  stopped() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => js<string>("return location.pathname"), (p) => /^\/t\//.test(p), "a thread url")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Plan a long trip through Japan for me")
+    ab("press", "Enter")
+    until(() => exists("button[aria-label='Stop']"), Boolean, "the stop button")
+    ab("click", "button[aria-label='Stop']")
+    until(() => js<string[]>("return [...document.querySelectorAll('.tds-caption')].map((e) => e.textContent)"), (c) => c.includes("Stopped"), "the Stopped caption", 8000)
+    shot("stopped")
+  },
   worklog() {
     until(() => exists(".tds-act-button"), Boolean, "an activity line", 15000)
     check(transparent(style(".tds-act-button", "backgroundColor")), "the activity line must have no background")
@@ -351,7 +395,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "links", "mention", "command", "toasts", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "links", "mention", "command", "toasts", "expand", "stopped", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

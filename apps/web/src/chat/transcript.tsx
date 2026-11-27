@@ -8,7 +8,7 @@ import { fileUrl, isImage, splitFiles } from "./attachments"
 import { FileCard, ThreadChip } from "./chip"
 import { ExternalLink, LinkMenu, openLinkMenu, shortUrl, webHost } from "./link"
 import { toast } from "../shell/toasts"
-import type { ThreadState } from "../state/app"
+import { app, type ThreadState } from "../state/app"
 
 const SPANS = /\[([^\]\n]+)\]\(tock-thread:([\w-]+)\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]/g
 
@@ -73,7 +73,7 @@ export function Transcript(props: { state: ThreadState | undefined }) {
   let pinned = true
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
   const toggle = (key: string, anchor: HTMLElement) => setOpen((current) => (current?.key === key ? undefined : { key, anchor }))
-  const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending) : []))
+  const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting") : []))
   createEffect(
     () => items().length + (items().at(-1)?.kind === "text" ? (items().at(-1) as { text: string }).text.length : 0),
     () => {
@@ -99,6 +99,12 @@ export function Transcript(props: { state: ThreadState | undefined }) {
               <Match when={item().kind === "typing"}>
                 <Typing />
               </Match>
+              <Match when={item().kind === "caption"}>
+                <span class="tds-caption" data-side={(item() as Extract<Item, { kind: "caption" }>).side}>{(item() as Extract<Item, { kind: "caption" }>).text}</span>
+              </Match>
+              <Match when={item().kind === "divider"}>
+                <div class="tds-divider" role="separator"><span class="tds-divider-rule" /><span class="tds-divider-text">{(item() as Extract<Item, { kind: "divider" }>).text}</span><span class="tds-divider-rule" /></div>
+              </Match>
               <Match when={item().kind === "error"}>
                 <div class="tds-alert" role="status">
                   <span class="tds-tint tds-tint-failed size-toast-icon"><Icon name="warning-circle" size="toast" /></span>
@@ -111,9 +117,6 @@ export function Transcript(props: { state: ThreadState | undefined }) {
             </Switch>
           )}
         </For>
-        <Show when={props.state?.pending.length && props.state.live?.run}>
-          <span class="tds-queue-caption">Waiting for toast to finish this step</span>
-        </Show>
       </div>
     </div>
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />

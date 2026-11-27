@@ -66,7 +66,7 @@ for (const [k, n] of Object.entries(t.radius)) { v(`radius-${k}`, k === "pill" ?
 
 for (const [k, c] of Object.entries(t.motion.curve)) { v(`ease-${k}`, c); th(`ease-${k}`, `var(--tds-ease-${k})`) }
 for (const [k, d] of Object.entries(t.motion.duration)) v(`dur-${k}`, `${d}ms`)
-v("press", t.motion.press); v("press-row", t.motion["press-row"]); v("press-tight", t.motion["press-tight"]); v("stagger", `${t.motion.stagger}ms`)
+v("press", t.motion.press); v("press-row", t.motion["press-row"]); v("press-tight", t.motion["press-tight"]); v("swap-scale", t.motion["swap-scale"]); v("stagger", `${t.motion.stagger}ms`)
 for (const [k, b] of Object.entries(t.motion.blur)) { v(`blur-${k}`, b); th(`blur-${k}`, `var(--tds-blur-${k})`) }
 th("blur-over", "var(--tds-over-blur)"); th("blur-veil", "var(--tds-veil-blur)")
 for (const [k, z] of Object.entries(t.z)) v(`z-${k}`, z)

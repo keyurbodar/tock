@@ -1,0 +1,37 @@
+@layer components {
+  .tds-swap { display: grid; place-items: center }
+  .tds-swap > * {
+    grid-area: 1 / 1; display: grid; place-items: center;
+    transition-property: opacity, scale, filter; transition-duration: var(--tds-dur-swap); transition-timing-function: var(--tds-ease-std);
+  }
+  .tds-swap-b { opacity: 0; scale: var(--tds-swap-scale); filter: blur(var(--tds-blur-swap)); color: var(--tds-status-done) }
+  .tds-swap[data-on] .tds-swap-a { opacity: 0; scale: var(--tds-swap-scale); filter: blur(var(--tds-blur-swap)) }
+  .tds-swap[data-on] .tds-swap-b { opacity: 1; scale: 1; filter: none }
+
+  .tds-code pre { white-space: pre; transition: max-height var(--tds-dur-panel) var(--tds-ease-std) }
+  .tds-code pre[data-collapsed] {
+    max-height: var(--tds-size-code-collapsed); overflow-y: hidden;
+    mask-image: linear-gradient(to bottom, black 70%, transparent);
+  }
+  .tds-code-more {
+    display: block; width: 100%; height: var(--tds-size-action); padding: 0 var(--tds-space-16); text-align: left;
+    font-size: var(--tds-type-caption-size); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
+    margin-bottom: var(--tds-space-6);
+  }
+  .tds-code-more:hover { color: var(--tds-text-tx2) }
+
+  .tds-caption {
+    align-self: flex-start; margin: var(--tds-space-5) var(--tds-space-4) 0;
+    font-size: var(--tds-type-micro-size); line-height: var(--tds-type-micro-leading); letter-spacing: var(--tds-type-micro-tracking); color: var(--tds-text-faint);
+    @starting-style { opacity: 0 }
+    transition: opacity var(--tds-dur-swap) var(--tds-ease-out);
+  }
+  .tds-caption[data-side="me"] { align-self: flex-end }
+
+  .tds-divider {
+    display: flex; align-items: center; gap: var(--tds-space-14); width: 100%; margin: var(--tds-space-20) 0 var(--tds-space-14);
+    font-size: var(--tds-type-caption-size); color: var(--tds-text-muted);
+  }
+  .tds-divider-rule { flex: 1; height: var(--tds-space-1); background: var(--tds-overlay-hover) }
+  .tds-divider-text { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--tds-space-7) }
+}

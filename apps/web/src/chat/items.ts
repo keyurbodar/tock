@@ -37,6 +37,23 @@ export type Item =
   | { readonly kind: "typing"; readonly key: string }
   | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
   | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string }
+  | { readonly kind: "caption"; readonly key: string; readonly text: string; readonly side: "me" | "agent" }
+  | { readonly kind: "divider"; readonly key: string; readonly text: string }
+
+const HOUR = 3_600_000
+const day = (at: number) => new Date(at).toDateString()
+const dayLabel = (at: number, now: number) => {
+  if (day(at) === day(now)) return "Today"
+  if (day(at) === day(now - 24 * HOUR)) return "Yesterday"
+  return new Date(at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+}
+/** TDS CxDividersTime: a day divider once per day, and the day with the time after a gap of an hour or more. */
+export function timeDivider(previous: number | null, at: number, now: number): string | undefined {
+  if (previous === null || day(previous) !== day(at)) return dayLabel(at, now)
+  if (at - previous < HOUR) return undefined
+  const time = new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  return `${new Date(at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${time}`
+}
 
 interface Work {
   kind: "work"
@@ -69,8 +86,21 @@ const abortedResult = (data: unknown) => {
 const userImages = (message: Extract<Message, { role: "user" }>) =>
   typeof message.content === "string" ? [] : message.content.filter((block) => block.type === "image")
 
-export function buildItems(entries: readonly EntryRecord[], live: LiveState | null, pending: readonly { readonly text: string }[]): Item[] {
+export function buildItems(
+  entries: readonly EntryRecord[],
+  live: LiveState | null,
+  pending: readonly { readonly text: string }[],
+  online = true,
+  now = Date.now(),
+): Item[] {
   const items: (Exclude<Item, { kind: "work" }> | Work)[] = []
+  let lastAt: number | null = null
+  const stamp = (key: string, at: number | null) => {
+    if (at === null) return
+    const text = timeDivider(lastAt, at, now)
+    lastAt = at
+    if (text) items.push({ kind: "divider", key: `divider:${key}`, text })
+  }
   const results = new Map<string, ToolResultMessage>()
   const slots = new Map<string, ToolSlot>((live?.tools ?? []).map((slot) => [slot.callId, slot]))
   const running = live?.run !== undefined
@@ -135,6 +165,7 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
     })
     const open = turn as Work | undefined
     if (open && message.timestamp) open.endedAt = message.timestamp
+    if (!streaming && message.stopReason === "aborted") items.push({ kind: "caption", key: `${key}:stopped`, text: "Stopped", side: "agent" })
     if (!streaming && message.stopReason === "error" && message.errorMessage)
       items.push({ kind: "error", key: `${key}:error`, title: "The model returned an error", detail: message.errorMessage })
   }
@@ -145,6 +176,7 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
       if (message.role === "user") {
         const text = userText(message)
         const routine = routineName(entry)
+        stamp(key, message.timestamp ?? null)
         if (routine === undefined) {
           items.push({ kind: "user", key, text, images: userImages(message), at: message.timestamp ?? null })
           startTurn(key, message.timestamp ?? null)
@@ -163,7 +195,11 @@ export function buildItems(entries: readonly EntryRecord[], live: LiveState | nu
   if (running && current) current.active = true
   if (running && !current && items.at(-1)?.kind !== "text") items.splice(turnAt, 0, { kind: "typing", key: "typing" })
   pending.forEach(({ text }, index) => items.push({ kind: "user", key: `pending:${index}`, text, images: [], at: null }))
-  if (pending.length > 0 && !running) items.push({ kind: "typing", key: "typing" })
+  if (pending.length > 0 && !online) items.push({ kind: "caption", key: "caption:offline", text: "Sends when you're back online", side: "me" })
+  else if (pending.length > 0 && running) items.push({ kind: "caption", key: "caption:queued", text: "Waiting for toast to finish this step", side: "me" })
+  if (pending.length > 0 && !running && online) items.push({ kind: "typing", key: "typing" })
+  if (!running && live?.runFailure?.reason === "aborted" && items.at(-1)?.kind !== "caption" && items.some((item) => item.kind === "user"))
+    items.push({ kind: "caption", key: "caption:stopped", text: "Stopped", side: "agent" })
   if (live?.generation?.retry)
     items.push({ kind: "error", key: "retry", title: "Retrying", detail: live.generation.retry.error })
   if (!running && live?.runFailure && live.runFailure.reason !== "aborted")
