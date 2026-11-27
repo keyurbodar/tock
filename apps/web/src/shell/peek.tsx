@@ -104,7 +104,7 @@ export function Peek() {
                 <For each={peek().lines} keyed={(line) => line.key}>
                   {(line) => (
                     <div class="tds-peek-line" data-me={line().me ? "" : undefined}>
-                      {line().text}
+                      <span>{line().text}</span>
                     </div>
                   )}
                 </For>

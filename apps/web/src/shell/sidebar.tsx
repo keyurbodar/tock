@@ -152,6 +152,12 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
     if (Math.abs(projected) > L["swipe-snap"] && Math.sign(projected) === Math.sign(x)) {
       setX(Math.sign(x) * tokens.size.swipe * 2, true)
       closeOpenSwipe = close
+      const outside = (e: PointerEvent) => {
+        if (wrap.contains(e.target as Node)) return
+        removeEventListener("pointerdown", outside, true)
+        if (closeOpenSwipe === close) close()
+      }
+      addEventListener("pointerdown", outside, true)
       return
     }
     close()

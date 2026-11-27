@@ -280,7 +280,7 @@ const journeys: Record<string, () => void> = {
     check(!exists(".tds-peek"), "the peek waits for the pointer to rest")
     until(() => exists(".tds-peek"), Boolean, "the peek card", 3000)
     check(js<number>("return document.querySelector('.tds-peek').offsetWidth") === 330, "the peek is 330 wide")
-    check(rect(".tds-peek")!.x >= rect(".tds-sidebar")!.x + rect(".tds-sidebar")!.w + 14 - 1, "the peek sits beside the sidebar")
+    check(js<number>("return document.querySelector('.tds-peek').offsetLeft") === rect(".tds-sidebar")!.x + rect(".tds-sidebar")!.w + 14, "the peek sits 14 beside the sidebar")
     wait(400)
     shot("peek")
     ab("mouse", "move", "900", "450")
@@ -369,18 +369,19 @@ const journeys: Record<string, () => void> = {
     ab("press", "Enter")
   },
   dialog() {
-    const count = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
-    const before = count()
+    const id = js<string>("return document.querySelector('.tds-row-wrap:not([data-archived])').dataset.id")
+    const here = () => exists(`.tds-row-wrap[data-id="${id}"]`)
     openRow()
     choose("Delete")
     check(!exists(".tds-dialog"), "Delete asks for no dialog")
-    until(count, (n) => n === before - 1, "the deleted row to leave")
+    until(here, (still) => !still, "the deleted row to leave")
     until(() => js<boolean>("return [...document.querySelectorAll('.tds-toast-title')].some((e) => e.textContent.includes('Deleted'))"), Boolean, "the Deleted toast")
     wait(300)
     shot("delete-undo")
     js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
-    until(count, (n) => n === before, "Undo to restore the row")
+    until(here, Boolean, "Undo to restore the row")
   },
+
   shortcuts() {
     ab("eval", "document.activeElement?.blur()")
     ab("press", "?")
