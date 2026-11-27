@@ -326,6 +326,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   })
   let flip: { stop: () => void } | undefined
   let fold = 0
+  const [folding, setFolding] = createSignal(false)
   const reflow = () => {
     flip?.stop()
     const list = content?.firstElementChild as HTMLElement | null
@@ -358,7 +359,11 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     flip?.stop()
     flip = undefined
     clearTimeout(fold)
-    fold = window.setTimeout(reflow, tokens.motion.duration.spring)
+    setFolding(true)
+    fold = window.setTimeout(() => {
+      setFolding(false)
+      reflow()
+    }, tokens.motion.duration.spring)
     setExpanded((current) => {
       const next = new Set(current)
       if (opening) next.add(key)
@@ -454,6 +459,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
       data-up={scrolled() ? "" : undefined}
       data-down={place().up ? undefined : ""}
       data-ready={ready() ? "" : undefined}
+      data-folding={folding() ? "" : undefined}
       style={{ width: place().width ? `${place().width}px` : undefined, left: `${place().left}px`, [place().up ? "bottom" : "top"]: `${place().edge}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
     >
       <Show when={props.work}>
