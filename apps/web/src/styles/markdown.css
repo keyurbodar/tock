@@ -1,0 +1,26 @@
+@layer components {
+  .tds-bubble p { margin: 0 }
+  .tds-bubble p:not(:first-child), .tds-bubble .tds-quote:not(:first-child), .tds-bubble .tds-table:not(:first-child), .tds-bubble .tds-list:not(:first-child) { margin-top: var(--tds-space-6) }
+  .tds-md-heading { font-weight: var(--tds-weight-semibold) }
+  .tds-bubble del { color: var(--tds-text-muted); text-decoration-color: var(--tds-text-muted) }
+  .tds-bubble[data-side="me"] del { color: inherit; opacity: .7 }
+  ol.tds-list { list-style: decimal } ul.tds-list { list-style: disc }
+  .tds-list .tds-list { margin-top: var(--tds-space-3) }
+  ul.tds-list ul.tds-list { list-style: circle }
+  .tds-list li[data-task] { list-style: none; margin-inline-start: calc(-1 * var(--tds-space-18)); display: flex; gap: var(--tds-space-8); align-items: baseline; & > :not(.tds-task) { min-width: 0 } }
+  .tds-task {
+    flex: none; display: inline-grid; place-items: center; width: var(--tds-space-14); height: var(--tds-space-14); align-self: center;
+    border-radius: var(--tds-radius-kbd); box-shadow: inset 0 0 0 var(--tds-size-focus-width) var(--tds-overlay-fill-20); color: var(--tds-text-on-rose);
+    &[data-checked] { background: var(--tds-accent-rose); box-shadow: none }
+  }
+  .tds-quote { margin: 0; padding-left: var(--tds-space-10); box-shadow: inset var(--tds-space-2) 0 0 var(--tds-overlay-fill-16); color: var(--tds-text-tx2) }
+  .tds-bubble[data-side="me"] .tds-quote { color: inherit; opacity: .85 }
+  .tds-rule { width: 100%; margin: var(--tds-space-6) 0; border: 0; height: var(--tds-space-1); background: var(--tds-overlay-hairline) }
+  .tds-table[data-edge-fade] { max-width: 100%; overflow-x: auto }
+  .tds-table table { border-collapse: collapse; font-variant-numeric: tabular-nums }
+  .tds-table th, .tds-table td { padding: var(--tds-space-4) var(--tds-space-10); text-align: start; box-shadow: inset 0 calc(-1 * var(--tds-space-1)) 0 var(--tds-overlay-hairline); white-space: nowrap }
+  .tds-table th { font-weight: var(--tds-weight-semibold) }
+  .tds-table tr:last-child td { box-shadow: none }
+  .tds-table [data-align="center"] { text-align: center } .tds-table [data-align="right"] { text-align: end }
+  .tds-table th:first-child, .tds-table td:first-child { padding-left: 0 }
+}

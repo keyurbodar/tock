@@ -12,6 +12,10 @@ const observer = new ResizeObserver((entries) => {
       continue
     }
     if (el.dataset.expanded !== undefined) continue
+    if (el.parentElement?.closest(".tds-bubble")) {
+      observer.unobserve(el)
+      continue
+    }
     if (el.scrollHeight > limit) el.dataset.clamped = ""
     else delete el.dataset.clamped
   }

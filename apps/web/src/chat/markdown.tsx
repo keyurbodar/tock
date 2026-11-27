@@ -3,6 +3,7 @@ import { createMemo, For, Match, Switch } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { Lexer, type Token, type Tokens } from "marked"
 import { tokens } from "@tock/tokens"
+import { Icon } from "@tock/ui/icon"
 import { FileChip, ThreadChip } from "./chip"
 import { CodeBlock } from "./code"
 import { Attachments, type SentFile } from "./files"
@@ -44,6 +45,8 @@ function inline(tokens: readonly Token[] | undefined, clock?: Words): JSX.Elemen
         return <Reference href={token.href} text={token.text} raw={token.raw}>{inline(token.tokens, clock)}</Reference>
       case "text":
         return "tokens" in token && token.tokens ? inline(token.tokens, clock) : words(decode(token.text), clock)
+      case "html":
+        return words(decode(token.text.replace(/<[^>]*>/g, "")), clock)
       default:
         return "text" in token ? words(decode(String(token.text)), clock) : token.raw
     }
@@ -96,6 +99,57 @@ function filesOnly(token: Token): SentFile[] | null {
   return files.length > 0 ? files : null
 }
 
+/** Block content inside a bubble, as T3Code ChatMarkdown: nested lists, quotes, tables, rules and task items keep their structure. */
+function blocks(list: readonly Token[], clock?: Words): JSX.Element[] {
+  return list.map((token): JSX.Element => {
+    switch (token.type) {
+      case "space":
+        return null
+      case "paragraph":
+        return <p>{inline(token.tokens, clock)}</p>
+      case "heading":
+        return <p class="tds-md-heading">{inline(token.tokens, clock)}</p>
+      case "text":
+        return "tokens" in token && token.tokens ? inline(token.tokens, clock) : words(decode(token.text), clock)
+      case "code":
+        return <CodeCard token={token as Tokens.Code} />
+      case "blockquote":
+        return <blockquote class="tds-quote">{blocks(token.tokens ?? [], clock)}</blockquote>
+      case "hr":
+        return <hr class="tds-rule" />
+      case "list": {
+        const items = (token as Tokens.List).items.map((item) => (
+          <li data-task={item.task ? "" : undefined}>
+            {item.task ? <span class="tds-task" data-checked={item.checked ? "" : undefined} role="img" aria-label={item.checked ? "Done" : "To do"}>{item.checked ? <Icon name="check" size="chip" /> : null}</span> : null}
+            {blocks(item.tokens.filter((part) => part.type !== "checkbox"), clock)}
+          </li>
+        ))
+        const start = (token as Tokens.List).start
+        return (token as Tokens.List).ordered ? <ol class="tds-list" start={typeof start === "number" ? start : undefined}>{items}</ol> : <ul class="tds-list">{items}</ul>
+      }
+      case "table": {
+        const table = token as Tokens.Table
+        return (
+          <div class="tds-table" data-edge-fade="x">
+            <table>
+              <thead>
+                <tr>{table.header.map((cell, i) => <th data-align={table.align[i] ?? undefined}>{inline(cell.tokens, clock)}</th>)}</tr>
+              </thead>
+              <tbody>
+                {table.rows.map((row) => <tr>{row.map((cell, i) => <td data-align={table.align[i] ?? undefined}>{inline(cell.tokens, clock)}</td>)}</tr>)}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+      case "html":
+        return words(decode(token.text.replace(/<[^>]*>/g, "")), clock)
+      default:
+        return words(decode(token.raw), clock)
+    }
+  })
+}
+
 function Block(props: { token: Token; clock?: () => Words | undefined }) {
   return (
     <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent">{props.token.raw.trim()}</div>}>
@@ -108,11 +162,12 @@ function Block(props: { token: Token; clock?: () => Words | undefined }) {
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
         </div>
       </Match>
-      <Match when={props.token.type === "list"}>
+      <Match when={props.token.type === "hr"}>
+        <hr class="tds-rule" />
+      </Match>
+      <Match when={props.token.type === "list" || props.token.type === "blockquote" || props.token.type === "table" || props.token.type === "html"}>
         <div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent">
-          <ul class="tds-list" data-ordered={(props.token as Tokens.List).ordered ? "" : undefined}>
-            <For each={(props.token as Tokens.List).items} keyed={false}>{(item) => <li>{inline(item().tokens.flatMap((t) => ("tokens" in t && t.tokens ? t.tokens : [t])), props.clock?.())}</li>}</For>
-          </ul>
+          {blocks([props.token], props.clock?.())}
         </div>
       </Match>
     </Switch>

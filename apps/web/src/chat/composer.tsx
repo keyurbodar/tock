@@ -12,6 +12,7 @@ import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
 import { prefersReducedMotion, animate, drive, recede, scrub, growFrom, watchLayout } from "@tock/ui/motion"
 import { idb } from "../lib/idb"
+import { pressable } from "../lib/keys"
 import { app, newThreadId, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
 import { toast } from "../shell/toasts"
@@ -566,7 +567,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     observer.observe(element.firstElementChild ?? element)
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") return event.preventDefault(), picker.click()
-      if (!editor || event.defaultPrevented || !typing(event) || editable(document.activeElement)) return
+      if (!editor || event.defaultPrevented || !typing(event) || editable(document.activeElement) || (event.key === " " && pressable(document.activeElement))) return
       editor.commands.focus("end")
     }
     const outside = (event: PointerEvent) => {

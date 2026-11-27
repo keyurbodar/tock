@@ -176,7 +176,8 @@
     font-size: var(--tds-type-composer-size); line-height: var(--tds-type-composer-lh); letter-spacing: var(--tds-type-composer-tracking);
     color: var(--tds-text-tx); white-space: pre-wrap; overflow-wrap: anywhere; caret-color: var(--tds-accent-rose);
     & p { margin: 0 }
-    & p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--tds-text-placeholder) }
+    & p.is-editor-empty:first-child { position: relative }
+    & p.is-editor-empty:first-child::before { content: attr(data-placeholder); position: absolute; inset-inline: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; color: var(--tds-text-placeholder) }
   }
   .tds-mic { display: grid; place-items: center; flex: none; width: var(--tds-size-mic); height: var(--tds-size-mic); margin-block: var(--tds-space-6); border-radius: var(--tds-radius-pill); color: var(--tds-text-muted) }
 
@@ -191,7 +192,6 @@
   .tds-inline-code { padding: 0 var(--tds-space-4); border-radius: var(--tds-radius-kbd); background: var(--tds-code-inline); font-family: var(--tds-font-mono); font-size: .92em }
   .tds-bubble[data-heading] { font-weight: var(--tds-weight-semibold) }
   .tds-list { margin: 0; padding-left: var(--tds-space-18); white-space: normal; & > li:not(:first-child) { margin-top: var(--tds-space-3) } }
-  .tds-list:not([data-ordered]) { list-style: disc } .tds-list[data-ordered] { list-style: decimal }
   .tds-code + .tds-bubble, .tds-bubble + .tds-code { margin-top: var(--tds-space-6) }
 }
 
@@ -473,11 +473,11 @@
   .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-text-me) }
 
   .tds-link {
-    color: var(--tds-accent-rose); text-decoration: none;
+    color: var(--tds-text-tx); text-decoration: none;
     background-image: radial-gradient(circle, var(--tds-accent-rose-75) 0.75px, transparent 1px); background-position: left bottom; background-repeat: repeat-x; background-size: var(--tds-space-4) var(--tds-space-2);
     transition: color var(--tds-dur-hover) var(--tds-ease-out), background-image var(--tds-dur-tooltip) var(--tds-ease-out);
   }
-  @media (hover: hover) and (pointer: fine) { .tds-link:hover { color: var(--tds-text-rose-tint); background-image: linear-gradient(var(--tds-accent-rose), var(--tds-accent-rose)); background-size: 100% 1px } }
+  @media (hover: hover) and (pointer: fine) { .tds-link:hover { color: var(--tds-text-rose-tint); background-image: radial-gradient(circle, var(--tds-accent-rose) 1px, transparent 1.3px) } }
   .tds-link:focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-accent-rose); outline-offset: var(--tds-space-1); border-radius: var(--tds-radius-kbd) }
   .tds-bubble[data-side="me"] .tds-link { color: inherit }
   .tds-link-lead { white-space: nowrap }

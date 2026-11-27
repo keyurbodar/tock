@@ -1,4 +1,5 @@
 import { createSignal, For, onCleanup, Show, untrack } from "solid-js"
+import { announce } from "../shell/announce"
 import { Icon } from "@tock/ui/icon"
 import { TextMorph } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
@@ -115,7 +116,7 @@ export function AskCard(props: { sessionId: string; ask: Ask; answer: string | u
         </Show>
       }
     >
-      <div ref={card} class="tds-ask" data-kind={props.ask.kind} data-folding={folding() ? "" : undefined} style={height() === undefined ? undefined : { height: `${height()}px` }}>
+      <div ref={(el) => ((card = el), announce(`Needs you: ${untrack(() => props.ask.question)}`))} class="tds-ask" data-kind={props.ask.kind} data-folding={folding() ? "" : undefined} style={height() === undefined ? undefined : { height: `${height()}px` }}>
         <div class="tds-ask-in">
           <div class="tds-ask-k">
             <Icon name="hand" size="menu" />

@@ -11,6 +11,7 @@ import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
 import { statusOf } from "../lib/status"
+import { pressable } from "../lib/keys"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
@@ -471,7 +472,7 @@ export function Sidebar() {
   const onKey = (e: KeyboardEvent) => {
     const typing = (e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable=true], .ProseMirror")
     if (e.key === "Escape" && untrack(selected).length) return setSelected([])
-    if ((e.key === " " || e.code === "Space") && !typing && !e.repeat) {
+    if ((e.key === " " || e.code === "Space") && !typing && !pressable(e.target) && !e.repeat) {
       const row = document.querySelector<HTMLElement>(".tds-row:hover") ?? document.querySelector<HTMLElement>(".tds-row[aria-current=page]")
       const session = app.sessions.find((item) => row && row.getAttribute("href") === `/t/${item.id}`)
       if (!row || !session) return

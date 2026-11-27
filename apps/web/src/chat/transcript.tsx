@@ -9,41 +9,10 @@ import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
 import { AskCard } from "./ask"
 import { splitFiles } from "./attachments"
-import { ThreadChip } from "./chip"
 import { Attachments } from "./files"
-import { ExternalLink, LinkMenu, openLinkMenu, shortUrl, webHost } from "./link"
+import { LinkMenu, openLinkMenu, shortUrl } from "./link"
 import { toast } from "../shell/toasts"
 import { app, send, type ThreadState } from "../state/app"
-
-const SPANS = /\[([^\]\n]+)\]\(tock-thread:([\w-]+)\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]/g
-
-/** A sent message stays plain text, except thread mentions become chips and bare URLs become links. */
-const RICH = /(^|\n)([-*+] |\d+\. |> |```)|\*\*[^*\n]+\*\*|(^|[\s(])[*_][^*_\n]+[*_]|`[^`\n]+`|\[[^\]\n]+\]\((?!tock-)[^)\s]+\)/
-
-function Prose(props: { text: string }) {
-  const parts = createMemo(() => {
-    const out: ({ kind: "text"; value: string } | { kind: "thread"; id: string; label: string } | { kind: "link"; href: string })[] = []
-    let at = 0
-    for (const match of props.text.matchAll(SPANS)) {
-      if (match.index > at) out.push({ kind: "text", value: props.text.slice(at, match.index) })
-      out.push(match[2] ? { kind: "thread", id: match[2], label: match[1]!.replace(/^@/, "") } : { kind: "link", href: match[0] })
-      at = match.index + match[0].length
-    }
-    if (at < props.text.length) out.push({ kind: "text", value: props.text.slice(at) })
-    return out
-  })
-  return (
-    <For each={parts()} keyed={false}>
-      {(part) => (
-        <Switch>
-          <Match when={part().kind === "thread" && (part() as { id: string; label: string })}>{(thread) => <ThreadChip id={thread().id} label={thread().label} />}</Match>
-          <Match when={part().kind === "link" && (part() as { href: string })}>{(link) => <ExternalLink href={link().href} host={webHost(link().href) ?? ""} text={shortUrl(link().href)} />}</Match>
-          <Match when={part().kind === "text"}>{(part() as { value: string }).value}</Match>
-        </Switch>
-      )}
-    </For>
-  )
-}
 
 function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
   const mine = () => props.item.kind === "user"
@@ -55,11 +24,9 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
       </Show>
       <Show when={parts().text}>
         <div ref={(el) => clamp(el)} class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
-          <Show when={RICH.test(parts().text)} fallback={<Prose text={parts().text} />}>
-            <div class="tds-bubble-rich">
-              <Markdown text={parts().text} />
-            </div>
-          </Show>
+          <div class="tds-bubble-rich">
+            <Markdown text={parts().text} />
+          </div>
         </div>
       </Show>
     </>

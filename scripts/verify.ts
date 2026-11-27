@@ -1917,6 +1917,57 @@ const journeys: Record<string, () => void> = {
     ab("press", "Control+a")
     ab("press", "Backspace")
   },
+  markdown() {
+    fresh()
+    say("Show every markdown format")
+    settled()
+    until(() => exists(".tds-bubble[data-side='agent'] table"), Boolean, "the formats reply", 20000)
+    wait(800)
+    const md = js<Record<string, unknown>>("const a = [...document.querySelectorAll(\".tds-bubble[data-side='agent']\")]; const q = (s) => a.flatMap((b) => [...b.querySelectorAll(s)]); const link = q('a.tds-link')[0]; return { del: q('del').map((e) => e.textContent), quote: q('blockquote').map((e) => e.textContent.trim()), hr: document.querySelectorAll('.tds-column hr.tds-rule').length, ol: q('ol').map((e) => e.getAttribute('start')), nested: q('ul > li > ul > li').map((e) => e.textContent.trim()), tasks: q('.tds-task').map((e) => e.getAttribute('aria-label')), th: q('th').map((e) => e.textContent), right: q('td[data-align=right]').length, raw: a.some((b) => /^(>|\\||---|~~)/m.test(b.textContent)), linkColor: link && getComputedStyle(link).color, tx: getComputedStyle(document.body).color, dots: link && getComputedStyle(link).backgroundImage }")
+    check(JSON.stringify(md.del) === '["Struck out"]', "strike renders as <del>: " + JSON.stringify(md.del))
+    check((md.quote as string[]).length === 1 && /quoted line/.test((md.quote as string[])[0]!), "blockquote renders: " + JSON.stringify(md.quote))
+    check(md.hr === 1, "one horizontal rule")
+    check(JSON.stringify(md.ol) === '["3"]', "ordered list keeps its start: " + JSON.stringify(md.ol))
+    check(JSON.stringify(md.nested) === '["nested child"]', "nested list stays nested: " + JSON.stringify(md.nested))
+    check(JSON.stringify(md.tasks) === '["Done","To do"]', "task items render a checkbox: " + JSON.stringify(md.tasks))
+    check(JSON.stringify(md.th) === '["Name","Count"]' && md.right === 2, "table renders with alignment: " + JSON.stringify(md.th))
+    check(!md.raw, "no raw markdown markers left in agent bubbles")
+    check(md.linkColor === md.tx && /radial-gradient/.test(String(md.dots)), `link text stays --tx with dotted underline (${md.linkColor} vs ${md.tx})`)
+    shot("markdown-agent")
+    ab("click", ".ProseMirror")
+    js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', '> a quoted line\\n\\n3. three\\n4. four\\n\\n- parent\\n  - nested child\\n\\n~~strike only~~'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
+    until(() => exists(".tds-input blockquote"), Boolean, "pasted markdown in the composer")
+    ab("press", "Enter")
+    until(() => js<number>("return document.querySelectorAll(\".tds-bubble[data-side='me']\").length") >= 2, Boolean, "the second sent bubble")
+    const me = js<Record<string, unknown>>("const b = [...document.querySelectorAll(\".tds-bubble[data-side='me']\")].at(-1); return { quote: b.querySelectorAll('blockquote').length, del: [...b.querySelectorAll('del')].map((e) => e.textContent), nested: b.querySelectorAll('ul > li > ul > li').length, ol: b.querySelector('ol')?.getAttribute('start') ?? null, text: b.textContent }")
+    check(me.quote === 1 && JSON.stringify(me.del) === '["strike only"]' && me.nested === 1, "the sent bubble renders quote, strike and nested list: " + JSON.stringify(me))
+    check(!/~~|^>/m.test(String(me.text)), "no raw markers in the sent bubble")
+    wait(400)
+    shot("markdown-me")
+    const plain = js<string>("return document.querySelector('.tds-header')?.textContent ?? ''")
+    check(!/~~|\\\\|\*\*/.test(plain), "the header title has no markdown: " + plain)
+  },
+  keys() {
+    seeded()
+    ab("eval", "document.querySelector(\"button[aria-label='Search in chat']\").focus()")
+    ab("press", "Space")
+    until(() => exists(".tds-find input"), Boolean, "Space on a focused button opens the find bar")
+    check(!js<boolean>("return document.activeElement?.closest('.ProseMirror') !== null && document.activeElement?.closest('.ProseMirror') !== undefined"), "Space did not jump focus to the composer")
+    ab("press", "Escape")
+    ab("eval", "document.querySelector('.tds-transcript')?.focus?.(); document.activeElement?.blur()")
+    ab("press", "h")
+    until(() => js<boolean>("return !!document.activeElement?.closest('.ProseMirror')"), Boolean, "a letter still focuses the composer")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+    const live = js<{ n: number; text: string }>("const r = [...document.querySelectorAll('[aria-live=polite][role=status].sr-only')]; return { n: r.length, text: r[0]?.textContent ?? '' }")
+    check(live.n === 1 && /run finished/.test(live.text), "one shared polite announcer says the run finished: " + JSON.stringify(live))
+    ab("set", "viewport", "320", "700")
+    wait(400)
+    const ph = js<{ ws: string; h: number; line: number; overflow: string }>("const p = document.querySelector('.tds-input p.is-editor-empty'); const s = getComputedStyle(p, '::before'); return { ws: s.whiteSpace, overflow: s.textOverflow, h: p.getBoundingClientRect().height, line: parseFloat(getComputedStyle(p).lineHeight) }")
+    check(ph.ws === "nowrap" && ph.overflow === "ellipsis" && ph.h <= ph.line + 1, "placeholder stays one line with an ellipsis at 320px: " + JSON.stringify(ph))
+    shot("placeholder-320")
+    ab("set", "viewport", "1440", "900")
+  },
   jumppill() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
@@ -2586,7 +2637,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "markdown", "keys", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

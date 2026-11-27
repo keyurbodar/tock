@@ -35,6 +35,30 @@ Want me to open the pull request?`
 
 const LONG = `Here's the whole module.\n\n\`\`\`ts\n${Array.from({ length: 30 }, (_, i) => `export const step${i} = (input: string) => input.trim().toLowerCase().replace(/\\s+/g, "-").padEnd(${i + 40}, ".") // a deliberately long line so the block scrolls sideways`).join("\n")}\n\`\`\``
 
+const FORMATS = `Every format, in one reply.
+
+~~Struck out~~ and **bold** with a [dotted link](https://example.com).
+
+> A quoted line
+> that keeps going
+
+---
+
+3. three
+4. four
+
+- parent
+  - nested child
+- second
+
+- [x] done task
+- [ ] open task
+
+| Name | Count |
+| :--- | ---: |
+| Apples | 3 |
+| Pears | 12 |`
+
 const PLAN = ["Check what I already know", "Test it in the sandbox", "Write up the answer"]
 
 const scripted: FauxResponseFactory = (context) => {
@@ -83,6 +107,7 @@ const scripted: FauxResponseFactory = (context) => {
     return fauxAssistantMessage(fauxText("Understood, I won't deploy. The branch stays as it is, ready whenever you want to ship it."))
   if (!done.size) {
     if (asked.startsWith("Show a long code block")) return fauxAssistantMessage(fauxText(LONG))
+    if (asked.startsWith("Show every markdown format")) return fauxAssistantMessage(fauxText(FORMATS))
     if (asked.startsWith("Send the files back")) {
       const files = asked.match(/\[[^\]\n]+\]\(tock-file:[\w-]+\)/g) ?? []
       return fauxAssistantMessage(fauxText(files.length ? `Here they are, cleaned up and ready.\n\n${files.join("\n")}\n\nShout if any of them needs another pass.` : "There were no files to send back."))

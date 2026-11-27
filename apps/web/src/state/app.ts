@@ -4,7 +4,9 @@ import { idb } from "../lib/idb"
 import { RequestError, socket, type ConnectionState } from "../lib/socket"
 import { addNote, needsNote } from "./notes"
 import { finishedElsewhere } from "../shell/finished"
+import { announce } from "../shell/announce"
 import { tokens } from "@tock/tokens"
+import { Lexer, type Token, type Tokens } from "marked"
 
 const LIVE_DOC = "pi.live"
 
@@ -133,6 +135,7 @@ socket.onEvent(({ event, payload }) => {
   }
   if (event === "session.error" && typeof payload.error === "string") {
     const error = payload.error
+    announce(`Error: ${error}`)
     thread(sessionId, (state) => {
       state.error = error
     })
@@ -164,6 +167,8 @@ export async function refreshSessions() {
 /** A run that ends while you look elsewhere leaves a note in the centre, as TDS px2 Centre. */
 function noteFinished(sessionId: string, failure: LiveState["runFailure"]) {
   if (failure?.reason === "aborted") return
+  const named = titleOf(app.sessions.find((item) => item.id === sessionId))
+  announce(failure ? `Run failed in ${named}: ${failure.detail ?? failure.reason}` : `${named}: run finished`)
   if (!document.hidden && location.pathname === `/t/${sessionId}`) return
   const session = app.sessions.find((item) => item.id === sessionId)
   const title = titleOf(session)
@@ -383,8 +388,24 @@ export const isThreadId = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{
 
 const FILE_LINK = /\[([^\]\n]+)\]\(tock-file:[\w-]+\)/g
 
+const ENTITIES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" }
+
+/** The words a reader sees once markdown is rendered: marks, list bullets, quote markers, escapes and tags dropped. */
+function flatten(list: readonly Token[]): string {
+  return list
+    .map((token) => {
+      if (token.type === "list") return (token as Tokens.List).items.map((item) => flatten(item.tokens)).join(" ")
+      if (token.type === "table") return [...(token as Tokens.Table).header, ...(token as Tokens.Table).rows.flat()].map((cell) => flatten(cell.tokens)).join(" ")
+      if (token.type === "html" || token.type === "hr" || token.type === "space" || token.type === "checkbox") return " "
+      if ("tokens" in token && token.tokens) return flatten(token.tokens) + (token.type === "paragraph" || token.type === "heading" || token.type === "blockquote" ? " " : "")
+      return "text" in token ? String(token.text).replace(/&(amp|lt|gt|quot|#39);/g, (match) => ENTITIES[match] ?? match) : ""
+    })
+    .join("")
+}
+
 export const plainText = (text: string) => {
-  const words = text.replace(FILE_LINK, "").replace(/\[([^\]\n]+)\]\(tock-thread:[\w-]+\)/g, "$1").replace(/\[(@[^\]\n]*)(\]\([^)\s]*)?…?$/, "$1").replace(/\[[^\]\n]*(\]\(tock-file:[\w-]*)?…?$/, "").replace(/\s+/g, " ").trim()
+  const linked = text.replace(FILE_LINK, "").replace(/\[([^\]\n]+)\]\(tock-thread:[\w-]+\)/g, "$1").replace(/\[(@[^\]\n]*)(\]\([^)\s]*)?…?$/, "$1").replace(/\[[^\]\n]*(\]\(tock-file:[\w-]*)?…?$/, "")
+  const words = flatten(Lexer.lex(linked, { gfm: true })).replace(/\s+/g, " ").trim()
   return words || [...text.matchAll(FILE_LINK)].map((match) => match[1]).join(", ")
 }
 
