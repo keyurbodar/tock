@@ -1,4 +1,5 @@
 import { tokens } from "@tock/tokens"
+export { installFluidHover, lanes } from "./fluid"
 
 const m = tokens.motion
 export const ease = m.curve

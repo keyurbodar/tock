@@ -585,6 +585,27 @@ const journeys: Record<string, () => void> = {
     ab("mouse", "up")
     until(live, (n) => n === 0, "swipe right to dismiss")
   },
+  fluid() {
+    ab("hover", ".tds-row-wrap")
+    until(() => js<boolean>("return !!document.querySelector('.tds-sidebar .tds-fluid[data-on]')"), Boolean, "the row highlight")
+    const target = js<string>("const r = document.querySelectorAll('.tds-row-wrap')[3].getBoundingClientRect(); return Math.round(r.x + r.width / 2) + ' ' + Math.round(r.y + r.height / 2)")
+    const goal = js<number>("return document.querySelectorAll('.tds-row-wrap')[3].getBoundingClientRect().top")
+    const start = js<number>("return document.querySelector('.tds-sidebar .tds-fluid').getBoundingClientRect().top")
+    ab("mouse", "move", ...target.split(" "))
+    wait(60)
+    const mid = js<number>("return document.querySelector('.tds-sidebar .tds-fluid').getBoundingClientRect().top")
+    check(mid > start + 1 && mid < goal - 1, `the highlight glides between rows (${start} -> ${mid} -> ${goal})`)
+    until(() => js<number>("return document.querySelector('.tds-sidebar .tds-fluid').getBoundingClientRect().top"), (y) => Math.abs(y - goal) < 1, "the highlight to land on the hovered row")
+    check(js<number>("return document.querySelector('.tds-sidebar .tds-fluid').getBoundingClientRect().height") === js<number>("return document.querySelectorAll('.tds-row-wrap')[3].getBoundingClientRect().height"), "the highlight takes the row's size")
+    shot("fluid-row")
+    ab("click", ".tds-row-wrap .tds-row-more")
+    until(() => exists(".tds-menu"), Boolean, "the row menu")
+    ab("press", "ArrowDown")
+    ab("press", "ArrowDown")
+    until(() => js<number>("const g = document.querySelector('.tds-menu .tds-fluid'); const h = document.querySelector('.tds-menu [data-highlighted]'); return g && h ? Math.abs(g.getBoundingClientRect().top - h.getBoundingClientRect().top) : 99"), (d) => d < 1, "the menu highlight to follow the keyboard")
+    shot("fluid-menu")
+    ab("press", "Escape")
+  },
   morph() {
     ab("click", "button[aria-label='New chat']")
     ab("click", ".tds-composer-plus")
@@ -1184,7 +1205,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

@@ -7,6 +7,20 @@
 
   .tds-morph-text, .num { font-variant-numeric: tabular-nums }
 
+  .tds-fluid {
+    position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; opacity: 0; background: var(--tds-overlay-hover);
+    transition: translate var(--tds-dur-glide) var(--tds-ease-glide), width var(--tds-dur-glide) var(--tds-ease-glide), height var(--tds-dur-glide) var(--tds-ease-glide), border-radius var(--tds-dur-glide) var(--tds-ease-glide), opacity var(--tds-dur-hover) var(--tds-ease-out);
+  }
+  .tds-fluid[data-on] { opacity: 1 }
+  .tds-fluid[data-instant] { transition: opacity var(--tds-dur-hover) var(--tds-ease-out) }
+  [data-fluid] { isolation: isolate }
+  .tds-menu > .tds-fluid { background: var(--tds-overlay-item-on) }
+  .tds-palette-list > .tds-fluid { background: var(--tds-overlay-palette-on) }
+  .tds-sidebar .tds-fluid { background: var(--tds-surface-row-hover) }
+  [data-fluid] .tds-menu-item[data-highlighted]:not([data-danger]), [data-fluid] .tds-palette-item[data-highlighted], [data-fluid] .tds-row:not([data-selected]):hover, [data-fluid] .tds-header-button:not([aria-pressed="true"]):hover { background: transparent }
+  @media (hover: hover) and (pointer: fine) { [data-fluid] .tds-rail-button:not([data-on]):hover { background: transparent } }
+
+
   .tds-stagger > * { animation: tds-stagger-in var(--tds-dur-layout) var(--tds-ease-out) both; animation-delay: calc(var(--i, 0) * var(--tds-stagger)) }
   @keyframes tds-stagger-in { from { opacity: 0; translate: 0 var(--tds-space-4) } }
 
