@@ -4,6 +4,4 @@ node_modules/
 .dev.vars.*
 dist/
 coverage/
-web/parity/
-web/parity.html
 __pycache__/

@@ -12,8 +12,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun run build:web
-      - run: bunx tsgo --noEmit -p web/tsconfig.json
-      - run: bun --filter @tock/theme check
-      - run: bun --filter @tock/ui parity
       - run: bun run check
