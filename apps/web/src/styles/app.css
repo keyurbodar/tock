@@ -57,3 +57,4 @@
   input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { outline: none }
   .num { font-variant-numeric: tabular-nums; }
 }
+@import "./lightbox-docs.css";

@@ -1,0 +1,50 @@
+/* Previewable docs in the lightbox (HTML, SVG, Markdown): a rendered view and its source behind one toggle, both filling the box. */
+@layer components {
+  .tds-lightbox-previewable { position: relative; flex-direction: column }
+  .tds-lightbox-doc { --lightbox-gutter: calc(var(--tds-size-lightbox-nav-x) + var(--tds-size-lightbox-nav) + var(--tds-space-8)); width: min(var(--tds-size-lightbox-doc), calc(100vw - var(--lightbox-gutter) * 2)) }
+  .tds-lightbox-doc[data-kind="html"] { width: min(var(--tds-size-lightbox-w), calc(100vw - var(--lightbox-gutter) * 2)) }
+  .tds-lightbox-preview, .tds-lightbox-source { display: flex; flex: 1; min-width: 0; min-height: 0 }
+  .tds-lightbox-previewable[data-view="preview"] > .tds-lightbox-source, .tds-lightbox-previewable[data-view="source"] > .tds-lightbox-preview { display: none }
+  .tds-lightbox-preview { overflow: hidden }
+  .tds-lightbox-preview > iframe { flex: none; border: 0; transform-origin: 0 0; background: var(--tds-surface-white) }
+  .tds-lightbox-previewable[data-kind="svg"][data-view="preview"] > .tds-lightbox-preview {
+    align-items: center; justify-content: center; padding: var(--tds-space-24); background: var(--tds-surface-backdrop);
+    & > img { display: block; max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; object-fit: contain; user-select: none }
+  }
+  .tds-lightbox-previewable[data-kind="md"][data-view="preview"] > .tds-lightbox-preview[data-edge-fade] { display: block; overflow-y: auto; overscroll-behavior: contain; padding: var(--tds-space-20) var(--tds-space-24) }
+  .tds-lightbox-preview > .tds-lightbox-md {
+    width: 100%; max-width: none;
+    & > .tds-bubble { align-self: stretch; max-width: none; padding-inline: 0; background: none; box-shadow: none }
+  }
+  [data-narrow] .tds-lightbox-nav { display: none }
+  :is(.tds-lightbox-doc, .tds-lightbox-source) > .tds-code {
+    flex: 1; align-self: stretch; display: flex; flex-direction: column; width: 100%; max-width: none; min-height: 0; margin: 0; border-radius: 0; box-shadow: none; --tds-size-code-max: none;
+    & .tds-code-body { flex: 1; min-height: 0; border-radius: 0 }
+  }
+
+  .tds-lightbox-views {
+    display: flex; align-items: center; gap: var(--tds-space-2); height: var(--tds-size-lightbox-button); padding: 0 var(--tds-space-4); border-radius: var(--tds-radius-pill);
+    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow);
+    & button {
+      display: flex; align-items: center; gap: var(--tds-space-6); height: calc(var(--tds-size-lightbox-button) - var(--tds-space-8)); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-pill);
+      font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-muted);
+      transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
+    }
+    & button[aria-pressed="true"] { background: var(--tds-overlay-fill-8); color: var(--tds-text-tx) }
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-lightbox-views button:hover { color: var(--tds-text-tx) } }
+
+  [data-narrow] .tds-lightbox-bar {
+    gap: var(--tds-space-6); left: var(--tds-space-16); right: var(--tds-space-16);
+    & em { gap: var(--tds-space-6) }
+    & em > span:not(.tds-lightbox-count) { display: none }
+    & .tds-lightbox-button > span, & .tds-lightbox-views span { display: none }
+    & .tds-lightbox-button { width: var(--tds-size-lightbox-button); padding: 0; justify-content: center; flex: none }
+    & .tds-lightbox-views { flex: none }
+    & .tds-lightbox-views button { padding: 0 var(--tds-space-8) }
+  }
+  [data-narrow] .tds-lightbox-doc { width: calc(100vw - var(--tds-space-16) * 2) }
+
+  .tds-lightbox[data-failed] .tds-lightbox-stage > :last-child { visibility: hidden }
+  .tds-lightbox[data-failed] .tds-lightbox-failed { max-width: calc(100vw - var(--tds-space-32) * 2); text-align: center; font-size: var(--tds-type-body-size); color: var(--tds-text-tx2) }
+}

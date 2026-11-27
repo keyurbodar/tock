@@ -15,7 +15,7 @@ export interface SentFile {
 
 export type FileKind = "image" | "video" | "text" | "doc"
 
-const TEXTUAL = /\.(md|markdown|mdx|txt|csv|log|m?[jt]sx?|json|css|html?|py|rs|go|rb|swift|sh|ya?ml|toml|sql|xml)$/i
+const TEXTUAL = /\.(md|markdown|mdx|txt|csv|log|m?[jt]sx?|json|css|html?|py|rs|go|rb|swift|sh|ya?ml|toml|sql|xml|svg)$/i
 export const isPdf = (name: string) => /\.pdf$/i.test(name)
 /** Text and PDFs open in the lightbox; anything else opens in a new tab. */
 const opensInViewer = (name: string) => kindOf(name) === "text" || isPdf(name)

@@ -35,6 +35,8 @@
 | PDF | pdf | a two-page PDF counts its pages on the tray card, the sent doc card shows page one as its thumbnail (pdf.js, on demand), and the lightbox draws every page with a page count in the bar |
 | Odd files | oddfiles | a file without an extension is refused by name, an empty file reads Empty, a trailing newline is not a line, long extensions keep their pill |
 | Broken media and SVG | badmedia | a picture that won't decode shows a placeholder (no broken glyph) in the tray and the gallery; an SVG stays a picture before and after sending and opens in the lightbox |
+| Doc previews | docpreview | .html, .svg and .md open on Preview from the tray and the sent card: the page renders in a sandboxed iframe (no allow-same-origin, scripts never run) scaled from a 1280px desktop width to the box, SVG as an image, Markdown filling the box; Tab reaches the Preview / Source toggle and Source shows the CodeBlock filling and centred in the box; Escape closes and focus returns; at 390 and 768 every bar button stays on screen, actions collapse to labelled icons and the box never scrolls |
+| Lightbox failure | lightboxfail | a 2 KB .webm of zeros opens to a centred "video can’t be played" message in the words of its kind, the broken player hidden, Download still there |
 | Health | diagnostics | no Solid diagnostics or page errors across the run |
 - [media.md](media.md): image rows, doc cards, lightbox, finished-elsewhere dot (`lightbox`, `finished`)
 - [ui.md](ui.md): interface/layout rules from the jk and ek skills (`ui`)

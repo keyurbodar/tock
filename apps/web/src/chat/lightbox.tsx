@@ -20,6 +20,29 @@ const flip = (from: DOMRect, to: DOMRect) => "translate(" + (from.x - to.x) + "p
 const slide = (dir: number) => "translateX(" + dir * tokens.size["lightbox-slide"] + "px) scale(" + tokens.motion.press + ")"
 const clamp = (value: number, max: number) => Math.min(max, Math.max(-max, value))
 
+type Previewable = "html" | "svg" | "md"
+type View = "preview" | "source"
+/** Files with a rendered view as well as their source: a page, a drawing, a Markdown note. */
+const previewable = (name: string): Previewable | undefined => (/\.html?$/i.test(name) ? "html" : /\.svg$/i.test(name) ? "svg" : /\.(md|markdown|mdx)$/i.test(name) ? "md" : undefined)
+const sourceLang: Record<Previewable, string> = { html: "html", svg: "xml", md: "md" }
+
+/** What to say when an item will not show, in the words of its kind. */
+const failure = (name: string) => {
+  if (/\.(mp4|mov|webm|m4v)$/i.test(name)) return "This video can’t be played here. Download it to watch it."
+  if (/\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(name)) return "This audio can’t be played here. Download it to listen."
+  if (/\.pdf$/i.test(name)) return "PDF unavailable. The file may have been moved, deleted or damaged."
+  if (isImage(name) || /\.svg$/i.test(name)) return "Image unavailable. The file may have been moved or deleted."
+  return "Document unavailable. The file may have been moved or deleted."
+}
+
+/** No scripts, no network but styles, fonts and pictures, nothing that can reach back into Tock: the sandbox gives the page an opaque origin and this policy caps what it loads. */
+const PAGE_POLICY = "default-src 'none'; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; form-action 'none'; base-uri 'none'"
+const withPolicy = (html: string) => {
+  const meta = '<meta http-equiv="Content-Security-Policy" content="' + PAGE_POLICY + '">'
+  const doctype = /^\s*<!doctype[^>]*>/i.exec(html)
+  return doctype ? doctype[0] + meta + html.slice(doctype[0].length) : meta + html
+}
+
 /** Warms the browser cache so the next arrow press lands on a decoded picture (as T3Code preloads neighbours). */
 function preload(item: LightboxItem | undefined) {
   if (!item) return
@@ -39,6 +62,8 @@ function Viewer(props: { opening: Opening }) {
   const [failed, setFailed] = createSignal<Record<string, true>>({})
   const [sizes, setSizes] = createSignal<Record<string, number>>({})
   const [pages, setPages] = createSignal<Record<string, number>>({})
+  const [view, setView] = createSignal<View>("preview")
+  const texts = new Map<string, string>()
   let root!: HTMLDivElement
   let stage!: HTMLDivElement
   let pan = { x: 0, y: 0 }
@@ -79,6 +104,64 @@ function Viewer(props: { opening: Opening }) {
     apply()
   }
 
+  /** The rendered view. A page renders at a desktop width in a sandboxed frame and is scaled down to the box, like a thumbnail of the real thing that still scrolls and clicks. */
+  const preview = (kind: Previewable, body: string, name: string): HTMLElement => {
+    const pane = document.createElement("div")
+    pane.className = "tds-lightbox-preview"
+    if (kind === "html") {
+      const frame = document.createElement("iframe")
+      frame.setAttribute("sandbox", "")
+      frame.setAttribute("referrerpolicy", "no-referrer")
+      frame.title = name
+      frame.srcdoc = withPolicy(body)
+      const page = tokens.size["lightbox-page"]
+      const fit = () => {
+        const scale = pane.clientWidth / page
+        if (!scale) return
+        frame.style.width = px(page)
+        frame.style.height = px(pane.clientHeight / scale)
+        frame.style.transform = "scale(" + scale + ")"
+      }
+      const observer = new ResizeObserver(fit)
+      observer.observe(pane)
+      mounted.push(() => observer.disconnect())
+      pane.append(frame)
+      return pane
+    }
+    if (kind === "svg") {
+      const url = URL.createObjectURL(new Blob([body], { type: "image/svg+xml" }))
+      mounted.push(() => URL.revokeObjectURL(url))
+      const img = document.createElement("img")
+      img.src = url
+      img.alt = name
+      img.draggable = false
+      pane.append(img)
+      return pane
+    }
+    pane.classList.add("tds-scroll")
+    pane.dataset.edgeFade = "y"
+    mounted.push(render(() => <div class="tds-lightbox-md"><Markdown text={body} /></div>, pane))
+    return pane
+  }
+
+  /** The source, in the one CodeBlock, drawn the first time someone asks for it. */
+  const source = (kind: Previewable, body: string): HTMLElement => {
+    const pane = document.createElement("div")
+    pane.className = "tds-lightbox-source"
+    mounted.push(render(() => <CodeBlock code={body} lang={sourceLang[kind]} />, pane))
+    return pane
+  }
+
+  const choose = (next: View) => {
+    setView(next)
+    const doc = current()
+    if (!doc?.classList.contains("tds-lightbox-previewable")) return
+    doc.dataset.view = next
+    const kind = doc.dataset.kind as Previewable
+    const body = texts.get(untrack(item).id)
+    if (next === "source" && body !== undefined && !doc.querySelector(".tds-lightbox-source")) doc.append(source(kind, body))
+  }
+
   const picture = (item: LightboxItem): HTMLElement => {
     if (/\.(mp4|mov|webm|m4v)$/i.test(item.name)) {
       const video = document.createElement("video")
@@ -107,6 +190,23 @@ function Viewer(props: { opening: Opening }) {
         .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
       return doc
     }
+    const kind = previewable(item.name)
+    if (kind) {
+      const doc = document.createElement("div")
+      doc.className = "tds-lightbox-doc tds-lightbox-previewable"
+      doc.dataset.kind = kind
+      doc.dataset.view = "preview"
+      void fetch(fileUrl(item.id))
+        .then((response) => (response.ok ? response.text() : Promise.reject(new Error("missing"))))
+        .then((text) => {
+          const body = text.slice(0, limit["lightbox-text"])
+          texts.set(item.id, body)
+          doc.append(preview(kind, body, item.name))
+          if (doc.dataset.view === "source") doc.append(source(kind, body))
+        })
+        .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
+      return doc
+    }
     if (!isImage(item.name)) {
       const doc = document.createElement("div")
       doc.className = "tds-lightbox-doc"
@@ -120,10 +220,7 @@ function Viewer(props: { opening: Opening }) {
         .then((text) => {
           const body = text.slice(0, limit["lightbox-text"])
           const ext = extension(item.name).toLowerCase()
-          if (ext === "md" || ext === "markdown" || ext === "mdx") {
-            pre.remove()
-            mounted.push(render(() => <div class="tds-lightbox-md"><Markdown text={body} /></div>, doc))
-          } else if (lang(ext) && lang(ext) !== "plaintext") {
+          if (lang(ext) && lang(ext) !== "plaintext") {
             pre.remove()
             mounted.push(render(() => <CodeBlock code={body} lang={ext} />, doc))
           } else pre.textContent = body
@@ -151,6 +248,7 @@ function Viewer(props: { opening: Opening }) {
     const img = picture(items[next]!)
     pan = { x: 0, y: 0 }
     setZoom(1)
+    setView("preview")
     setIndex(next)
     preload(items[next + dir])
     if (old) {
@@ -214,6 +312,12 @@ function Viewer(props: { opening: Opening }) {
   }
   window.addEventListener("keydown", onKey, true)
   onCleanup(() => window.removeEventListener("keydown", onKey, true))
+  /** A click into a previewed page hands it focus, and its keys never reach this window; take focus back so Escape and the arrows keep working. */
+  const onBlur = () => queueMicrotask(() => {
+    if (document.activeElement instanceof HTMLIFrameElement && root.contains(document.activeElement)) root.focus({ preventScroll: true })
+  })
+  window.addEventListener("blur", onBlur)
+  onCleanup(() => window.removeEventListener("blur", onBlur))
   onCleanup(() => mounted.forEach((dispose) => dispose()))
 
   const onWheel = (event: WheelEvent) => {
@@ -316,6 +420,7 @@ function Viewer(props: { opening: Opening }) {
       aria-label={item().name}
       data-ready={ready() && !closing() ? "" : undefined}
       data-zoomed={zoom() > 1 ? "" : undefined}
+      data-failed={failed()[item().id] ? "" : undefined}
       onClick={(event) => {
         if (!(event.target as HTMLElement).closest("button, .tds-lightbox-stage")) close()
       }}
@@ -331,13 +436,25 @@ function Viewer(props: { opening: Opening }) {
           <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} mode="calm" /></span>}</Show>
           <Show when={pages()[item().id]}>{(count) => <span>{count() === 1 ? "1 page" : count() + " pages"}</span>}</Show>
         </em>
-        <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>
+        <Show when={previewable(item().name)}>
+          <div class="tds-lightbox-views tds-over" role="group" aria-label="View">
+            <button type="button" aria-label="Preview" aria-pressed={view() === "preview" ? "true" : "false"} onClick={() => choose("preview")}>
+              <Icon name="eye" size="chip" />
+              <span>Preview</span>
+            </button>
+            <button type="button" aria-label="Source" aria-pressed={view() === "source" ? "true" : "false"} onClick={() => choose("source")}>
+              <Icon name="code" size="chip" />
+              <span>Source</span>
+            </button>
+          </div>
+        </Show>
+        <button type="button" class="tds-lightbox-button tds-over" data-action="download" aria-label="Download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />
-          Download
+          <span>Download</span>
         </button>
-        <button type="button" class="tds-lightbox-button tds-over" data-action="copy" onClick={() => void copy()}>
+        <button type="button" class="tds-lightbox-button tds-over" data-action="copy" aria-label="Copy" onClick={() => void copy()}>
           <Icon name="copy" size="menu" />
-          Copy
+          <span>Copy</span>
         </button>
         <button type="button" class="tds-lightbox-button tds-over" data-action="close" aria-label="Close" onClick={() => close()}>
           <Icon name="x" size="menu" />
@@ -372,7 +489,7 @@ function Viewer(props: { opening: Opening }) {
         </div>
       </Show>
       <Show when={failed()[item().id]}>
-        <p class="tds-lightbox-failed" role="alert">Image unavailable. The file may have been moved or deleted.</p>
+        <p class="tds-lightbox-failed" role="alert">{failure(item().name)}</p>
       </Show>
       <Show when={items.length > 1}>
         <button type="button" class="tds-lightbox-nav tds-over" data-dir="prev" aria-label="Previous image" onClick={() => show(untrack(index) - 1, -1)}>
