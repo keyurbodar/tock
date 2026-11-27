@@ -6,7 +6,7 @@ const root = join(dirname(createRequire(import.meta.url).resolve("@phosphor-icon
 
 const regular = [
   "chat-circle", "folder-simple", "bell", "keyboard", "gear-six", "magnifying-glass", "note-pencil", "plus", "arrow-up", "arrow-down", "stop",
-  "waveform", "dots-three", "archive", "trash", "push-pin", "push-pin-slash", "pencil-simple", "circle", "bell-slash", "link-simple",
+  "waveform", "minus", "dots-three", "archive", "trash", "push-pin", "push-pin-slash", "pencil-simple", "circle", "bell-slash", "link-simple",
   "x", "check", "warning-circle", "hand", "arrow-counter-clockwise", "paperclip", "image", "file", "file-pdf", "file-text", "file-code",
   "file-audio", "file-video", "file-zip", "text-align-left", "download-simple", "copy", "arrow-u-down-left", "arrows-out-simple", "arrow-square-out",
   "prohibit", "wifi-slash", "sidebar-simple", "caret-down", "caret-up", "caret-right", "caret-left", "arrow-left", "arrow-right", "globe",

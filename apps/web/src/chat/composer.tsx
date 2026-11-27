@@ -68,17 +68,13 @@ function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => vo
         when={props.item.preview}
         fallback={
           <>
-            <span class="tds-attach-glyph" data-kind={kind().kind} style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}>
-              <Icon name={kind().icon} size="menu" />
-              <b>{extension(props.item.name)}</b>
-            </span>
             <span class="tds-attach-meta">
               <b>{props.item.name}</b>
               <Show
                 when={props.item.status === "failed"}
                 fallback={
                   <span class="num" data-shimmer={props.item.status === "reading" ? "" : undefined}>
-                    {props.item.status === "uploading" ? `${Math.round(props.item.progress * 100)}% of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))}
+                    <TextMorph value={props.item.status === "uploading" ? `${Math.round(props.item.progress * 100)}% of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))} />
                   </span>
                 }
               >
@@ -89,6 +85,10 @@ function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => vo
                   </button>
                 </span>
               </Show>
+            </span>
+            <span class="tds-sq-foot" style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}>
+              <Icon name={kind().icon} size="chip" />
+              <span class="tds-sq-pill">{extension(props.item.name)}</span>
             </span>
           </>
         }

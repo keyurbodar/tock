@@ -15,6 +15,7 @@
 @import "./toasts.css";
 @import "./motion.css";
 @import "./composer.css";
+@import "./files.css";
 
 @layer base {
   html {

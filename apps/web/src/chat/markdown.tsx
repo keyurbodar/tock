@@ -7,6 +7,7 @@ import { Icon } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
 import { FileChip, ThreadChip } from "./chip"
+import { Attachments, type SentFile } from "./files"
 import { ExternalLink, shortUrl, webHost } from "./link"
 import { createReveal } from "./stream"
 
@@ -147,12 +148,24 @@ function CodeCard(props: { token: Tokens.Code }) {
   )
 }
 
+/** A paragraph that is only file links is an attachment group, not prose: the agent returned files. */
+function filesOnly(token: Token): SentFile[] | null {
+  if (token.type !== "paragraph") return null
+  const files: SentFile[] = []
+  for (const part of (token as Tokens.Paragraph).tokens) {
+    if (part.type === "link" && /^tock-file:[\w-]+$/.test(part.href)) files.push({ id: part.href.slice("tock-file:".length), name: plainLabel(part.text) })
+    else if (!((part.type === "text" || part.type === "br") && !("text" in part && String(part.text).trim()))) return null
+  }
+  return files.length > 0 ? files : null
+}
+
 function Block(props: { token: Token; clock?: () => Words | undefined }) {
   return (
     <Switch fallback={<div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent">{props.token.raw.trim()}</div>}>
       <Match when={props.token.type === "code"}>
         <CodeCard token={props.token as Tokens.Code} />
       </Match>
+      <Match when={filesOnly(props.token)}>{(files) => <Attachments files={files()} side="agent" />}</Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
         <div ref={(el) => clamp(el)} class="tds-bubble" data-side="agent" data-heading={props.token.type === "heading" ? "" : undefined}>
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}

@@ -3,7 +3,7 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { animate, prefersReducedMotion } from "@tock/motion"
-import { fileUrl, formatSize } from "./attachments"
+import { fileUrl, formatSize, isImage } from "./attachments"
 import { toast } from "../shell/toasts"
 
 export interface LightboxItem {
@@ -61,7 +61,8 @@ function Viewer(props: { opening: Opening }) {
       .then((blob) => setSizes((all) => ({ ...all, [item.id]: blob.size })))
       .catch(() => undefined)
 
-  const current = () => stage.lastElementChild as HTMLImageElement | null
+  const current = () => stage.lastElementChild as HTMLElement | null
+  const zoomable = () => current() instanceof HTMLImageElement
 
   const apply = (instant = false) => {
     const img = current()
@@ -77,7 +78,7 @@ function Viewer(props: { opening: Opening }) {
   /** Zooms around a viewport point, so what is under the pointer stays under it. */
   const zoomTo = (next: number, at?: { x: number; y: number }) => {
     const img = current()
-    if (!img) return
+    if (!img || !zoomable()) return
     const z = untrack(zoom)
     const clamped = Math.min(limit["zoom-max"], Math.max(1, next))
     if (clamped === z) return
@@ -89,7 +90,30 @@ function Viewer(props: { opening: Opening }) {
     apply()
   }
 
-  const picture = (item: LightboxItem) => {
+  const picture = (item: LightboxItem): HTMLElement => {
+    if (/\.(mp4|mov|webm|m4v)$/i.test(item.name)) {
+      const video = document.createElement("video")
+      video.src = fileUrl(item.id)
+      video.controls = true
+      video.autoplay = true
+      video.playsInline = true
+      video.className = "tds-lightbox-picture tds-lightbox-video"
+      video.onerror = () => setFailed((all) => ({ ...all, [item.id]: true }))
+      return video
+    }
+    if (!isImage(item.name)) {
+      const doc = document.createElement("div")
+      doc.className = "tds-lightbox-doc"
+      const pre = document.createElement("pre")
+      pre.className = "tds-scroll"
+      pre.textContent = "Loading…"
+      doc.append(pre)
+      void fetch(fileUrl(item.id))
+        .then((response) => (response.ok ? response.text() : Promise.reject(new Error("missing"))))
+        .then((text) => (pre.textContent = text.slice(0, limit["lightbox-text"])))
+        .catch(() => setFailed((all) => ({ ...all, [item.id]: true })))
+      return doc
+    }
     const img = document.createElement("img")
     img.src = fileUrl(item.id)
     img.alt = item.name
@@ -186,7 +210,7 @@ function Viewer(props: { opening: Opening }) {
   }
 
   const onPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0 || !(event.target as HTMLElement).closest(".tds-lightbox-picture")) return
+    if (event.button !== 0 || !(event.target as HTMLElement).closest("img.tds-lightbox-picture")) return
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y, touch: event.pointerType !== "mouse", moved: false }
     stage.setPointerCapture(event.pointerId)
   }
@@ -220,7 +244,7 @@ function Viewer(props: { opening: Opening }) {
     setTimeout(() => (drag = undefined))
   }
   const onStageClick = (event: MouseEvent) => {
-    if (!drag || drag.moved) return
+    if (!drag || drag.moved || !zoomable()) return
     zoomTo(untrack(zoom) > 1 ? 1 : limit["zoom-toggle"], { x: event.clientX, y: event.clientY })
   }
 
@@ -231,7 +255,7 @@ function Viewer(props: { opening: Opening }) {
       stage.append(img)
       preload(items[start + 1])
       preload(items[start - 1])
-      await img.decode().catch(() => undefined)
+      if (img instanceof HTMLImageElement) await img.decode().catch(() => undefined)
       from.style.visibility = "hidden"
       animate(root, [{ backgroundColor: "transparent" }, { backgroundColor: "var(--tds-overlay-lightbox)" }], { duration: d.swap, fill: "forwards" })
       animate(img, [{ transform: flip(from.getBoundingClientRect(), img.getBoundingClientRect()), transformOrigin: "0 0", borderRadius: px(tokens.radius["lightbox-from"]) }, { transform: "none", transformOrigin: "0 0", borderRadius: px(tokens.radius.lightbox) }], { duration: d["lightbox-open"], easing: ease.sheet })
@@ -275,16 +299,15 @@ function Viewer(props: { opening: Opening }) {
         if (!(event.target as HTMLElement).closest("button, .tds-lightbox-stage")) close()
       }}
     >
+      <Show when={items.length > 1}>
+        <span class="tds-lightbox-count num" aria-live="polite" aria-atomic="true">
+          <TextMorph value={index() + 1 + " / " + items.length} />
+        </span>
+      </Show>
       <div class="tds-lightbox-bar">
         <b>{item().name}</b>
-        <em class="num" aria-live="polite" aria-atomic="true">
-          <Show when={items.length > 1}>
-            <span class="tds-lightbox-count"><TextMorph value={index() + 1 + " of " + items.length} /></span>
-          </Show>
+        <em class="num">
           <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} /></span>}</Show>
-          <Show when={zoom() > 1}>
-            <span class="tds-lightbox-zoom"><TextMorph value={Math.round(zoom() * 100) + "%"} /></span>
-          </Show>
         </em>
         <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />
@@ -310,6 +333,22 @@ function Viewer(props: { opening: Opening }) {
         onPointerCancel={onPointerUp}
         onClick={onStageClick}
       />
+      <Show when={isImage(item().name)}>
+        <div class="tds-lightbox-zoom tds-over" role="group" aria-label="Zoom">
+          <button type="button" aria-label="Zoom out" disabled={zoom() <= 1} onClick={() => zoomTo(untrack(zoom) / limit["zoom-step"])}>
+            <Icon name="minus" size="chip" />
+          </button>
+          <span class="num"><TextMorph value={Math.round(zoom() * 100) + "%"} /></span>
+          <button type="button" aria-label="Zoom in" onClick={() => zoomTo(untrack(zoom) * limit["zoom-step"])}>
+            <Icon name="plus" size="chip" />
+          </button>
+          <button type="button" data-preset="" aria-pressed={zoom() === 1 ? "true" : "false"} onClick={() => zoomTo(1)}>100%</button>
+          <button type="button" data-preset="" aria-pressed={zoom() === 2 ? "true" : "false"} onClick={() => zoomTo(2)}>200%</button>
+          <button type="button" aria-label="Reset zoom" onClick={() => zoomTo(1)}>
+            <Icon name="arrow-counter-clockwise" size="chip" />
+          </button>
+        </div>
+      </Show>
       <Show when={failed()[item().id]}>
         <p class="tds-lightbox-failed" role="alert">Image unavailable. The file may have been moved or deleted.</p>
       </Show>
@@ -324,7 +363,9 @@ function Viewer(props: { opening: Opening }) {
           <For each={items} keyed={(entry) => entry.id}>
             {(entry, i) => (
               <button type="button" data-on={i() === index() ? "" : undefined} aria-label={entry().name} aria-current={i() === index() ? "true" : undefined} onClick={() => show(untrack(i), untrack(i) > untrack(index) ? 1 : -1)}>
-                <img src={fileUrl(entry().id)} alt="" draggable={false} />
+                <Show when={isImage(entry().name)} fallback={<span class="tds-lightbox-film-doc">{entry().name.split(".").pop()?.toUpperCase()}</span>}>
+                  <img src={fileUrl(entry().id)} alt="" draggable={false} />
+                </Show>
               </button>
             )}
           </For>

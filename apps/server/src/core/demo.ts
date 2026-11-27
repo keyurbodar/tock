@@ -57,6 +57,10 @@ const scripted: FauxResponseFactory = (context) => {
     return fauxAssistantMessage(fauxText("Understood, I won't deploy. The branch stays as it is, ready whenever you want to ship it."))
   if (!done.size) {
     if (asked.startsWith("Show a long code block")) return fauxAssistantMessage(fauxText(LONG))
+    if (asked.startsWith("Send the files back")) {
+      const files = asked.match(/\[[^\]\n]+\]\(tock-file:[\w-]+\)/g) ?? []
+      return fauxAssistantMessage(fauxText(files.length ? `Here they are, cleaned up and ready.\n\n${files.join("\n")}\n\nShout if any of them needs another pass.` : "There were no files to send back."))
+    }
     if (asked.length < 12) return fauxAssistantMessage(fauxText(`On it. Tell me a little more about ${asked ? `"${asked}"` : "what you need"} and I'll start.`))
     return fauxAssistantMessage([
       fauxThinking(`Reading the request: ${asked.slice(0, 120)}. I'll check what I already know first, then test the idea in the sandbox before I answer, so the reply rests on something I ran rather than a guess.`),

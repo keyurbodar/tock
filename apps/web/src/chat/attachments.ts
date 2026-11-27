@@ -85,10 +85,10 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 
 /** What the card says once the file is read (TDS px3 meta): lines for text, pages for PDFs, the size for the rest. */
 async function describe(file: File): Promise<string> {
-  if (TEXTUAL.test(file.name) || file.type.startsWith("text/")) return plural((await file.text()).split("\n").length, "line")
+  if (TEXTUAL.test(file.name) || file.type.startsWith("text/")) return `${formatSize(file.size)} · ${plural((await file.text()).split("\n").length, "line")}`
   if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
     const pages = ((await file.text()).match(/\/Type\s*\/Page(?!s)/g) ?? []).length
-    if (pages > 0) return plural(pages, "page")
+    if (pages > 0) return `${formatSize(file.size)} · ${plural(pages, "page")}`
   }
   return formatSize(file.size)
 }

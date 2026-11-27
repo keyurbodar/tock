@@ -11,6 +11,7 @@ import { AskCard } from "./ask"
 import { fileUrl, isImage, splitFiles } from "./attachments"
 import { FileCard, ThreadChip } from "./chip"
 import { openLightbox } from "./lightbox"
+import { Attachments } from "./files"
 import { ExternalLink, LinkMenu, openLinkMenu, shortUrl, webHost } from "./link"
 import { toast } from "../shell/toasts"
 import { app, type ThreadState } from "../state/app"
@@ -61,20 +62,9 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
   const docs = () => parts().files.filter((file) => !isImage(file.name))
   return (
     <>
-      <Show when={images().length > 0}>
-        <div class="tds-sent-images" data-count={Math.min(images().length, 3)} data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
-          <For each={images()} keyed={(file) => file.id}>
-            {(file) => (
-              <a href={fileUrl(file().id)} target="_blank" rel="noreferrer" class="tds-sent-image" data-file={file().id} data-name={file().name} onClick={viewImage}>
-                <img src={fileUrl(file().id)} alt={file().name} loading="lazy" draggable={false} />
-              </a>
-            )}
-          </For>
-        </div>
+      <Show when={parts().files.length > 0}>
+        <Attachments files={parts().files} side={mine() ? "me" : "agent"} queued={props.queued} />
       </Show>
-      <For each={docs()} keyed={(file) => file.id}>
-        {(file) => <FileCard id={file().id} name={file().name} side={mine() ? "me" : "agent"} />}
-      </For>
       <Show when={parts().text}>
         <div ref={(el) => clamp(el)} class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
           <Show when={RICH.test(parts().text)} fallback={<Prose text={parts().text} />}>
