@@ -21,6 +21,7 @@ let restTimer: ReturnType<typeof setTimeout> | undefined
 let leaveTimer: ReturnType<typeof setTimeout> | undefined
 let coolTimer: ReturnType<typeof setTimeout> | undefined
 let warm = false
+let pending = 0
 let hovered: { session: Session; row: HTMLElement } | undefined
 
 const intent = tokens.motion["hover-intent"]
@@ -31,7 +32,9 @@ async function show(session: Session, row: HTMLElement) {
   const side = row.closest(".tds-sidebar")?.getBoundingClientRect()
   const left = (side?.right ?? box.right) + tokens.space[14]!
   const top = Math.max(tokens.size["menu-dialog-top"] / 2, Math.min(box.top - tokens.space[14]!, innerHeight - tokens.size.peek * 2 / 3))
+  const ticket = ++pending
   const lines = await peekLines(session.id)
+  if (ticket !== pending) return
   if (hovered?.session.id !== session.id && shown() === undefined && !keyed) return
   keyed = false
   warm = true
@@ -88,6 +91,7 @@ export function peekLeave() {
 export function hidePeek() {
   clearTimeout(restTimer)
   clearTimeout(leaveTimer)
+  pending++
   if (!shown()) return
   setShown(undefined)
   clearTimeout(coolTimer)
