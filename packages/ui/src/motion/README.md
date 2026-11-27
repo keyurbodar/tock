@@ -43,7 +43,7 @@ It watches child-list changes and resizes. Moved items glide from their drawn po
 
 ## Presence: enter / exit
 Use it for an element appearing or leaving in place.
-`animate(el, frames, opts)` is the only WAAPI entry point. It defaults to `curve.out`, keeps only opacity under reduced motion (pass `essential: true` for timers and measured heights), and accepts null. Presets: `enter.menu|submenu|hoverCard|peek|toast|message|dialog|attachment|pane`, `exit.menu|toast|dialog|pane`, `collapse(el)`, and `expandTo(el, from, to)`. CSS entries reuse the keyframes in `motion.css` (`tds-stagger-in`, `tds-word`, `tds-peek-in`, …).
+`animate(el, frames, opts)` is the only WAAPI entry point. It defaults to `curve.out`, keeps only opacity under reduced motion (pass `essential: true` for timers and measured heights), and accepts null. Presets: `enter.menu|submenu|hoverCard|peek|toast|message|dialog|attachment|pane|followup`, `exit.menu|toast|dialog|pane|followup` (`enter.followup(el, i)` staggers by `duration.followup-stagger`, the KbSugg chips), `collapse(el)`, and `expandTo(el, from, to)`. CSS entries reuse the keyframes in `motion.css` (`tds-stagger-in`, `tds-word`, `tds-peek-in`, …).
 
 ## Spring
 `spring(el, frames, "snappy" | "soft" | "text" | "press" | "glide")` runs a token spring as a `linear()` easing on the compositor. `springEasing(name)` returns `{ easing, duration }` for your own `animate` call. Use springs for movement and scale; use `curve.out` with a duration for colour and opacity.

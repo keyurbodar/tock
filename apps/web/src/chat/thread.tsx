@@ -13,7 +13,8 @@ import type { OrbStatus } from "@tock/ui/orb"
 import { Transcript } from "./transcript"
 import { ChipCards } from "./chip-card"
 import { Boundary } from "../shell/boundary"
-import { hasPendingAsk } from "./items"
+import { followupsIn, hasPendingAsk } from "./items"
+import { Followups } from "./followups"
 
 export function Thread() {
   const params = useParams<{ id: string }>()
@@ -77,6 +78,7 @@ export function Thread() {
       </Show>
       <ChipCards />
       <Boundary surface="composer">
+        <Followups set={followupsIn(state()?.entries ?? [])} working={isWorking(state())} onPick={(prompt) => void send(params.id, prompt)} />
         <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
       </Boundary>
       <Show when={dragging()}>

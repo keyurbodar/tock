@@ -134,7 +134,20 @@ const scripted: FauxResponseFactory = (context) => {
       fauxToolCall("update_plan", { steps: PLAN, current: 1 }),
       fauxToolCall("codemode", { code: "const runs = [120, 140, 95, 210]\nreturn { slowest: Math.max(...runs), mean: runs.reduce((a, b) => a + b) / runs.length }" }),
     ], { stopReason: "toolUse" })
-  if (plans < 3) return fauxAssistantMessage([fauxToolCall("update_plan", { steps: PLAN, current: 2 })], { stopReason: "toolUse" })
+  if (plans < 3)
+    return fauxAssistantMessage(
+      [
+        fauxToolCall("update_plan", { steps: PLAN, current: 2 }),
+        fauxToolCall("suggest_followups", {
+          suggestions: [
+            { emoji: "🔀", label: "Open the pull request", prompt: "Open a pull request for fix/login-loop with a short summary of the race and the new test." },
+            { emoji: "🧪", label: "Run the flaky suite", prompt: "Run the auth test suite 20 times in the sandbox and tell me if the overlap test ever fails." },
+            { emoji: "📝", label: "Write release notes", prompt: "Draft a two-line release note for the login loop fix that a non-engineer understands." },
+          ],
+        }),
+      ],
+      { stopReason: "toolUse" },
+    )
   return fauxAssistantMessage(fauxText(REPLY))
 }
 

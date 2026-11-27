@@ -2147,6 +2147,50 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => exists(".tds-find"), (open) => !open, "the find bar to close")
     check(js<number>("return CSS.highlights.size") === 0, "highlights cleared on close")
   },
+  followups() {
+    fresh()
+    field()
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    check(!exists(".tds-followups"), "no follow-ups while the run works")
+    until(() => js<number>("return document.querySelectorAll('.tds-followup:not(.tds-followup-x)').length"), (n) => n === 3, "three follow-ups once the reply settles", 20000)
+    const delays = js<number[]>("return [...document.querySelectorAll('.tds-followup:not(.tds-followup-x)')].map((c) => c.getAnimations()[0]?.effect.getTiming().delay ?? -1)")
+    check(delays.join() === "0,70,140", `the chips enter with a 70ms stagger (got ${delays})`)
+    check(!exists(".tds-transcript .tds-step[data-tool='suggest_followups']") && !text(".tds-transcript").includes("suggest_followups"), "the tool call stays out of the transcript")
+    wait(700)
+    const geo = js<{ row: number; field: number; right: number; send: number; h: number }>("const r = document.querySelector('.tds-followups').getBoundingClientRect(); const chips = [...document.querySelectorAll('.tds-followup')].map((c) => c.getBoundingClientRect()); return { row: Math.max(...chips.map((c) => c.bottom)), field: document.querySelector('.tds-field').getBoundingClientRect().top, right: Math.max(...chips.map((c) => c.right)), send: document.querySelector('.tds-send').getBoundingClientRect().left, h: chips[0].height }")
+    check(geo.h === 36, `KbSugg chips are 36 tall (got ${geo.h})`)
+    check(geo.row <= geo.field - 8, `the row floats above the composer (row bottom ${geo.row}, field top ${geo.field})`)
+    check(geo.right <= geo.send - 8, `the row stays left of the Send column, clear of the scroll-to-end button (row right ${geo.right}, send left ${geo.send})`)
+    check(js<string>("return getComputedStyle(document.querySelector('.tds-followup-x')).opacity") === "0", "× waits for the row to be hovered")
+    shot("followups")
+    const prompt = js<string>("return document.querySelector('.tds-followup:nth-child(2) .tds-followup-tip').textContent")
+    ab("hover", ".tds-followup:nth-child(2)")
+    until(() => js<string>("return getComputedStyle(document.querySelector('.tds-followup:nth-child(2) .tds-followup-tip')).opacity"), (o) => o === "1", "the tooltip with the full prompt")
+    check(prompt.length > 30, `the tooltip carries the longer prompt (${prompt})`)
+    check(js<string>("return getComputedStyle(document.querySelector('.tds-followup-x')).opacity") === "1", "× shows while the row is hovered")
+    shot("followups-tip")
+    field()
+    ab("keyboard", "type", "x")
+    until(() => exists(".tds-followups"), (on) => !on, "the row to go as soon as you type")
+    ab("press", "Backspace")
+    until(() => exists(".tds-followup"), Boolean, "the row to come back once the field is empty")
+    wait(500)
+    const first = js<string>("return document.querySelector('.tds-followups').dataset.key")
+    ab("click", ".tds-followup:nth-child(2)")
+    until(() => js<string>("const b = [...document.querySelectorAll('.tds-bubble[data-side=me]')].at(-1); return b?.textContent ?? ''"), (t) => t.includes(prompt.slice(0, 30)), "the picked prompt to send")
+    until(() => js<string>("return document.querySelector('.tds-followups')?.dataset.key ?? ''"), (k) => k !== first, "the row to leave once the prompt is sent")
+    until(() => js<string>("return document.querySelectorAll('.tds-followup:not(.tds-followup-x)').length + ':' + (document.querySelector('.tds-followups')?.dataset.key ?? '')"), (s) => s.startsWith("3:") && !s.endsWith(first), "the next turn's follow-ups", 20000)
+    wait(500)
+    const key = js<string>("return document.querySelector('.tds-followups').dataset.key")
+    ab("hover", ".tds-followup:nth-child(1)")
+    ab("click", ".tds-followup-x")
+    until(() => exists(".tds-followups"), (on) => !on, "× to wave the row away")
+    ab("eval", "location.reload()")
+    until(() => exists(".tds-bubble[data-side='me']"), Boolean, "the chat after a reload", 10000)
+    wait(1500)
+    check(!exists(".tds-followups"), `the dismissed row stays gone after a reload (${key})`)
+  },
   headerglyph() {
     const id = fresh()
     check(!exists(".tds-header-avatar[data-glyph]"), "a new chat keeps the toast mascot")
@@ -4413,7 +4457,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

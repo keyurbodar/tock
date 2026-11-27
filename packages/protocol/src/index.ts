@@ -198,3 +198,27 @@ export interface ReactionEvent {
   readonly latest: ReactionPreview | null
 }
 
+/** TDS KbSugg: up to three next steps the agent proposes for its turn, through the suggest_followups tool. The call is part of the turn's transcript, so they survive a reload. */
+export const FOLLOWUPS_TOOL = "suggest_followups"
+export const FOLLOWUPS_MAX = 3
+
+export interface Followup {
+  /** One emoji shown before the label. */
+  readonly emoji: string
+  /** A short label, two to four words. */
+  readonly label: string
+  /** The full prompt sent when the chip is picked; the hover tooltip shows it. */
+  readonly prompt: string
+}
+
+/** Reads a suggest_followups call's arguments, dropping malformed entries and keeping at most three. */
+export const followupsOf = (args: Record<string, unknown>): readonly Followup[] =>
+  (Array.isArray(args.suggestions) ? args.suggestions : [])
+    .flatMap((entry: unknown) => {
+      if (typeof entry !== "object" || entry === null) return []
+      const { emoji, label, prompt } = entry as Record<string, unknown>
+      return typeof label === "string" && label.trim() && typeof prompt === "string" && prompt.trim()
+        ? [{ emoji: typeof emoji === "string" ? emoji.trim() : "", label: label.trim(), prompt: prompt.trim() }]
+        : []
+    })
+    .slice(0, FOLLOWUPS_MAX)

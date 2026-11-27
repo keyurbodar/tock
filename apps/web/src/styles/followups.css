@@ -1,0 +1,35 @@
+@layer components {
+  /* Hover is tracked from mouse pointer events (data-hover), so a tap never latches it and it works where (hover: hover) is unknown. TDS KbSugg: up to three next steps float over the transcript just above the composer, between the plus and Send columns, so they never meet the scroll-to-end button above Send */
+  .tds-followups {
+    position: absolute; z-index: var(--tds-z-header); inset-inline: 0; bottom: calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--tds-space-10));
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--tds-space-8);
+    width: 100%; max-width: var(--tds-size-column); margin-inline: auto;
+    padding-inline: calc(var(--tds-space-32) + var(--tds-size-plus) + var(--tds-space-8)) calc(var(--tds-space-32) + var(--tds-size-send) + var(--tds-space-8));
+    pointer-events: none;
+    & > * { pointer-events: auto }
+  }
+  .tds-followup {
+    position: relative; display: inline-flex; align-items: center; gap: var(--tds-space-8); height: var(--tds-size-followup-chip);
+    padding: 0 var(--tds-space-14) 0 var(--tds-space-11); border-radius: var(--tds-radius-pill);
+    font-size: var(--tds-type-pill-size); font-weight: var(--tds-type-pill-weight); letter-spacing: var(--tds-type-pill-tracking); color: var(--tds-text-tx); white-space: nowrap;
+    background: var(--tds-followup-fill); box-shadow: var(--tds-followup-shadow);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-followup-tip) var(--tds-ease-out), opacity var(--tds-dur-followup-tip) var(--tds-ease-out);
+  }
+  .tds-followup[data-hover] { background: var(--tds-followup-fill-hover) }
+  .tds-followup-emoji { display: grid; place-items: center; width: var(--tds-size-followup-emoji); font-size: var(--tds-size-followup-emoji); line-height: 1 }
+  .tds-followup-tip {
+    position: absolute; left: 0; bottom: calc(100% + var(--tds-space-8)); width: max-content; max-width: var(--tds-size-followup-tip);
+    padding: var(--tds-space-8) var(--tds-space-11); border-radius: var(--tds-radius-followup-tip);
+    font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-regular); line-height: var(--tds-type-secondary-lh); letter-spacing: var(--tds-type-secondary-tracking);
+    color: var(--tds-text-tx2); text-align: left; white-space: normal;
+    background: var(--tds-followup-tip-fill); box-shadow: var(--tds-followup-tip-shadow);
+    opacity: 0; translate: 0 var(--tds-space-4); pointer-events: none;
+    transition: opacity var(--tds-dur-followup-tip) var(--tds-ease-out), translate var(--tds-dur-followup-tip) var(--tds-ease-out);
+  }
+  .tds-followup[data-hover] .tds-followup-tip { opacity: 1; translate: 0 0 }
+  .tds-followup:focus-visible .tds-followup-tip { opacity: 1; translate: 0 0 }
+  .tds-followup-x { justify-content: center; width: var(--tds-size-followup-chip); padding: 0; color: var(--tds-text-muted); opacity: 0; pointer-events: none }
+  .tds-followups:focus-within .tds-followup-x { opacity: 1; pointer-events: auto }
+  .tds-followups[data-hover] .tds-followup-x { opacity: 1; pointer-events: auto }
+  @media (hover: none) and (pointer: coarse) { .tds-followup-x { opacity: 1; pointer-events: auto } }
+}

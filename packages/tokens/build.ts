@@ -46,6 +46,7 @@ for (const [k, val] of Object.entries(m.lift)) v(`lift-${k}`, val)
 for (const [k, val] of Object.entries(m.tip)) v(`tip-${k}`, val)
 v("veil-blur", m.veil.blur); v("veil-saturate", m.veil.saturate)
 v("pill-blur", m.pill.blur); v("pill-saturate", m.pill.saturate)
+for (const [k, val] of Object.entries(m.followup)) v(`followup-${k}`, val)
 for (const [k, val] of Object.entries(m.ring)) { v(`ring-${k}`, val); th(`shadow-ring-${k}`, `var(--tds-ring-${k})`) }
 for (const [k, val] of Object.entries(t.optical)) if (typeof val === "number") v(`optical-${k}`, px(val))
 color("glass", "glass-fill"); color("glass-on", "glass-fill-on"); color("over", "over-fill")

@@ -11,6 +11,7 @@ import {
   type ToolRegistration,
 } from "@earendil-works/pi-durable";
 import { arr, bool, lit, map, num, obj, opt, str, union, unknown } from "@earendil-works/pi-schema";
+import { FOLLOWUPS_TOOL, followupsOf } from "@tock/protocol";
 import type { UnifiedMemory } from "./memory.js";
 import type { Vault } from "./vault.js";
 import type { ExecutionGuards } from "./guards.js";
@@ -100,6 +101,9 @@ const FileWriteParams = obj({ name: str(), content: str(), mime: opt(str()) });
 const SkillReadParams = obj({ name: str(), file: opt(str()) });
 const ReactParams = obj({ emoji: str({ minLength: 1, maxLength: 32 }), ref: opt(str()) });
 const UpdatePlanParams = obj({ steps: arr(str()), current: num() });
+const SuggestFollowupsParams = obj({
+  suggestions: arr(obj({ emoji: str(), label: str(), prompt: str() })),
+});
 const AskOwnerParams = obj({
   question: str(),
   kind: opt(union([lit("approval"), lit("question")])),
@@ -348,6 +352,17 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     },
   });
 
+  const suggestFollowupsTool = defineTool({
+    name: FOLLOWUPS_TOOL,
+    description:
+      "Offer the owner up to three next steps after your reply, shown as chips above the composer. Call it once, near the end of a turn that leaves obvious follow-ups. Each has one emoji, a 2 to 4 word label and the full prompt the owner would send. Skip it when nothing useful follows.",
+    parameters: SuggestFollowupsParams,
+    replay: "safe",
+    async execute(args) {
+      return { output: [{ type: "text", text: JSON.stringify({ shown: followupsOf(args).length }) }] };
+    },
+  });
+
   const askOwnerTool = defineTool({
     name: "ask_owner",
     description:
@@ -516,6 +531,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
     routineListTool as unknown as ToolRegistration,
     routineDeleteTool as unknown as ToolRegistration,
     updatePlanTool as unknown as ToolRegistration,
+    suggestFollowupsTool as unknown as ToolRegistration,
     askOwnerTool as unknown as ToolRegistration,
     reactTool as unknown as ToolRegistration,
     notifyOwnerTool as unknown as ToolRegistration,

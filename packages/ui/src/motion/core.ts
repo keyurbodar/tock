@@ -78,6 +78,14 @@ export const enter = {
     animate(el, [{ opacity: 0, scale: 0.8, filter: blur(m.blur.enter) }, { opacity: 1, scale: 1, filter: clear }], { ...springEasing("soft") }),
   pane: (el: Element) =>
     animate(el, [{ opacity: 0, translate: "0 6px", filter: blur(m.blur.word) }, { opacity: 1, translate: "0 0", filter: clear }], dur.swap),
+  /** TDS KbSugg sgin: a follow-up chip rises 8px from .96, each one `followup-stagger` after the last. */
+  followup: (el: Element, index: number) =>
+    animate(el, [{ opacity: 0, translate: "0 8px", scale: 0.96 }, { opacity: 1, translate: "0 0", scale: 1 }], {
+      duration: dur["followup-in"],
+      delay: index * dur["followup-stagger"],
+      easing: ease.followup,
+      fill: "backwards",
+    }),
 }
 
 export const exit = {
@@ -86,6 +94,9 @@ export const exit = {
     animate(el, [{ opacity: 1 }, { opacity: 0, translate: swiped ? "120% 0" : "0 -6px", filter: swiped ? "none" : blur(m.blur.exit) }], { duration: swiped ? 220 : dur.exit, easing: ease.in, fill: "forwards" }),
   dialog: (el: Element) => animate(el, [{ opacity: 1 }, { opacity: 0, scale: 0.98 }], { duration: dur.tooltip, easing: ease.in, fill: "forwards" }),
   pane: (el: Element) => animate(el, [{ opacity: 1 }, { opacity: 0, filter: blur(m.blur.word) }], { duration: 110, easing: ease.in, fill: "forwards" }),
+  /** TDS KbSugg sgout: the chips drop 6px to .97 and fade together. */
+  followup: (el: Element) =>
+    animate(el, [{ opacity: 1 }, { opacity: 0, translate: "0 6px", scale: 0.97 }], { duration: dur["followup-out"], easing: ease.followup, fill: "forwards" }),
 }
 
 export function flip(els: HTMLElement[], change: () => void, duration: number = dur.swap, easing: string = ease.sheet) {

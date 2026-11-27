@@ -8,6 +8,7 @@ import type {
   ToolResultMessage,
   ToolSlot,
 } from "@tock/protocol"
+import { FOLLOWUPS_TOOL, followupsOf, type Followup } from "@tock/protocol"
 import { tokens } from "@tock/tokens"
 import { isPlan, planOf, type Plan } from "./steps"
 
@@ -72,6 +73,18 @@ export const askOf = (call: ToolCallBlock): Ask => {
     options: kind === "approval" ? ["Approve", "Deny"] : options,
     questions: kind === "approval" ? [] : asked.length ? asked : [{ question, options }],
   }
+}
+
+/** The follow-ups the agent proposed in the latest turn, keyed by their call; none once that turn errored or was stopped. */
+export const followupsIn = (entries: readonly EntryRecord[]): { readonly key: string; readonly items: readonly Followup[] } | undefined => {
+  const messages = entries.flatMap((entry) => entry.model ?? [])
+  const turn = messages.slice(messages.findLastIndex((message) => message.role === "user") + 1)
+  const last = turn.findLast((message) => message.role === "assistant")
+  if (!last || last.role !== "assistant" || last.stopReason === "error" || last.stopReason === "aborted") return undefined
+  const call = turn.flatMap((message) => (message.role === "assistant" ? message.content : [])).findLast((block) => block.type === "toolCall" && block.name === FOLLOWUPS_TOOL)
+  if (!call || call.type !== "toolCall") return undefined
+  const items = followupsOf(call.arguments)
+  return items.length ? { key: call.id, items } : undefined
 }
 
 export const hasPendingAsk = (entries: readonly EntryRecord[]) => {
@@ -209,6 +222,7 @@ export function buildItems(
       const slot = slots.get(block.id)
       const unfinished = result === undefined && (streaming || (running && slot?.status !== "done"))
       const cancelled = result === undefined ? !unfinished && message.stopReason === "aborted" : aborted.has(block.id)
+      if (block.name === FOLLOWUPS_TOOL) return
       const group = work()
       if (isPlan(block)) {
         group.plan = planOf(block) ?? group.plan
