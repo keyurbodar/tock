@@ -1526,6 +1526,7 @@ const journeys: Record<string, () => void> = {
     const moves = js<string[]>("return window.__moves")
     ab("set", "media", "dark")
     check(moves.length === 0, `element.animate moved things under reduced motion: ${moves.join(", ")}`)
+  },
   a11y() {
     const page = () => js<{ mains: number; h1: string[]; title: string; viewport: string; unnamed: string[]; noAlt: number; hiddenTabbable: string[]; positive: number; small: string[] }>(`
       const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && e.checkVisibility({ checkVisibilityCSS: true }) && !e.closest('[inert]') }
