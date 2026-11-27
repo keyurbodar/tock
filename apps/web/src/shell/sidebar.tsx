@@ -1,26 +1,15 @@
 import { createMemo, createSignal, For, Show } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { VList } from "virtua/solid"
-import { Icon, type IconName } from "@tock/ui/icon"
+import { Icon } from "@tock/ui/icon"
+import { glyphFor } from "../lib/glyph"
 import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
-import { app, createSession, titleOf, type Session } from "../state/app"
+import { app, newThreadId, titleOf, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
 
-const glyphs: readonly { icon: IconName; hue: string }[] = [
-  { icon: "code", hue: "text-hue-blue" },
-  { icon: "calendar-check", hue: "text-hue-rose" },
-  { icon: "chart-line-up", hue: "text-hue-sage" },
-  { icon: "hash", hue: "text-hue-violet" },
-  { icon: "globe", hue: "text-hue-sand" },
-  { icon: "broom", hue: "text-hue-butter" },
-  { icon: "currency-dollar", hue: "text-hue-teal" },
-  { icon: "airplane-tilt", hue: "text-hue-sky" },
-  { icon: "palette", hue: "text-hue-pink" },
-]
-const glyphFor = (id: string) => glyphs[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % glyphs.length]!
 
 function Highlight(props: { text: string; query: string }) {
   const parts = () => {
@@ -34,7 +23,7 @@ function Highlight(props: { text: string; query: string }) {
       { text: props.text.slice(at + q.length), hit: false },
     ]
   }
-  return <For each={parts()}>{(part) => (part.hit ? <b class="tds-hit">{part.text}</b> : part.text)}</For>
+  return <For each={parts()} keyed={false}>{(part) => (part().hit ? <b class="tds-hit">{part().text}</b> : part().text)}</For>
 }
 
 function Row(props: { session: Session; selected: boolean; query: string }) {
@@ -79,7 +68,7 @@ export function Sidebar() {
     return app.sessions.filter((s) => `${s.title} ${s.preview}`.toLowerCase().includes(q))
   })
   const working = createMemo(() => app.sessions.find((s) => s.busy))
-  const startChat = async () => navigate(`/t/${await createSession()}`)
+  const startChat = () => navigate(`/t/${newThreadId()}`)
 
   addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {

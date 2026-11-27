@@ -1,3 +1,22 @@
+import type { IconName } from "@tock/ui/icon"
+
+const icons: Record<string, IconName> = {
+  memory_search: "brain",
+  memory_save: "brain",
+  codemode: "code",
+  http_request: "globe",
+  file_read: "file-text",
+  file_write: "pencil-simple",
+  file_list: "folder-simple",
+  spawn_subagent: "sparkle",
+  schedule_followup: "clock",
+  notify_owner: "bell",
+  mcp_call: "plug",
+  mcp_discover: "plug",
+}
+
+export const stepIcon = (name: string): IconName => icons[name] ?? "lightning"
+
 const labels: Record<string, [running: string, done: string]> = {
   memory_search: ["Searching memory", "Searched memory"],
   memory_save: ["Saving to memory", "Saved to memory"],

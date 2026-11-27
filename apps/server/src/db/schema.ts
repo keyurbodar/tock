@@ -215,7 +215,13 @@ const MIGRATIONS: readonly Migration[] = [
     )`);
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_notif_queue_created ON tock_notification_queue(created_at ASC)`);
   },
-
+  (sql) => {
+    sql.exec(`CREATE TABLE IF NOT EXISTS tock_threads (
+      id TEXT PRIMARY KEY,
+      session TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    ) STRICT`);
+  },
 ];
 
 export function ensureSchema(sql: SqlStorage, defaultTimezone = "UTC"): void {

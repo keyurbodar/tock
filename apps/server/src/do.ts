@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { Lifecycle } from "agents/lifecycle";
 import { Scheduler } from "agents/schedules";
 import { PiHarness, ROOT_SESSION } from "agents/harness/pi";
+import { isThreadId, ThreadIds } from "./core/threads.js";
 import { summarizeEntries } from "./core/summary.js";
 import { MCPClientManager } from "agents/mcp/client";
 import { createRegistry, Harness, type ConversationWatch } from "@earendil-works/pi-durable";
@@ -61,6 +62,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly activeWatches = new Map<string, ConversationWatch>();
   private readonly lastUserQuery = new Map<string, string>();
   private readonly backgroundSessions = new Set<string>();
+  private readonly threads: ThreadIds;
 
   readonly mcpManager = new MCPClientManager("tock", "0.1.0");
 
@@ -111,6 +113,8 @@ export class TockDO extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ensureSchema(ctx.storage.sql, env.DEFAULT_TIMEZONE ?? "UTC");
+    this.threads = new ThreadIds(ctx.storage.sql);
+    this.threads.thread(ROOT_SESSION);
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     this.settingsStore = new SettingsStore(ctx.storage.sql);
     this.vault = new Vault(ctx.storage.sql, env.VAULT_MASTER_KEY ?? "");
@@ -178,7 +182,7 @@ export class TockDO extends DurableObject<Env> {
           type: "event",
           seq: latestSeq,
           event: "session.snapshot",
-          payload: { sessionId, messages: await this.harness.session(sessionId).messages() },
+          payload: { sessionId: this.threads.thread(sessionId), messages: await this.harness.session(sessionId).messages() },
         });
       }
       return new Response(null, { status: 101, webSocket: client });
@@ -271,7 +275,53 @@ export class TockDO extends DurableObject<Env> {
     });
   }
 
-  private async dispatchFrame(ws: WebSocket, frame: ClientFrame): Promise<unknown> {
+  private async resolveThread(frame: ClientFrame): Promise<{ frame: ClientFrame; draft?: string }> {
+    if (!("sessionId" in frame) || typeof frame.sessionId !== "string" || !isThreadId(frame.sessionId)) return { frame };
+    const known = this.threads.session(frame.sessionId);
+    if (known) return { frame: { ...frame, sessionId: known } as ClientFrame };
+    if (frame.type !== "chat.send") return { frame, draft: frame.sessionId };
+    const session = await this.harness.sessions.create();
+    await this.syncSessionModel(String(session.id));
+    this.threads.bind(frame.sessionId, String(session.id));
+    for (const ws of this.ctx.getWebSockets()) {
+      const att = ws.deserializeAttachment() as WsAttachment | null;
+      if (att?.sessionId !== frame.sessionId) continue;
+      att.sessionId = String(session.id);
+      ws.serializeAttachment(att);
+    }
+    return { frame: { ...frame, sessionId: String(session.id) } as ClientFrame };
+  }
+
+  private draftFrame(ws: WebSocket, frame: ClientFrame, threadId: string): unknown {
+    switch (frame.type) {
+      case "chat.subscribe": {
+        const att = ws.deserializeAttachment() as WsAttachment | null;
+        if (att) {
+          att.sessionId = threadId;
+          ws.serializeAttachment(att);
+        }
+        return { sessionId: threadId, subscribed: true, replayed: 0, cursor: this.latestEventSeq(), messages: [] };
+      }
+      case "session.messages":
+      case "file.list":
+        return [];
+      case "chat.abort":
+        return { aborted: false };
+      default:
+        throw new Error("unknown_thread");
+    }
+  }
+
+  private publicPayload(payload: unknown): unknown {
+    if (!payload || typeof payload !== "object" || !("sessionId" in payload)) return payload;
+    const sessionId = (payload as { sessionId: unknown }).sessionId;
+    if (typeof sessionId !== "string" || isThreadId(sessionId)) return payload;
+    return { ...payload, sessionId: this.threads.thread(sessionId) };
+  }
+
+  private async dispatchFrame(ws: WebSocket, incoming: ClientFrame): Promise<unknown> {
+    const { frame, draft } = await this.resolveThread(incoming);
+    if (draft !== undefined) return this.draftFrame(ws, frame, draft);
     switch (frame.type) {
       case "ping":
         return { ts: Date.now() };
@@ -287,7 +337,7 @@ export class TockDO extends DurableObject<Env> {
         const replayed =
           replayFrom !== undefined ? this.replayEvents(ws, sessionId, replayFrom) : 0;
         return {
-          sessionId,
+          sessionId: this.threads.thread(sessionId),
           subscribed: true,
           replayed,
           cursor: this.latestEventSeq(),
@@ -332,7 +382,7 @@ export class TockDO extends DurableObject<Env> {
       case "session.create": {
         const session = await this.harness.sessions.create();
         await this.syncSessionModel(session.id);
-        return { id: session.id };
+        return { id: this.threads.thread(String(session.id)) };
       }
       case "session.messages":
         return await this.harness.messages({ session: frame.sessionId ?? ROOT_SESSION });
@@ -439,6 +489,8 @@ export class TockDO extends DurableObject<Env> {
     return await Promise.all(
       sessions.map(async (session) => ({
         ...session,
+        id: this.threads.thread(String(session.id)),
+        parent: session.parent === undefined ? undefined : this.threads.thread(String(session.parent)),
         ...summarizeEntries(await this.harness.session(session.id).messages()),
       })),
     );
@@ -982,7 +1034,7 @@ export class TockDO extends DurableObject<Env> {
         type: "event",
         seq: Number(r.seq),
         event: String(r.event),
-        payload: JSON.parse(String(r.payload_json)),
+        payload: this.publicPayload(JSON.parse(String(r.payload_json))),
       });
     }
     return rows.length;
@@ -998,7 +1050,7 @@ export class TockDO extends DurableObject<Env> {
 
   private broadcast(event: string, payload: unknown): void {
     const seq = this.recordEvent(null, event, payload);
-    const encoded = JSON.stringify({ type: "event", seq, event, payload } satisfies ServerFrame);
+    const encoded = JSON.stringify({ type: "event", seq, event, payload: this.publicPayload(payload) } satisfies ServerFrame);
     for (const ws of this.ctx.getWebSockets()) {
       try {
         ws.send(encoded);
@@ -1015,7 +1067,7 @@ export class TockDO extends DurableObject<Env> {
     persist = true,
   ): void {
     const seq = persist ? this.recordEvent(sessionId, event, payload) : this.latestEventSeq();
-    const encoded = JSON.stringify({ type: "event", seq, event, payload } satisfies ServerFrame);
+    const encoded = JSON.stringify({ type: "event", seq, event, payload: this.publicPayload(payload) } satisfies ServerFrame);
     for (const ws of this.ctx.getWebSockets()) {
       const att = ws.deserializeAttachment() as WsAttachment | null;
       if (att && att.sessionId !== sessionId) continue;

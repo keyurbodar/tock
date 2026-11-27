@@ -194,10 +194,9 @@ export async function abort(sessionId: string) {
   }
 }
 
-export async function createSession(): Promise<string> {
-  const { id } = await socket.request<{ id: string | number }>("session.create")
-  return String(id)
-}
+export const newThreadId = (): string => crypto.randomUUID()
+
+export const isThreadId = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)
 
 export const titleOf = (session: Session | undefined) => session?.title.replace(/^\[routine:[^\]]*\]\s*/, "") || "New chat"
 
