@@ -8,5 +8,8 @@
   .tds-collapse[data-open] { grid-template-rows: 1fr; opacity: 1 }
   .tds-collapse > * { min-height: 0; overflow: hidden }
 
-  skullet-reveal { --skullet-duration: var(--tds-dur-loop); --skullet-reveal-duration: var(--tds-dur-layout) }
+  skullet-reveal { --skullet-speed: fast }
+  .tds-transcript-skeleton { display: flex; flex-direction: column; gap: var(--tds-space-12) }
+
+  .tds-sidebar :has(> .tds-row-wrap, > .tds-archive-head) { transition: top var(--tds-dur-swap) var(--tds-ease-sheet) }
 }

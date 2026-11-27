@@ -392,7 +392,8 @@ const journeys: Record<string, () => void> = {
     until(titles, (t) => t === "Archived 2 chats", "the archive toasts to merge with a rolling count")
     check(live() === 1, "merged into one toast")
     openRow()
-    choose("Pin")
+    const pinLabel = js<string>("return [...document.querySelectorAll('.tds-menu-item')].some((e) => e.textContent.trim() === 'Pin') ? 'Pin' : 'Unpin'")
+    choose(pinLabel)
     until(live, (n) => n === 2, "a second toast to stack")
     wait(500)
     const rest = js<number[]>("return [...document.querySelectorAll('.tds-toast:not([data-gone])')].map((e) => e.getBoundingClientRect().top)")
@@ -416,14 +417,32 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
     until(live, (n) => n === 0, "Esc to dismiss the next toast")
     openRow()
-    choose("Unpin")
-    until(live, (n) => n === 1, "the Unpinned toast")
+    choose(pinLabel === "Pin" ? "Unpin" : "Pin")
+    until(live, (n) => n === 1, "the pin toast")
     const box = rect(".tds-toast[data-front]")!
     ab("mouse", "move", String(box.x + 40), String(box.y + box.h / 2))
     ab("mouse", "down")
     ab("mouse", "move", String(box.x + 140), String(box.y + box.h / 2))
     ab("mouse", "up")
     until(live, (n) => n === 0, "swipe right to dismiss")
+  },
+  flip() {
+    const rows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
+    while (rows() < 3) journeys.send!()
+    js<number>("document.querySelectorAll('.tds-row-wrap')[2].querySelector('.tds-row-more').click(); return 1")
+    until(() => exists(".tds-menu"), Boolean, "the row menu")
+    js<number>("const w = document.querySelectorAll('.tds-row-wrap')[2].parentElement; w.dataset.flip = ''; return 1")
+    choose("Pin")
+    wait(120)
+    const mid = js<number>("return document.querySelector('[data-flip]').getBoundingClientRect().top - document.querySelector('[data-flip]').parentElement.getBoundingClientRect().top")
+    const target = js<number>("return parseFloat(document.querySelector('[data-flip]').style.top)")
+    check(target === 0, `the pinned row moves to the top (top: ${target})`)
+    check(mid > 4, `the row travels to the top instead of jumping (at ${mid}px after 120ms)`)
+    shot("flip-mid")
+    until(() => js<number>("return document.querySelector('[data-flip]').getBoundingClientRect().top - document.querySelector('[data-flip]').parentElement.getBoundingClientRect().top"), (y) => Math.abs(y) < 1, "the row to land")
+    js<number>("delete document.querySelector('[data-flip]').dataset.flip; document.querySelectorAll('.tds-row-wrap')[0].querySelector('.tds-row-more').click(); return 1")
+    until(() => exists(".tds-menu"), Boolean, "the row menu")
+    choose("Unpin")
   },
   morph() {
     ab("click", "button[aria-label='New chat']")
@@ -642,7 +661,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "pin", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "flip", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

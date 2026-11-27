@@ -1,4 +1,6 @@
 import { createEffect, createMemo, createSignal, For, Match, Show, Switch } from "solid-js"
+import { Dynamic } from "@solidjs/web"
+import "skullet/element"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { buildItems, type Item } from "./items"
@@ -95,6 +97,13 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     <>
     <div ref={scroller} class="tds-transcript tds-scroll" onContextMenu={openLinkMenu} onScroll={() => (pinned = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < tokens.size["column-bottom"])}>
       <div class="tds-column">
+        <Show when={props.state?.phase === "loading" && items().length === 0}>
+          <Dynamic component="skullet-reveal" loading="" label="Loading messages" class="tds-transcript-skeleton">
+            <div class="tds-bubble" data-side="me">Plan the week ahead with me</div>
+            <p>Here is a first pass at the week, with the three things worth a look today and what can wait.</p>
+            <p>Tuesday holds the longest block, so the deep work goes there.</p>
+          </Dynamic>
+        </Show>
         <For each={items()} keyed={(item) => item.key}>
           {(item) => (
             <Switch>
