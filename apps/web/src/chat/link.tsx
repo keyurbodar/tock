@@ -72,8 +72,8 @@ export function ExternalLink(props: { href: string; host: string; text: string |
 const linkMenu = createMenuController<string>()
 
 const items = [
-  { value: "open", icon: "arrow-square-out", label: "Open Link" },
-  { value: "copy", icon: "link-simple", label: "Copy Link" },
+  { value: "open", icon: "arrow-square-out", label: "Open link" },
+  { value: "copy", icon: "link-simple", label: "Copy link" },
 ] as const
 
 /** Right-click on a link in chat opens Open and Copy, as T3Code's external link context menu; plain clicks still navigate. */

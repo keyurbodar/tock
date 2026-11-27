@@ -15,8 +15,8 @@ const [open, setOpen] = createSignal(false)
 export const setPaletteOpen = setOpen
 
 const actions: readonly { value: string; label: string; icon: IconName; keys: readonly string[] }[] = [
-  { value: "action:new", label: "New Chat", icon: "note-pencil", keys: ["⌥", "N"] },
-  { value: "action:shortcuts", label: "Keyboard Shortcuts", icon: "keyboard", keys: ["?"] },
+  { value: "action:new", label: "New chat", icon: "note-pencil", keys: ["⌥", "N"] },
+  { value: "action:shortcuts", label: "Keyboard shortcuts", icon: "keyboard", keys: ["?"] },
 ]
 
 function Keys(props: { keys: readonly string[] }) {

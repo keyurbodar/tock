@@ -2,8 +2,8 @@ import { Show } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 
 const ART = {
-  hi: { title: "Say hi to toast", body: "Start a thread about anything. toast keeps working on it while you get on with your day." },
-  search: { title: "Nothing matches that", body: "Try fewer words, or search inside a thread. Archived threads are searched too." },
+  hi: { title: "Say hi to toast", body: "Start a chat about anything. toast keeps working on it while you get on with your day." },
+  search: { title: "Nothing matches that", body: "Try fewer words, or search inside a chat. Archived chats are searched too." },
   offline: { title: "You are offline", body: "toast keeps working in the cloud. You will see the updates as soon as you are back." },
 } as const
 

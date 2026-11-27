@@ -265,7 +265,7 @@ export function ThreadMenu() {
                   fallback={
                     <>
                       <Item value="bulk:archive" icon="archive" label={`Archive ${selected().length} Chats`} />
-                      <Item value="bulk:read" icon="circle" label="Mark as Read" />
+                      <Item value="bulk:read" icon="circle" label="Mark as read" />
                       <MenuSeparator class="tds-menu-sep" />
                       <Item value="bulk:delete" icon="trash" label={`Delete ${selected().length} Chats`} danger />
                     </>
@@ -277,13 +277,13 @@ export function ThreadMenu() {
                       <>
                         <Item value="archive" icon="arrow-counter-clockwise" label="Unarchive" />
                         <MenuSeparator class="tds-menu-sep" />
-                        <Item value="forever" icon="trash" label="Delete Forever…" danger />
+                        <Item value="forever" icon="trash" label="Delete forever…" danger />
                       </>
                     }
                   >
                     <Item value="rename" icon="pencil-simple" label="Rename…" keys="↩" />
                     <Item value="pin" icon={session().meta.pinned ? "push-pin-slash" : "push-pin"} label={session().meta.pinned ? "Unpin" : "Pin"} />
-                    <Item value="unread" icon="circle" label={session().meta.unread ? "Mark as Read" : "Mark as Unread"} keys="⌘U" />
+                    <Item value="unread" icon="circle" label={session().meta.unread ? "Mark as read" : "Mark as unread"} keys="⌘U" />
                     <MenuSub delay={tokens.motion.duration["submenu-rest"]}>
                       <MenuSubTrigger class="tds-menu-item tds-menu-sub">
                         <span class="tds-menu-icon">
@@ -296,11 +296,11 @@ export function ThreadMenu() {
                         <Item value="snooze:hour" label="1 Hour" />
                         <Item value="snooze:tonight" label="Tonight" />
                         <Item value="snooze:tomorrow" label="Tomorrow" />
-                        <Item value="snooze:week" label="Next Week" />
+                        <Item value="snooze:week" label="Next week" />
                       </MenuSubContent>
                     </MenuSub>
                     <Item value="move" icon="folder-simple" label="Move to…" />
-                    <Item value="link" icon="link-simple" label="Copy Link" />
+                    <Item value="link" icon="link-simple" label="Copy link" />
                     <MenuSeparator class="tds-menu-sep" />
                     <Item value="archive" icon="archive" label="Archive" keys="⌘E" />
                     <Item value="delete" icon="trash" label="Delete" danger />
