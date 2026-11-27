@@ -1,0 +1,93 @@
+@layer components {
+  .tds-icon {
+    flex: none;
+    display: block;
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: var(--tds-icon-weight-boost);
+    stroke-linejoin: round;
+    stroke-linecap: round;
+    overflow: visible;
+  }
+  .tds-icon .d { stroke: none; opacity: .22 }
+
+  .tds-morph {
+    flex: none;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    overflow: visible;
+    transition: rotate var(--tds-dur-swap) var(--tds-ease-sheet);
+  }
+  .tds-morph line {
+    transition-property: x1, y1, x2, y2, opacity;
+    transition-duration: var(--tds-dur-swap);
+    transition-timing-function: var(--tds-ease-sheet);
+  }
+
+  .tds-swap { display: inline-grid; place-items: center }
+  .tds-swap > * {
+    grid-area: 1 / 1;
+    display: inline-grid;
+    place-items: center;
+    transition: opacity var(--tds-dur-swap) var(--tds-ease-std), scale var(--tds-dur-swap) var(--tds-ease-std), filter var(--tds-dur-swap) var(--tds-ease-std);
+  }
+  .tds-swap > .tds-swap-b, .tds-swap[data-on] > .tds-swap-a { opacity: 0; scale: .25; filter: blur(var(--tds-blur-swap)) }
+  .tds-swap[data-on] > .tds-swap-b { opacity: 1; scale: 1; filter: none }
+
+  .tds-orb { flex: none; display: block; user-select: none }
+  .tds-orb[data-status="working"] { animation: tds-breathe var(--tds-dur-loop) ease-in-out infinite }
+
+  .tds-morph-text { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums }
+
+  .tds-hoverfill { transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out) }
+  .tds-press { transition: scale var(--tds-dur-press) var(--tds-ease-out) }
+  .tds-press:not(:disabled, [data-disabled]):active { scale: var(--tds-press) }
+}
+
+@layer components {
+  .tds-tint { display: grid; place-items: center; flex: none; border-radius: var(--tds-radius-pill) }
+  .tds-tint-done { background: var(--tds-wash-done); color: var(--tds-status-done) }
+  .tds-tint-working { background: var(--tds-wash-working); color: var(--tds-status-working) }
+  .tds-tint-needs { background: var(--tds-wash-needs); color: var(--tds-status-needs) }
+  .tds-tint-failed { background: var(--tds-wash-failed); color: var(--tds-status-failed) }
+  .tds-tint-rose { background: var(--tds-wash-rose); color: var(--tds-accent-rose) }
+  .tds-tint-mono { background: var(--tds-wash-mono); color: var(--tds-text-tx2) }
+
+  .tds-key {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--tds-space-7);
+    height: var(--tds-size-key); padding: 0 var(--tds-space-14); border-radius: var(--tds-radius-field);
+    font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-medium); letter-spacing: var(--tds-type-menu-tracking);
+    background: var(--tds-key-fill); color: var(--tds-text-tx); box-shadow: var(--tds-key-shadow);
+    transition: scale var(--tds-dur-press) var(--tds-ease-out), filter var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out);
+  }
+  .tds-key:hover:not(:disabled) { filter: brightness(1.1) }
+  .tds-key:active:not(:disabled) { scale: var(--tds-press) }
+  .tds-key:disabled { opacity: .5 }
+  .tds-key-cream { background: var(--tds-key-cream-fill); color: var(--tds-text-on-cream); box-shadow: var(--tds-key-cream-shadow) }
+  .tds-key-danger { color: var(--tds-status-failed) }
+
+  .tds-over {
+    background: var(--tds-over-fill);
+    backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
+    -webkit-backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
+    box-shadow: var(--tds-over-shadow);
+  }
+
+  .tds-dialog {
+    display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-6); text-align: center;
+    width: var(--tds-size-dialog); padding: var(--tds-space-22) var(--tds-space-20) var(--tds-space-18);
+    border-radius: var(--tds-radius-dialog);
+    font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-leading); color: var(--tds-text-muted);
+    background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow);
+    backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
+    transition: opacity var(--tds-dur-layout) var(--tds-ease-out), scale var(--tds-dur-layout) var(--tds-ease-out);
+    @starting-style { opacity: 0; scale: var(--tds-press) }
+  }
+  .tds-dialog[data-shake] { animation: tds-shake var(--tds-dur-swap) var(--tds-ease-std) }
+
+  .tds-scroll { scrollbar-width: none }
+  .tds-scroll::-webkit-scrollbar { display: none }
+}

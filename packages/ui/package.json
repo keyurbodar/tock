@@ -14,7 +14,8 @@
     "@tock/tokens": "workspace:*",
     "@tock/motion": "workspace:*",
     "torph": "0.1.4",
-    "skullet": "0.0.3"
+    "skullet": "0.0.3",
+    "@tock/protocol": "workspace:*"
   },
   "peerDependencies": {
     "solid-js": "2.0.4",

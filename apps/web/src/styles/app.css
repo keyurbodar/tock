@@ -4,6 +4,8 @@
 @import "@tock/tokens/tokens.css";
 @import "@tock/motion/motion.css";
 @import "./fonts.css";
+@import "@tock/ui/styles.css";
+@import "./shell.css";
 
 @layer base {
   html {

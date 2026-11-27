@@ -26,7 +26,8 @@
     "oxlint": "^1.95.0",
     "oxfmt": "^0.80.0",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "@types/bun": "1.3.14"
   },
   "patchedDependencies": {
     "agents@0.34.0": "patches/agents@0.34.0.patch"

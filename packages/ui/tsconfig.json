@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "@solidjs/web",
+    "types": [
+      "bun"
+    ]
+  },
+  "include": [
+    "src",
+    "scripts"
+  ]
+}

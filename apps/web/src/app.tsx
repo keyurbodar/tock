@@ -1,13 +1,29 @@
-import { createSignal } from "solid-js"
-import { Toggle } from "@ui-sdk/solid/toggle"
+import { Show } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import { injectIconSprite } from "@tock/ui/icon"
+import { app, boot } from "./state/app"
+import { Rail } from "./shell/rail"
+import { Sidebar } from "./shell/sidebar"
+import { Gate } from "./shell/gate"
+import { Router } from "./router"
+
+function Shell(props: { children?: JSX.Element }) {
+  return (
+    <div class="flex h-full overflow-hidden bg-main">
+      <Rail unread={0} />
+      <Sidebar />
+      {props.children}
+      <Show when={app.connection === "unauthorized"}>
+        <Gate />
+      </Show>
+    </div>
+  )
+}
 
 export function App() {
-  const [n, setN] = createSignal(0)
+  injectIconSprite()
+  void boot()
   return (
-    <main class="grid h-full place-items-center bg-main text-tx">
-      <Toggle class="h-key rounded-field bg-raise px-14 shadow-key text-menu data-pressed:text-rose" onPressedChange={() => setN(n() + 1)}>
-        Tock {n()}
-      </Toggle>
-    </main>
+    <Router>{(props) => <Shell>{props.children}</Shell>}</Router>
   )
 }
