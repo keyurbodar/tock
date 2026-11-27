@@ -3,9 +3,14 @@
   .tds-header-pill { max-width: var(--tds-size-header-title) }
   /* TDS .pill + .st: the title gives way (ellipsis) before the status ever does; a 12 orb and a muted label sit a full gap after it */
   .tds-header-pill { gap: 0 }
+  /* The open chat's own glyph and hue (the sidebar row's) in the avatar; the mascot only for a new or empty chat. They cross-fade and scale through each other */
+  .tds-header-avatar > * { grid-area: 1 / 1; transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out) }
+  .tds-header-glyph { display: grid; place-items: center; opacity: 0; scale: .6 }
+  .tds-header-avatar[data-glyph] .tds-header-glyph { opacity: 1; scale: 1 }
+  .tds-header-avatar[data-glyph] .tds-header-mascot { opacity: 0; scale: .6 }
   .tds-header-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .tds-header-title :is([skullet-reveal], [skullet-pane]) { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .tds-header-title .tds-morph-text { display: inline !important }
+  .tds-header-title :is(.tds-skeleton, [skullet-reveal], [skullet-pane]) { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .tds-header-title :is(.tds-morph-text, [torph-item]) { display: inline !important }
   .tds-header-status {
     display: flex; flex: none; align-items: center; gap: var(--tds-space-6); padding-left: 0;
     font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-regular); letter-spacing: var(--tds-type-secondary-tracking); color: var(--tds-text-muted);

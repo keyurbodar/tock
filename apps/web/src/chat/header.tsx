@@ -2,6 +2,8 @@ import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { Orb, type OrbStatus } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
+import { MorphIcon } from "@tock/ui/morph-icon"
+import type { glyphFor } from "../lib/glyph"
 import { Skeleton } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app } from "../state/app"
@@ -10,7 +12,7 @@ import { toast } from "../shell/toasts"
 
 const LABEL: Record<OrbStatus, string> = STATUS_LABEL
 
-export function Header(props: { title: string; status: OrbStatus | undefined; loading?: boolean; shape?: string }) {
+export function Header(props: { title: string; glyph: ReturnType<typeof glyphFor> | undefined; status: OrbStatus | undefined; loading?: boolean; shape?: string }) {
   const [finding, setFinding] = createSignal(false)
   const share = async () => {
     await navigator.clipboard.writeText(location.href)
@@ -25,6 +27,11 @@ export function Header(props: { title: string; status: OrbStatus | undefined; lo
   }
   addEventListener("keydown", onKey)
   onCleanup(() => removeEventListener("keydown", onKey))
+  const [last, setLast] = createSignal<ReturnType<typeof glyphFor>>()
+  createEffect(
+    () => props.glyph,
+    (glyph) => void (glyph && setLast(glyph)),
+  )
   const status = () => (props.status && props.status !== "done" ? props.status : undefined)
   const [shown, setShown] = createSignal<OrbStatus>()
   createEffect(status, (now) => void (now && setShown(now)))
@@ -32,8 +39,11 @@ export function Header(props: { title: string; status: OrbStatus | undefined; lo
     <>
       <header class="tds-header">
         <div class="tds-header-stack">
-          <span class="grid size-header-avatar place-items-center rounded-pill bg-glass shadow-glass">
-            <img src="/brand/toast-face-center.svg" alt="" class="size-header-face" draggable={false} />
+          <span class="tds-header-avatar grid size-header-avatar place-items-center rounded-pill bg-glass shadow-glass" data-glyph={props.glyph ? "" : undefined}>
+            <img src="/brand/toast-face-center.svg" alt="" class="tds-header-mascot size-header-face" draggable={false} />
+            <span class={`tds-header-glyph ${props.glyph?.hue ?? last()?.hue ?? ""}`} data-icon={props.glyph?.icon}>
+              <Show when={props.glyph ?? last()}>{(g) => <MorphIcon name={g().icon} size="header" />}</Show>
+            </span>
           </span>
           <span class="tds-header-pill tds-glass">
             <span class="tds-header-title" title={props.title} role="heading" aria-level="1">

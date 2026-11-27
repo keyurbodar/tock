@@ -1659,6 +1659,22 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => exists(".tds-find"), (open) => !open, "the find bar to close")
     check(js<number>("return CSS.highlights.size") === 0, "highlights cleared on close")
   },
+  headerglyph() {
+    const id = fresh()
+    check(!exists(".tds-header-avatar[data-glyph]"), "a new chat keeps the toast mascot")
+    field()
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => exists(".tds-header-avatar[data-glyph]"), Boolean, "the chat's glyph in the header")
+    const row = `.tds-row-wrap[data-id="${id}"] .tds-row-icon`
+    until(() => exists(row), Boolean, "the chat's sidebar row")
+    wait(500)
+    const g = js<{ hue: string; rowHue: string; path: string; rowPath: string; mascot: string; glyph: string }>(`const h = document.querySelector('.tds-header-glyph'); const r = document.querySelector('${row}'); const hue = (e) => [...e.classList].find((c) => c.startsWith('text-hue-')) ?? ''; const d = (e) => e.querySelector('.tds-glyph')?.dataset.glyph ?? ''; return { hue: hue(h), rowHue: hue(r), path: d(h), rowPath: d(r), mascot: getComputedStyle(document.querySelector('.tds-header-mascot')).opacity, glyph: getComputedStyle(h).opacity }`)
+    check(g.hue !== "" && g.hue === g.rowHue, `the header hue matches the row (${g.hue} vs ${g.rowHue})`)
+    check(g.path !== "" && g.path === g.rowPath, "the header glyph is the row's glyph")
+    check(g.mascot === "0" && g.glyph === "1", `the glyph replaces the mascot (mascot ${g.mascot}, glyph ${g.glyph})`)
+    shot("header-glyph")
+  },
   headerstatus() {
     fresh()
     field()
@@ -1666,10 +1682,11 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "Enter")
     until(() => exists(".tds-header-status[data-on] .tds-orb"), Boolean, "the working status in the header", 8000)
     wait(450)
-    const g = js<{ title: number; status: number; statusRight: number; pill: number; orb: number; orbOp: string; cut: boolean; label: string; fit: boolean }>("const t = document.querySelector('.tds-header-title'); const s = document.querySelector('.tds-header-status'); const o = s.querySelector('.tds-header-orb'); const p = document.querySelector('.tds-header-pill').getBoundingClientRect(); const pane = t.querySelector('[skullet-pane]') ?? t; return { title: t.getBoundingClientRect().right, status: o.getBoundingClientRect().left, statusRight: s.getBoundingClientRect().right, pill: p.right, orb: o.getBoundingClientRect().width, orbOp: getComputedStyle(o).opacity, cut: pane.scrollWidth > pane.clientWidth, label: s.textContent, fit: s.scrollWidth <= s.clientWidth + 1 }")
+    const g = js<{ sliced: boolean; title: number; status: number; statusRight: number; pill: number; orb: number; orbOp: string; cut: boolean; label: string; fit: boolean }>("const t = document.querySelector('.tds-header-title'); const s = document.querySelector('.tds-header-status'); const o = s.querySelector('.tds-header-orb'); const p = document.querySelector('.tds-header-pill').getBoundingClientRect(); const pane = t.querySelector('[skullet-pane]') ?? t.querySelector('.tds-skeleton') ?? t; return { sliced: getComputedStyle(pane).textOverflow !== 'ellipsis' || [...pane.querySelectorAll('.tds-morph-text, [torph-item]')].some((e) => getComputedStyle(e).display !== 'inline'), title: t.getBoundingClientRect().right, status: o.getBoundingClientRect().left, statusRight: s.getBoundingClientRect().right, pill: p.right, orb: o.getBoundingClientRect().width, orbOp: getComputedStyle(o).opacity, cut: pane.scrollWidth > pane.clientWidth, label: s.textContent, fit: s.scrollWidth <= s.clientWidth + 1 }")
     check(g.status - g.title >= 9, `a real gap between the title and the status (${g.status - g.title}px)`)
     check(g.orb === 12 && g.orbOp === "1", `the 12 orb is fully in (width ${g.orb}, opacity ${g.orbOp})`)
     check(g.cut, "the long title truncates")
+    check(!g.sliced, "the title ends in an ellipsis, never a word sliced at the edge")
     check(g.fit && g.statusRight <= g.pill, "the status is never clipped")
     check(/Working/.test(g.label), `the label reads Working (got ${g.label})`)
     shot("header-status")
@@ -3434,7 +3451,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

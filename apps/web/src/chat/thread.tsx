@@ -7,6 +7,7 @@ import { useNavigate, useParams } from "@solidjs/router"
 import { abort, app, isWorking, newThreadId, send, subscribe, titleOf } from "../state/app"
 import { attach, Composer } from "./composer"
 import { Header } from "./header"
+import { glyphFor } from "../lib/glyph"
 import { Empty } from "./empty"
 import type { OrbStatus } from "@tock/ui/orb"
 import { Transcript } from "./transcript"
@@ -67,7 +68,7 @@ export function Thread() {
         attach(attachments, [...(e.dataTransfer?.files ?? [])], new DOMRect(e.clientX, e.clientY, 1, 1))
       }}
     >
-      <Header title={titleOf(session())} status={status()} loading={!session() && !app.sessionsLoaded} shape={`title:${params.id}`} />
+      <Header title={titleOf(session())} glyph={session() || (state()?.entries.length ?? 0) > 0 ? glyphFor(params.id) : undefined} status={status()} loading={!session() && !app.sessionsLoaded} shape={`title:${params.id}`} />
       <Show when={state()?.phase !== "ready" || state()!.entries.length > 0 || state()!.pending.length > 0} fallback={<div class="tds-transcript grid"><Empty art="hi" /></div>}>
         <Boundary surface="transcript">
           <Transcript state={state()} sessionId={params.id} />
