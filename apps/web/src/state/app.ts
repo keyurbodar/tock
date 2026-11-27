@@ -4,6 +4,7 @@ import { idb } from "../lib/idb"
 import { socket, type ConnectionState } from "../lib/socket"
 import { addNote } from "./notes"
 import { finishedElsewhere } from "../shell/finished"
+import { tokens } from "@tock/tokens"
 
 const LIVE_DOC = "pi.live"
 
@@ -26,10 +27,9 @@ export interface Session extends SessionSummary {
   readonly meta: ThreadMeta
 }
 
-const noMeta: ThreadMeta = { title: null, pinned: false, archived: false, unread: false }
+const noMeta: ThreadMeta = { title: null, pinned: false, pinnedAt: null, archived: false, unread: false, folder: null, snoozedUntil: null }
 
-const ordered = (sessions: Session[]) =>
-  sessions.sort((a, b) => Number(b.meta.pinned) - Number(a.meta.pinned) || (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+const ordered = (sessions: Session[]) => sessions.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
 
 interface AppState {
   connection: ConnectionState
@@ -126,14 +126,14 @@ socket.onEvent(({ event, payload }) => {
 
 export async function boot() {
   const cached = await idb.get<Session[]>("sessions", "list")
-  if (cached?.length && !app.sessionsLoaded) setApp((s) => void (s.sessions = cached.map((session) => ({ ...session, meta: session.meta ?? noMeta }))))
+  if (cached?.length && !app.sessionsLoaded) setApp((s) => void (s.sessions = cached.map((session) => ({ ...session, meta: { ...noMeta, ...session.meta } }))))
   socket.start()
 }
 
 export async function refreshSessions() {
   try {
     const list = await socket.request<(SessionSummary & { busy?: boolean; meta?: ThreadMeta })[]>("session.list")
-    const sessions = ordered(list.map((session) => ({ ...session, busy: Boolean(session.busy), meta: session.meta ?? noMeta })))
+    const sessions = ordered(list.map((session) => ({ ...session, busy: Boolean(session.busy), meta: { ...noMeta, ...session.meta } })))
     setApp((s) => {
       reconcile(sessions, "id")(s.sessions)
       s.sessionsLoaded = true
@@ -244,7 +244,8 @@ export async function updateThread(threadId: string, patch: Partial<ThreadMeta>)
       if (target) (target as { meta: ThreadMeta }).meta = meta
       ordered(s.sessions)
     })
-  apply({ ...before.meta, ...patch })
+  const pinnedAt = patch.pinned === undefined ? before.meta.pinnedAt : patch.pinned ? (before.meta.pinnedAt ?? Date.now()) : null
+  apply({ ...before.meta, ...patch, pinnedAt })
   try {
     const result = await socket.request<{ meta: ThreadMeta }>("thread.update", { threadId, ...patch })
     apply(result.meta)
@@ -252,6 +253,58 @@ export async function updateThread(threadId: string, patch: Partial<ThreadMeta>)
     apply(before.meta)
   }
   void idb.put("sessions", "list", snapshot(app.sessions))
+}
+
+/** Pinned chats, newest pin first, as TDS px2 renderPins. */
+export const pinnedSessions = () =>
+  app.sessions.filter((session) => session.meta.pinned && !session.meta.archived).sort((a, b) => (b.meta.pinnedAt ?? 0) - (a.meta.pinnedAt ?? 0))
+
+/** Pins hold four chats; pinning a fifth drops the oldest back into the list. */
+export function pinThread(threadId: string) {
+  const pins = pinnedSessions()
+  const oldest = pins.length >= tokens.limit.pins ? pins[pins.length - 1] : undefined
+  if (oldest) void updateThread(oldest.id, { pinned: false })
+  return updateThread(threadId, { pinned: true })
+}
+
+export interface PeekLine {
+  readonly key: string
+  readonly me: boolean
+  readonly text: string
+}
+
+const peekCache = new Map<string, readonly PeekLine[]>()
+
+const linesOf = (entries: readonly EntryRecord[]): PeekLine[] =>
+  entries
+    .flatMap((entry) => entry.model ?? [])
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message, index) => {
+      const content = (message as { content?: unknown }).content
+      const text =
+        typeof content === "string"
+          ? content
+          : Array.isArray(content)
+            ? content.map((part) => (isRecord(part) && part.type === "text" && typeof part.text === "string" ? part.text : "")).join(" ")
+            : ""
+      return { key: String(index), me: message.role === "user", text: plainText(text) }
+    })
+    .filter((line) => line.text !== "")
+    .slice(-3)
+
+/** The last three messages of a chat for the peek card, without subscribing (which would mark it read). */
+export async function peekLines(sessionId: string): Promise<readonly PeekLine[]> {
+  const loaded = app.threads[sessionId]?.entries
+  if (loaded?.length) return linesOf(loaded)
+  const cached = peekCache.get(sessionId)
+  if (cached) return cached
+  try {
+    const lines = linesOf(await socket.request<readonly EntryRecord[]>("session.messages", { sessionId }))
+    peekCache.set(sessionId, lines)
+    return lines
+  } catch {
+    return []
+  }
 }
 
 export async function deleteThread(threadId: string) {

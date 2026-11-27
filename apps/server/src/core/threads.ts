@@ -4,7 +4,7 @@ const THREAD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 
 export const isThreadId = (value: string): boolean => THREAD_ID.test(value);
 
-export type ThreadPatch = Partial<ThreadMeta>;
+export type ThreadPatch = Partial<Omit<ThreadMeta, "pinnedAt">>;
 
 type Row = {
   id: string;
@@ -14,11 +14,17 @@ type Row = {
   archived: number;
   unread: number;
   deleted: number;
+  folder: string | null;
+  snoozed_until: number | null;
 };
 
+/** `pinned` holds the epoch ms the chat was pinned at; 0 is unpinned and 1 is a pin from before pins were ordered. */
 const toMeta = (row: Row): ThreadMeta => ({
   title: row.title,
-  pinned: row.pinned === 1,
+  pinned: row.pinned > 0,
+  pinnedAt: row.pinned > 0 ? row.pinned : null,
+  folder: row.folder,
+  snoozedUntil: row.snoozed_until,
   archived: row.archived === 1,
   unread: row.unread === 1,
 });
@@ -35,7 +41,7 @@ export class ThreadIds {
 
   constructor(sql: SqlStorage) {
     this.#sql = sql;
-    for (const row of sql.exec<Row>("SELECT id, session, title, pinned, archived, unread, deleted FROM tock_threads")) {
+    for (const row of sql.exec<Row>("SELECT id, session, title, pinned, archived, unread, deleted, folder, snoozed_until FROM tock_threads")) {
       this.#remember({ ...row });
     }
   }
@@ -60,7 +66,7 @@ export class ThreadIds {
       Date.now(),
     );
     if (!this.#rows.has(threadId)) {
-      this.#remember({ id: threadId, session, title: null, pinned: 0, archived: 0, unread: 0, deleted: 0 });
+      this.#remember({ id: threadId, session, title: null, pinned: 0, archived: 0, unread: 0, deleted: 0, folder: null, snoozed_until: null });
     }
   }
 
@@ -75,16 +81,20 @@ export class ThreadIds {
     const next: Row = {
       ...row,
       title: patch.title === undefined ? row.title : patch.title?.trim() || null,
-      pinned: patch.pinned === undefined ? row.pinned : Number(patch.pinned),
+      pinned: patch.pinned === undefined ? row.pinned : patch.pinned ? row.pinned || Date.now() : 0,
       archived: patch.archived === undefined ? row.archived : Number(patch.archived),
       unread: patch.unread === undefined ? row.unread : Number(patch.unread),
+      folder: patch.folder === undefined ? row.folder : patch.folder?.trim() || null,
+      snoozed_until: patch.snoozedUntil === undefined ? row.snoozed_until : patch.snoozedUntil,
     };
     this.#sql.exec(
-      "UPDATE tock_threads SET title = ?, pinned = ?, archived = ?, unread = ? WHERE id = ?",
+      "UPDATE tock_threads SET title = ?, pinned = ?, archived = ?, unread = ?, folder = ?, snoozed_until = ? WHERE id = ?",
       next.title,
       next.pinned,
       next.archived,
       next.unread,
+      next.folder,
+      next.snoozed_until,
       threadId,
     );
     this.#remember(next);

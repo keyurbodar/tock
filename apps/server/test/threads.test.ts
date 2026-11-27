@@ -44,11 +44,20 @@ describe("thread metadata", () => {
     const threadId = crypto.randomUUID();
     expect((await request("chat.send", { sessionId: threadId, text: "hello" })).type).toBe("ok");
 
-    const updated = await request("thread.update", { threadId, title: "  Trip notes ", pinned: true, archived: true, unread: true });
-    expect(updated.data).toEqual({ threadId, meta: { title: "Trip notes", pinned: true, archived: true, unread: true } });
+    const before = Date.now();
+    const updated = await request("thread.update", { threadId, title: "  Trip notes ", pinned: true, archived: true, unread: true, folder: " Work ", snoozedUntil: 42 });
+    const meta = (updated.data as { meta: Listed["meta"] & { pinnedAt: number } }).meta;
+    expect(meta).toEqual({ title: "Trip notes", pinned: true, pinnedAt: meta.pinnedAt, archived: true, unread: true, folder: "Work", snoozedUntil: 42 });
+    expect(meta.pinnedAt).toBeGreaterThanOrEqual(before);
+
+    const repinned = await request("thread.update", { threadId, pinned: true });
+    expect((repinned.data as { meta: { pinnedAt: number } }).meta.pinnedAt).toBe(meta.pinnedAt);
 
     const listed = (await request("session.list")).data as Listed[];
-    expect(listed.find((s) => s.id === threadId)?.meta).toEqual({ title: "Trip notes", pinned: true, archived: true, unread: true });
+    expect(listed.find((s) => s.id === threadId)?.meta).toEqual(meta);
+
+    const unpinned = await request("thread.update", { threadId, pinned: false, folder: null, snoozedUntil: null });
+    expect((unpinned.data as { meta: unknown }).meta).toMatchObject({ pinned: false, pinnedAt: null, folder: null, snoozedUntil: null });
 
     expect((await request("thread.delete", { threadId })).data).toEqual({ deleted: true });
     const after = (await request("session.list")).data as Listed[];

@@ -6,6 +6,7 @@
 @import "./fonts.css";
 @import "@tock/ui/styles.css";
 @import "./shell.css";
+@import "./sidebar.css";
 @import "./ask.css";
 @import "./chat-extras.css";
 @import "./media.css";

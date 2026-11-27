@@ -159,6 +159,8 @@ const clientFrameSchema = union([
     pinned: opt(bool()),
     archived: opt(bool()),
     unread: opt(bool()),
+    folder: opt(nullable(str({ maxLength: 80 }))),
+    snoozedUntil: opt(nullable(int({ minimum: 0 }))),
   }),
   obj({ id: str({ minLength: 1 }), type: lit("thread.delete"), threadId: str({ minLength: 1 }) }),
   obj({

@@ -184,7 +184,7 @@ export type ClientFrame =
   | { id: string; type: "ask.answer"; sessionId?: string; answer: string }
   | { id: string; type: "session.list" }
   | { id: string; type: "session.create"; title?: string }
-  | { id: string; type: "thread.update"; threadId: string; title?: string | null; pinned?: boolean; archived?: boolean; unread?: boolean }
+  | { id: string; type: "thread.update"; threadId: string; title?: string | null; pinned?: boolean; archived?: boolean; unread?: boolean; folder?: string | null; snoozedUntil?: number | null }
   | { id: string; type: "thread.delete"; threadId: string }
   | { id: string; type: "session.messages"; sessionId?: string }
   | { id: string; type: "settings.get" }

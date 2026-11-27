@@ -1,5 +1,5 @@
 import { Empty } from "../chat/empty"
-import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
+import { createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
@@ -14,7 +14,11 @@ import { glyphFor } from "../lib/glyph"
 import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
 import { shortTime } from "../lib/time"
 import { now } from "../lib/clock"
-import { renaming, setRenaming, threadMenu, ThreadMenu } from "./thread-menu"
+import { archive, doomed, markRead, pin, remove, renaming, selected, setRenaming, setSelected, takeEntering, threadAction, threadMenu, ThreadMenu } from "./thread-menu"
+import { dropping, Pins, setDropping } from "./pins"
+import { hidePeek, Peek, peekEnter, peekLeave, peekToggle } from "./peek"
+import { ToastRow } from "./session-stack"
+import { MoveDialog } from "./move-dialog"
 
 type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number }
 
@@ -77,19 +81,210 @@ function RenameField(props: { session: Session }) {
   )
 }
 
-function Row(props: { session: Session; selected: boolean; query: string }) {
+const L = tokens.limit
+const D = tokens.motion.duration
+const curve = tokens.motion.curve
+let closeOpenSwipe: (() => void) | undefined
+let suppressClick = false
+const swallowClick = () => ((suppressClick = true), requestAnimationFrame(() => requestAnimationFrame(() => (suppressClick = false))))
+
+
+function Row(props: { session: Session; selected: boolean; multi: boolean; query: string; current: string | undefined; navigate: (to: string) => void }) {
   const glyph = () => glyphFor(props.session.id)
+  let wrap!: HTMLDivElement
+  let row!: HTMLAnchorElement
+  let left!: HTMLDivElement
+  let right!: HTMLDivElement
+  let icon!: HTMLSpanElement
+  let start: { x: number; y: number; from: number; id: number; mouse: boolean } | undefined
+  let mode: "swipe" | "drag" | undefined
+  let x = 0
+  let go = false
+  let ghost: HTMLElement | undefined
+
+  const setX = (next: number, animate = false) => {
+    x = next
+    const ease = animate ? `${D.swap}ms ${curve.sheet}` : "0s"
+    row.style.transition = `transform ${ease}`
+    for (const side of [left, right]) side.style.transition = `width ${ease}`
+    row.style.transform = next ? `translateX(${next}px)` : ""
+    left.style.width = `${Math.max(0, next)}px`
+    right.style.width = `${Math.max(0, -next)}px`
+    wrap.toggleAttribute("data-swiping", next !== 0)
+  }
+  const close = () => {
+    setX(0, true)
+    if (closeOpenSwipe === close) closeOpenSwipe = undefined
+  }
+  const drag = (dx: number) => {
+    const width = row.offsetWidth
+    let next = Math.abs(dx) > L["swipe-max"] ? Math.sign(dx) * (L["swipe-max"] + (Math.abs(dx) - L["swipe-max"]) * L["swipe-rubber"]) : dx
+    next = Math.max(-width + tokens.space[18]!, Math.min(width - tokens.space[18]!, next))
+    setX(next)
+    const commit = Math.abs(next) > width * L["swipe-commit"]
+    if (commit !== go) {
+      go = commit
+      wrap.dataset.go = commit ? (next > 0 ? "left" : "right") : ""
+    }
+  }
+  const act = (action: string) => {
+    const session = untrack(() => props.session)
+    const from = { rect: icon.getBoundingClientRect(), glyph: icon.innerHTML }
+    if (action === "pin-drop") return pin(session, from)
+    if (action === "unread") return close(), threadAction(action, session, props.current, props.navigate)
+    row.style.transition = `transform ${D.panel}ms ${curve.sheet}`
+    row.style.transform = `translateX(${Math.sign(x || (action === "pin" ? 1 : -1)) * row.offsetWidth}px)`
+    closeOpenSwipe = undefined
+    setTimeout(() => {
+      if (action === "pin") pin(session, from)
+      if (action === "archive") archive([session], props.current, props.navigate)
+      if (action === "delete") remove([session], props.current, props.navigate)
+    }, D.menu)
+  }
+  const release = () => {
+    if (go) return act(x > 0 ? "pin" : "archive")
+    if (Math.abs(x) > L["swipe-snap"]) {
+      setX(Math.sign(x) * tokens.size.swipe * 2, true)
+      closeOpenSwipe = close
+      return
+    }
+    close()
+  }
+
+  const dragStart = (e: PointerEvent) => {
+    const box = row.getBoundingClientRect()
+    ghost = row.cloneNode(true) as HTMLElement
+    ghost.classList.add("tds-row-lift")
+    Object.assign(ghost.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px` })
+    ghost.dataset.y = String(box.top - e.clientY)
+    document.body.append(ghost)
+    row.style.opacity = ".3"
+    setDropping("near")
+    hidePeek()
+  }
+  const dragMove = (e: PointerEvent) => {
+    if (!ghost) return
+    ghost.style.top = `${e.clientY + Number(ghost.dataset.y)}px`
+    const pins = document.querySelector(".tds-pins")?.getBoundingClientRect()
+    setDropping(pins && e.clientY < pins.bottom ? "over" : "near")
+  }
+  const dragEnd = () => {
+    const over = dropping() === "over"
+    setDropping("")
+    row.style.opacity = ""
+    const g = ghost
+    ghost = undefined
+    if (!g) return
+    if (over) {
+      g.remove()
+      return act("pin-drop")
+    }
+    g.animate([{ top: g.style.top }, { top: `${row.getBoundingClientRect().top}px` }], { duration: D.layout, easing: curve.sheet }).onfinish = () => g.remove()
+  }
+
   return (
-    <div class="tds-row-wrap" data-archived={props.session.meta.archived ? "" : undefined}>
+    <div
+      ref={(el) => {
+        wrap = el
+        if (takeEntering(props.session.id)) el.animate([{ clipPath: "inset(0 0 100% 0)", opacity: 0 }, { clipPath: "inset(0)", opacity: 1 }], { duration: D.layout, easing: curve.std })
+      }}
+      class="tds-row-wrap"
+      data-id={props.session.id}
+      data-archived={props.session.meta.archived ? "" : undefined}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        e.currentTarget.querySelector<HTMLElement>(".tds-row-more")?.click()
+      }}
+    >
+      <div class="tds-swipe" aria-hidden="true">
+        <div class="tds-swipe-side" data-side="left" ref={left}>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="pin" onClick={() => act("pin")}>
+            <Icon name="push-pin" size="code-action" />
+            Pin
+          </button>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="unread" onClick={() => act("unread")}>
+            <Icon name="circle" size="code-action" />
+            {props.session.meta.unread ? "Read" : "Unread"}
+          </button>
+        </div>
+        <div class="tds-swipe-side" data-side="right" ref={right}>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="archive" onClick={() => act("archive")}>
+            <Icon name="archive" size="code-action" />
+            Archive
+          </button>
+          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="delete" onClick={() => act("delete")}>
+            <Icon name="trash" size="code-action" />
+            Delete
+          </button>
+        </div>
+      </div>
       <a
+        ref={row}
         href={`/t/${props.session.id}`}
         class="tds-row"
+        draggable={false}
         data-selected={props.selected ? "" : undefined}
-        data-status={props.session.busy ? "working" : undefined}
+        data-multi={props.multi ? "" : undefined}
+        data-status={props.session.busy ? "working" : app.threads[props.session.id]?.error ? "failed" : undefined}
         data-unread={props.session.meta.unread ? "" : undefined}
         aria-current={props.selected ? "page" : undefined}
+        onPointerEnter={(e) => peekEnter(untrack(() => props.session), e.currentTarget)}
+        onPointerLeave={() => peekLeave()}
+        onPointerDown={(e) => {
+          hidePeek()
+          if (e.button !== 0 || renaming() === untrack(() => props.session.id)) return
+          if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe()
+          start = { x: e.clientX, y: e.clientY, from: x, id: e.pointerId, mouse: e.pointerType === "mouse" }
+          mode = undefined
+        }}
+        onPointerMove={(e) => {
+          if (!start) return
+          const dx = e.clientX - start.x
+          const dy = e.clientY - start.y
+          if (!mode) {
+            if (Math.abs(dx) > L["swipe-intent"] && Math.abs(dx) > Math.abs(dy) * L["swipe-ratio"]) {
+              mode = "swipe"
+              go = false
+              e.currentTarget.setPointerCapture(start.id)
+            } else if (start.mouse && untrack(() => !props.session.meta.archived) && Math.abs(dy) > L["swipe-intent"]) {
+              mode = "drag"
+              e.currentTarget.setPointerCapture(start.id)
+              dragStart(e)
+            } else return
+          }
+          if (mode === "swipe") drag(start.from + dx)
+          else dragMove(e)
+        }}
+        onPointerUp={() => {
+          if (mode) swallowClick()
+          if (mode === "swipe") release()
+          if (mode === "drag") dragEnd()
+          start = undefined
+          mode = undefined
+        }}
+        onPointerCancel={() => {
+          if (mode === "swipe") close()
+          if (mode === "drag") dragEnd()
+          start = undefined
+          mode = undefined
+        }}
+        onClick={(e) => {
+          if (suppressClick) return e.preventDefault()
+          if (x !== 0) return e.preventDefault(), close()
+          const id = untrack(() => props.session.id)
+          if (e.metaKey || e.ctrlKey || e.shiftKey) {
+            e.preventDefault()
+            setSelected((list) => {
+              const base = list.length === 0 && props.current && props.current !== id ? [props.current] : list
+              return base.includes(id) ? base.filter((item) => item !== id) : [...base, id]
+            })
+            return
+          }
+          if (selected().length) setSelected([])
+        }}
+        onDblClick={(e) => (e.target as HTMLElement).closest(".tds-row-title") && setRenaming(untrack(() => props.session.id))}
       >
-        <span class={`tds-row-icon ${glyph().hue}`}>
+        <span class={`tds-row-icon ${glyph().hue}`} ref={icon}>
           <MorphIcon name={glyph().icon} size="row" />
         </span>
         <span class="tds-row-title">
@@ -98,18 +293,15 @@ function Row(props: { session: Session; selected: boolean; query: string }) {
           </Show>
         </span>
         <span class="tds-row-time num">{shortTime(props.session.updatedAt, now())}</span>
-        <span class="tds-row-preview">{plainText(props.session.preview) || " "}</span>
+        <span class="tds-row-preview">
+          <Highlight text={plainText(props.session.preview) || " "} query={props.query} />
+        </span>
         <span class="tds-row-mark">
           <Show when={props.session.busy} fallback={<Show when={props.session.meta.unread}><i class="tds-unread" /></Show>}>
             <Orb status="working" surface={props.selected ? "sel" : "side"} />
           </Show>
         </span>
       </a>
-      <Show when={props.session.meta.pinned}>
-        <span class="tds-row-pin" aria-label="Pinned">
-          <Icon name="push-pin" size="chip" />
-        </span>
-      </Show>
       <MenuTrigger controller={threadMenu} payload={props.session} class="tds-row-more" aria-label={`Actions for ${titleOf(props.session)}`}>
         <Icon name="dots-three" size="row" />
       </MenuTrigger>
@@ -176,10 +368,11 @@ export function Sidebar() {
   const [width, setWidth] = createSignal<number>(savedWidth())
   let search!: HTMLInputElement
 
+  const visible = createMemo(() => app.sessions.filter((s) => !doomed().includes(s.id) && !((s.meta.snoozedUntil ?? 0) > now())))
   const matches = createMemo(() => {
     const q = query().trim().toLowerCase()
-    if (!q) return app.sessions
-    return app.sessions.filter((s) => `${titleOf(s)} ${s.preview}`.toLowerCase().includes(q))
+    if (!q) return visible().filter((s) => !s.meta.pinned || s.meta.archived)
+    return visible().filter((s) => `${titleOf(s)} ${s.preview}`.toLowerCase().includes(q))
   })
   const entries = createMemo<Entry[]>(() => {
     const active = matches().filter((s) => !s.meta.archived)
@@ -189,9 +382,23 @@ export function Sidebar() {
     const open = archiveOpen() || query().trim() !== ""
     return [...rows, archiveEntry(archived.length), ...(open ? archived.map(rowEntry) : [])]
   })
-  const working = createMemo(() => app.sessions.find((s) => s.busy))
+  const chosen = () => app.sessions.filter((s) => selected().includes(s.id))
   const startChat = () => navigate(`/t/${newThreadId()}`)
 
+  const onKey = (e: KeyboardEvent) => {
+    const typing = (e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable=true], .ProseMirror")
+    if (e.key === "Escape" && untrack(selected).length) return setSelected([])
+    if (e.key === " " && !typing && !e.repeat) {
+      const row = document.querySelector<HTMLElement>(".tds-row:hover") ?? document.querySelector<HTMLElement>(".tds-row[aria-current=page]")
+      const session = app.sessions.find((item) => row && row.getAttribute("href") === `/t/${item.id}`)
+      if (!row || !session) return
+      e.preventDefault()
+      peekToggle({ session, row })
+    }
+    if (e.key === "Escape") hidePeek()
+  }
+  addEventListener("keydown", onKey)
+  onCleanup(() => removeEventListener("keydown", onKey))
 
   return (
     <aside class="tds-sidebar" style={{ width: `${width()}px` }} aria-label="Chats">
@@ -206,18 +413,10 @@ export function Sidebar() {
         </button>
       </div>
 
-      <button type="button" class="tds-toast-row">
-        <img src="/brand/toast-mascot-36.svg" alt="" class="size-mascot flex-none rounded-small" draggable={false} />
-        <span class="min-w-0 flex-1 pl-6 text-left">
-          <b class="block text-name">toast</b>
-          <span class="block truncate text-preview text-muted">
-            <TextMorph value={working() ? `working on ${titleOf(working()).toLowerCase()}` : "here when you need me"} />
-          </span>
-        </span>
-        <Icon name="caret-down" size="menu" class="text-faint" />
-      </button>
+      <Pins show={query().trim() === ""} />
+      <ToastRow show={query().trim() === ""} />
 
-      <div class="relative -mx-12 min-h-0 flex-1">
+      <div class="relative -mx-12 min-h-0 flex-1" onPointerLeave={() => peekLeave()}>
         <Show
           when={entries().length > 0}
           fallback={
@@ -238,14 +437,41 @@ export function Sidebar() {
                   <Icon name="caret-down" size="chip" class="tds-archive-caret" />
                 </button>
               ) : (
-                <Row session={entry.session} selected={params.id === entry.session.id} query={query()} />
+                <Row
+                  session={entry.session}
+                  selected={params.id === entry.session.id}
+                  multi={selected().includes(entry.session.id)}
+                  query={query()}
+                  current={params.id}
+                  navigate={navigate}
+                />
               )
             }
           </VList>
         </Show>
       </div>
+
+      <div class="tds-bulk tds-over" data-open={selected().length > 1 ? "" : undefined} role="toolbar" aria-label="Selected chats">
+        <b class="num">
+          <TextMorph value={`${selected().length} selected`} />
+        </b>
+        <button type="button" class="tds-press" onClick={() => (markRead(chosen()), setSelected([]))}>
+          <Icon name="circle" size="menu" />
+          Read
+        </button>
+        <button type="button" class="tds-press" onClick={() => (archive(chosen(), params.id, navigate), setSelected([]))}>
+          <Icon name="archive" size="menu" />
+          Archive
+        </button>
+        <button type="button" class="tds-press" data-danger="" onClick={() => (remove(chosen(), params.id, navigate), setSelected([]))}>
+          <Icon name="trash" size="menu" />
+          Delete
+        </button>
+      </div>
       <ResizeHandle width={width()} onWidth={setWidth} />
       <ThreadMenu />
+      <MoveDialog />
+      <Peek />
     </aside>
   )
 }

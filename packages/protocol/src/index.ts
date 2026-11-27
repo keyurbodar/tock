@@ -128,6 +128,10 @@ export type ThreadStatus = "idle" | "working" | "needs" | "failed" | "done"
 
 export interface ThreadMeta {
   readonly pinned: boolean
+  /** Epoch ms the chat was pinned at, null when it is not pinned. Orders the pins strip, newest first. */
+  readonly pinnedAt: number | null
+  readonly folder: string | null
+  readonly snoozedUntil: number | null
   readonly archived: boolean
   readonly unread: boolean
   readonly title: string | null
