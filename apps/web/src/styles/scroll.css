@@ -1,6 +1,12 @@
 @layer components {
   .tds-transcript { overflow-anchor: auto }
-  .tds-worklog { transition-property: height, opacity, scale, translate, filter; transition-duration: var(--tds-dur-layout); transition-timing-function: var(--tds-ease-std) }
+  .tds-worklog { transition-property: height, opacity, scale, translate, filter; transition-duration: var(--tds-dur-layout); transition-timing-function: var(--tds-ease-sheet) }
+  .tds-ws-fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--tds-dur-layout) var(--tds-ease-sheet) }
+  .tds-ws-fold[data-open] { grid-template-rows: 1fr }
+  .tds-ws-fold > * { min-height: 0; overflow: hidden }
+  .tds-ws-fold .tds-ws-body { opacity: 0; filter: blur(var(--tds-blur-enter)); transition: opacity var(--tds-dur-exit-small) var(--tds-ease-out), filter var(--tds-dur-exit-small) var(--tds-ease-out) }
+  .tds-ws-fold[data-open] .tds-ws-body { opacity: 1; filter: none; transition-duration: var(--tds-dur-layout) }
+  .tds-ws-caret { transition: rotate var(--tds-dur-layout) var(--tds-ease-sheet) }
   .tds-worklog-body { flex: 1 1 auto; overflow-anchor: none }
   .tds-jump {
     position: absolute; left: 50%; bottom: var(--tds-size-column-bottom); z-index: 1;

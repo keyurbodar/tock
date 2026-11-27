@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
+import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
@@ -120,8 +120,10 @@ function PlanList(props: { plan: Plan; at: number }) {
   )
 }
 
-function StepRow(props: { step: Step; live: boolean; sessionId: string }) {
-  const [open, setOpen] = createSignal(false)
+function StepRow(props: { step: Step; live: boolean; sessionId: string; open: boolean; onToggle: (row: HTMLElement) => void }) {
+  let row!: HTMLDivElement
+  const open = () => props.open
+  const [seen, setSeen] = createSignal(false)
   const status = () => (asking(props.step) ? "needs" : statusOf(props.step))
   const label = createMemo(() => labelOf(props.step))
   const kind = () => kinds[label().kind]
@@ -135,8 +137,11 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string }) {
   })
   const at = () => (props.step.kind === "tool" ? props.step.result?.timestamp : undefined)
   return (
-    <div class="tds-ws" data-status={status()} data-open={open() ? "" : undefined}>
-      <button type="button" class="tds-ws-line" disabled={!body()} aria-expanded={body() ? (open() ? "true" : "false") : undefined} onClick={() => setOpen((value) => !value)}>
+    <div ref={row} class="tds-ws" data-key={props.step.key} data-status={status()} data-open={open() ? "" : undefined}>
+      <button type="button" class="tds-ws-line" disabled={!body()} aria-expanded={body() ? (open() ? "true" : "false") : undefined} onClick={() => {
+        setSeen(true)
+        props.onToggle(row)
+      }}>
         <span class="tds-ws-slot" style={{ color: status() === "failed" ? undefined : kind().hue }}>
           <Switch fallback={<MorphIcon name={kind().icon} size="menu" class="tds-ws-kind" />}>
             <Match when={status() === "failed"}>
@@ -162,7 +167,8 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string }) {
       <Show when={status() === "needs" && props.step.kind === "tool" ? props.step.call : undefined}>
         {(call) => <AskButtons sessionId={props.sessionId} ask={askOf(call())} />}
       </Show>
-      <Show when={open() ? body() : undefined}>
+      <div class="tds-ws-fold" data-open={open() ? "" : undefined}>
+      <Show when={seen() || open() ? body() : undefined}>
         {(shown) => (
           <div class="tds-ws-body">
             <Switch>
@@ -190,6 +196,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string }) {
           </div>
         )}
       </Show>
+      </div>
     </div>
   )
 }
@@ -233,7 +240,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     if (!scroller || !content || !head) return
     const style = getComputedStyle(scroller)
     setHeight(head.offsetHeight + content.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom))
-    if (stick) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight))
+    if (stick && props.work?.active) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight))
   }
   const grow = new ResizeObserver(fit)
   const frame = requestAnimationFrame(() => {
@@ -259,6 +266,19 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   })
 
   const steps = createMemo(() => props.work?.steps ?? [])
+  const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set<string>())
+  const toggleRow = (key: string, row: HTMLElement) => {
+    const opening = !untrack(expanded).has(key)
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (opening) next.add(key)
+      else next.delete(key)
+      return next
+    })
+    if (!opening) return
+    stick = false
+    setTimeout(() => row.scrollIntoView({ block: "nearest", behavior: "smooth" }), tokens.motion.duration.layout)
+  }
   const rows = createMemo((): Row[] => [...(props.work?.plan ? [{ kind: "plan" as const, key: "plan" }] : []), ...steps().map((step) => ({ kind: "step" as const, key: step.key, step }))])
   const limit = () => Math.max(place().max, tokens.size["worklog-head"])
   return (
@@ -319,7 +339,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
                         row.kind === "plan" ? (
                           <Show when={work().plan}>{(plan) => <PlanList plan={plan()} at={planAt(work())} />}</Show>
                         ) : (
-                          <StepRow step={row.step} sessionId={props.sessionId} live={work().active && row.key === steps().at(-1)?.key && statusOf(row.step) === "running"} />
+                          <StepRow step={row.step} sessionId={props.sessionId} open={expanded().has(row.key)} onToggle={(el) => toggleRow(row.key, el)} live={work().active && row.key === steps().at(-1)?.key && statusOf(row.step) === "running"} />
                         )
                       }
                     </Virtualizer>
