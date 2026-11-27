@@ -173,6 +173,17 @@ export function Peek() {
                 <For each={peek().lines} keyed={(line) => line.key}>
                   {(line) => (
                     <div class="tds-peek-line" dir="auto" data-me={line().me ? "" : undefined}>
+                      <Show when={line().quote}>
+                        {(quote) => (
+                          <span class="tds-peek-quote">
+                            <span class="tds-quote-bar" aria-hidden="true" />
+                            <span class="tds-quote-body">
+                              <b class="tds-quote-author">{quote().author}</b>
+                              <span class="tds-quote-text">{quote().excerpt}</span>
+                            </span>
+                          </span>
+                        )}
+                      </Show>
                       <span>{line().text}</span>
                     </div>
                   )}

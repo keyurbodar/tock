@@ -125,7 +125,7 @@ export function ReplyActions(props: { sessionId: string; scroller: () => HTMLEle
   const whole = (ref: string): Quote => ({ ref, text: plainText(props.text(ref) ?? "") })
   onSettled(() => void setReplyHandler(() => (target: ReplyTarget) => reply(untrack(() => props.sessionId), whole(target.ref))))
   onCleanup(() => setReplyHandler(undefined))
-  const [picked, setPicked] = createSignal<{ ref: string; text: string; left: number; top: number }>()
+  const [picked, setPicked] = createSignal<{ ref: string; text: string; left: number; top: number; below: boolean }>()
   let bar: HTMLDivElement | undefined
   let frame = 0
   const readSelection = () => {
@@ -139,7 +139,9 @@ export function ReplyActions(props: { sessionId: string; scroller: () => HTMLEle
     const settling = from.getAnimations()
     if (settling.length) void Promise.all(settling.map((animation) => animation.finished)).then(onSelection, () => undefined)
     const was = untrack(picked)
-    setPicked({ ref: from.dataset.ref!, text, left: box.left + box.width / 2, top: box.top })
+    const header = document.querySelector(".tds-header-band")?.getBoundingClientRect().bottom ?? 0
+    const below = box.top - tokens.size["reply-gap"] - tokens.size["select-bar"] < header
+    setPicked({ ref: from.dataset.ref!, text, left: box.left + box.width / 2, top: below ? box.bottom + tokens.size["reply-gap"] : box.top - tokens.size["reply-gap"], below })
     if (!was) requestAnimationFrame(() => bar && enter.menu(bar))
   }
   const onSelection = () => void (frame ||= requestAnimationFrame(readSelection))
@@ -188,7 +190,7 @@ export function ReplyActions(props: { sessionId: string; scroller: () => HTMLEle
     <>
       <Show when={picked()}>
         {(at) => (
-          <div ref={bar} class="tds-select-bar tds-over" role="toolbar" aria-label="Selection" style={{ left: `${at().left}px`, top: `${at().top - tokens.size["reply-gap"]}px` }} onPointerDown={(event) => event.preventDefault()}>
+          <div ref={bar} class="tds-select-bar tds-over" role="toolbar" aria-label="Selection" data-below={at().below ? "" : undefined} style={{ left: `${at().left}px`, top: `${at().top}px` }} onPointerDown={(event) => event.preventDefault()}>
             <button type="button" class="tds-press tds-select-action" onClick={() => take({ ref: at().ref, text: at().text })}>
               <Icon name="quotes" size="menu" /> Quote
             </button>

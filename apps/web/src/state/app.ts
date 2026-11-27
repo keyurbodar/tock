@@ -9,6 +9,7 @@ import { loadReactions } from "./reactions"
 import { finishedElsewhere } from "../shell/finished"
 import { announce } from "../shell/announce"
 import { tokens } from "@tock/tokens"
+import { authorOf, excerpt, parseQuote } from "../chat/quote"
 import { Lexer, type Token, type Tokens } from "marked"
 
 const LIVE_DOC = "pi.live"
@@ -405,6 +406,8 @@ export interface PeekLine {
   readonly key: string
   readonly me: boolean
   readonly text: string
+  /** A quoted reply's quote: who said it and one line of what they said. */
+  readonly quote?: { readonly author: string; readonly excerpt: string }
 }
 
 const peekCache = new Map<string, readonly PeekLine[]>()
@@ -421,9 +424,10 @@ const linesOf = (entries: readonly EntryRecord[]): PeekLine[] =>
           : Array.isArray(content)
             ? content.map((part) => (isRecord(part) && part.type === "text" && typeof part.text === "string" ? part.text : "")).join(" ")
             : ""
-      return { key: String(index), me: message.role === "user", text: plainText(text) }
+      const quoted = parseQuote(text)
+      return { key: String(index), me: message.role === "user", text: plainText(text), quote: quoted && { author: authorOf(quoted.ref), excerpt: excerpt(quoted.excerpt) } }
     })
-    .filter((line) => line.text !== "")
+    .filter((line) => line.text !== "" || line.quote)
     .slice(-3)
 
 /** The last three messages of a chat for the peek card, without subscribing (which would mark it read). */

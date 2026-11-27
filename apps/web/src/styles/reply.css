@@ -34,9 +34,20 @@
     position: fixed; z-index: var(--tds-z-lift); display: flex; gap: var(--tds-space-2); padding: var(--tds-space-3);
     translate: -50% -100%; border-radius: var(--tds-radius-pill); transform-origin: 50% 100%;
   }
+  /* No room above (the header band): the pair flips under the selection. */
+  .tds-select-bar[data-below] { translate: -50% 0; transform-origin: 50% 0 }
   .tds-select-action {
     display: inline-flex; align-items: center; gap: var(--tds-space-5); height: var(--tds-size-reply-hit); padding: 0 var(--tds-space-10);
     border-radius: var(--tds-radius-pill); font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx);
   }
   @media (hover: hover) and (pointer: fine) { .tds-select-action:hover { background: var(--tds-overlay-hover) } }
+
+  /* The quote a reply points at, on its peek line: the bubble chip at peek size. */
+  .tds-peek-line .tds-peek-quote {
+    display: flex; gap: var(--tds-space-6); min-width: 0; margin-bottom: var(--tds-space-3);
+    padding: var(--tds-space-3) var(--tds-space-6) var(--tds-space-3) var(--tds-space-3); border-radius: var(--tds-radius-button-sm); background: var(--tds-overlay-hover);
+    & .tds-quote-body { display: grid }
+    & .tds-quote-author, & .tds-quote-text { display: block; font-size: var(--tds-type-micro-size) }
+  }
+  .tds-peek-line[data-me] .tds-peek-quote .tds-quote-text { color: var(--tds-text-tx); opacity: .72 }
 }

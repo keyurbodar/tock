@@ -4807,6 +4807,27 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => js<string>("return document.querySelector('.tds-quote-preview .tds-quote-author')?.textContent.trim() ?? ''"), (t) => t === "Replying to You", "Reply on my bubble replies to me")
     check(js<string>("return document.querySelector('.tds-quote-preview .tds-quote-text').textContent") === WEATHER, "Reply quotes the whole message")
   },
+  quoteheader() {
+    seeded()
+    ab("set", "viewport", "1440", "520")
+    wait(300)
+    const agent = ".tds-column .tds-bubble[data-side='agent'][data-ref]"
+    ab("eval", "{ const s = document.querySelector('.tds-transcript'); const b = document.querySelector(" + JSON.stringify(agent) + "); const h = document.querySelector('.tds-header-band').getBoundingClientRect().bottom; s.scrollTop += b.getBoundingClientRect().top - h - 4 } true")
+    wait(400)
+    js<string>("const el = document.querySelector(" + JSON.stringify(agent) + "); const r = document.createRange(); r.selectNodeContents(el); getSelection().removeAllRanges(); getSelection().addRange(r); return getSelection().toString()")
+    until(() => exists(".tds-select-bar"), Boolean, "the Quote and Reply pair")
+    wait(300)
+    const at = js<{ bar: { top: number; bottom: number }; sel: { top: number; bottom: number }; header: number; below: boolean }>("const b = document.querySelector('.tds-select-bar'); const r = getSelection().getRangeAt(0).getBoundingClientRect(); const br = b.getBoundingClientRect(); return { bar: { top: br.top, bottom: br.bottom }, sel: { top: r.top, bottom: r.bottom }, header: document.querySelector('.tds-header-band').getBoundingClientRect().bottom, below: b.hasAttribute('data-below') }")
+    console.log("      quoteheader: " + JSON.stringify(at))
+    check(at.sel.top - at.header < 40, "the selection sits right under the header band: " + JSON.stringify(at))
+    check(at.below && at.bar.top >= at.sel.bottom && at.bar.top >= at.header, "with no room above, the pair flips below the selection, clear of the header: " + JSON.stringify(at))
+    shot("quoteheader")
+    ab("eval", "document.querySelector('.tds-transcript').scrollTop = 1e6; true")
+    wait(300)
+    js<string>("const el = [...document.querySelectorAll(" + JSON.stringify(agent) + ")].at(-1); const r = document.createRange(); r.selectNodeContents(el); getSelection().removeAllRanges(); getSelection().addRange(r); return ''")
+    until(() => js<boolean>("const b = document.querySelector('.tds-select-bar'); return !!b && !b.hasAttribute('data-below') && b.getBoundingClientRect().bottom <= getSelection().getRangeAt(0).getBoundingClientRect().top + 1"), Boolean, "with room above, the pair sits above the selection")
+    ab("set", "viewport", "1440", "900")
+  },
   quoteesc() {
     seeded()
     const agent = ".tds-column .tds-bubble[data-side='agent'][data-ref]"
@@ -4842,9 +4863,6 @@ const journeys: Record<string, () => void | Promise<void>> = {
     check(clean(rowText), "the sidebar row has no quote markup: " + rowText)
     settled()
     check(clean(text(row)), "the finished row has no quote markup: " + text(row))
-    ab("eval", "import('/src/state/app.ts').then((m) => { window.__plain = m.plainText('> [Here is \\\\[it\\\\]](tock-quote:a:1:0)\\n\\nShip it') }); true")
-    until(() => js<string>("return window.__plain ?? ''"), (t) => t !== "", "plainText from the app")
-    check(js<string>("return window.__plain") === "Ship it", "plainText strips a leading tock-quote line: " + js<string>("return window.__plain"))
     const box = rect(`${row} .tds-row`)!
     ab("mouse", "move", "5", "5")
     ab("mouse", "move", String(box.x + 60), String(box.y + box.h / 2))
@@ -4852,6 +4870,9 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const lines = until(() => js<string[]>("return [...document.querySelectorAll('.tds-peek-line')].map((e) => e.textContent)"), (l) => l.some((t) => t.includes("Quoted follow up")), "the quoted reply in the peek")
     console.log("      quotesidebar peek: " + JSON.stringify(lines))
     check(lines.every(clean), "the peek shows the quoted reply without markup: " + JSON.stringify(lines))
+    const peekQuote = js<{ author: string; text: string; bar: boolean; nowrap: string } | null>("const line = [...document.querySelectorAll('.tds-peek-line')].find((e) => e.textContent.includes('Quoted follow up')); const q = line?.querySelector('.tds-peek-quote'); return q ? { author: q.querySelector('.tds-quote-author').textContent, text: q.querySelector('.tds-quote-text').textContent, bar: q.querySelector('.tds-quote-bar').getBoundingClientRect().width > 0, nowrap: getComputedStyle(q.querySelector('.tds-quote-text')).whiteSpace } : null")
+    console.log("      quotesidebar peek quote: " + JSON.stringify(peekQuote))
+    check(peekQuote && peekQuote.author === "toast" && peekQuote.text.startsWith("Here") && peekQuote.bar && peekQuote.nowrap === "nowrap", "the peek's quoted reply shows a chip line with author, bar and a one-line excerpt: " + JSON.stringify(peekQuote))
     wait(300)
     shot("quotesidebar-peek")
   },
@@ -4864,7 +4885,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "previews", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "replyrail", "quoteselect", "quoteesc", "quotesidebar", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "chipcards", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "followups", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "previews", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "react", "reactpersist", "reactagent", "replyrail", "quoteselect", "quoteheader", "quoteesc", "quotesidebar", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
