@@ -26,6 +26,7 @@
 @import "./skills-type.css";
 @import "./skills-a11y.css";
 @import "./skills-ui.css";
+@import "./cards.css";
 
 @layer base {
   html {

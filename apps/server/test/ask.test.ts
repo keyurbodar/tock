@@ -74,4 +74,50 @@ describe("ask_owner", () => {
     expect((await request("ask.answer", { sessionId, answer: "Approve" })).type).toBe("error");
     ws.close();
   }, 20_000);
+  it("carries several questions in one ask and keeps single-question asks unchanged", async () => {
+    const owner = "ask-owner-many@test";
+    const stub = testEnv.TOCK_DO.get(testEnv.TOCK_DO.idFromName(owner)) as DurableObjectStub<TockDO>;
+    const questions = [
+      { question: "Which branch?", options: ["main", "release/2.4"] },
+      { question: "Open a pull request?", options: ["Yes", "No"] },
+    ];
+    await runInDurableObject(stub, async (instance) => {
+      const faux = fauxProvider();
+      (instance as unknown as { models: MutableModels }).models.setProvider(faux.provider);
+      faux.setResponses([
+        fauxAssistantMessage([fauxToolCall("ask_owner", { kind: "question", question: "Two choices", questions })], { stopReason: "toolUse" }),
+        fauxAssistantMessage(fauxText("Done.")),
+      ]);
+      const model = faux.getModel();
+      await instance.updateSettings({ model: `${model.provider}/${model.id}` });
+    });
+    const res = await SELF.fetch("https://tock.local/ws", { headers: { upgrade: "websocket", "x-tock-owner": owner } });
+    const ws = res.webSocket!;
+    ws.accept();
+    const frames: Frame[] = [];
+    ws.addEventListener("message", (ev) => frames.push(JSON.parse(String(ev.data))));
+    let n = 0;
+    const until = async <T>(read: () => T | undefined, what: string): Promise<T> => {
+      for (let t = 0; t < 250; t++) {
+        const v = read();
+        if (v !== undefined) return v;
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      throw new Error(`timed out waiting for ${what}`);
+    };
+    const request = async (type: string, body: Record<string, unknown> = {}) => {
+      const id = `r${n++}`;
+      ws.send(JSON.stringify({ id, type, ...body }));
+      return until(() => frames.find((f) => f.id === id && (f.type === "ok" || f.type === "error")), type);
+    };
+    const sessionId = crypto.randomUUID();
+    await request("chat.subscribe", { sessionId });
+    await request("chat.send", { sessionId, text: "two questions" });
+    const pending = await until(() => frames.find((f) => f.event === "ask.pending"), "ask.pending");
+    expect(pending.payload).toMatchObject({ ask: { kind: "question", question: "Two choices", options: ["main", "release/2.4"], questions } });
+    const answer = "Which branch?: main\nOpen a pull request?: Yes";
+    expect((await request("ask.answer", { sessionId, answer })).data).toEqual({ answered: true });
+    await until(() => frames.find((f) => f.event === "ask.settled"), "ask.settled");
+    ws.close();
+  }, 20_000);
 });

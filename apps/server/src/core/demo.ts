@@ -40,6 +40,9 @@ const PLAN = ["Check what I already know", "Test it in the sandbox", "Write up t
 const scripted: FauxResponseFactory = (context) => {
   const lastUser = context.messages.findLastIndex((m) => m.role === "user")
   const asked = textOf(context.messages[lastUser]).trim()
+  if (/fail once/i.test(asked) && context.messages.filter((m) => m.role === "user" && textOf(m).trim() === asked).length < 2)
+    return fauxAssistantMessage([], { stopReason: "error", errorMessage: "The request was rejected (invalid_request_error)." })
+  if (/fail once/i.test(asked)) return fauxAssistantMessage(fauxText("Back on track: this time the model answered."))
   const done = new Set(context.messages.slice(lastUser + 1).flatMap((m) => (m.role === "toolResult" ? [m.toolName] : [])))
   const answered = context.messages.slice(lastUser + 1).find((m) => m.role === "toolResult" && m.toolName === "ask_owner")
   const plans = context.messages.slice(lastUser + 1).filter((m) => m.role === "toolResult" && m.toolName === "update_plan").length
@@ -56,6 +59,17 @@ const scripted: FauxResponseFactory = (context) => {
   }
   const approval = /approve/i.test(asked)
   const question = /question|choose/i.test(asked)
+  if (!done.size && /two questions/i.test(asked))
+    return fauxAssistantMessage([
+      fauxToolCall("ask_owner", {
+        kind: "question",
+        question: "A couple of choices before I start",
+        questions: [
+          { question: "Which branch should I base the fix on?", options: ["main", "release/2.4", "fix/login-loop"] },
+          { question: "Should I open a pull request when it passes?", options: ["Yes, open it", "No, just push"] },
+        ],
+      }),
+    ], { stopReason: "toolUse" })
   if (!done.size && (approval || question))
     return fauxAssistantMessage([
       fauxThinking(approval ? "This touches production, so I want the owner's go-ahead before I run anything." : "There are two reasonable ways to do this; the owner should pick."),

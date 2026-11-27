@@ -37,7 +37,7 @@ export type Item =
     }
   | { readonly kind: "typing"; readonly key: string }
   | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
-  | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string }
+  | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string; readonly retry?: string }
   | { readonly kind: "caption"; readonly key: string; readonly text: string; readonly side: "me" | "agent" }
   | { readonly kind: "divider"; readonly key: string; readonly text: string }
   | { readonly kind: "ask"; readonly key: string; readonly ask: Ask; readonly answer: string | undefined; readonly pending: boolean }
@@ -47,17 +47,28 @@ export interface Ask {
   readonly question: string
   readonly summary: string | undefined
   readonly options: readonly string[]
+  readonly questions: readonly { readonly question: string; readonly options: readonly string[] }[]
 }
 
 export const askOf = (call: ToolCallBlock): Ask => {
   const args = call.arguments
-  const options = Array.isArray(args.options) ? args.options.filter((option): option is string => typeof option === "string") : []
+  const strings = (value: unknown) => (Array.isArray(value) ? value.filter((option): option is string => typeof option === "string").slice(0, 4) : [])
+  const asked = Array.isArray(args.questions)
+    ? args.questions.flatMap((entry: unknown) =>
+        typeof entry === "object" && entry !== null && "question" in entry && typeof entry.question === "string" && "options" in entry && strings(entry.options).length
+          ? [{ question: entry.question, options: strings(entry.options) }]
+          : [],
+      )
+    : []
+  const question = typeof args.question === "string" ? args.question : ""
+  const options = strings(args.options).length ? strings(args.options) : (asked[0]?.options ?? [])
   const kind = args.kind === "question" || (args.kind !== "approval" && options.length) ? "question" : "approval"
   return {
     kind,
-    question: typeof args.question === "string" ? args.question : "",
+    question,
     summary: typeof args.summary === "string" ? args.summary : undefined,
-    options: kind === "approval" ? ["Approve", "Deny"] : options.slice(0, 4),
+    options: kind === "approval" ? ["Approve", "Deny"] : options,
+    questions: kind === "approval" ? [] : asked.length ? asked : [{ question, options }],
   }
 }
 
@@ -206,10 +217,11 @@ export function buildItems(
     if (open && message.timestamp) open.endedAt = message.timestamp
     if (!streaming && message.stopReason === "aborted") items.push({ kind: "caption", key: `${key}:stopped`, text: "Stopped", side: "agent" })
     if (!streaming && message.stopReason === "error" && message.errorMessage)
-      items.push({ kind: "error", key: `${key}:error`, title: "The model returned an error. Send your message again to retry.", detail: message.errorMessage })
+      items.push({ kind: "error", key: `${key}:error`, title: "The model returned an error", detail: message.errorMessage, retry: asked })
   }
 
   let users = 0
+  let asked: string | undefined
   for (const entry of entries) {
     (entry.model ?? []).forEach((message, index) => {
       const key = `${entry.id}:${index}`
@@ -217,6 +229,7 @@ export function buildItems(
         const bubble = `user:${users++}`
         const text = userText(message)
         const routine = routineName(entry)
+        asked = text
         stamp(key, message.timestamp ?? null)
         if (routine === undefined) {
           items.push({ kind: "user", key: bubble, text, images: userImages(message), at: message.timestamp ?? null })
@@ -243,12 +256,18 @@ export function buildItems(
     items.push({ kind: "caption", key: "caption:stopped", text: "Stopped", side: "agent" })
   if (live?.generation?.retry)
     items.push({ kind: "error", key: "retry", title: "Retrying", detail: live.generation.retry.error })
-  if (!running && live?.runFailure && live.runFailure.reason !== "aborted")
+  const failure = live?.runFailure
+  const told = items.at(-1)?.kind === "error" && (items.at(-1) as { detail: string }).detail === (failure?.detail ?? failure?.reason)
+  if (!running && failure && failure.reason !== "aborted" && !told)
     items.push({
       kind: "error",
       key: "failure",
-      title: "The run stopped. Send a message to pick it up again.",
+      title: "The run stopped",
       detail: live.runFailure.detail ?? live.runFailure.reason,
+      retry: asked,
     })
-  return items
+  const last = items.findLastIndex((item) => item.kind === "error" && item.retry !== undefined)
+  return running || pending.length > 0 || items.slice(last + 1).some((item) => item.kind === "user")
+    ? items.map((item) => (item.kind === "error" && item.retry !== undefined ? { ...item, retry: undefined } : item))
+    : items.map((item, index) => (item.kind === "error" && index !== last && item.retry !== undefined ? { ...item, retry: undefined } : item))
 }

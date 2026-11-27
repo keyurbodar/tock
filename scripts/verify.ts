@@ -45,6 +45,7 @@ function until<T>(read: () => T, ok: (value: T) => boolean, what: string, ms = 8
   }
   return value
 }
+const text = (sel: string) => js<string>(`return document.querySelector(${JSON.stringify(sel)})?.textContent ?? ''`)
 const rect = (sel: string) => js<{ x: number; y: number; w: number; h: number } | null>(
   `const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null`,
 )
@@ -1552,6 +1553,62 @@ const journeys: Record<string, () => void> = {
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
     shot("ask-question-answered")
   },
+  numbered() {
+    fresh()
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "help me choose a base branch")
+    ab("press", "Enter")
+    until(() => exists(".tds-ask[data-kind='question'] .tds-ask-opt"), Boolean, "the question card", 15000)
+    check(js<string>("return [...document.querySelectorAll('.tds-ask-num')].map((n) => n.textContent).join(',')") === "1,2,3", "each option should show its number")
+    check(rect(".tds-ask-opt")!.h === 40, `KcQuestions: options are 40 tall (got ${rect(".tds-ask-opt")?.h})`)
+    js<boolean>("document.activeElement?.blur(); return true")
+    ab("press", "2")
+    until(() => js<string>("return document.querySelector('.tds-ask-opt[data-on]')?.dataset.option ?? ''"), (o) => o === "release/2.4", "2 to pick the second option")
+    shot("question-picked")
+    ab("press", "Enter")
+    until(() => exists(".tds-ask-done .tds-undo"), Boolean, "the answered line with Undo")
+    check(js<string>("return document.querySelector('.tds-ask-done')?.textContent ?? ''").includes("You chose release/2.4"), "Enter should answer the picked option")
+    shot("question-undo")
+    ab("click", ".tds-ask-done .tds-undo")
+    until(() => exists(".tds-ask .tds-ask-opt"), Boolean, "Undo to bring the card back")
+    check(js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''") === "needs", "the run should still be waiting after Undo")
+    ab("click", ".tds-ask .tds-ask-opt[data-option='main']")
+    until(() => exists(".tds-ask-done"), Boolean, "the answered line")
+    until(() => exists(".tds-undo"), (on) => !on, "Undo to leave once the answer is sent", 8000)
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
+    check(js<string>("return document.querySelector('.tds-ask-done')?.textContent ?? ''").includes("You chose main"), "the run should resume with main")
+  },
+  multiquestion() {
+    fresh()
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "ask me two questions")
+    ab("press", "Enter")
+    until(() => exists(".tds-ask .tds-ask-step"), Boolean, "the stepped question card", 15000)
+    check(text(".tds-ask-step").includes("1 of 2"), `the card should say 1 of 2 (got ${text(".tds-ask-step")})`)
+    shot("multiquestion-1")
+    ab("click", ".tds-ask .tds-ask-opt[data-option='release/2.4']")
+    until(() => text(".tds-ask-step"), (s) => s.includes("2 of 2"), "the second question")
+    check(text(".tds-ask-q").includes("pull request"), "the second question should show")
+    shot("multiquestion-2")
+    ab("click", ".tds-ask .tds-ask-opt[data-option='Yes, open it']")
+    until(() => exists(".tds-ask-done"), Boolean, "the answered line")
+    check(text(".tds-ask-done").includes("You chose release/2.4, Yes, open it"), `the line should list both answers (got ${text(".tds-ask-done")})`)
+    until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
+  },
+  retry() {
+    fresh()
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", `fail once ${Date.now()}`)
+    ab("press", "Enter")
+    until(() => exists(".tds-alert .tds-alert-retry"), Boolean, "the error card with Retry", 15000)
+    check(text(".tds-alert").includes("The model returned an error"), "the card names the error")
+    check(!text(".tds-alert").includes("Send your message again"), "no send-again instruction once Retry exists")
+    shot("error-retry")
+    ab("click", ".tds-alert .tds-alert-retry")
+    until(() => exists(".tds-alert-retry"), (on) => !on, "Retry to leave once the run restarts")
+    until(() => text(".tds-transcript"), (s) => s.includes("Back on track"), "the retried run to answer", 15000)
+    shot("error-retried")
+  },
   composer() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
@@ -2526,7 +2583,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "trayopen", "edges", "skeleton", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

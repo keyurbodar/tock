@@ -1,0 +1,24 @@
+@layer components {
+  /* CxAlerts .al: an error card with its key on the right */
+  .tds-alert-retry { flex: none; margin-left: auto; align-self: center }
+
+  /* KcQuestions: numbered full-width options, 1 of 2 with dots */
+  .tds-ask-step { display: flex; align-items: center; gap: var(--tds-space-8); margin-left: auto; font-size: var(--tds-type-secondary-size); color: var(--tds-text-faint) }
+  .tds-ask-dots { display: flex; gap: var(--tds-space-5) }
+  .tds-ask-dots i { width: var(--tds-size-ask-step-dot); height: var(--tds-size-ask-step-dot); border-radius: var(--tds-radius-pill); background: var(--tds-wash-mono) }
+  .tds-ask-dots i[data-on] { background: var(--tds-accent-rose) }
+  .tds-ask-opts { display: flex; flex-direction: column; gap: var(--tds-space-8); margin-top: var(--tds-space-14) }
+  .tds-ask .tds-ask-opt { justify-content: flex-start; gap: var(--tds-space-10); width: 100%; height: var(--tds-size-ask-option); padding-inline: var(--tds-space-10) var(--tds-space-14) }
+  .tds-ask-opt[data-on] { box-shadow: inset 0 0 0 1.5px var(--tds-accent-rose), var(--tds-key-shadow) }
+  .tds-ask-num {
+    display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--tds-size-key); height: var(--tds-size-key);
+    border-radius: var(--tds-radius-key); background: var(--tds-wash-mono); font-size: var(--tds-type-micro-size); color: var(--tds-text-muted);
+  }
+  .tds-ask-opt[data-on] .tds-ask-num { background: var(--tds-accent-rose); color: var(--tds-surface-ink) }
+
+  /* KcAfter .ub: Undo on the answered line */
+  .tds-undo {
+    height: var(--tds-size-undo-key); margin-left: var(--tds-space-4); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-pill);
+    background: var(--tds-wash-mono); color: var(--tds-text-tx2); font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium);
+  }
+}

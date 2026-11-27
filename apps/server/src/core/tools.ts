@@ -47,6 +47,7 @@ export interface OwnerAsk {
   question: string;
   summary?: string;
   options: string[];
+  questions?: { question: string; options: string[] }[];
 }
 
 export const OwnerAnswer = defineSignal({ name: "tock.owner-answer", version: 1, schema: obj({ answer: str() }) });
@@ -102,6 +103,7 @@ const AskOwnerParams = obj({
   kind: opt(union([lit("approval"), lit("question")])),
   summary: opt(str()),
   options: opt(arr(str())),
+  questions: opt(arr(obj({ question: str(), options: arr(str()) }))),
 });
 
 export function createTockExtension(deps: TockToolsDeps): Extension {
@@ -331,7 +333,7 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
   const askOwnerTool = defineTool({
     name: "ask_owner",
     description:
-      "Pause and ask the owner before you continue. Use kind \"approval\" with a one-line summary for anything risky or irreversible (the owner answers Approve or Deny), or kind \"question\" with 2 to 4 short options when you need them to choose. The run resumes with their answer as this tool's result.",
+      "Pause and ask the owner before you continue. Use kind \"approval\" with a one-line summary for anything risky or irreversible (the owner answers Approve or Deny), or kind \"question\" with 2 to 4 short options when you need them to choose. To ask several questions at once, pass questions (each with its own 2 to 4 options); the answer then has one \"question: choice\" line per question. The run resumes with their answer as this tool's result.",
     parameters: AskOwnerParams,
     async execute(args, api, context) {
       const sessionId = String(api.conversationId);
@@ -340,9 +342,10 @@ export function createTockExtension(deps: TockToolsDeps): Extension {
         deps.onAsk(sessionId, api.taskId, null);
         return { output: [{ type: "text", text: JSON.stringify({ answer: state.value.answer }) }] };
       }
-      const kind = args.kind ?? (args.options?.length ? "question" : "approval");
-      const options = kind === "approval" ? ["Approve", "Deny"] : (args.options ?? []).slice(0, 4);
-      deps.onAsk(sessionId, api.taskId, { kind, question: args.question, summary: args.summary, options });
+      const questions = args.questions?.filter((q) => q.options.length > 0).map((q) => ({ question: q.question, options: q.options.slice(0, 4) }));
+      const kind = args.kind ?? (args.options?.length || questions?.length ? "question" : "approval");
+      const options = kind === "approval" ? ["Approve", "Deny"] : (args.options ?? questions?.[0]?.options ?? []).slice(0, 4);
+      deps.onAsk(sessionId, api.taskId, { kind, question: args.question, summary: args.summary, options, ...(kind === "question" && questions?.length ? { questions } : {}) });
       return { kind: "sleep", signals: [OwnerAnswer.key("answer")] };
     },
   });

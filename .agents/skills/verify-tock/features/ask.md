@@ -11,3 +11,9 @@ Send a prompt containing "approve" (approval) or "question"/"choose" (options) t
 
 ## Gotchas
 The server keeps the pending ask in memory (`pendingAsks`); a Durable Object restart while parked loses the route for `ask.answer`.
+
+## Numbered and stepped questions, Undo, Retry
+
+Question options carry their number (1, 2, 3); with focus outside a field (or an empty composer) pressing a digit picks that option and Enter answers. An ask with a questions array (demo prompt "two questions") steps through one card with "1 of 2" and dots, and answers with one "question: choice" line per question. The answered line keeps Undo for motion.duration.ask-undo before the answer is sent. A model error or failed run shows a CxAlerts card with a Retry key that resends the last prompt (demo prompt "fail once").
+
+`bun scripts/verify.ts numbered multiquestion retry`.

@@ -13,7 +13,7 @@ import { ThreadChip } from "./chip"
 import { Attachments } from "./files"
 import { ExternalLink, LinkMenu, openLinkMenu, shortUrl, webHost } from "./link"
 import { toast } from "../shell/toasts"
-import { app, type ThreadState } from "../state/app"
+import { app, send, type ThreadState } from "../state/app"
 
 const SPANS = /\[([^\]\n]+)\]\(tock-thread:([\w-]+)\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]/g
 
@@ -181,14 +181,23 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
       <Match when={item().kind === "divider"}>
         <div class="tds-divider" role="separator"><span class="tds-divider-rule" /><span class="tds-divider-text">{(item() as Extract<Item, { kind: "divider" }>).text}</span><span class="tds-divider-rule" /></div>
       </Match>
-      <Match when={item().kind === "error"}>
-        <div class="tds-alert tds-raise-1" role="status">
-          <span class="tds-tint tds-tint-failed size-toast-icon"><Icon name="warning-circle" size="toast" /></span>
-          <span class="min-w-0">
-            <b class="block text-body">{(item() as Extract<Item, { kind: "error" }>).title}</b>
-            <span class="text-caption text-muted">{(item() as Extract<Item, { kind: "error" }>).detail}</span>
-          </span>
-        </div>
+      <Match when={item().kind === "error" && (item() as Extract<Item, { kind: "error" }>)}>
+        {(error) => (
+          <div class="tds-alert tds-raise-1" role="status">
+            <span class="tds-tint tds-tint-failed size-toast-icon"><Icon name="warning-circle" size="toast" /></span>
+            <span class="min-w-0">
+              <b class="block text-body">{error().title}</b>
+              <span class="text-caption text-muted">{error().detail}</span>
+            </span>
+            <Show when={error().retry}>
+              {(text) => (
+                <button type="button" class="tds-wbtn tds-alert-retry" data-primary="" onClick={() => void send(props.sessionId, text())}>
+                  Retry
+                </button>
+              )}
+            </Show>
+          </div>
+        )}
       </Match>
     </Switch>
   )
