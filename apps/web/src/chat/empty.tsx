@@ -3,7 +3,7 @@ import { Icon } from "@tock/ui/icon"
 
 const ART = {
   hi: { title: "Say hi to toast", body: "Start a chat about anything. toast keeps working on it while you get on with your day." },
-  search: { title: "Nothing matches that", body: "Try fewer words, or search inside a chat. Archived chats are searched too." },
+  search: { title: "No chats match", body: "Try fewer letters, or search files instead." },
   quiet: { title: "Quiet for now", body: "No new notifications. toast is resting until something happens." },
   error: { title: "That one got burnt", body: "toast couldn’t draw this chat. Your messages are safe. Try again in a moment." },
   offline: { title: "You are offline", body: "toast keeps working in the cloud. You will see the updates as soon as you are back." },

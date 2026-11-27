@@ -31,7 +31,7 @@ export function Boundary(props: { surface: Surface; children: JSX.Element }) {
           <b>{COPY[props.surface].title}</b>
           <span>{COPY[props.surface].body}</span>
           <button type="button" class="tds-empty-button tds-press" onClick={() => reset()}>
-            Try again
+            Try Again
           </button>
         </div>
       )}

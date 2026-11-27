@@ -1468,7 +1468,7 @@ const journeys: Record<string, () => void> = {
     ab("click", ".tds-search input")
     ab("keyboard", "type", "zzqx nothing here")
     until(() => exists(".tds-sidebar .tds-empty img[src*='obj-search']"), Boolean, "the sidebar no-results state")
-    check(js<string>("return document.querySelector('.tds-sidebar .tds-empty b')?.textContent") === "Nothing matches that", "no-results title")
+    check(js<string>("return document.querySelector('.tds-sidebar .tds-empty b')?.textContent") === "No chats match", "no-results title")
     shot("empty-search")
     ab("press", "Escape")
   },
@@ -2599,7 +2599,7 @@ const journeys: Record<string, () => void> = {
       ab("eval", `sessionStorage.setItem("tock.fault", "${surface}")`)
       ab("open", `${BASE}/t/${id}`)
       until(() => exists(`.tds-fault[data-surface="${surface}"]`), Boolean, `the ${surface} error state`)
-      check(js<string>(`return document.querySelector('.tds-fault[data-surface="${surface}"] .tds-empty-button')?.textContent.trim() ?? ''`) === "Try again", `the ${surface} error state offers Try again`)
+      check(js<string>(`return document.querySelector('.tds-fault[data-surface="${surface}"] .tds-empty-button')?.textContent.trim() ?? ''`) === "Try Again", `the ${surface} error state offers Try again`)
       if (surface !== "sidebar") check(exists(".tds-row"), `the sidebar keeps working while the ${surface} is down`)
       if (surface !== "transcript") check(exists(".tds-bubble"), `the transcript keeps working while the ${surface} is down`)
       shot(`fault-${surface}`)
