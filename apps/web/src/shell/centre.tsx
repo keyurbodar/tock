@@ -36,7 +36,7 @@ function Stack(props: { group: Group; start: number; onOpen: (note: Note) => voi
   const more = () => props.group.notes.length > 1
   const pick = (note: Note) => (more() && !expanded() ? setExpanded(true) : props.onOpen(note))
   return (
-    <div class="tds-note-group" data-stacked={more() ? "" : undefined} data-open={expanded() ? "" : undefined}>
+    <div class="tds-note-group" data-chat={props.group.notes[0]?.chat} data-stacked={more() ? "" : undefined} data-open={expanded() ? "" : undefined}>
       <Card note={props.group.notes[0]!} tone={props.group.tone} index={props.start} onOpen={() => pick(props.group.notes[0]!)} />
       <Show when={more()}>
         <div class="tds-note-more">
