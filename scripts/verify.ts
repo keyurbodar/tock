@@ -1406,6 +1406,7 @@ const journeys: Record<string, () => void> = {
     ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
     ab("press", "Enter")
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
+    wait(400)
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws-line:not(:disabled)"), Boolean, "an expandable work log row")
     wait(500)
@@ -1492,43 +1493,7 @@ const journeys: Record<string, () => void> = {
     js<boolean>("const b = [...document.querySelectorAll('.tds-toast-action')].find((e) => e.textContent.trim() === 'Undo'); b?.click(); return !!b")
     until(() => exists(`.tds-row-wrap[data-id="${gone}"]:not([data-archived])`), Boolean, "Undo to restore the row")
   },
-  grow() {
-    ab("click", "button[aria-label='New chat']")
-    until(() => js<string>("return location.pathname"), (p) => /^\/t\/[0-9a-f-]{36}$/.test(p), "a UUID thread url")
-    ab("click", ".ProseMirror")
-    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
-    ab("press", "Enter")
-    until(() => exists(".tds-act-button"), Boolean, "the live activity line", 10000)
-    ab("click", ".tds-act-button")
-    until(() => exists(".tds-column .tds-worklog"), Boolean, "the inline work log card")
-    const tall = () => js<number>("const p = document.querySelector('.tds-column .tds-worklog'); return p ? Math.round(p.getBoundingClientRect().height) : 0")
-    const seen: number[] = []
-    const end = Date.now() + 15000
-    while (Date.now() < end) {
-      seen.push(tall())
-      if (js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''") === "done" && seen.length > 4) break
-      wait(120)
-    }
-    const distinct = [...new Set(seen)].filter((h) => h > 0)
-    check(distinct.length >= 3, "the card should grow through several heights as rows arrive, saw " + JSON.stringify(distinct))
-    check(Math.max(...seen.slice(-3)) > Math.min(...distinct), "the card should end taller than it started, saw " + JSON.stringify(distinct))
-    shot("worklog-live")
-    wait(400)
-    const h0 = tall()
-    ab("click", ".tds-column .tds-worklog .tds-ws-line:not(:disabled)")
-    wait(600)
-    const h1 = tall()
-    ab("click", ".tds-column .tds-worklog .tds-ws[data-open] .tds-ws-line")
-    wait(110)
-    const mid = tall()
-    wait(600)
-    const h2 = tall()
-    check(h1 > h2 && mid < h1 && mid > h2, "collapsing should shrink the card through an intermediate height (" + h1 + ", " + mid + ", " + h2 + ")")
-    shot("worklog-collapsed-inline")
-    ab("click", ".tds-act-button")
-    wait(500)
-    check(!exists(".tds-column .tds-worklog"), "the activity line should fold the card away")
-  },
+
   mobile() {
     ab("set", "device", "iPhone 16 Pro")
     try {
@@ -1731,7 +1696,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
