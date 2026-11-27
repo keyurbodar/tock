@@ -11,6 +11,7 @@
 | Sidebar motion | flip | archiving a row slides the rows below up into the gap (FLIP) and lands with no offset; Undo restores it |
 | Connection | offline | the offline banner shows at once when the network drops (the socket is dropped without waiting for a close handshake) and turns to Back online on reconnect |
 | [Interface rules](ui.md) | ui | hover gated to hover-capable pointers, unbreakable text stays in its bubble, truncated text keeps its full value reachable, controls at least 24×24 |
+| Motion rules | motion | no live element transitions `all`; buttons carry the press transition; an idle chat runs no infinite loops; under reduced motion transitions cap at 150ms and no element.animate() call moves anything (sending only fades) |
 | Health | diagnostics | no Solid diagnostics or page errors across the run |
 - [media.md](media.md): image rows, doc cards, lightbox, finished-elsewhere dot (`lightbox`, `finished`)
 - [ui.md](ui.md): interface/layout rules from the jk and ek skills (`ui`)

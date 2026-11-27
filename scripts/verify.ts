@@ -1468,6 +1468,32 @@ const journeys: Record<string, () => void> = {
     check(!small.length, `every control is at least 24×24 (WCAG 2.5.8); small: ${small.join(", ")}`)
     shot("ui")
   },
+  motion() {
+    seeded()
+    ab("set", "media", "dark")
+    const all = js<string[]>("return [...document.querySelectorAll('*')].filter((e) => { const s = getComputedStyle(e); const d = s.transitionDuration.split(', '); return s.transitionProperty.split(', ').some((p, i) => p === 'all' && parseFloat(d[i % d.length]) > 0) }).slice(0, 5).map((e) => e.className.toString().slice(0, 60))")
+    check(all.length === 0, `transition: all on ${all.join(" | ")}`)
+    const press = js<{ p: string; d: string }>("const s = getComputedStyle(document.querySelector('.tds-composer button:not(:disabled)') ?? document.querySelector('button')); return { p: s.transitionProperty, d: s.transitionDuration }")
+    check(/scale/.test(press.p), `buttons carry no press transition (${press.p})`)
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "@")
+    until(() => exists(".tds-suggest-glide"), Boolean, "the mention list")
+    ab("press", "ArrowDown")
+    const glide = until(() => js<{ t: string; y: number }>("const s = getComputedStyle(document.querySelector('.tds-suggest-glide')); return { t: s.transitionProperty, y: parseFloat(s.translate.split(' ')[1] ?? '0') }"), (g) => g.y > 0, "the highlight to glide down")
+    check(!/\btop\b/.test(glide.t), `suggest highlight still animates top (${glide.t})`)
+    ab("press", "Escape")
+    ab("press", "Backspace")
+    until(() => js<number>("return document.getAnimations().filter((a) => a.effect?.getTiming().iterations === Infinity && a.playState === 'running').length"), (n) => n === 0, "no infinite loops running on an idle chat")
+    ab("set", "media", "dark", "reduced-motion")
+    const dur = js<number>("return Math.max(...getComputedStyle(document.querySelector('.tds-composer button') ?? document.body).transitionDuration.split(',').map(parseFloat))")
+    check(dur <= 0.15, `reduced motion leaves ${dur}s transitions`)
+    js<boolean>("window.__moves = []; const a = Element.prototype.animate; Element.prototype.__animate ??= a; Element.prototype.animate = function (k, o) { if (JSON.stringify(k).match(/translate|transform/)) window.__moves.push(this.className.toString().slice(0, 40)); return Element.prototype.__animate.call(this, k, o) }; return true")
+    say("one more")
+    shot("motion-reduced")
+    const moves = js<string[]>("return window.__moves")
+    ab("set", "media", "dark")
+    check(moves.length === 0, `element.animate moved things under reduced motion: ${moves.join(", ")}`)
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1477,7 +1503,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

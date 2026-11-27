@@ -74,7 +74,7 @@
   .tds-suggest .tds-menu-item[data-highlighted] { background: transparent }
   .tds-suggest-glide {
     position: absolute; z-index: 0; left: var(--tds-space-5); right: var(--tds-space-5); top: 0; border-radius: var(--tds-radius-item); background: var(--tds-overlay-item-on); pointer-events: none;
-    transition: top var(--tds-dur-tooltip) var(--tds-ease-out), height var(--tds-dur-tooltip) var(--tds-ease-out);
+    transition: translate var(--tds-dur-tooltip) var(--tds-ease-out), height var(--tds-dur-tooltip) var(--tds-ease-out);
   }
   .tds-send:active { scale: var(--tds-press-tight) }
 }

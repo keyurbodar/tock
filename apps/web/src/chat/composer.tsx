@@ -10,6 +10,7 @@ import { EditorState } from "@tiptap/pm/state"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
+import { prefersReducedMotion } from "@tock/motion"
 import { idb } from "../lib/idb"
 import { app, newThreadId, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
@@ -24,10 +25,11 @@ type Attachments = ReturnType<typeof createAttachments>
 /** Refused files never reach the tray: the composer shakes and a toast says why (TDS px3 reject). */
 export function refuse(rejected: readonly Rejection[]) {
   if (rejected.length === 0) return
-  document.querySelector(".tds-composer-row")?.animate(
-    [{ translate: "0" }, { translate: "calc(var(--tds-space-6) * -1) 0" }, { translate: "var(--tds-space-6) 0" }, { translate: "calc(var(--tds-space-3) * -1) 0" }, { translate: "0" }],
-    { duration: tokens.motion.duration.shake, easing: "ease-in-out" },
-  )
+  if (!prefersReducedMotion())
+    document.querySelector(".tds-composer-row")?.animate(
+      [{ translate: "0" }, { translate: "calc(var(--tds-space-6) * -1) 0" }, { translate: "var(--tds-space-6) 0" }, { translate: "calc(var(--tds-space-3) * -1) 0" }, { translate: "0" }],
+      { duration: tokens.motion.duration.shake, easing: tokens.motion.curve.std },
+    )
   for (const reason of rejected) toast(reason.title, { description: reason.hint, tone: "failed", icon: "prohibit", duration: tokens.motion.toast.error })
 }
 
@@ -269,7 +271,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     load(undefined)
     save(key)
     editor.view.focus()
-    editorEl?.animate([{ opacity: 0, translate: `0 ${tokens.space[6]}px` }, { opacity: 1, translate: "0 0" }], { duration: tokens.motion.duration.tooltip, easing: tokens.motion.curve.out })
+    editorEl?.animate(prefersReducedMotion() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, translate: `0 ${tokens.space[6]}px` }, { opacity: 1, translate: "0 0" }], { duration: tokens.motion.duration.tooltip, easing: tokens.motion.curve.out })
   }
 
   createEffect(
@@ -568,7 +570,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     <div ref={wrap} class="tds-composer-wrap">
       <Show when={trigger() && suggestions().length > 0}>
         <div ref={list} class="tds-menu tds-suggest tds-over" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: `${caret().left}px`, bottom: `${caret().bottom}px` }}>
-          <span class="tds-suggest-glide" aria-hidden="true" style={{ top: `${glide().top}px`, height: `${glide().height}px` }} />
+          <span class="tds-suggest-glide" aria-hidden="true" style={{ translate: `0 ${glide().top}px`, height: `${glide().height}px` }} />
           <span class="tds-menu-label">{trigger()?.char === "@" ? "Chats" : "Commands"}</span>
           <For each={suggestions()} keyed={(item) => item.key}>
             {(item, index) => (
