@@ -2855,6 +2855,26 @@ const journeys: Record<string, () => void> = {
     say("Still here after a half-open socket")
     until(() => js<number>("return document.querySelectorAll('.tds-bubble[data-side=agent]').length"), (n) => n >= 2, "a reply over the new socket", 20000)
   },
+  offlinereload() {
+    const id = seeded()
+    const prod = js<boolean>("return !document.querySelector('script[src*=\"/@vite/client\"]')")
+    if (!prod) return console.log("      offlinereload: skipped, the service worker only registers in a production build (TOCK_URL at vite preview or a deploy)")
+    until(() => js<boolean>("return !!navigator.serviceWorker?.controller"), Boolean, "the service worker to control the page", 15000)
+    ab("eval", "caches.keys().then((names) => Promise.all(names.map((n) => caches.open(n).then((c) => c.keys())))).then((all) => { window.__cached = all.flat().map((r) => new URL(r.url).pathname) })")
+    until(() => js<string[] | null>("return window.__cached ?? null"), (paths) => !!paths && paths.includes("/") && paths.some((p) => p.startsWith("/assets/")), "the shell and its assets in the cache")
+    check(!js<string[]>("return window.__cached").some((p) => /^\/(api|ws|mcp)(\/|$)/.test(p)), "nothing under /api, /ws or /mcp is cached")
+    ab("set", "offline", "on")
+    try {
+      ab("open", `${BASE}/t/${id}`)
+      until(() => exists(".tds-sidebar") && exists(".ProseMirror"), Boolean, "the app shell to load while offline", 12000)
+      until(() => exists(".tds-bubble[data-side='me']"), Boolean, "the cached transcript while offline")
+      until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "on", "the offline banner")
+      shot("offlinereload")
+    } finally {
+      ab("set", "offline", "off")
+    }
+    until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "back online", 15000)
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
