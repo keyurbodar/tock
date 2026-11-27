@@ -164,7 +164,36 @@ function fresh(): string {
   return id
 }
 /** Point the worker's link resolver at its canned pages (dev only), so link journeys run offline. */
-const linkFixtures = () => ab("eval", "document.cookie = 'tock-link-fixture=1; path=/'; true")
+/** TOCK_REAL_LINKS=1 runs the real-site link checks against a local stack too (what a deploy run does). */
+const LOCAL = !process.env.TOCK_REAL_LINKS && /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(BASE)
+/** Local runs resolve links from the worker's canned pages (DEV_ALLOW_ANON plus a cookie); a deploy resolves the real ones. */
+const linkFixtures = () => ab("eval", LOCAL ? "document.cookie = 'tock-link-fixture=1; path=/'; true" : "document.cookie = 'tock-link-fixture=; path=/; max-age=0'; true")
+/** The linked words each run sends, and what its card must say (null: any resolved value, since a real page can change). */
+const WORDS = LOCAL
+  ? { label: "the docs", href: "https://example.com/docs", title: "Example Docs & Guides" as string | null, site: "example.com" as string | null }
+  : { label: "the MDN docs", href: "https://developer.mozilla.org/en-US/docs/Web/HTML", title: null, site: null }
+const FAVICONS = (scope: string) => JSON.stringify(`${scope} .tds-link-fav, ${scope} .tds-chip-slot:has(img, [data-icon-failed])`)
+/** Every favicon box in scope has settled: its icon faded in, or the proxy failed and the globe stays. */
+const faviconsSettled = (scope: string, count: number) =>
+  js<boolean>(`const boxes = [...document.querySelectorAll(${FAVICONS(scope)})]; return boxes.length >= ${count} && boxes.every((b) => b.dataset.iconFailed !== undefined || Number(getComputedStyle(b.querySelector('img')).opacity) === 1)`)
+/** For a prod run: each favicon's proxy request (status, type), decode (complete, naturalWidth) and computed opacity. */
+function faviconReport(scope: string): string {
+  return decode(ab("eval", `Promise.all([...document.querySelectorAll(${FAVICONS(scope)})].map(async (box) => {
+    const img = box.querySelector('img'); const src = img?.getAttribute('src') ?? box.dataset.iconFailed
+    const r = await fetch(src, { credentials: 'same-origin' }).then((r) => ({ status: r.status, type: r.headers.get('content-type'), bytes: r.headers.get('content-length') }), (e) => ({ status: String(e) }))
+    return { src, ...r, failed: box.dataset.iconFailed !== undefined, complete: img?.complete ?? null, naturalWidth: img?.naturalWidth ?? null, opacity: img ? getComputedStyle(img).opacity : null }
+  })).then((x) => JSON.stringify(x))`))
+}
+/** Waits for count favicons in scope to settle, then requires every one to have loaded, naming the failing step if not. */
+function favicons(scope: string, count: number, what: string) {
+  try {
+    until(() => faviconsSettled(scope, count), Boolean, what, 10000)
+  } catch (error) {
+    throw new Error(`${(error as Error).message}; favicons: ${faviconReport(scope)}`)
+  }
+  const report = faviconReport(scope)
+  check(!report.includes('"failed":true'), `${what}: an icon fell back to the globe; favicons: ${report}`)
+}
 function say(text: string) {
   field()
   ab("keyboard", "type", text)
@@ -1535,11 +1564,12 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => exists(".tds-bubble[data-side='me'] a.tds-link[data-link='web']"), Boolean, "the sent link")
     const link = ".tds-bubble[data-side='me'] a.tds-link[data-link='web']"
     check(exists(`${link} .tds-link-fav`), "the link leads with the site's mark")
+    favicons(link, 1, "the sent link's favicon")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).textContent`) === "github.com/keyurbodar/tock", "the link reads host and path")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).getAttribute('href')`) === "https://github.com/keyurbodar/tock", "the link keeps the full URL")
     check(js<string>(`return document.querySelector(${JSON.stringify(link)}).dataset.shape`) === "chip", "a bare URL is a chip")
     ab("hover", link)
-    until(() => text(".tds-link-card-title"), (t) => t === "keyurbodar/tock", "the link card after hover intent")
+    until(() => text(".tds-link-card-title"), (t) => t.includes("keyurbodar/tock"), "the link card after hover intent")
     shot("links-hover")
     ab("mouse", "move", "5", "5")
     until(() => exists(".tds-link-card"), (open) => !open, "the link card to leave", 2500)
@@ -1559,24 +1589,31 @@ const journeys: Record<string, () => void | Promise<void>> = {
     linkFixtures()
     field()
     ab("keyboard", "type", "see https://github.com/keyurbodar/tock ")
-    until(() => exists(".tds-input .tds-link-token .tds-link-fav img"), Boolean, "the composer link chip with its favicon")
-    until(() => js<number>("return Number(getComputedStyle(document.querySelector('.tds-input .tds-link-token .tds-link-fav img')).opacity)"), (o) => o === 1, "the composer favicon to fade in")
-    ab("keyboard", "type", "and [the docs](https://example.com/docs)")
+    until(() => exists(".tds-input .tds-link-token"), Boolean, "the composer link chip")
+    favicons(".tds-input .tds-link-token", 1, "the composer favicon to fade in")
+    ab("keyboard", "type", `and [${WORDS.label}](${WORDS.href})`)
     // Sample every frame from the bubble's first paint until both favicons have faded in: its layout size and the linked
     // words' layout offset inside it (offset metrics, so the bubble's own enter motion doesn't count) must never change.
     ab("eval", `window.__linkSamples = []; window.__linkDone = false; const t0 = performance.now()
       const abs = (el) => { let x = 0, y = 0; for (let e = el; e; e = e.offsetParent) (x += e.offsetLeft), (y += e.offsetTop); return [x, y] }
       const tick = () => {
         const b = document.querySelector('.tds-bubble[data-side=me]'); const words = b?.querySelector('a.tds-link[data-shape=words]')
-        if (b && words) { const imgs = [...b.querySelectorAll('.tds-link-fav img')]; const [bx, by] = abs(b), [wx, wy] = abs(words)
-          window.__linkSamples.push({ h: b.offsetHeight, w: b.offsetWidth, wx: wx - bx, wy: wy - by, ops: imgs.map((i) => Number(getComputedStyle(i).opacity)) })
-          if (imgs.length === 2 && imgs.every((i) => Number(getComputedStyle(i).opacity) === 1)) { window.__linkDone = true; return } }
+        if (b && words) { const boxes = [...b.querySelectorAll('.tds-link-fav')]; const [bx, by] = abs(b), [wx, wy] = abs(words)
+          const ops = boxes.map((x) => (x.dataset.iconFailed !== undefined ? -1 : Number(getComputedStyle(x.querySelector('img')).opacity)))
+          window.__linkSamples.push({ h: b.offsetHeight, w: b.offsetWidth, wx: wx - bx, wy: wy - by, ops })
+          if (boxes.length === 2 && ops.every((o) => o === 1 || o === -1)) { window.__linkDone = true; return } }
         if (performance.now() - t0 < 10000) requestAnimationFrame(tick) }
       requestAnimationFrame(tick); true`)
     ab("press", "Enter")
-    until(() => js<boolean>("return window.__linkDone"), Boolean, "both favicons in the bubble to fade in", 10000)
+    try {
+      until(() => js<boolean>("return window.__linkDone"), Boolean, "both favicons in the bubble to fade in", 10000)
+    } catch (error) {
+      throw new Error(`${(error as Error).message}; favicons: ${faviconReport(".tds-bubble[data-side='me']")}`)
+    }
+    favicons(".tds-bubble[data-side='me']", 2, "both favicons in the bubble")
     const samples = js<{ h: number; w: number; wx: number; wy: number; ops: number[] }[]>("return window.__linkSamples")
-    check(samples.length > 3 && samples[0]!.ops.some((o) => o < 1), `the bubble painted before a favicon arrived (${samples.length} frames, first opacities ${samples[0]?.ops})`)
+    // Only the fixture icons answer late on purpose; a deploy's icons may already sit in the browser cache.
+    if (LOCAL) check(samples.length > 3 && samples[0]!.ops.some((o) => o < 1), `the bubble painted before a favicon arrived (${samples.length} frames, first opacities ${samples[0]?.ops})`)
     const first = samples[0]!
     const moved = samples.filter((s) => Math.abs(s.h - first.h) > 0.5 || Math.abs(s.w - first.w) > 0.5 || Math.abs(s.wx - first.wx) > 0.5 || Math.abs(s.wy - first.wy) > 0.5)
     check(moved.length === 0, `no layout shift while the favicons load (${moved.length} of ${samples.length} frames moved: ${JSON.stringify(samples.map((s) => [s.h, s.w, s.wx, s.wy, s.ops.join("/")].join(" ")).filter((s, i, a) => s !== a[i - 1]))})`)
@@ -1585,8 +1622,8 @@ const journeys: Record<string, () => void | Promise<void>> = {
     const words = `${bubble} a.tds-link[data-shape='words']`
     check(text(chip) === "github.com/keyurbodar/tock", "the bare URL is a chip reading host and path")
     check(exists(`${chip} .tds-link-fav img`), "the chip leads with the site's favicon")
-    check(text(words) === "the docs", `the linked words stay words (${text(words)})`)
-    check(js<boolean>(`const a = document.querySelector(${JSON.stringify(words)}); return a.querySelector('.tds-link-fav') !== null && a.getAttribute('href') === 'https://example.com/docs'`), "the linked words carry a favicon prefix and keep the URL")
+    check(text(words) === WORDS.label, `the linked words stay words (${text(words)})`)
+    check(js<boolean>(`const a = document.querySelector(${JSON.stringify(words)}); return a.querySelector('.tds-link-fav') !== null && a.getAttribute('href') === ${JSON.stringify(WORDS.href)}`), "the linked words carry a favicon prefix and keep the URL")
     for (const sel of [chip, words]) {
       const box = js<{ w: number; h: number; bottom: number; baseline: number }>(`const a = document.querySelector(${JSON.stringify(sel)}); const fav = a.querySelector('.tds-link-fav').getBoundingClientRect()
         const walker = document.createTreeWalker(a, NodeFilter.SHOW_TEXT); let node; while ((node = walker.nextNode()) && !node.textContent.trim()) {}
@@ -1601,24 +1638,25 @@ const journeys: Record<string, () => void | Promise<void>> = {
     settled()
     steady(words)
     ab("hover", words)
-    until(() => text(".tds-link-card-title"), (t) => t === "Example Docs & Guides", "the link card's page title")
-    check(text(".tds-link-card-site") === "example.com" && text(".tds-link-card-url") === "https://example.com/docs", "the card shows the site and the URL")
+    until(() => (exists(".tds-link-card-title[data-loading]") ? "" : text(".tds-link-card-title")), (t) => (WORDS.title ? t === WORDS.title : t.length > 0), "the link card's page title")
+    const site = text(".tds-link-card-site")
+    check((WORDS.site ? site === WORDS.site : site.length > 0) && text(".tds-link-card-url") === WORDS.href, `the card shows the site and the URL (site "${site}", title "${text(".tds-link-card-title")}")`)
     wait(250)
     shot("linkchips-card-words")
     ab("mouse", "move", "5", "5")
     until(() => exists(".tds-link-card"), (open) => !open, "the card to leave", 2500)
     ab("hover", chip)
-    until(() => text(".tds-link-card-title"), (t) => t === "keyurbodar/tock", "the chip's card title")
+    until(() => text(".tds-link-card-title"), (t) => t.includes("keyurbodar/tock"), "the chip's card title")
     check(text(".tds-link-card-site") === "GitHub", "the chip's card names the site from og:site_name")
     wait(250)
     shot("linkchips-card-chip")
     ab("mouse", "move", "5", "5")
     until(() => exists(".tds-link-card"), (open) => !open, "the card to leave", 2500)
     field()
-    ab("keyboard", "type", "https://example.com/docs ")
+    ab("keyboard", "type", `${WORDS.href} `)
     until(() => exists(".tds-input .tds-link-token"), Boolean, "a composer link chip")
     ab("hover", ".tds-input .tds-link-token")
-    until(() => text(".tds-composer-wrap .tds-link-card-title"), (t) => t === "Example Docs & Guides", "the composer chip's link card")
+    until(() => (exists(".tds-composer-wrap .tds-link-card-title[data-loading]") ? "" : text(".tds-composer-wrap .tds-link-card-title")), (t) => (WORDS.title ? t === WORDS.title : t.length > 0), "the composer chip's link card")
     wait(250)
     shot("linkchips-card-composer")
     ab("press", "Control+a")

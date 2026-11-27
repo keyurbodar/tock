@@ -17,7 +17,7 @@ const HTML_CAP = 256 * 1024;
 const ICON_CAP = 64 * 1024;
 const MAX_REDIRECTS = 3;
 const TTL_S = 60 * 60 * 24;
-const FAIL_TTL_S = 60 * 10;
+const FAIL_TTL_S = 60;
 const MAX_URL = 2048;
 
 const PRIVATE_V4: readonly [number, number][] = [

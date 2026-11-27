@@ -12,4 +12,6 @@ Follows T3Code's MarkdownExternalLink (favicon glued to the first characters, lo
 - Right-click opens the shared link menu (Open Link, Copy Link); Copy confirms with a "Link copied" toast.
 - Hover styles sit behind `(hover: hover) and (pointer: fine)`, which headless Chrome reports false, so journeys can't assert them.
 
+Against a deploy (non-localhost `TOCK_URL`), or locally with `TOCK_REAL_LINKS=1`, the link journeys clear the fixture cookie and use real pages (github.com/keyurbodar/tock, MDN for the linked words), checking titles loosely. When a favicon doesn't land they report each icon's proxy status, content type, `naturalWidth` and computed opacity.
+
 Journeys: `links`, `linkchips` (chip and words, 14px icon on the baseline via a Range, no layout shift while favicons load, card title and site, composer chip card).

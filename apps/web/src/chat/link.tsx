@@ -54,8 +54,10 @@ export function fadeFavicon(img: HTMLImageElement) {
   animate(img.parentElement?.querySelector(".tds-link-fav-glyph"), [{ opacity: 1 }, { opacity: 0 }], opts)
 }
 
+/** The globe stays; the box keeps the URL that failed (data-icon-failed) so a journey can report why. */
 export function brokenFavicon(img: HTMLImageElement, host: string) {
   failed.add(host)
+  img.parentElement?.setAttribute("data-icon-failed", img.getAttribute("src") ?? "")
   img.remove()
 }
 
