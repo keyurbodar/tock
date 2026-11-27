@@ -4,7 +4,7 @@
  * fails loudly. Usage: bun scripts/verify.ts [journey ...]
  * Needs Vite on :5199 and wrangler dev on :8787 (see .agents/skills/verify-tock).
  */
-import { mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { tokens } from "../packages/tokens/dist/tokens"
@@ -2501,6 +2501,21 @@ const journeys: Record<string, () => void> = {
     ab("close")
     ab("open", BASE, "--args", "--no-sandbox")
     ab("set", "viewport", "1440", "900")
+  },
+  heic() {
+    fresh()
+    const heic = join(FIXTURES, "sample.heic")
+    check(existsSync(heic), "needs ~/.capy/work/sample.heic (any HEIC photo, e.g. libheif examples/example.heic)")
+    js<boolean>("window.__heic = []; new MutationObserver(() => { const c = document.querySelector('.tds-attach'); const t = c?.querySelector('.tds-attach-line') ? (() => { const m = c.querySelector('.tds-attach-line').cloneNode(true); m.querySelectorAll('[aria-hidden=true]').forEach((x) => x.remove()); return m.textContent.trim() })() : c?.dataset.kind ?? ''; if (t && window.__heic.at(-1) !== t) window.__heic.push(t) }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true }); return true")
+    ab("upload", ".tds-composer-wrap input[type=file]", heic)
+    until(() => js<string>("return document.querySelector('.tds-attach')?.dataset.status ?? ''"), (s) => s === "done", "the HEIC photo to convert and upload", 30000)
+    const seen = js<string[]>("return window.__heic")
+    check(seen.includes("Converting to JPEG"), "the card shows the converting state first: " + JSON.stringify(seen))
+    check(js<string>("return document.querySelector('.tds-attach')?.dataset.kind ?? ''") === "image", "the converted photo shows as a picture")
+    check(js<boolean>("const i = document.querySelector('.tds-attach img'); return !!i && i.complete && i.naturalWidth > 0"), "the converted preview decodes")
+    check(/sample\.jpg$/.test(js<string>("return document.querySelector('.tds-attach .tds-attach-open').getAttribute('aria-label') ?? ''")), "the file is renamed to .jpg")
+    shot("heic")
+    js<boolean>("document.querySelectorAll('.tds-attach-remove').forEach((b) => b.click()); return true")
   },
   diagnostics() {
     const logs = ab("console")

@@ -23,6 +23,7 @@
 | Inline code | codeexit | clearing toggled inline code drops the code mark, a backtick typed in code steps out without inserting, ArrowRight at the end exits |
 | Tray lightbox | trayopen | unsent tray cards are labelled buttons with a focus ring; Enter or Space opens the doc or image in the lightbox and focus returns to the card |
 | Skeleton | skeleton | with the socket slowed (?slow, an init script) the sidebar rows, header title and transcript paint skullet bones from their own components; on a first visit the rows, column and composer sit where the loaded ones do, and on a reload of the chat (remembered shape) rows, bubbles, the activity line, the title pill and composer move under 1px when data lands |
+| HEIC | heic | a HEIC photo shows Converting to JPEG, converts in the browser (heic-to, lazy chunk), previews as a picture and uploads as .jpg (needs ~/.capy/work/sample.heic) |
 | Health | diagnostics | no Solid diagnostics or page errors across the run |
 - [media.md](media.md): image rows, doc cards, lightbox, finished-elsewhere dot (`lightbox`, `finished`)
 - [ui.md](ui.md): interface/layout rules from the jk and ek skills (`ui`)

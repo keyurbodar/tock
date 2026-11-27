@@ -121,8 +121,8 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
           fallback={
             <>
               <b class="tds-attach-name">{props.item.name}</b>
-              <span class="tds-attach-line num" data-shimmer={props.item.status === "reading" ? "" : undefined}>
-                <TextMorph value={props.item.status === "failed" ? (props.item.error ?? "Upload failed") : props.item.status === "uploading" ? `${formatSize(props.item.size * props.item.progress)} of ${formatSize(props.item.size)}` : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))} mode="swap" />
+              <span class="tds-attach-line num" data-shimmer={props.item.status === "reading" || props.item.status === "converting" ? "" : undefined}>
+                <TextMorph value={props.item.status === "failed" ? (props.item.error ?? "Upload failed") : props.item.status === "uploading" ? `${formatSize(props.item.size * props.item.progress)} of ${formatSize(props.item.size)}` : props.item.status === "converting" ? "Converting to JPEG" : props.item.status === "reading" ? readingLabel(props.item.name) : (props.item.meta ?? formatSize(props.item.size))} mode="swap" />
               </span>
               <span class="tds-sq-pill">{extension(props.item.name)}</span>
             </>
@@ -240,7 +240,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   let editorEl: HTMLDivElement | undefined
   let tray: HTMLDivElement | undefined
   const blank = () => empty() && props.attachments.items().length === 0
-  const pending = () => props.attachments.items().filter((item) => item.status === "uploading" || item.status === "reading")
+  const pending = () => props.attachments.items().filter((item) => item.status === "converting" || item.status === "uploading" || item.status === "reading")
   const failed = () => props.attachments.items().filter((item) => item.status === "failed")
   const tooLong = () => length() > tokens.limit["prompt-chars"]
   const [height, setHeight] = createSignal<number>(tokens.size.composer)

@@ -2,14 +2,14 @@ import { createStore, untrack } from "solid-js"
 import type { FileMeta } from "@tock/protocol"
 import { tokens } from "@tock/tokens"
 
-export type AttachmentStatus = "uploading" | "reading" | "done" | "failed"
+export type AttachmentStatus = "converting" | "uploading" | "reading" | "done" | "failed"
 
 export interface Attachment {
   readonly key: string
   readonly name: string
   readonly size: number
   readonly mime: string
-  readonly preview: string | null
+  preview: string | null
   status: AttachmentStatus
   progress: number
   error: string | null
@@ -65,7 +65,15 @@ function upload(file: File, onProgress: (fraction: number) => void): Promise<Fil
 }
 
 /** As T3Code's prepareImageForAttachment: big photos shrink to the longest edge we need before they upload; anything that fails stays as it was. */
+const HEIC = /\.(heic|heif)$/i
+const isHeic = (file: File) => HEIC.test(file.name) || /^image\/hei[cf]/.test(file.type)
+
 async function prepare(file: File): Promise<File> {
+  if (isHeic(file)) {
+    const { heicTo } = await import("heic-to")
+    const jpeg = await heicTo({ blob: file, type: "image/jpeg", quality: tokens.limit["image-quality"] })
+    return new File([jpeg], file.name.replace(HEIC, ".jpg"), { type: "image/jpeg" })
+  }
   if (!/^image\/(png|jpe?g|webp|heic|heif)$/.test(file.type) || file.size <= tokens.limit["compress-kb"] * 1024) return file
   try {
     const bitmap = await createImageBitmap(file)
@@ -165,14 +173,17 @@ export function createAttachments() {
       sources.set(key, file)
       if (from) origins.set(key, from)
       setList((s) =>
-        void s.items.push({ key, name, size: file.size, mime: file.type, preview: isImage(name, file.type) ? URL.createObjectURL(file) : null, status: "uploading", progress: 0, error: null, meta: null, fileId: null }),
+        void s.items.push({ key, name, size: file.size, mime: file.type, preview: isImage(name, file.type) && !isHeic(file) ? URL.createObjectURL(file) : null, status: isHeic(file) ? "converting" : "uploading", progress: 0, error: null, meta: null, fileId: null }),
       )
-      void prepare(file).then((ready) => {
-        if (!sources.has(key)) return
-        sources.set(key, ready)
-        if (ready !== file) patch(key, { name: ready.name, size: ready.size, mime: ready.type })
-        start(key)
-      })
+      void prepare(file).then(
+        (ready) => {
+          if (!sources.has(key)) return
+          sources.set(key, ready)
+          if (ready !== file) patch(key, { name: ready.name, size: ready.size, mime: ready.type, ...(isHeic(file) ? { preview: URL.createObjectURL(ready) } : {}) })
+          start(key)
+        },
+        () => patch(key, { status: "failed", error: "Couldn’t convert this photo. Try a JPEG or PNG." }),
+      )
     }
     return rejected
   }
