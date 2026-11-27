@@ -13,6 +13,13 @@ const rules: { name: string; test: RegExp; why: string }[] = [
 ]
 const allow = /icons\.gen\.ts$/
 
+export type LineRule = { name: string; test: RegExp; why: string; files?: RegExp }
+export type FileCheck = (file: string, text: string) => { line: number; name: string; found: string; why: string }[]
+const skills: { rules?: LineRule[]; check?: FileCheck }[] = []
+for (const entry of (await readdir("scripts/lint")).filter((name) => name.endsWith(".ts")).sort()) skills.push(await import(`./lint/${entry}`))
+const skillRules = skills.flatMap((mod) => mod.rules ?? [])
+const skillChecks = skills.flatMap((mod) => (mod.check ? [mod.check] : []))
+
 async function* walk(dir: string): AsyncGenerator<string> {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name)
@@ -27,7 +34,8 @@ for (const root of roots) {
     const lines = (await readFile(file, "utf8")).split("\n")
     lines.forEach((line, i) => {
       if (line.includes("lint-tokens-ignore")) return
-      for (const rule of rules) {
+      for (const rule of [...rules, ...skillRules]) {
+        if ("files" in rule && rule.files && !rule.files.test(file)) continue
         for (const match of line.matchAll(rule.test)) {
           failures++
           console.error(`${file}:${i + 1}  ${rule.name}  ${match[0]}  ${rule.why}`)
@@ -73,6 +81,15 @@ for (const file of sources) {
     failures++
     const line = text.slice(0, match.index).split("\n").length
     console.error(`${file}:${line}  material  <${match[1]}>  Every overlay needs the material. Add tds-over (menus, dialogs, cards) or tds-glass (pills) to its class, or data-material="solid" for an opaque TDS surface.`)
+  }
+}
+for (const file of sources) {
+  const text = await readFile(file, "utf8")
+  for (const check of skillChecks) {
+    for (const hit of check(file, text)) {
+      failures++
+      console.error(`${file}:${hit.line}  ${hit.name}  ${hit.found}  ${hit.why}`)
+    }
   }
 }
 if (failures) {
