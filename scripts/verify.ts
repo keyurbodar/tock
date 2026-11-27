@@ -107,6 +107,17 @@ function say(text: string) {
 /** Waits for the run to finish: an agent reply on screen and no Stop button. */
 const settled = () => until(() => exists(".tds-bubble[data-side='agent']") && !exists("button[aria-label='Stop'], .tds-send[data-stop]") && js<string>("return document.querySelector('.tds-act')?.dataset.state ?? 'done'") === "done", Boolean, "the run to finish", 20000)
 /** A fresh chat with one finished exchange. */
+/** Wait until an element has not moved for a few frames: the reply keeps revealing after the run settles, and a bottom-aligned transcript lifts everything above it. */
+function steady(sel: string, ms = 6000) {
+  let last = ""
+  let since = Date.now()
+  until(() => {
+    const r = rect(sel)
+    const k = r ? r.x + "," + r.y : ""
+    if (k !== last) (last = k), (since = Date.now())
+    return k !== "" && Date.now() - since > 400
+  }, Boolean, sel + " to stop moving", ms)
+}
 function seeded(text = WEATHER): string {
   const id = fresh()
   say(text)
@@ -287,8 +298,10 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-act-button"), Boolean, "an activity line", 15000)
     check(transparent(style(".tds-act-button", "backgroundColor")), "the activity line must have no background")
     check(transparent(style(".tds-act-caret", "backgroundColor")), "the activity caret must have no background")
+    steady(".tds-act-button")
     ab("hover", ".tds-act-button")
     check(transparent(style(".tds-act-button", "backgroundColor")), "the activity line must have no hover background")
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     until(() => js<string>("const w = document.querySelector('.tds-worklog'); return w ? (w.querySelector('.tds-ws-line') ? 'rows' : 'empty ' + Math.round(w.getBoundingClientRect().height) + ' ' + w.querySelectorAll('*').length) : 'closed ' + document.querySelector('.tds-act-button')?.getAttribute('aria-expanded')"), (s) => s === "rows", "the work log rows")
     until(() => js<number>("return document.querySelectorAll('.tds-worklog .tds-plan-item').length"), (n) => n === 3, "the three plan steps from update_plan")
@@ -475,6 +488,7 @@ const journeys: Record<string, () => void> = {
     wait(500)
     probe("work log open and close", ".tds-worklog", () => (ab("click", ".tds-act-button"), wait(700), ab("press", "Escape")))
     wait(400)
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws-line:not(:disabled)"), Boolean, "the work log rows")
     wait(500)
@@ -1266,6 +1280,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-header-status img[src*='needs']"), Boolean, "the header pill to show the needs orb")
     check(rect(".tds-ask")!.w <= 460, `the card should be at most 460px wide, got ${rect(".tds-ask")?.w}`)
     shot("ask-card")
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-wa .tds-wbtn"), Boolean, "the ask row buttons in the work log")
     check(exists(".tds-worklog .tds-ws[data-status='needs'] .tds-orb"), "the ask row should carry the needs orb")
@@ -1289,6 +1304,7 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-ask[data-kind='question'] .tds-key"), Boolean, "the question card", 15000)
     check(js<number>("return document.querySelectorAll('.tds-ask .tds-key').length") === 3, "the question card should offer three options")
     shot("ask-question")
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-wbtn[data-primary]"), Boolean, "the work log option pills")
     wait(400)
@@ -1632,6 +1648,7 @@ const journeys: Record<string, () => void> = {
     ab("press", "Enter")
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
     wait(400)
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws-line:not(:disabled)"), Boolean, "an expandable work log row")
     wait(500)
@@ -1880,6 +1897,7 @@ const journeys: Record<string, () => void> = {
     ab("press", "Enter")
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the run to finish", 20000)
     wait(400)
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws"), Boolean, "the work log rows")
     wait(600)
@@ -1901,6 +1919,7 @@ const journeys: Record<string, () => void> = {
     ab("keyboard", "type", "please run a long job")
     ab("press", "Enter")
     until(() => js<string>("return document.querySelector('.tds-act')?.dataset.state ?? ''"), (s) => s === "done", "the long run to finish", 60000)
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     until(() => exists(".tds-worklog .tds-ws"), Boolean, "the work log rows")
     wait(600)
@@ -1929,12 +1948,14 @@ const journeys: Record<string, () => void> = {
     ab("click", ".tds-row-wrap .tds-row")
     until(() => exists(".tds-act-button"), Boolean, "a thread with a work log", 10000)
     wait(600)
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     wait(700)
     ab("press", "Escape")
     wait(500)
     const line = rect(".tds-act-button")!
     ab("eval", "(() => { const f = []; window.__g = f; let on = true; window.__gstop = () => (on = false); const tick = () => { const el = document.querySelector('.tds-worklog'); if (el) { const r = el.getBoundingClientRect(); f.push([r.x, r.y, r.width, r.height, +getComputedStyle(el).opacity]) } if (on) requestAnimationFrame(tick) }; requestAnimationFrame(tick) })()")
+    steady(".tds-act-button")
     ab("click", ".tds-act-button")
     wait(900)
     const frames = js<number[][]>("window.__gstop(); return window.__g")
