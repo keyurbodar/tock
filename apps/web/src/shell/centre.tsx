@@ -14,7 +14,7 @@ const glyph: Record<Tone, IconName> = { needs: "hand", failed: "warning-circle",
 
 function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void }) {
   return (
-    <div class="tds-note" data-read={props.note.read ? "" : undefined} style={{ "--i": props.index }} onClick={props.onOpen}>
+    <button type="button" class="tds-note" data-read={props.note.read ? "" : undefined} style={{ "--i": props.index }} onClick={() => props.onOpen()}>
       <span class="tds-note-tint" data-tone={props.tone}>
         <MorphIcon name={glyph[props.tone]} size="chip" />
       </span>
@@ -23,7 +23,7 @@ function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void
         <span>{props.note.body}</span>
       </span>
       <i class="num"><TextMorph value={shortTime(props.note.at, now())} /></i>
-    </div>
+    </button>
   )
 }
 

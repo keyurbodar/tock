@@ -1526,6 +1526,74 @@ const journeys: Record<string, () => void> = {
     const moves = js<string[]>("return window.__moves")
     ab("set", "media", "dark")
     check(moves.length === 0, `element.animate moved things under reduced motion: ${moves.join(", ")}`)
+  a11y() {
+    const page = () => js<{ mains: number; h1: string[]; title: string; viewport: string; unnamed: string[]; noAlt: number; hiddenTabbable: string[]; positive: number; small: string[] }>(`
+      const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && e.checkVisibility({ checkVisibilityCSS: true }) && !e.closest('[inert]') }
+      const name = (e) => (e.getAttribute('aria-label') || (e.getAttribute('aria-labelledby') || '').split(' ').map((i) => document.getElementById(i)?.textContent || '').join('') || [...(e.labels || [])].map((l) => l.textContent).join('') || e.textContent || e.getAttribute('title') || '').trim()
+      const ia = [...document.querySelectorAll('button, a[href], input, textarea, select, [role=button], [role=option], [role=menuitem], [role=separator][tabindex], [contenteditable=true]')].filter(vis)
+      return {
+        mains: [...document.querySelectorAll('main')].filter(vis).length,
+        h1: [...document.querySelectorAll('h1, [role=heading][aria-level="1"]')].map((h) => h.textContent.trim()),
+        title: document.title,
+        viewport: document.querySelector('meta[name=viewport]')?.content ?? '',
+        unnamed: ia.filter((e) => !name(e)).map((e) => e.outerHTML.slice(0, 80)),
+        noAlt: document.querySelectorAll('img:not([alt])').length,
+        hiddenTabbable: [...document.querySelectorAll('[aria-hidden=true] :is(button, a[href], input, textarea, [tabindex="0"])')].filter((e) => !e.closest('[inert]') && !e.disabled && e.tabIndex >= 0).map((e) => e.outerHTML.slice(0, 80)),
+        positive: [...document.querySelectorAll('[tabindex]')].filter((e) => e.tabIndex > 0).length,
+        small: ia.filter((e) => !e.matches('input, textarea, [contenteditable], [role=separator], .tds-link')).filter((e) => { const r = e.getBoundingClientRect(); return r.width < 24 || r.height < 24 }).map((e) => e.className + ' ' + name(e)),
+      }`)
+    const audit = (where: string) => {
+      const p = page()
+      check(p.mains === 1, `${where}: expected one visible <main>, got ${p.mains}`)
+      check(p.h1.length >= 1, `${where}: no level-1 heading`)
+      check(!/maximum-scale|user-scalable=no/.test(p.viewport), `${where}: viewport blocks zoom: ${p.viewport}`)
+      check(p.unnamed.length === 0, `${where}: controls with no accessible name: ${p.unnamed.join(' | ')}`)
+      check(p.noAlt === 0, `${where}: ${p.noAlt} <img> without alt`)
+      check(p.hiddenTabbable.length === 0, `${where}: tabbable controls inside aria-hidden: ${p.hiddenTabbable.join(' | ')}`)
+      check(p.positive === 0, `${where}: positive tabindex`)
+      check(p.small.length === 0, `${where}: targets under 24px: ${p.small.join(' | ')}`)
+      return p
+    }
+    const home = audit("home")
+    check(home.title === "Tock", `home title is ${home.title}`)
+    ab("eval", "document.activeElement?.blur()")
+    ab("press", "Tab")
+    check(js<string>("return document.activeElement?.className ?? ''") === "tds-skip", "Skip to chat is not the first Tab stop")
+    check(js<boolean>("const r = document.activeElement.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.width > 0"), "the focused skip link is off screen")
+    shot("a11y-skip")
+    ab("press", "Enter")
+    until(() => js<string>("return document.activeElement?.id ?? ''"), (id) => id === "main", "Enter on the skip link to focus <main>")
+    const id = seeded()
+    const chat = audit("chat")
+    check(/ · Tock$/.test(chat.title) && chat.title !== " · Tock", `chat title is ${chat.title}`)
+    check(js<boolean>("return !!document.querySelector('.tds-row[href$=\"" + id + "\"], .tds-row')"), "no sidebar row to tab to")
+    ab("eval", "document.querySelector('.tds-skip').focus()")
+    const stops: string[] = []
+    for (let i = 0; i < 40; i++) {
+      ab("press", "Tab")
+      wait(220)
+      const stop = js<{ tag: string; label: string; ring: boolean; shown: boolean; text: boolean }>(`
+        const e = document.activeElement
+        if (!e || e === document.body) return { tag: 'BODY', label: '', ring: true, shown: true, text: false }
+        const own = getComputedStyle(e), box = e.closest('.tds-search')
+        const ring = (own.outlineStyle !== 'none' && parseFloat(own.outlineWidth) > 0) || (box && getComputedStyle(box).outlineStyle !== 'none') || (e.matches('.tds-sidebar-handle') && getComputedStyle(e, '::after').opacity === '1')
+        const r = e.getBoundingClientRect()
+        return { tag: e.tagName, label: (e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 24), ring: !!ring, shown: r.width > 0 && r.height > 0 && e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }), text: e.isContentEditable }
+      `)
+      if (stop.tag === "BODY") break
+      stops.push(stop.tag + ":" + stop.label)
+      check(stop.shown, `Tab stop ${stop.tag} "${stop.label}" is invisible`)
+      check(stop.ring || stop.text, `Tab stop ${stop.tag} "${stop.label}" has no visible focus indicator`)
+      if (stop.label.startsWith("New chat")) shot("a11y-row-focus")
+    }
+    check(stops.length >= 10, `only ${stops.length} Tab stops: ${stops.join(', ')}`)
+    ab("click", "button[aria-label='Share']")
+    until(() => exists(".tds-toast"), Boolean, "the share toast")
+    ab("eval", "document.querySelector('.tds-toast button')?.focus()")
+    wait(5600)
+    check(exists(".tds-toast:not([data-gone])"), "a focused toast timed out")
+    shot("a11y-toast-focus")
+    ab("eval", "document.activeElement?.blur()")
   },
   diagnostics() {
     const logs = ab("console")
@@ -1536,7 +1604,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "motion", "type", "a11y", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

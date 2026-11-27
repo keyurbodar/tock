@@ -1,0 +1,15 @@
+@layer components {
+  .tds-skip {
+    position: fixed; inset-inline-start: var(--tds-space-12); inset-block-start: var(--tds-space-12); z-index: var(--tds-z-lightbox);
+    padding: var(--tds-space-6) var(--tds-space-12); border-radius: var(--tds-radius-kbd);
+    background: var(--tds-surface-side); color: var(--tds-text-tx); text-decoration: none; translate: -200vw 0;
+  }
+  .tds-skip:focus-visible { translate: none }
+  main[tabindex="-1"]:focus { outline: none }
+  button.tds-note { width: 100%; border: 0; color: inherit; font: inherit; text-align: start; cursor: pointer }
+  .tds-row:focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-focus-outline); outline-offset: calc(var(--tds-size-focus-width) * -1) }
+  .tds-search:has(input:focus-visible) { outline: var(--tds-size-focus-width) solid var(--tds-focus-outline); outline-offset: var(--tds-size-focus-offset) }
+  @media (forced-colors: active) {
+    :focus-visible, .tds-row:focus-visible, .tds-search:has(input:focus-visible) { outline-color: Highlight }
+  }
+}

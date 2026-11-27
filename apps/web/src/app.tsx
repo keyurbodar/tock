@@ -16,6 +16,9 @@ import { Router } from "./router"
 function Shell(props: { children?: JSX.Element }) {
   return (
     <div class="relative flex h-full overflow-hidden bg-main">
+      <a class="tds-skip" href="#main" onClick={(e) => (e.preventDefault(), document.getElementById("main")?.focus())}>
+        Skip to chat
+      </a>
       <Rail />
       <Centre />
       <Sidebar />

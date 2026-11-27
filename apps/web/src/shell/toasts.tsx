@@ -264,6 +264,8 @@ export function Toasts() {
       style={{ "--toast-count": layout().count, "--toast-stack-height": `${layout().stack}px`, "--toast-front-height": `${layout().front}px`, "--toast-peek": Math.min(Math.max(layout().count - 1, 0), 2) }}
       onMouseEnter={() => hover(true)}
       onMouseLeave={() => hover(false)}
+      onFocusIn={() => hover(true)}
+      onFocusOut={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && hover(false)}
     >
       <For each={items()} keyed={(item) => item.key}>
         {(item) => <Card item={item()} index={layout().placed.get(item().id)?.index ?? 0} offset={layout().placed.get(item().id)?.offset ?? 0} />}

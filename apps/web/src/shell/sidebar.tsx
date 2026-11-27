@@ -500,7 +500,7 @@ export function Sidebar() {
         </Show>
       </div>
 
-      <div class="tds-bulk tds-over" data-open={selected().length > 1 ? "" : undefined} role="toolbar" aria-label="Selected chats">
+      <div class="tds-bulk tds-over" data-open={selected().length > 1 ? "" : undefined} role="toolbar" aria-label="Selected chats" inert={selected().length > 1 ? undefined : true}>
         <b class="num">
           <TextMorph value={`${selected().length} selected`} />
         </b>

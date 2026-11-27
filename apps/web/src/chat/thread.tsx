@@ -19,6 +19,10 @@ export function Thread() {
   )
   const state = () => app.threads[params.id]
   const session = createMemo(() => app.sessions.find((s) => s.id === params.id))
+  createEffect(
+    () => titleOf(session()),
+    (title) => void (document.title = `${title} · Tock`),
+  )
   const status = (): OrbStatus | undefined => {
     const s = state()
     if (s && hasPendingAsk(s.entries)) return "needs"
@@ -38,7 +42,9 @@ export function Thread() {
     setDragging(true)
   }
   return (
-    <section
+    <main
+      id="main"
+      tabindex="-1"
       class="relative flex min-w-0 flex-1 flex-col bg-main"
       onDragEnter={(e) => hasFiles(e) && enter(e)}
       onDragOver={(e) => hasFiles(e) && e.preventDefault()}
@@ -67,15 +73,20 @@ export function Thread() {
           <span>{unreadable() ? "Try a PDF, image, text or code file" : `Images, PDFs, docs, code, audio and video, up to ${tokens.limit["file-mb"]} MB each`}</span>
         </div>
       </Show>
-    </section>
+    </main>
   )
 }
 
 export function Home() {
   const navigate = useNavigate()
+  createEffect(
+    () => true,
+    () => void (document.title = "Tock"),
+  )
   return (
-    <section class="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-main">
+    <main id="main" tabindex="-1" class="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-main">
+      <h1 class="sr-only">Tock</h1>
       <Empty art="hi" action={{ label: "New thread", run: () => navigate(`/t/${newThreadId()}`) }} />
-    </section>
+    </main>
   )
 }
