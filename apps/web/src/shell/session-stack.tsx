@@ -48,11 +48,15 @@ export function ToastRow(props: { show: boolean }) {
     return parts.length ? parts.join(", ") : "here when you need me"
   })
 
-  const pillAt = (y: number) =>
-    [...scroller.querySelectorAll<HTMLElement>(".tds-stack-pill")].find((pill) => {
-      const box = pill.getBoundingClientRect()
-      return y >= box.top - tokens.space[4]! && y <= box.bottom + tokens.space[4]!
+  /** The pill under the finger; past the stack's top or bottom edge, the nearest visible pill stays hot. */
+  const pillAt = (raw: number) => {
+    const box = scroller.getBoundingClientRect()
+    const y = Math.max(box.top + edge, Math.min(box.bottom - edge, raw))
+    return [...scroller.querySelectorAll<HTMLElement>(".tds-stack-pill")].find((pill) => {
+      const at = pill.getBoundingClientRect()
+      return y >= at.top - tokens.space[4]! && y <= at.bottom + tokens.space[4]!
     })?.dataset.id
+  }
 
   /** Holding near the top or bottom edge scrolls the stack, faster the closer you are, and keeps the hot pill under the finger. */
   const autoScroll = () => {
