@@ -3,10 +3,6 @@
   .tds-attach, .tds-attach[data-kind="image"], .tds-attach[data-kind="doc"] { width: var(--tds-size-attach-square); height: var(--tds-size-attach-square); border-radius: var(--tds-radius-attach) }
   .tds-attach[data-kind="doc"] {
     flex-direction: column; align-items: stretch; justify-content: flex-start; gap: var(--tds-space-2); padding: var(--tds-space-10);
-    & .tds-attach-meta { flex: 1; min-height: 0; gap: var(--tds-space-3) }
-    & .tds-attach-meta b { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; overflow-wrap: anywhere; line-height: var(--tds-type-label-lh) }
-    & .tds-attach-meta > span { overflow: hidden; text-overflow: ellipsis }
-    & .tds-attach-ring { top: auto; right: var(--tds-space-8); bottom: var(--tds-space-8); width: var(--tds-space-18); height: var(--tds-space-18); margin: 0 }
   }
   :is(.tds-attach[data-kind="doc"][data-status="uploading"], .tds-sq[data-state="loading"]) {
     background-image: linear-gradient(100deg, transparent 30%, var(--tds-overlay-fill-8) 50%, transparent 70%); background-size: 250% 100%;

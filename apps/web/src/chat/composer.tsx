@@ -46,7 +46,6 @@ export const attach = (attachments: Attachments, files: Iterable<File>, from?: D
 
 function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; onRetry: () => void; onOpen: (el: HTMLElement) => void; onPointerDown: (event: PointerEvent, el: HTMLElement) => void; onHover: (el: HTMLElement | null) => void }) {
   let el!: HTMLDivElement
-  const ring = () => `${Math.round(props.item.progress * 100)} 100`
   const kind = () => fileChip(props.item.name)
   const collapse = () => {
     props.onHover(null)
@@ -108,10 +107,7 @@ function Card(props: { item: Attachment; from?: DOMRect; onRemove: () => void; o
         </button>
       </Show>
       <Show when={props.item.status === "uploading"}>
-        <svg class="tds-attach-ring" viewBox="0 0 26 26" aria-hidden="true">
-          <circle cx="13" cy="13" r="10" pathLength="100" />
-          <circle cx="13" cy="13" r="10" pathLength="100" stroke-dasharray={ring()} />
-        </svg>
+        <span class="tds-attach-progress" aria-hidden="true" style={{ "--upload-share": String(props.item.progress) }} />
       </Show>
       <button type="button" class="tds-attach-remove tds-press" aria-label={`Remove ${props.item.name}`} onPointerDown={(event) => event.stopPropagation()} onClick={collapse}>
         <Icon name="x" size="chip" />
@@ -128,14 +124,13 @@ function Preview(props: { item: Attachment; left: number; bottom: number }) {
       <Show when={props.item.preview}>{(src) => <img class="tds-attach-preview-image" src={src()} alt="" draggable={false} />}</Show>
       <div class="tds-attach-preview-head">
         <Show when={!props.item.preview}>
-          <span class="tds-attach-glyph" data-kind={kind().kind} style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}>
+          <span class="tds-doc-glyph" style={{ "--tds-chip-accent": `var(--tds-chip-${kind().kind})` }}>
             <Icon name={kind().icon} size="menu" />
-            <b>{extension(props.item.name)}</b>
           </span>
         </Show>
-        <span class="tds-attach-meta">
+        <span class="tds-doc-text">
           <b>{props.item.name}</b>
-          <span class="num">{props.item.status === "failed" ? props.item.error : (props.item.meta ?? formatSize(props.item.size))}</span>
+          <span class="tds-doc-meta num">{props.item.status === "failed" ? props.item.error : (props.item.meta ?? formatSize(props.item.size))}</span>
         </span>
       </div>
     </div>
@@ -208,7 +203,15 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   let picker!: HTMLInputElement
   createHotkey(appHotkeys["composer.attach"], () => picker.click())
   let wrap!: HTMLDivElement
-  const reserve = new ResizeObserver(([entry]) => !(field && "sheet" in field.dataset) && wrap.parentElement?.style.setProperty("--composer-reserve", `${Math.ceil(entry!.borderBoxSize[0]!.blockSize)}px`))
+  /** The column pads to the composer's live height; a transcript pinned at its end follows in the same frame (its own observer would run a frame late). */
+  const reserve = new ResizeObserver(([entry]) => {
+    if (field && "sheet" in field.dataset) return
+    const section = wrap.parentElement
+    const scroller = section?.querySelector<HTMLElement>(".tds-transcript")
+    const pinned = !!scroller && scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= tokens.size["column-bottom"]
+    section?.style.setProperty("--composer-reserve", `${Math.ceil(entry!.borderBoxSize[0]!.blockSize)}px`)
+    if (pinned) scroller.scrollTop = scroller.scrollHeight
+  })
   onSettled(() => reserve.observe(wrap))
   onCleanup(() => reserve.disconnect())
   const [linkCard, setLinkCard] = createSignal<{ href: string; host: string; left: number; bottom: number } | null>(null)

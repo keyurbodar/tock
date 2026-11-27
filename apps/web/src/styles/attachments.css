@@ -66,8 +66,8 @@
   }
   .tds-attach-line { flex: none; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-lh); color: var(--tds-text-muted) }
   .tds-attach[data-status="failed"] .tds-attach-line { color: var(--tds-status-failed) }
-  .tds-attach[data-kind="doc"] .tds-attach-ring, .tds-attach[data-kind="doc"] .tds-attach-retry-pill { position: absolute; top: auto; right: var(--tds-space-8); bottom: var(--tds-space-8); margin: 0 }
-  .tds-attach[data-kind="image"] .tds-attach-retry-pill { position: absolute; inset: 0; margin: auto; width: max-content; height: var(--tds-size-token) }
+  .tds-attach[data-kind="doc"] .tds-attach-retry-pill { position: absolute; top: auto; right: var(--tds-space-8); bottom: var(--tds-space-8); z-index: 1; margin: 0 }
+  .tds-attach[data-kind="image"] .tds-attach-retry-pill { position: absolute; inset: 0; z-index: 1; margin: auto; width: max-content; height: var(--tds-size-token) }
   .tds-attach-remove { top: calc(var(--tds-space-6) * -1); right: calc(var(--tds-space-6) * -1); z-index: 1 }
   .tds-attach[data-kind="image"] { overflow: visible }
   .tds-attach:focus-within { z-index: 2 }
@@ -86,4 +86,17 @@
     padding: var(--tds-space-8); background: var(--tds-surface-card); color: var(--tds-text-muted); font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-lh); text-align: center;
   }
   .tds-media[data-layout="single"] .tds-media-tile[data-broken] { width: var(--tds-size-img3); height: var(--tds-size-img3) }
+
+  .tds-attach-progress {
+    position: absolute; inset: auto var(--tds-space-8) var(--tds-space-6); height: var(--tds-space-2); border-radius: var(--tds-radius-pill); overflow: hidden;
+    background: var(--tds-overlay-fill-8); pointer-events: none;
+    &::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--tds-text-tx2); transform-origin: left; scale: var(--upload-share, 0) 1; transition: scale var(--tds-dur-tooltip) var(--tds-ease-out) }
+  }
+  .tds-attach[data-kind="image"][data-status="uploading"]::after { background: none }
+  .tds-attach[data-kind="image"][data-status="uploading"] .tds-attach-open {
+    background-image: linear-gradient(100deg, transparent 30%, var(--tds-overlay-fill-8) 50%, transparent 70%); background-size: 250% 100%;
+    animation: tds-sq-sweep var(--tds-dur-shimmer) linear infinite;
+    & img { opacity: 1 }
+  }
+  @media (prefers-reduced-motion: reduce) { .tds-attach[data-kind="image"][data-status="uploading"] .tds-attach-open { animation: none } }
 }

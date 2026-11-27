@@ -400,25 +400,7 @@
   .tds-attach[data-status="failed"] { box-shadow: var(--tds-ring-attach-error) }
   .tds-attach[data-status="uploading"][data-kind="image"] img { opacity: .45 }
   @media (hover: hover) and (pointer: fine) { .tds-attach:hover { --tds-raise-ring: var(--tds-ring-attach-hover) } }
-  .tds-attach-glyph {
-    position: relative; display: grid; place-items: center; flex: none; width: var(--tds-size-attach-glyph-w); height: var(--tds-size-attach-glyph-h);
-    padding-bottom: var(--tds-space-8); border-radius: var(--tds-radius-glyph); background: var(--tds-overlay-fill-8); color: var(--tds-text-tx2);
-    & b { position: absolute; bottom: var(--tds-space-4); font-size: var(--tds-type-glyph-size); font-weight: var(--tds-type-glyph-weight); letter-spacing: var(--tds-type-glyph-tracking) }
-  }
-  .tds-attach-meta {
-    display: flex; flex-direction: column; min-width: 0; gap: var(--tds-space-1);
-    & b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
-    & span { font-size: var(--tds-type-label-size); color: var(--tds-text-muted); white-space: nowrap }
-  }
-  .tds-attach[data-status="failed"] .tds-attach-meta span { color: var(--tds-status-failed) }
   .tds-attach-retry { margin-left: var(--tds-space-4); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
-  .tds-attach-ring {
-    position: absolute; width: var(--tds-size-ring); height: var(--tds-size-ring); fill: none; stroke-width: 3; stroke-linecap: round; rotate: -90deg; pointer-events: none;
-    & circle:first-child { stroke: var(--tds-overlay-fill-16) }
-    & circle:last-child { stroke: var(--tds-text-tx); transition: stroke-dasharray var(--tds-dur-tooltip) var(--tds-ease-out) }
-  }
-  .tds-attach[data-kind="image"] .tds-attach-ring { inset: 0; margin: auto }
-  .tds-attach[data-kind="doc"] .tds-attach-ring { right: var(--tds-space-12); top: 0; bottom: 0; margin: auto 0 }
   .tds-attach-remove {
     position: absolute; top: var(--tds-space-4); right: var(--tds-space-4); display: grid; place-items: center;
     width: var(--tds-size-attach-remove); height: var(--tds-size-attach-remove); border-radius: var(--tds-radius-pill);
@@ -540,7 +522,6 @@
 }
 
 @layer components {
-  .tds-file-card .tds-attach-glyph { color: color-mix(in oklab, var(--tds-chip-accent) 80%, var(--tds-text-tx)); background: color-mix(in oklab, var(--tds-chip-accent) 16%, var(--tds-surface-attach-doc)) }
 }
 
 @layer components {

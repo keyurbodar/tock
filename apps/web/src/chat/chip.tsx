@@ -64,23 +64,6 @@ export function FileChip(props: { id: string; name: string }) {
 }
 
 /** The thread's file card (TDS PxChips "Files"): the kind's glyph with its type under it, the name, and what opening does. */
-export function FileCard(props: { id: string; name: string; side: "me" | "agent" }) {
-  const meta = () => fileChip(props.name)
-  return (
-    <a href={fileUrl(props.id)} target="_blank" rel="noreferrer" class="tds-file-card tds-raise-1" data-side={props.side} style={{ "--tds-chip-accent": `var(--tds-chip-${meta().kind})` }}>
-      <span class="tds-attach-glyph" data-kind={meta().kind}>
-        <svg class="tds-icon tds-chip-icon" aria-hidden="true">
-          <use href={`#i-${meta().icon}:duotone`} />
-        </svg>
-        <b>{extension(props.name)}</b>
-      </span>
-      <span class="tds-attach-meta">
-        <b>{props.name}</b>
-        <span>Open</span>
-      </span>
-    </a>
-  )
-}
 
 export const threadHref = (id: string) => `/t/${id}`
 

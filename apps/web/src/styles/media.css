@@ -1,33 +1,5 @@
 @layer components {
-  .tds-sent-images {
-    display: flex; gap: var(--tds-space-4); margin-top: var(--tds-space-14);
-    & + .tds-bubble { margin-top: var(--tds-space-4) }
-    &[data-side="me"] { align-self: flex-end } &[data-side="agent"] { align-self: flex-start }
-    &[data-queued] { opacity: .55 }
-  }
-  .tds-sent-image {
-    display: block; flex: none; overflow: hidden; width: var(--tds-size-img2-w); height: var(--tds-size-img2-h);
-    border-radius: var(--tds-radius-media-inner); background: var(--tds-surface-attach); box-shadow: var(--tds-ring-card); cursor: zoom-in;
-    transition: scale var(--tds-dur-press) var(--tds-ease-out), box-shadow var(--tds-dur-press) var(--tds-ease-out);
-    &:first-child { border-top-left-radius: var(--tds-radius-media-lg); border-bottom-left-radius: var(--tds-radius-media-lg) }
-    &:last-child { border-top-right-radius: var(--tds-radius-media-lg); border-bottom-right-radius: var(--tds-radius-media-lg) }
-    &:active { scale: var(--tds-press-tight) }
-    & img { display: block; width: 100%; height: 100%; object-fit: cover }
-  }
-  @media (hover: hover) and (pointer: fine) { .tds-sent-image:hover { box-shadow: var(--tds-ring-attach-hover) } }
-  .tds-sent-images[data-count="1"] .tds-sent-image { width: var(--tds-size-img1-w); height: var(--tds-size-img1-h); border-radius: var(--tds-radius-media-lg) }
-  .tds-sent-images[data-count="3"] .tds-sent-image { width: var(--tds-size-img3); height: var(--tds-size-img3) }
 
-  .tds-file-card {
-    display: flex; align-items: center; gap: var(--tds-space-10); width: var(--tds-size-file-card); margin-top: var(--tds-space-6); padding: var(--tds-space-8) var(--tds-space-10) var(--tds-space-8) var(--tds-space-8);
-    border-radius: var(--tds-radius-card-sm); background: var(--tds-surface-card); box-shadow: var(--tds-ring-card); color: inherit; text-decoration: none;
-    transition: box-shadow var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
-    &:active { scale: var(--tds-press-tight) }
-    & .tds-attach-meta { min-width: 0 }
-    & .tds-attach-meta b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
-  }
-  .tds-file-card[data-side="me"] { align-self: flex-end } .tds-file-card[data-side="agent"] { align-self: flex-start }
-  @media (hover: hover) and (pointer: fine) { .tds-file-card:hover { --tds-raise-ring: var(--tds-ring-attach-hover) } }
 
   .tds-lightbox {
     position: fixed; inset: 0; z-index: var(--tds-z-lightbox); display: flex; flex-direction: column; align-items: center; justify-content: center;

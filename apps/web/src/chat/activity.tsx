@@ -306,7 +306,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     if (!props.anchor || !host) return
     const box = host.getBoundingClientRect()
     const at = props.anchor.getBoundingClientRect()
-    const mine = [...document.querySelectorAll(".tds-bubble[data-side='me'], .tds-sent-images, .tds-file-card[data-side='me']")].map((el) => el.getBoundingClientRect())
+    const mine = [...document.querySelectorAll(".tds-bubble[data-side='me']")].map((el) => el.getBoundingClientRect())
     const [, from = "0"] = getComputedStyle(panel).translate.split(" ")
     const above = at.top - box.top - tokens.size["worklog-top"]
     const below = box.bottom - at.bottom - tokens.size["column-bottom"]

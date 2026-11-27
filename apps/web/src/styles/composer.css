@@ -17,14 +17,9 @@
   .tds-attach { cursor: grab; touch-action: pan-x; transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-std) }
   .tds-attach[data-dragging] { z-index: 5; cursor: grabbing; scale: 1.05; box-shadow: var(--tds-lift-fan); transition: scale var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
   .tds-attach[data-status="failed"] { animation: tds-attach-shake var(--tds-dur-shake) var(--tds-ease-std) }
-  .tds-attach-ring { stroke-width: 2.5 }
   .tds-attach[data-kind="image"][data-status="uploading"]::after { content: ""; position: absolute; inset: 0; background: var(--tds-overlay-veil) }
-  .tds-attach[data-kind="image"] .tds-attach-ring { z-index: 1 }
-  .tds-attach-meta [data-shimmer] { display: inline-block }
-  .tds-attach-veil { position: absolute; inset: 0; display: grid; place-items: center; background: var(--tds-wash-failed-16) }
   .tds-attach-retry-pill { height: var(--tds-size-token); padding: 0 var(--tds-space-8); border-radius: var(--tds-radius-pill); background: var(--tds-overlay-fill-16); font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
   .tds-attach-tray { padding-left: var(--tds-space-12); mask: linear-gradient(90deg, transparent, black var(--tds-space-12), black calc(100% - var(--tds-space-12)), transparent) }
-  .tds-attach-glyph[data-kind] { color: color-mix(in oklab, var(--tds-chip-accent) 80%, var(--tds-text-tx)); background: color-mix(in oklab, var(--tds-chip-accent) 16%, var(--tds-surface-attach-doc)) }
 
   .tds-attach-preview {
     position: absolute; z-index: var(--tds-z-lay); display: flex; flex-direction: column; gap: var(--tds-space-10); width: var(--tds-size-hover-card); padding: var(--tds-space-12);

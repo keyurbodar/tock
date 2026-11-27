@@ -4,6 +4,6 @@
   [data-narrow] :is(.tds-column, .tds-composer-wrap) { padding-inline: var(--tds-space-12) }
   [data-narrow] .tds-header-stack, [data-narrow] .tds-header-pill { max-width: 100% }
   @media (forced-colors: active) {
-    :is(.tds-over, .tds-glass, .tds-field, .tds-bubble, .tds-attach, .tds-file-card, .tds-sq, .tds-file-wide, .tds-media-tile, .tds-sent-image, .tds-row[data-selected]):not(:focus-visible) { outline: var(--tds-size-focus-width) solid CanvasText; outline-offset: calc(var(--tds-size-focus-width) * -1) }
+    :is(.tds-over, .tds-glass, .tds-field, .tds-bubble, .tds-attach, .tds-sq, .tds-file-wide, .tds-media-tile, .tds-row[data-selected]):not(:focus-visible) { outline: var(--tds-size-focus-width) solid CanvasText; outline-offset: calc(var(--tds-size-focus-width) * -1) }
   }
 }
