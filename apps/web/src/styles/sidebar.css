@@ -48,7 +48,7 @@
     padding: var(--tds-space-6) var(--tds-space-4) var(--tds-space-8); border-radius: var(--tds-radius-card); color: var(--tds-text-muted);
     font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-leading); letter-spacing: 0; transition: color var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-pin:hover { color: var(--tds-text-tx2) }
+  @media (hover: hover) and (pointer: fine) { .tds-pin:hover { color: var(--tds-text-tx2) } }
   .tds-pin-circle {
     flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); display: grid; place-items: center;
     background: var(--tds-raise-sheen-2), color-mix(in oklab, currentColor var(--tds-raise-tint), var(--tds-surface-side)); box-shadow: var(--tds-raise-shadow-2);
@@ -120,7 +120,7 @@
     flex: none; height: var(--tds-size-more); padding: 0 var(--tds-space-8); border-radius: var(--tds-radius-pill); display: flex; align-items: center; gap: var(--tds-space-5);
     font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx2);
   }
-  .tds-bulk button:hover { background: var(--tds-overlay-fill-8) }
+  @media (hover: hover) and (pointer: fine) { .tds-bulk button:hover { background: var(--tds-overlay-fill-8) } }
   .tds-bulk button[data-danger] { color: var(--tds-status-failed) }
 
   .tds-peek {
@@ -155,7 +155,7 @@
   .tds-move-search { display: flex; align-items: center; gap: var(--tds-space-12); height: var(--tds-size-menu-search); padding: 0 var(--tds-space-12) 0 var(--tds-space-14); color: var(--tds-text-muted) }
   .tds-move-search input { all: unset; flex: 1; font-size: var(--tds-type-row-size); color: var(--tds-text-tx) }
   .tds-move-search input::placeholder { color: var(--tds-text-muted) }
-  .tds-move-list { max-height: calc(var(--tds-size-menu-dialog) * .7); overflow: auto; padding-top: var(--tds-space-2) }
+  .tds-move-list { max-height: calc(var(--tds-size-menu-dialog) * .7); overflow: auto; overscroll-behavior: contain; padding-top: var(--tds-space-2) }
   .tds-move-head { padding: var(--tds-space-7) var(--tds-space-10) var(--tds-space-4); font-size: var(--tds-type-micro-size); color: var(--tds-text-faint) }
   .tds-move-empty { padding: var(--tds-space-8) var(--tds-space-10); font-size: var(--tds-type-preview-size); color: var(--tds-text-muted) }
   .tds-move-item {

@@ -1454,6 +1454,20 @@ const journeys: Record<string, () => void> = {
       ab("set", "viewport", "1440", "900")
     }
   },
+  ui() {
+    const ungated = js<string[]>(`const out = []; const walk = (list, gated) => { for (const r of list) { if (r.conditionText !== undefined && r.cssRules) walk(r.cssRules, gated || /hover:\\s*hover/.test(r.conditionText)); else { if (r.selectorText !== undefined && /:hover/.test(r.selectorText) && !gated) out.push(r.selectorText); if (r.cssRules?.length) walk(r.cssRules, gated) } } }; for (const s of document.styleSheets) { try { walk(s.cssRules, false) } catch {} } return out`)
+    check(!ungated.length, `every :hover rule sits under @media (hover: hover); ungated: ${ungated.slice(0, 5).join(" | ")}`)
+    fresh()
+    say("https://example.com/workspaces/acme/projects/q3-launch/docs/9f8e7d6c5b4a?tab=comments&x=DonaudampfschiffahrtsgesellschaftDonaudampfschiffahrtsgesellschaft")
+    settled()
+    const spill = js<string[]>("return [...document.querySelectorAll('.tds-transcript, .tds-column, .tds-bubble')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.className.split(' ')[0])")
+    check(!spill.length, `an unbreakable message stays inside its bubble and column; overflowing: ${spill.join(", ")}`)
+    const hidden = js<string[]>("return [...document.querySelectorAll('*')].filter((e) => getComputedStyle(e).textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth + 1 && !e.closest('[title], [aria-label]')).map((e) => e.className.split(' ')[0])")
+    check(!hidden.length, `truncated text keeps a way to the full value (title or aria-label); bare: ${hidden.join(", ")}`)
+    const small = js<string[]>("return [...document.querySelectorAll('button, [role=button], a[href]:not(.tds-link)')].filter((e) => { const r = e.getBoundingClientRect(); return r.width && (r.width < 24 || r.height < 24) && !e.classList.contains('tds-sidebar-handle') }).map((e) => e.className.split(' ')[0] + ' ' + (e.getAttribute('aria-label') ?? ''))")
+    check(!small.length, `every control is at least 24×24 (WCAG 2.5.8); small: ${small.join(", ")}`)
+    shot("ui")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -1463,7 +1477,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "grow", "pingrid", "mobile", "ui", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

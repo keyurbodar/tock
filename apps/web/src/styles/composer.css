@@ -18,7 +18,7 @@
     gap: var(--tds-space-5); padding: 0 var(--tds-space-2); background-color: transparent; color: var(--tds-text-tx); cursor: pointer;
     background-image: radial-gradient(circle, var(--tds-accent-rose-75) 0.9px, transparent 1.2px); background-size: var(--tds-space-4) var(--tds-space-2); background-repeat: repeat-x; background-position: 0 100%;
   }
-  .tds-input .tds-link-token:hover { color: var(--tds-text-me); background-image: radial-gradient(circle, var(--tds-accent-rose) 1px, transparent 1.3px) }
+  @media (hover: hover) and (pointer: fine) { .tds-input .tds-link-token:hover { color: var(--tds-text-me); background-image: radial-gradient(circle, var(--tds-accent-rose) 1px, transparent 1.3px) } }
   .tds-token-fav {
     position: relative; display: grid; place-items: center; flex: none; width: var(--tds-size-favicon); height: var(--tds-size-favicon); overflow: hidden;
     border-radius: var(--tds-radius-favicon); background: var(--tds-text-tx); color: var(--tds-surface-ink); font-size: var(--tds-type-glyph-size); font-weight: var(--tds-weight-bold);

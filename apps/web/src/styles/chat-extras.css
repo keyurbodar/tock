@@ -15,7 +15,7 @@
     font-size: var(--tds-type-caption-size); color: var(--tds-text-muted); transition: color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
     margin-bottom: var(--tds-space-6);
   }
-  .tds-code-more:hover { color: var(--tds-text-tx2) }
+  @media (hover: hover) and (pointer: fine) { .tds-code-more:hover { color: var(--tds-text-tx2) } }
 
   .tds-caption {
     align-self: flex-start; margin: var(--tds-space-5) var(--tds-space-4) 0;

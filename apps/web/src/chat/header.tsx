@@ -32,7 +32,7 @@ export function Header(props: { title: string; status: OrbStatus | undefined }) 
             <img src="/brand/toast-face-center.svg" alt="" class="size-header-face" draggable={false} />
           </span>
           <span class="tds-header-pill tds-glass">
-            <span class="tds-header-title"><TextMorph value={props.title} /></span>
+            <span class="tds-header-title" title={props.title}><TextMorph value={props.title} /></span>
             <span class="tds-header-status" data-on={status() ? "" : undefined}>
               <Show when={status()}>{(s) => <Orb status={s()} surface="main" size="orb-sm" />}</Show>
               <TextMorph value={status() ? LABEL[status()!] : ""} />

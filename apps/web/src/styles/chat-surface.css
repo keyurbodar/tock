@@ -16,7 +16,8 @@
     display: grid; place-items: center; width: var(--tds-size-header-button); height: var(--tds-size-header-button); border-radius: var(--tds-radius-pill);
     color: var(--tds-text-tx2); transition: background-color var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-header-button:hover, .tds-header-button[aria-pressed="true"] { background: var(--tds-overlay-hover) }
+  .tds-header-button[aria-pressed="true"] { background: var(--tds-overlay-hover) }
+  @media (hover: hover) and (pointer: fine) { .tds-header-button:hover { background: var(--tds-overlay-hover) } }
 
   .tds-find {
     display: flex; align-items: center; gap: var(--tds-space-6); height: var(--tds-size-header-button); padding: 0 var(--tds-space-6) 0 var(--tds-space-14);
@@ -31,7 +32,7 @@
   .tds-find-count[data-empty] { color: var(--tds-text-faint) }
   .tds-find-step {
     display: grid; place-items: center; width: var(--tds-space-28); height: var(--tds-space-28); border-radius: var(--tds-radius-pill); color: var(--tds-text-tx2);
-    &:hover:not(:disabled) { background: var(--tds-overlay-hover) }
+    @media (hover: hover) and (pointer: fine) { &:hover:not(:disabled) { background: var(--tds-overlay-hover) } }
     &:disabled { opacity: .4 }
   }
   ::highlight(tds-find) { background-color: var(--tds-overlay-find); color: inherit }

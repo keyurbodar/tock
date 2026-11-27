@@ -35,7 +35,9 @@
     border-radius: var(--tds-radius-pill); background: var(--tds-surface-badge-ring); color: var(--tds-text-tx2); box-shadow: var(--tds-lift-fan); opacity: 0; scale: .6;
     transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), scale var(--tds-dur-tooltip) var(--tds-ease-out);
   }
-  .tds-toast:hover .tds-toast-close, .tds-toast-close:focus-visible { opacity: 1; scale: 1 }
+  .tds-toast-close:focus-visible { opacity: 1; scale: 1 }
+  @media (hover: hover) and (pointer: fine) { .tds-toast:hover .tds-toast-close { opacity: 1; scale: 1 } }
+  @media (hover: none) { .tds-toast-close { opacity: 1; scale: 1 } }
   .tds-toast-progress { position: absolute; left: var(--tds-space-16); right: var(--tds-space-16); bottom: 0; height: var(--tds-space-2); border-radius: var(--tds-radius-pill); overflow: hidden; opacity: 0; transition: opacity var(--tds-dur-layout) var(--tds-ease-out) }
   .tds-toasts[data-expanded] .tds-toast-progress { opacity: 1 }
   .tds-toast-progress i { display: block; height: 100%; background: var(--tds-overlay-fill-20); transform-origin: 0 0 }

@@ -70,7 +70,7 @@
     background: var(--tds-key-fill); color: var(--tds-text-tx); box-shadow: var(--tds-key-shadow);
     transition: scale var(--tds-dur-press) var(--tds-ease-out), filter var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-key:hover:not(:disabled) { filter: brightness(1.1) }
+  @media (hover: hover) and (pointer: fine) { .tds-key:hover:not(:disabled) { filter: brightness(1.1) } }
   .tds-key:active:not(:disabled) { scale: var(--tds-press) }
   .tds-key:disabled { opacity: .5 }
   .tds-key-cream { background: var(--tds-key-cream-fill); color: var(--tds-text-on-cream); box-shadow: var(--tds-key-cream-shadow) }

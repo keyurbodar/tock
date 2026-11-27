@@ -62,7 +62,7 @@
     position: absolute; top: 50%; left: 50%; translate: -50% -50%; display: grid; place-items: center; width: var(--tds-size-lightbox-nav); height: var(--tds-size-lightbox-nav);
     border-radius: var(--tds-radius-pill); background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow); color: var(--tds-text-tx); transition: scale var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-media-tile:hover .tds-media-play { scale: 1.08 }
+  @media (hover: hover) and (pointer: fine) { .tds-media-tile:hover .tds-media-play { scale: 1.08 } }
   .tds-media-badge { position: absolute; right: var(--tds-space-6); bottom: var(--tds-space-6); display: flex; align-items: center; height: var(--tds-space-18); padding: 0 var(--tds-space-6); border-radius: var(--tds-radius-pill); background: var(--tds-overlay-veil); font-size: var(--tds-type-label-size); color: var(--tds-text-tx) }
 
   .tds-file-wide { position: relative; display: flex; align-items: center; width: var(--tds-size-agent-file); max-width: 100%; border-radius: var(--tds-radius-card-sm); background: var(--tds-surface-card); box-shadow: var(--tds-ring-card) }
@@ -73,7 +73,8 @@
     position: absolute; right: var(--tds-space-8); display: grid; place-items: center; width: var(--tds-size-lightbox-button); height: var(--tds-size-lightbox-button); border-radius: var(--tds-radius-pill);
     background: var(--tds-overlay-fill-8); color: var(--tds-text-tx2); opacity: 0; scale: .9; transition: opacity var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-file-wide:hover .tds-file-wide-save, .tds-file-wide-save:focus-visible { opacity: 1; scale: 1 }
+  .tds-file-wide-save:focus-visible { opacity: 1; scale: 1 }
+  @media (hover: hover) and (pointer: fine) { .tds-file-wide:hover .tds-file-wide-save { opacity: 1; scale: 1 } }
   @media (hover: none) { .tds-file-wide-save { opacity: 1; scale: 1 } }
 
   .tds-lightbox-count {
@@ -84,7 +85,7 @@
     position: absolute; left: var(--tds-space-16); bottom: var(--tds-space-16); z-index: 1; display: flex; align-items: center; gap: var(--tds-space-2); padding: var(--tds-space-4);
     border-radius: var(--tds-radius-field); background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow); opacity: 0; transition: opacity var(--tds-dur-lightbox-bar) var(--tds-ease-out);
     & button { display: grid; place-items: center; min-width: var(--tds-space-28); height: var(--tds-space-28); padding: 0 var(--tds-space-8); border-radius: var(--tds-radius-glyph); font-size: var(--tds-type-secondary-size); color: var(--tds-text-tx2); transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out) }
-    & button:hover { background: var(--tds-overlay-fill-8); color: var(--tds-text-tx) }
+    @media (hover: hover) and (pointer: fine) { & button:hover { background: var(--tds-overlay-fill-8); color: var(--tds-text-tx) } }
     & button[aria-pressed="true"] { color: var(--tds-text-tx) }
     & button:disabled { opacity: .4 }
     & > span { min-width: var(--tds-space-44); text-align: center; font-size: var(--tds-type-secondary-size); color: var(--tds-text-muted) }
@@ -94,7 +95,7 @@
   .tds-lightbox-doc {
     display: flex; width: min(var(--tds-size-lightbox-doc), calc(100vw - var(--tds-space-64) * 2)); height: min(var(--tds-size-lightbox-h), calc(100dvh - var(--tds-space-64) * 3));
     border-radius: var(--tds-radius-lightbox); background: var(--tds-surface-card); box-shadow: var(--tds-lift-media); overflow: hidden;
-    & pre { flex: 1; margin: 0; padding: var(--tds-space-16) var(--tds-space-20); overflow: auto; font-family: var(--tds-font-mono); font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-label-leading); color: var(--tds-text-tx2); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text }
+    & pre { flex: 1; margin: 0; padding: var(--tds-space-16) var(--tds-space-20); overflow: auto; overscroll-behavior: contain; font-family: var(--tds-font-mono); font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-label-leading); color: var(--tds-text-tx2); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text }
   }
   .tds-lightbox-film-doc { display: grid; place-items: center; width: 100%; height: 100%; background: var(--tds-surface-card); font-size: var(--tds-type-glyph-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-muted) }
   @media (prefers-reduced-motion: reduce) { :is(.tds-attach[data-kind="doc"][data-status="uploading"], .tds-sq[data-state="loading"]) { animation: none } }

@@ -18,7 +18,8 @@
   .tds-palette-list > .tds-fluid { background: var(--tds-overlay-palette-on) }
   .tds-sidebar .tds-fluid { background: var(--tds-surface-row-hover) }
   .tds-fluid { background-image: var(--tds-raise-sheen-hover); box-shadow: var(--tds-raise-shadow-hover) }
-  [data-fluid] .tds-menu-item[data-highlighted]:not([data-danger]), [data-fluid] .tds-palette-item[data-highlighted], [data-fluid] .tds-row:not([data-selected]):hover, [data-fluid] .tds-header-button:not([aria-pressed="true"]):hover { background: transparent }
+  [data-fluid] .tds-menu-item[data-highlighted]:not([data-danger]), [data-fluid] .tds-palette-item[data-highlighted] { background: transparent }
+  @media (hover: hover) and (pointer: fine) { [data-fluid] .tds-row:not([data-selected]):hover, [data-fluid] .tds-header-button:not([aria-pressed="true"]):hover { background: transparent } }
   @media (hover: hover) and (pointer: fine) { [data-fluid] .tds-rail-button:not([data-on]):hover { background: transparent } }
 
 
