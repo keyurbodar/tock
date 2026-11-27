@@ -1856,7 +1856,7 @@ const journeys: Record<string, () => void> = {
     const box = js<{ sh: number; ch: number; top: number; vh: number }>("const b = document.querySelector('.tds-worklog-body'); const p = document.querySelector('.tds-worklog').getBoundingClientRect(); return { sh: b.scrollHeight, ch: b.clientHeight, top: p.top, vh: innerHeight }")
     check(box.sh > box.ch, "a long turn should scroll inside the pane (" + JSON.stringify(box) + ")")
     check(box.top >= 0, "the pane should stay on screen (" + JSON.stringify(box) + ")")
-    check(js<number>("return document.querySelectorAll('.tds-worklog .tds-ws').length") < 32, "long runs should render through the virtualizer")
+    check(js<number>("return document.querySelectorAll('.tds-worklog .tds-ws').length") >= 30, "a 30-step run renders every row in flow (virtualized only past the worklog-virtual limit)")
     const clear = js<boolean>("const p = document.querySelector('.tds-worklog').getBoundingClientRect(); return [...document.querySelectorAll(\".tds-bubble[data-side='me'], .tds-sent-images, .tds-file-card[data-side='me']\")].every((e) => { const r = e.getBoundingClientRect(); return r.right <= p.left || r.left >= p.right || r.bottom <= p.top || r.top >= p.bottom })")
     check(clear, "the pane must not cover my bubble or attachments")
     shot("worklog-long")

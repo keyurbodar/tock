@@ -281,8 +281,11 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   const frame = requestAnimationFrame(() => {
     fit()
     measure()
-    setTimeout(() => setReady(true), tokens.motion.duration.panel)
-    reflow()
+    requestAnimationFrame(() => setFull(true))
+    setTimeout(() => {
+      setReady(true)
+      reflow()
+    }, tokens.motion.duration.panel)
     if (content) grow.observe(content)
     if (props.anchor?.offsetParent) grow.observe(props.anchor.offsetParent)
     fit()
@@ -338,8 +341,20 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     cache.set(key, known)
     return known
   }
-  const rows = createMemo((): Row[] => [...(props.work?.plan ? [row("plan", "plan")] : []), ...steps().map((step) => row("step", step.key))])
+  const [full, setFull] = createSignal(false)
+  const rows = createMemo((): Row[] => {
+    const all = [...(props.work?.plan ? [row("plan", "plan")] : []), ...steps().map((step) => row("step", step.key))]
+    if (full()) return all
+    const first = tokens.limit["worklog-first"]
+    return props.work?.active ? all.slice(-first) : all.slice(0, first)
+  })
   const byKey = createMemo(() => new Map(steps().map((step) => [step.key, step])))
+  const renderRow = (row: Row) =>
+    row.kind === "plan" ? (
+      <Show when={props.work?.plan}>{(plan) => <PlanList plan={plan()} at={planAt(props.work!)} />}</Show>
+    ) : (
+      <Show when={byKey().get(row.key)}>{(step) => <StepRow step={step()} sessionId={props.sessionId} open={expanded().has(row.key)} onToggle={(el) => toggleRow(row.key, el)} live={!!props.work?.active && row.key === steps().at(-1)?.key && statusOf(step()) === "running"} />}</Show>
+    )
   const limit = () => Math.max(place().max, tokens.size["worklog-head"])
   return (
     <div
@@ -394,16 +409,19 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
               }}
             >
               <div ref={content} class="tds-worklog-content">
-                <Show when={body()}>
+                <Show
+                  when={rows().length > tokens.limit["worklog-virtual"] ? body() : undefined}
+                  fallback={
+                    <div>
+                      <For each={rows()} keyed={(row) => row.key}>
+                        {(row) => <div>{renderRow(row())}</div>}
+                      </For>
+                    </div>
+                  }
+                >
                   {(scroller) => (
                     <Virtualizer data={rows()} scrollRef={scroller()} itemSize={tokens.size["worklog-row"]}>
-                      {(row) =>
-                        row.kind === "plan" ? (
-                          <Show when={work().plan}>{(plan) => <PlanList plan={plan()} at={planAt(work())} />}</Show>
-                        ) : (
-                          <Show when={byKey().get(row.key)}>{(step) => <StepRow step={step()} sessionId={props.sessionId} open={expanded().has(row.key)} onToggle={(el) => toggleRow(row.key, el)} live={work().active && row.key === steps().at(-1)?.key && statusOf(step()) === "running"} />}</Show>
-                        )
-                      }
+                      {(row) => renderRow(row)}
                     </Virtualizer>
                   )}
                 </Show>
