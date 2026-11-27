@@ -2,7 +2,7 @@
 @import "tailwindcss";
 @import "@tock/tokens/theme.css";
 @import "@tock/tokens/tokens.css";
-@import "@tock/motion/motion.css";
+@import "@tock/ui/motion.css";
 @import "./fonts.css";
 @import "@tock/ui/styles.css";
 @import "./shell.css";
@@ -16,6 +16,7 @@
 @import "./motion.css";
 @import "./composer.css";
 @import "./files.css";
+@import "./motion-demo.css";
 @import "./skills-mobile.css";
 @import "./skills-type.css";
 @import "./skills-a11y.css";

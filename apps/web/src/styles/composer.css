@@ -29,7 +29,6 @@
   .tds-attach { cursor: grab; touch-action: pan-x; transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out), translate var(--tds-dur-layout) var(--tds-ease-std) }
   .tds-attach[data-dragging] { z-index: 5; cursor: grabbing; scale: 1.05; box-shadow: var(--tds-lift-fan); transition: scale var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
   .tds-attach[data-status="failed"] { animation: tds-attach-shake var(--tds-dur-shake) var(--tds-ease-std) }
-  @keyframes tds-attach-shake { 25% { translate: calc(var(--tds-space-4) * -1) 0 } 60% { translate: var(--tds-space-4) 0 } }
   .tds-attach-ring { stroke-width: 2.5 }
   .tds-attach[data-kind="image"][data-status="uploading"]::after { content: ""; position: absolute; inset: 0; background: var(--tds-overlay-veil) }
   .tds-attach[data-kind="image"] .tds-attach-ring { z-index: 1 }
@@ -50,7 +49,6 @@
 
   .tds-drop[data-bad] { box-shadow: var(--tds-ring-drop-bad); & b { color: var(--tds-status-failed) } }
   .tds-drop { & > b, & > span:last-child { animation: tds-drop-in var(--tds-dur-layout) var(--tds-ease-out) } }
-  @keyframes tds-drop-in { from { scale: .96 } }
   .tds-drop-fan {
     gap: 0; margin-bottom: var(--tds-space-8);
     & i { width: var(--tds-size-drop-glyph-w); height: var(--tds-size-drop-glyph-h); margin-inline: calc(var(--tds-space-4) * -1); border-radius: var(--tds-radius-drop-glyph); transition: rotate var(--tds-dur-swap) var(--tds-ease-out), translate var(--tds-dur-swap) var(--tds-ease-out) }
@@ -78,7 +76,6 @@
   }
   .tds-send:active { scale: var(--tds-press-tight) }
 }
-
 
 @layer components {
   .tds-input {

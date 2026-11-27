@@ -1,4 +1,5 @@
 import { createEffect, createSignal, For, onCleanup, untrack } from "solid-js"
+import { animate } from "./motion/core"
 import { tokens } from "@tock/tokens"
 import { Icon, type IconName, type IconSize } from "./icon"
 
@@ -67,7 +68,7 @@ function Lines(props: { name: MorphIconName; size: string; weight?: number }) {
       paint(next.points, next.weight)
       return
     }
-    clock = svg.animate([{ opacity: 1 }, { opacity: 1 }], { duration: tokens.motion.duration.swap, easing: tokens.motion.curve.sheet })
+    clock = animate(svg, [{ opacity: 1 }, { opacity: 1 }], { duration: tokens.motion.duration.swap, easing: tokens.motion.curve.sheet, essential: true })
     const step = () => {
       const t = clock?.effect?.getComputedTiming().progress ?? 1
       const k = clock?.playState === "finished" ? 1 : (t ?? 1)

@@ -55,7 +55,7 @@ export const check: FileCheck = (file, text) => {
     if (!/\.animate\(/.test(line)) return
     if (WAAPI_LAYOUT.test(line) && !known) hits.push({ line: at, name: "layout-transition", found: ".animate(layout)", why: "WAAPI on top/left/width/margin re-runs layout every frame. Animate translate or transform." })
     if (/\b(?:translate|transform)\s*:/.test(line) && !guarded && !UNGUARDED_ROUTED.some((f) => f.test(file)))
-      hits.push({ line: at, name: "waapi-reduced-motion", found: ".animate(translate)", why: "The CSS reduced-motion reset never reaches element.animate(). Branch on prefersReducedMotion() from @tock/motion and keep only opacity." })
+      hits.push({ line: at, name: "waapi-reduced-motion", found: ".animate(translate)", why: "The CSS reduced-motion reset never reaches element.animate(). Branch on prefersReducedMotion() from @tock/ui/motion and keep only opacity." })
   })
   return hits
 }

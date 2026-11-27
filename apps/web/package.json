@@ -24,7 +24,6 @@
     "@tiptap/markdown": "^3.35",
     "@tiptap/pm": "^3.35",
     "@tiptap/starter-kit": "^3.35",
-    "@tock/motion": "workspace:*",
     "@tock/protocol": "workspace:*",
     "@tock/tokens": "workspace:*",
     "@tock/ui": "workspace:*",

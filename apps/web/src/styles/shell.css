@@ -245,10 +245,7 @@
     & i:nth-child(3) { animation-delay: calc(var(--tds-dur-typing-step) * 2) }
   }
   :is(.tds-shimmer, [data-shimmer]) { background: linear-gradient(90deg, var(--tds-text-muted) 0%, var(--tds-text-muted) 40%, var(--tds-text-tx) 50%, var(--tds-text-muted) 60%, var(--tds-text-muted) 100%); background-size: 300% 100%; background-clip: text; color: transparent; animation: tds-shimmer var(--tds-dur-shimmer) linear infinite }
-  @keyframes tds-shimmer { from { background-position: 100% 0 } to { background-position: 0 0 } }
   @media (prefers-reduced-motion: reduce) { :is(.tds-shimmer, [data-shimmer]) { animation: none; background: none; color: var(--tds-text-muted) } }
-  @keyframes tds-spin { to { rotate: 360deg } }
-  @keyframes tds-dot { 0%, 70%, 100% { opacity: .35; translate: 0 } 35% { opacity: 1; translate: 0 calc(var(--tds-space-2) * -1) } }
 
   .tds-act { display: flex; align-self: flex-start; align-items: center; min-height: var(--tds-size-act); margin-top: var(--tds-space-14) }
   .tds-act + .tds-bubble, .tds-act + .tds-code { margin-top: var(--tds-space-10) }
@@ -541,7 +538,6 @@
   .tds-send[data-held] { background: var(--tds-wash-working); color: var(--tds-status-working) }
 }
 
-
 @layer components {
   .tds-palette-scrim { position: fixed; inset: 0; z-index: var(--tds-z-centre) }
   .tds-palette {
@@ -578,15 +574,13 @@
   .tds-code { min-width: 0; max-width: 100% }
 }
 
-
 @layer components {
   .tds-file-card .tds-attach-glyph { color: color-mix(in oklab, var(--tds-chip-accent) 80%, var(--tds-text-tx)); background: color-mix(in oklab, var(--tds-chip-accent) 16%, var(--tds-surface-attach-doc)) }
 }
 
 @layer components {
   .tds-word { animation: tds-word var(--tds-dur-word) var(--tds-ease-out) both }
-  @keyframes tds-word { from { opacity: 0; filter: blur(var(--tds-blur-word)) } }
-  @media (prefers-reduced-motion: reduce) { .tds-word { animation-name: tds-word-fade } @keyframes tds-word-fade { from { opacity: 0 } } }
+  @media (prefers-reduced-motion: reduce) { .tds-word { animation-name: tds-word-fade }  }
 }
 
 @layer components {

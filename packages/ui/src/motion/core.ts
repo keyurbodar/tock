@@ -1,6 +1,4 @@
 import { tokens } from "@tock/tokens"
-export { installFluidHover, lanes } from "./fluid"
-export { growFrom, installGrow, sources } from "./grow"
 
 const m = tokens.motion
 export const ease = m.curve
@@ -29,10 +27,16 @@ export function springEasing(name: keyof typeof m.spring = "snappy"): { easing: 
   return { easing: `linear(${points.join(", ")})`, duration }
 }
 
-export function animate(el: Element, frames: Keyframe[], opts: number | KeyframeAnimationOptions): Animation {
-  const o: KeyframeAnimationOptions = typeof opts === "number" ? { duration: opts } : { ...opts }
+type Options = KeyframeAnimationOptions & { /** Not decoration (a timer bar, a measured height): keep it under reduced motion. */ essential?: boolean }
+
+/** Presence: the one WAAPI entry point. Defaults to the out-curve and, under reduced motion, keeps only the opacity. */
+export function animate(el: Element, frames: Keyframe[], opts: number | Options): Animation
+export function animate(el: Element | null | undefined, frames: Keyframe[], opts: number | Options): Animation | undefined
+export function animate(el: Element | null | undefined, frames: Keyframe[], opts: number | Options): Animation | undefined {
+  if (!el) return
+  const { essential, ...o }: Options = typeof opts === "number" ? { duration: opts } : { ...opts }
   o.easing ??= ease.out
-  if (prefersReducedMotion()) {
+  if (prefersReducedMotion() && !essential) {
     const from = frames[0]?.opacity ?? 1
     const to = frames.at(-1)?.opacity ?? 1
     return el.animate([{ opacity: from }, { opacity: to }], { duration: dur.tooltip, fill: o.fill ?? "auto" })
@@ -164,3 +168,7 @@ export function stackLayout(heights: number[], fanned: boolean) {
     return { y: i * 10, scale: 1 - i * 0.05, opacity: i > 2 ? 0 : 1, contentVisible: i === 0 }
   })
 }
+
+/** Spring: animate along a spring preset from tokens.motion.spring, as a linear() easing the compositor runs. */
+export const spring = (el: Element, frames: Keyframe[], preset: keyof typeof m.spring = "snappy", extra: KeyframeAnimationOptions = {}) =>
+  animate(el, frames, { ...springEasing(preset), ...extra })

@@ -10,7 +10,7 @@ import { EditorState } from "@tiptap/pm/state"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
-import { prefersReducedMotion } from "@tock/motion"
+import { prefersReducedMotion, animate } from "@tock/ui/motion"
 import { idb } from "../lib/idb"
 import { app, newThreadId, titleOf } from "../state/app"
 import { glyphFor } from "../lib/glyph"
@@ -26,7 +26,7 @@ type Attachments = ReturnType<typeof createAttachments>
 export function refuse(rejected: readonly Rejection[]) {
   if (rejected.length === 0) return
   if (!prefersReducedMotion())
-    document.querySelector(".tds-composer-row")?.animate(
+    animate(document.querySelector(".tds-composer-row"),
       [{ translate: "0" }, { translate: "calc(var(--tds-space-6) * -1) 0" }, { translate: "var(--tds-space-6) 0" }, { translate: "calc(var(--tds-space-3) * -1) 0" }, { translate: "0" }],
       { duration: tokens.motion.duration.shake, easing: tokens.motion.curve.std },
     )
@@ -42,7 +42,7 @@ function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => vo
   const collapse = () => {
     props.onHover(null)
     el.style.pointerEvents = "none"
-    el.animate(
+    animate(el,
       [
         { width: `${el.offsetWidth}px`, marginRight: "0px", opacity: 1, scale: "1" },
         { width: "0px", marginRight: `-${tokens.space[8]}px`, opacity: 0, scale: String(tokens.motion["press-tight"]) },
@@ -271,7 +271,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     load(undefined)
     save(key)
     editor.view.focus()
-    editorEl?.animate(prefersReducedMotion() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, translate: `0 ${tokens.space[6]}px` }, { opacity: 1, translate: "0 0" }], { duration: tokens.motion.duration.tooltip, easing: tokens.motion.curve.out })
+    animate(editorEl, prefersReducedMotion() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, translate: `0 ${tokens.space[6]}px` }, { opacity: 1, translate: "0 0" }], { duration: tokens.motion.duration.tooltip, easing: tokens.motion.curve.out })
   }
 
   createEffect(

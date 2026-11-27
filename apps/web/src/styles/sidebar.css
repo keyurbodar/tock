@@ -129,7 +129,6 @@
     animation: tds-peek-in var(--tds-dur-layout) var(--tds-ease-out);
     transition: top var(--tds-dur-exit) var(--tds-ease-out);
   }
-  @keyframes tds-peek-in { from { opacity: 0; transform: translateX(calc(var(--tds-space-8) * -1)) scale(.97); filter: blur(var(--tds-blur-exit)) } }
   .tds-peek-head { display: flex; align-items: center; gap: var(--tds-space-10) }
   .tds-peek-head b { flex: 1; min-width: 0; font-size: var(--tds-type-row-size); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
   .tds-peek-head em { font-style: normal; font-size: var(--tds-type-label-size); color: var(--tds-text-muted) }

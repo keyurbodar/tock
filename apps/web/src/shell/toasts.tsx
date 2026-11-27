@@ -3,7 +3,7 @@ import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Swap } from "@tock/ui/swap"
 import { TextMorph } from "@tock/ui/text-morph"
-import { dur, enter, exit, prefersReducedMotion } from "@tock/motion"
+import { dur, enter, exit, prefersReducedMotion, animate } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 
 export type Tone = "done" | "mono" | "failed" | "working" | "needs" | "rose"
@@ -70,7 +70,7 @@ function arm(id: string, full?: number) {
   clock.bar?.getAnimations().forEach((a) => a.cancel())
   if (untrack(hovered) || item.hold) return
   clock.timer = setTimeout(() => dismissToast(id), clock.left)
-  clock.bar?.animate([{ scale: `${clock.left / clock.full} 1` }, { scale: "0 1" }], { duration: clock.left, fill: "forwards" })
+  animate(clock.bar, [{ scale: `${clock.left / clock.full} 1` }, { scale: "0 1" }], { duration: clock.left, easing: "linear", fill: "forwards", essential: true })
 }
 
 export const isToastOpen = (id: string) => alive().some((item) => item.id === id)
@@ -106,7 +106,7 @@ export function toast(title: string, options: ToastOptions = {}): string {
       count,
     }))
     const card = clocks.get(twin.id)?.card
-    if (card && !prefersReducedMotion()) card.animate([{ scale: "1.02" }, { scale: "1" }], { duration: dur.layout, easing: tokens.motion.curve.out, composite: "add" })
+    if (card && !prefersReducedMotion()) animate(card, [{ scale: "1.02" }, { scale: "1" }], { duration: dur.layout, easing: tokens.motion.curve.out, composite: "add" })
     arm(twin.id, full)
     return twin.id
   }

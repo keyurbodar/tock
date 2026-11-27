@@ -21,7 +21,6 @@
   .tds-ask-done b { color: var(--tds-text-tx2); font-weight: var(--tds-weight-medium) }
   .tds-ask-check { display: grid; place-items: center; flex: none; width: var(--tds-size-ask-check); height: var(--tds-size-ask-check); border-radius: var(--tds-radius-pill); background: var(--tds-wash-done-16); color: var(--tds-status-done) }
   .tds-ask-check[data-tone="no"] { background: var(--tds-wash-mono); color: var(--tds-text-tx2) }
-  @keyframes tds-ask-in { from { opacity: 0; filter: blur(var(--tds-blur-swap)) } }
 
   .tds-wa {
     display: flex; flex-wrap: wrap; gap: var(--tds-space-8);

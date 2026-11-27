@@ -1,4 +1,5 @@
 import { tokens } from "@tock/tokens"
+import { animate } from "@tock/ui/motion"
 
 const limit = tokens.size["bubble-clamp"] + tokens.size["bubble-clamp-fade"]
 
@@ -21,7 +22,7 @@ function expand(this: HTMLElement, event: MouseEvent) {
   if ((event.target as HTMLElement).closest("a, button")) return
   const from = this.getBoundingClientRect().height
   this.dataset.expanded = ""
-  this.animate([{ height: `${from}px` }, { height: `${this.scrollHeight}px` }], { duration: tokens.motion.duration.panel, easing: tokens.motion.curve.sheet })
+  animate(this, [{ height: `${from}px` }, { height: `${this.scrollHeight}px` }], { duration: tokens.motion.duration.panel, easing: tokens.motion.curve.sheet, essential: true })
 }
 
 /**

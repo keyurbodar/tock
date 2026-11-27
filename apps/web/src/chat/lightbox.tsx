@@ -2,7 +2,7 @@ import { createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { TextMorph } from "@tock/ui/text-morph"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { animate, prefersReducedMotion } from "@tock/motion"
+import { animate, prefersReducedMotion } from "@tock/ui/motion"
 import { fileUrl, formatSize, isImage } from "./attachments"
 import { toast } from "../shell/toasts"
 

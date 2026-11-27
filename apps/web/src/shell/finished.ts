@@ -1,5 +1,5 @@
 import { tokens } from "@tock/tokens"
-import { animate } from "@tock/motion"
+import { animate } from "@tock/ui/motion"
 import { toast } from "./toasts"
 
 const d = tokens.motion.duration

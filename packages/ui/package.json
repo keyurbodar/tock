@@ -7,12 +7,13 @@
     "**/*.css"
   ],
   "exports": {
+    "./motion": "./src/motion/index.ts",
+    "./motion.css": "./src/motion/motion.css",
     "./*": "./src/*.tsx",
     "./styles.css": "./src/styles.css"
   },
   "dependencies": {
     "@tock/tokens": "workspace:*",
-    "@tock/motion": "workspace:*",
     "torph": "0.1.4",
     "skullet": "0.0.3",
     "@tock/protocol": "workspace:*"

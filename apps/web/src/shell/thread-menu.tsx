@@ -1,4 +1,5 @@
 import { createSignal, Show } from "solid-js"
+import { animate } from "@tock/ui/motion"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { createMenuController, Menu, MenuContent, MenuItem, MenuItemIcon, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger } from "@ui-sdk/solid/menu"
 import {
@@ -12,7 +13,6 @@ import {
 import { useNavigate, useParams } from "@solidjs/router"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { prefersReducedMotion } from "@tock/motion"
 import { app, deleteThread, pinThread, titleOf, updateThread, type Session } from "../state/app"
 import { isToastOpen, toast, updateToast } from "./toasts"
 
@@ -69,12 +69,12 @@ export function leaveList(ids: readonly string[], then: () => void) {
       for (const wrap of document.querySelectorAll<HTMLElement>(".tds-row-wrap")) {
         const from = before.get(wrap.dataset.id)
         const delta = from === undefined ? 0 : from - wrap.getBoundingClientRect().top
-        if (delta && !prefersReducedMotion()) wrap.animate([{ transform: `translateY(${delta}px)` }, { transform: "none" }], { duration: layout, easing: tokens.motion.curve.std })
+        if (delta) animate(wrap, [{ transform: `translateY(${delta}px)` }, { transform: "none" }], { duration: layout, easing: tokens.motion.curve.std })
       }
     })
   }
   for (const wrap of wraps) wrap.setAttribute("data-leaving", "")
-  for (const wrap of wraps) wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: exit, easing: tokens.motion.curve.out, fill: "forwards" }).onfinish = () => --left || done()
+  for (const wrap of wraps) animate(wrap, [{ opacity: 1 }, { opacity: 0 }], { duration: exit, easing: tokens.motion.curve.out, fill: "forwards" }).onfinish = () => --left || done()
 }
 
 export function pin(session: Session, from?: { rect: DOMRect; glyph: string }) {

@@ -3,7 +3,7 @@ import { useNavigate } from "@solidjs/router"
 import { createMenuController, Menu, MenuContent, MenuContextTrigger, MenuItem, MenuItemIcon } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { prefersReducedMotion } from "@tock/motion"
+import { watchLayout, animate } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
 import { pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
 import { takeFlight, unpin } from "./thread-menu"
@@ -15,36 +15,15 @@ export const [dropping, setDropping] = createSignal<"" | "over" | "near">("")
 
 const ms = tokens.motion.duration
 
-/** The pins wrap into as many columns as the sidebar fits; when pins come, go or the columns change, every tile glides from where it was (FLIP). */
+/** The pins wrap into as many columns as the sidebar fits; when pins come, go or the columns change, every tile glides from where it was. */
 function flow(box: HTMLElement) {
-  let cols = 0
-  const at = new Map<string, { x: number; y: number }>()
-  const tiles = () => [...box.querySelectorAll<HTMLElement>(".tds-pin")]
-  const read = () => {
-    at.clear()
-    for (const el of tiles()) at.set(el.dataset.id ?? "", { x: el.offsetLeft, y: el.offsetTop })
-  }
-  const move = () => {
-    for (const el of tiles()) {
-      const was = at.get(el.dataset.id ?? "")
-      if (!was) continue
-      const dx = was.x - el.offsetLeft
-      const dy = was.y - el.offsetTop
-      if ((dx || dy) && !prefersReducedMotion()) el.animate([{ translate: `${dx}px ${dy}px` }, { translate: "0 0" }], { duration: ms.layout, easing: tokens.motion.curve.sheet })
-    }
-    read()
-  }
-  const resize = new ResizeObserver(() => {
-    if (!box.isConnected) return (resize.disconnect(), added.disconnect())
-    const next = Math.max(1, Math.floor(box.clientWidth / tokens.size["pin-slot-min"]))
-    if (next === cols) return read()
-    cols = next
-    box.style.setProperty("--pin-cols", String(next))
-    move()
+  const layout = watchLayout(box, ".tds-pin")
+  const columns = new ResizeObserver(() => {
+    if (!box.isConnected) return columns.disconnect()
+    box.style.setProperty("--pin-cols", String(Math.max(1, Math.floor(box.clientWidth / tokens.size["pin-slot-min"]))))
+    layout.move()
   })
-  const added = new MutationObserver(move)
-  resize.observe(box)
-  added.observe(box, { childList: true })
+  columns.observe(box)
 }
 
 /** The glyph leaves the row and lands in its circle on the sheet curve, then the circle settles .8 → 1.08 → 1, as TDS px2 pin(). */
@@ -61,10 +40,10 @@ function land(circle: HTMLElement, id: string) {
     document.body.append(ghost)
     const dx = to.left + to.width / 2 - (flight.from.left + flight.from.width / 2)
     const dy = to.top + to.height / 2 - (flight.from.top + flight.from.height / 2)
-    ghost.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)` }], { duration: prefersReducedMotion() ? 0 : ms["pin-flight"], easing: tokens.motion.curve.sheet, fill: "forwards" }).onfinish = () => {
+    animate(ghost, [{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)` }], { duration: ms["pin-flight"], easing: tokens.motion.curve.sheet, fill: "forwards" }).onfinish = () => {
       ghost.remove()
       circle.style.opacity = ""
-      if (!prefersReducedMotion()) circle.animate([{ scale: ".8" }, { scale: "1.08" }, { scale: "1" }], { duration: ms["pin-bounce"], easing: tokens.motion.curve.out })
+      animate(circle, [{ scale: ".8" }, { scale: "1.08" }, { scale: "1" }], { duration: ms["pin-bounce"], easing: tokens.motion.curve.out })
     }
   })
 }
@@ -101,7 +80,7 @@ function PinLabel(props: { session: Session }) {
 export function Pins(props: { show: boolean }) {
   const navigate = useNavigate()
   const out = (session: Session, el: HTMLElement) => {
-    el.animate(prefersReducedMotion() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.6)" }], { duration: ms.exit, easing: tokens.motion.curve.in, fill: "forwards" }).onfinish = () => unpin(session)
+    animate(el, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.6)" }], { duration: ms.exit, easing: tokens.motion.curve.in, fill: "forwards" }).onfinish = () => unpin(session)
   }
   return (
     <Show when={props.show && (pinnedSessions().length > 0 || dropping() !== "")}>

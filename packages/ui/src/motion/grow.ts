@@ -9,6 +9,8 @@ interface Source {
   readonly trigger: (surface: HTMLElement) => Element | null
   /** The surface unmounts at once when it closes, so a ghost of it shrinks back into the trigger. Leave unset when the surface animates its own exit. */
   readonly ghost?: boolean
+  /** The rest of the app dims, scales and blurs behind the surface while it is open (Backdrop). */
+  readonly backdrop?: boolean
 }
 
 const opener = (surface: HTMLElement) =>
@@ -17,11 +19,11 @@ const opener = (surface: HTMLElement) =>
 export const sources: readonly Source[] = [
   { surface: ".tds-plus-menu", trigger: () => document.querySelector(".tds-composer-plus") },
   { surface: ".tds-menu", trigger: opener },
-  { surface: ".tds-palette", trigger: () => document.querySelector(".tds-search"), ghost: true },
+  { surface: ".tds-palette", trigger: () => document.querySelector(".tds-search"), ghost: true, backdrop: true },
   { surface: ".tds-peek", trigger: () => document.querySelector(".tds-row-wrap:hover"), ghost: true },
   { surface: ".tds-worklog", trigger: () => document.querySelector('.tds-act-button[aria-expanded="true"]'), ghost: true },
-  { surface: ".tds-centre", trigger: () => document.querySelector(".tds-rail-button[data-bell]"), ghost: true },
-  { surface: ".tds-keys", trigger: () => document.querySelector('.tds-rail-button[aria-label="Keyboard shortcuts"]'), ghost: true },
+  { surface: ".tds-centre", trigger: () => document.querySelector(".tds-rail-button[data-bell]"), ghost: true, backdrop: true },
+  { surface: ".tds-keys", trigger: () => document.querySelector('.tds-rail-button[aria-label="Keyboard shortcuts"]'), ghost: true, backdrop: true },
 ]
 
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -40,14 +42,27 @@ export function growFrom(surface: HTMLElement, trigger: Element | DOMRect) {
   const b = surface.getBoundingClientRect()
   if (!a.width || !b.width) return
   const m = tokens.motion
-  return surface.animate(
+  const running = surface.getAnimations().find((x) => x.id === "tds-grow")
+  const now = running ? getComputedStyle(surface) : undefined
+  running?.cancel()
+  const grow = surface.animate(
     [
-      { transform: toward(a, b), opacity: 0, filter: `blur(${m.blur.enter})`, offset: 0 },
+      now ? { transform: now.transform, opacity: Number(now.opacity), filter: now.filter, offset: 0 } : { transform: toward(a, b), opacity: 0, filter: `blur(${m.blur.enter})`, offset: 0 },
       { opacity: 1, offset: 0.35 },
       { transform: "none", opacity: 1, filter: "blur(0)" },
     ],
     { duration: m.duration.panel, easing: m.curve.sheet },
   )
+  grow.id = "tds-grow"
+  return grow
+}
+
+/** Backdrop: the app behind an expanded surface dims, scales and blurs; nested surfaces stack, the last close clears it. */
+let depth = 0
+export function backdrop(on: boolean) {
+  depth = Math.max(0, depth + (on ? 1 : -1))
+  if (depth) document.documentElement.dataset.backdrop = ""
+  else delete document.documentElement.dataset.backdrop
 }
 
 /** The reverse of growFrom for a surface that already left the DOM: a frozen copy at its last box shrinks back into the trigger. */
@@ -73,6 +88,8 @@ export function shrinkInto(copy: HTMLElement, box: DOMRect, trigger: DOMRect, di
 export function installGrow(root: Document = document) {
   const pending = new Set<HTMLElement>()
   const open = new Map<HTMLElement, { trigger: DOMRect; box: DOMRect; display: string }>()
+  const dimmed = new Set<HTMLElement>()
+  const undim = (el: HTMLElement) => dimmed.delete(el) && backdrop(false)
   const take = (el: HTMLElement) => {
     const source = sources.find((s) => el.matches(s.surface))
     if (!source || pending.has(el) || el.hasAttribute("data-ghost")) return
@@ -86,6 +103,7 @@ export function installGrow(root: Document = document) {
       if (!el.isConnected) return
       const from = trigger.getBoundingClientRect()
       const grow = growFrom(el, from)
+      if (source.backdrop && !dimmed.has(el)) (dimmed.add(el), backdrop(true))
       if (!source.ghost) return
       const remember = () => el.isConnected && open.set(el, { trigger: from, box: el.getBoundingClientRect(), display: getComputedStyle(el).display })
       remember()
@@ -104,11 +122,13 @@ export function installGrow(root: Document = document) {
       if (record.type === "attributes") {
         const el = record.target as HTMLElement
         if (el.hasAttribute("data-open") && record.oldValue === null && el.matches(selector)) take(el)
+        if (!el.hasAttribute("data-open") && record.oldValue !== null) undim(el)
         continue
       }
       for (const node of record.removedNodes) {
         if (!(node instanceof HTMLElement)) continue
         for (const el of open.keys()) if (el === node || node.contains(el)) leave(el)
+        for (const el of dimmed) if (el === node || node.contains(el)) undim(el)
       }
       for (const node of record.addedNodes) {
         if (!(node instanceof HTMLElement)) continue
