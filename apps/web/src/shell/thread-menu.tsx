@@ -12,6 +12,7 @@ import {
 import { useNavigate, useParams } from "@solidjs/router"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
+import { prefersReducedMotion } from "@tock/motion"
 import { app, deleteThread, pinThread, titleOf, updateThread, type Session } from "../state/app"
 import { isToastOpen, toast, updateToast } from "./toasts"
 
@@ -68,7 +69,7 @@ export function leaveList(ids: readonly string[], then: () => void) {
       for (const wrap of document.querySelectorAll<HTMLElement>(".tds-row-wrap")) {
         const from = before.get(wrap.dataset.id)
         const delta = from === undefined ? 0 : from - wrap.getBoundingClientRect().top
-        if (delta) wrap.animate([{ transform: `translateY(${delta}px)` }, { transform: "none" }], { duration: layout, easing: tokens.motion.curve.std })
+        if (delta && !prefersReducedMotion()) wrap.animate([{ transform: `translateY(${delta}px)` }, { transform: "none" }], { duration: layout, easing: tokens.motion.curve.std })
       }
     })
   }

@@ -1261,7 +1261,7 @@ const journeys: Record<string, () => void> = {
   dropzone() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".tds-composer-wrap"), Boolean, "the composer")
-    const fire = (type: string, mime: string) => js<boolean>(`const dt = new DataTransfer(); dt.items.add(new File(['x'], 'f', { type: '${mime}' })); document.querySelector('.tds-composer-wrap').closest('section').dispatchEvent(new DragEvent('${type}', { dataTransfer: dt, bubbles: true, cancelable: true })); return true`)
+    const fire = (type: string, mime: string) => js<boolean>(`const dt = new DataTransfer(); dt.items.add(new File(['x'], 'f', { type: '${mime}' })); document.querySelector('.tds-composer-wrap').closest('main, section').dispatchEvent(new DragEvent('${type}', { dataTransfer: dt, bubbles: true, cancelable: true })); return true`)
     fire("dragenter", "image/png")
     until(() => exists(".tds-drop"), Boolean, "the drop zone")
     const r = rect(".tds-drop")!

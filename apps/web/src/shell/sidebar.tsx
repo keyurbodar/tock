@@ -9,6 +9,7 @@ import { MenuTrigger } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
+import { prefersReducedMotion } from "@tock/motion"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
 import { spring } from "../lib/spring"
@@ -222,7 +223,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
       g.remove()
       return act("pin-drop")
     }
-    g.animate([{ top: g.style.top }, { top: `${row.getBoundingClientRect().top}px` }], { duration: D.layout, easing: curve.sheet }).onfinish = () => g.remove()
+    g.animate([{ top: g.style.top }, { top: `${row.getBoundingClientRect().top}px` }], { duration: prefersReducedMotion() ? 0 : D.layout, easing: curve.sheet }).onfinish = () => g.remove()
   }
 
   return (

@@ -3,6 +3,7 @@ import { useNavigate } from "@solidjs/router"
 import { createMenuController, Menu, MenuContent, MenuContextTrigger, MenuItem, MenuItemIcon } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
+import { prefersReducedMotion } from "@tock/motion"
 import { glyphFor } from "../lib/glyph"
 import { pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
 import { takeFlight, unpin } from "./thread-menu"
@@ -29,7 +30,7 @@ function flow(box: HTMLElement) {
       if (!was) continue
       const dx = was.x - el.offsetLeft
       const dy = was.y - el.offsetTop
-      if (dx || dy) el.animate([{ translate: `${dx}px ${dy}px` }, { translate: "0 0" }], { duration: ms.layout, easing: tokens.motion.curve.sheet })
+      if ((dx || dy) && !prefersReducedMotion()) el.animate([{ translate: `${dx}px ${dy}px` }, { translate: "0 0" }], { duration: ms.layout, easing: tokens.motion.curve.sheet })
     }
     read()
   }
@@ -60,10 +61,10 @@ function land(circle: HTMLElement, id: string) {
     document.body.append(ghost)
     const dx = to.left + to.width / 2 - (flight.from.left + flight.from.width / 2)
     const dy = to.top + to.height / 2 - (flight.from.top + flight.from.height / 2)
-    ghost.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)` }], { duration: ms["pin-flight"], easing: tokens.motion.curve.sheet, fill: "forwards" }).onfinish = () => {
+    ghost.animate([{ transform: "none" }, { transform: `translate(${dx}px, ${dy}px)` }], { duration: prefersReducedMotion() ? 0 : ms["pin-flight"], easing: tokens.motion.curve.sheet, fill: "forwards" }).onfinish = () => {
       ghost.remove()
       circle.style.opacity = ""
-      circle.animate([{ scale: ".8" }, { scale: "1.08" }, { scale: "1" }], { duration: ms["pin-bounce"], easing: tokens.motion.curve.out })
+      if (!prefersReducedMotion()) circle.animate([{ scale: ".8" }, { scale: "1.08" }, { scale: "1" }], { duration: ms["pin-bounce"], easing: tokens.motion.curve.out })
     }
   })
 }
@@ -100,7 +101,7 @@ function PinLabel(props: { session: Session }) {
 export function Pins(props: { show: boolean }) {
   const navigate = useNavigate()
   const out = (session: Session, el: HTMLElement) => {
-    el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.6)" }], { duration: ms.exit, easing: tokens.motion.curve.in, fill: "forwards" }).onfinish = () => unpin(session)
+    el.animate(prefersReducedMotion() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.6)" }], { duration: ms.exit, easing: tokens.motion.curve.in, fill: "forwards" }).onfinish = () => unpin(session)
   }
   return (
     <Show when={props.show && (pinnedSessions().length > 0 || dropping() !== "")}>

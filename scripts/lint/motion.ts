@@ -25,7 +25,7 @@ const KNOWN: { file: RegExp; line: string; why: string }[] = [
   { file: /shell\/sidebar\.tsx$/, line: "{ top: g.style.top }", why: "sidebar ghost (TOCK-3): routed, use translate" },
   { file: /chat\/composer\.tsx$/, line: "marginRight", why: "attachment card closes its gap from a measured width" },
 ]
-const UNGUARDED_ROUTED = [/shell\/thread-menu\.tsx$/, /shell\/pins\.tsx$/]
+const UNGUARDED_ROUTED: RegExp[] = []
 
 export const check: FileCheck = (file, text) => {
   const hits: ReturnType<FileCheck> = []
