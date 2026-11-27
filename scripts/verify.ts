@@ -4,7 +4,6 @@
  * fails loudly. Usage: bun scripts/verify.ts [journey ...]
  * Needs Vite on :5199 and wrangler dev on :8787 (see .agents/skills/verify-tock).
  */
-import { execSync } from "node:child_process"
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -551,6 +550,44 @@ function railReply(msg: string) {
   steady(msg)
   ab("eval", `document.querySelector(${JSON.stringify(msg + " .tds-msg-action[aria-label='Reply']")})?.focus(); true`)
   ab("click", `${msg} .tds-msg-action[aria-label='Reply']`)
+}
+
+/** Archive fixtures built in JS so journeys never depend on zip, tar or fonts installed on the host. */
+function storedZip(entries: readonly { name: string; data: Uint8Array }[]): Uint8Array {
+  const parts: Uint8Array[] = []
+  const central: Uint8Array[] = []
+  let offset = 0
+  for (const entry of entries) {
+    const name = new TextEncoder().encode(entry.name)
+    const crc = Bun.hash.crc32(entry.data)
+    const local = new DataView(new ArrayBuffer(30))
+    local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint32(14, crc, true)
+    local.setUint32(18, entry.data.length, true); local.setUint32(22, entry.data.length, true); local.setUint16(26, name.length, true)
+    parts.push(new Uint8Array(local.buffer), name, entry.data)
+    const dir = new DataView(new ArrayBuffer(46))
+    dir.setUint32(0, 0x02014b50, true); dir.setUint16(4, 20, true); dir.setUint16(6, 20, true); dir.setUint32(16, crc, true)
+    dir.setUint32(20, entry.data.length, true); dir.setUint32(24, entry.data.length, true); dir.setUint16(28, name.length, true); dir.setUint32(42, offset, true)
+    central.push(new Uint8Array(dir.buffer), name)
+    offset += 30 + name.length + entry.data.length
+  }
+  const size = central.reduce((sum, part) => sum + part.length, 0)
+  const end = new DataView(new ArrayBuffer(22))
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true); end.setUint32(12, size, true); end.setUint32(16, offset, true)
+  return Buffer.concat([...parts, ...central, new Uint8Array(end.buffer)])
+}
+function tarGz(entries: readonly { name: string; data: Uint8Array }[]): Uint8Array {
+  const { gzipSync } = require("node:zlib") as typeof import("node:zlib")
+  const blocks: Uint8Array[] = []
+  for (const entry of entries) {
+    const head = Buffer.alloc(512)
+    head.write(entry.name, 0, 100, "utf8")
+    head.write("0000644\0", 100); head.write("0000000\0", 108); head.write("0000000\0", 116)
+    head.write(entry.data.length.toString(8).padStart(11, "0") + "\0", 124); head.write("00000000000\0", 136)
+    head.write("        ", 148); head.write("0", 156); head.write("ustar\0" + "00", 257)
+    head.write(([...head].reduce((sum, byte) => sum + byte, 0)).toString(8).padStart(6, "0") + "\0 ", 148)
+    blocks.push(head, entry.data, Buffer.alloc((512 - (entry.data.length % 512)) % 512))
+  }
+  return gzipSync(Buffer.concat([...blocks, Buffer.alloc(1024)]))
 }
 
 const journeys: Record<string, () => void | Promise<void>> = {
@@ -1835,7 +1872,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     shot("chipcards-bubble")
     // t3code's tooltip timing, measured in the page: open after a 600ms rest, swap at once while one is open, close after a 100ms grace.
     ab("eval", `window.__card = []; new MutationObserver(() => { const c = document.querySelector('.tds-chip-card'); const last = window.__card.at(-1)
-      if ((c?.dataset.kind ?? null) !== (last?.kind ?? null)) { window.__card.push({ kind: c?.dataset.kind ?? null, at: performance.now() }); if (c) requestAnimationFrame(() => (window.__cardScale = getComputedStyle(c).scale)) } }).observe(document.body, { childList: true, subtree: true })
+      if ((c?.dataset.kind ?? null) !== (last?.kind ?? null)) { window.__card.push({ kind: c?.dataset.kind ?? null, at: performance.now() }); if (c) requestAnimationFrame(() => (window.__cardScale = c.getAnimations().map((a) => a.effect?.getKeyframes?.()[0]?.scale).find((x) => x != null) ?? getComputedStyle(c).scale)) } }).observe(document.body, { childList: true, subtree: true })
       window.__over = []; document.addEventListener('pointerover', (e) => { const t = e.target.closest?.('[data-card]'); if (t) window.__over.push({ kind: t.dataset.card, at: performance.now() }) }); true`)
     const chip = (kind: string) => `${bubble} .tds-chip[data-card='${kind}']`
     ab("hover", chip("thread"))
@@ -1844,7 +1881,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     until(() => exists(".tds-chip-card.tds-thread-card"), Boolean, "the chat card")
     const delay = js<number>("const o = window.__over.findLast((e) => e.kind === 'thread'); const c = window.__card.find((e) => e.kind === 'thread'); return c.at - o.at")
     check(delay >= 550 && delay <= 900, `the card opens after the 600ms rest (${Math.round(delay)}ms)`)
-    check(Number(js<string>("return window.__cardScale ?? '1'")) < 1, "the card enters scaled from .98")
+    check(Number(js<string>("return String(window.__cardScale ?? '1')")) === tokens.motion.enter.card.scale, `the card enters from the motion.enter.card scale (${tokens.motion.enter.card.scale}), got ${js<string>("return String(window.__cardScale)")}`)
     wait(250)
     shot("chipcards-thread")
     ab("hover", chip("skill"))
@@ -4049,9 +4086,11 @@ const journeys: Record<string, () => void | Promise<void>> = {
     mkdirSync(join(dir, "kit/src"), { recursive: true })
     writeFileSync(join(dir, "kit/README.md"), "# Kit\n")
     writeFileSync(join(dir, "kit/src/main.ts"), "export const x = 1\n")
-    execSync("cd " + JSON.stringify(dir) + " && rm -f kit.zip kit.tar.gz && zip -qr kit.zip kit && tar czf kit.tar.gz kit")
-    const font = join(dir, "Lato.ttf")
-    copyFileSync(execSync("fc-list : file | grep -m1 -i 'lato.*\\.ttf'").toString().split(":")[0]!.trim(), font)
+    const kit = [{ name: "kit/README.md", data: new TextEncoder().encode("# Kit\n") }, { name: "kit/src/main.ts", data: new TextEncoder().encode("export const x = 1\n") }]
+    writeFileSync(join(dir, "kit.zip"), storedZip(kit))
+    writeFileSync(join(dir, "kit.tar.gz"), tarGz(kit))
+    const font = join(dir, "Geist.ttf")
+    copyFileSync(join(import.meta.dir, "../apps/web/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf"), font)
     const notebook = {
       metadata: { language_info: { name: "python" } },
       cells: [
@@ -4078,10 +4117,8 @@ const journeys: Record<string, () => void | Promise<void>> = {
       [join(dir, "kit.tar.gz"), ".tds-preview-table td", ""],
       [put("verify-report.docx", new Uint8Array([0x50, 0x4b, 3, 4, 0, 0])), ".tds-preview-empty", ""],
     ]
-    if (existsSync("/usr/bin/ffmpeg")) {
-      execSync("ffmpeg -loglevel error -y -f lavfi -i testsrc=size=320x240:rate=10 -t 1 -pix_fmt yuv420p " + JSON.stringify(join(dir, "verify-clip.mp4")))
-      kinds.splice(9, 0, [join(dir, "verify-clip.mp4"), ".tds-lightbox-stage > video", ""])
-    }
+    copyFileSync(join(import.meta.dir, "fixtures/clip.mp4"), join(dir, "verify-clip.mp4"))
+    kinds.splice(9, 0, [join(dir, "verify-clip.mp4"), ".tds-lightbox-stage > video", ""])
     ab("upload", ".tds-composer-wrap input[type=file]", ...kinds.map(([path]) => path))
     until(() => js<string[]>("return [...document.querySelectorAll('.tds-attach')].map((e) => e.dataset.status)"), (s) => s.length === kinds.length && s.every((x) => x === "done"), kinds.length + " uploads", 30000)
     say("Every preview kind")
