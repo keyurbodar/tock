@@ -1025,7 +1025,8 @@ const journeys: Record<string, () => void> = {
       "const c = window.__sent.querySelector('.tds-chip'); const p = c.parentElement; const a = document.createRange(); a.selectNodeContents(c.querySelector('.tds-chip-label')); const l = a.getClientRects()[0]; const t = [...p.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim()); const b = document.createRange(); b.selectNodeContents(t); const x = b.getClientRects()[0]; return { line: parseFloat(getComputedStyle(p).lineHeight), text: x.bottom, label: l.bottom, chip: c.getBoundingClientRect().height }",
     )
     check(Math.abs(m.text - m.label) < 0.5, "bubble chips sit on the text baseline: " + JSON.stringify(m))
-    check(js<number>("return Math.round(window.__sent.getBoundingClientRect().height)") <= m.line + 16 + 1, "a bubble chip does not grow its line")
+    const inner = js<number>("const s = getComputedStyle(window.__sent); return window.__sent.getBoundingClientRect().height - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom)")
+    check(Math.abs(inner / m.line - Math.round(inner / m.line)) < 0.05, "a bubble chip does not grow its line: " + inner + " for line " + m.line)
     shot("baseline-bubble")
   },
   scroll() {
