@@ -246,6 +246,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     <div
       ref={panel}
       class="tds-worklog"
+      data-material="solid"
       role="dialog"
       aria-label="Work log"
       data-closing={closing() ? "" : undefined}

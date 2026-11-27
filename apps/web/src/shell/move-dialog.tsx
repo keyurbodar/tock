@@ -53,7 +53,7 @@ export function MoveDialog() {
             }}
           />
         </div>
-        <div class="tds-move-list tds-scroll" role="listbox" aria-label="Folders">
+        <div class="tds-move-list tds-scroll" data-material="solid" role="listbox" aria-label="Folders">
           <div class="tds-move-head">Folders</div>
           <Show when={choices().length > 0} fallback={<div class="tds-move-empty">Type a name to make a folder</div>}>
             <For each={choices()} keyed={(choice) => choice.key}>

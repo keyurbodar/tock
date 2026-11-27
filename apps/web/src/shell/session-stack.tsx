@@ -97,10 +97,11 @@ export function ToastRow(props: { show: boolean }) {
         </button>
       </Show>
       <Portal>
-        <div class="tds-veil" data-open={open() ? "" : undefined} onClick={() => close()} />
+        <div class="tds-veil tds-veil-glass" data-open={open() ? "" : undefined} onClick={() => close()} />
         <div
           ref={pills}
           class="tds-stack"
+          data-material="solid"
           data-open={open() ? "" : undefined}
           role={open() ? "dialog" : undefined}
           aria-label="Sessions"
@@ -113,7 +114,7 @@ export function ToastRow(props: { show: boolean }) {
             {(session, index) => (
               <button
                 type="button"
-                class="tds-stack-pill"
+                class="tds-stack-pill tds-glass"
                 data-id={session().id}
                 data-hot={hot() === session().id ? "" : undefined}
                 tabindex={open() ? 0 : -1}

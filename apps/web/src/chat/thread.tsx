@@ -57,7 +57,7 @@ export function Thread() {
       </Show>
       <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => void send(params.id, text)} onStop={() => void abort(params.id)} />
       <Show when={dragging()}>
-        <div class="tds-drop" data-bad={unreadable() ? "" : undefined} aria-hidden="true">
+        <div class="tds-drop tds-veil-glass" data-bad={unreadable() ? "" : undefined} aria-hidden="true">
           <span class="tds-drop-fan">
             <i><Icon name="file-pdf" size="menu" /></i>
             <i><Icon name="image" size="menu" /></i>

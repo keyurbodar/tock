@@ -74,7 +74,7 @@ export function Centre() {
   const sections = () => groups()
   const offset = (list: readonly Group[], at: number) => list.slice(0, at).reduce((sum, group) => sum + group.notes.length, 0)
   return (
-    <aside ref={panel} class="tds-centre" data-open={open() ? "" : undefined} aria-label="Notifications" aria-hidden={open() ? undefined : "true"} inert={!open()}>
+    <aside ref={panel} class="tds-centre tds-over" data-open={open() ? "" : undefined} aria-label="Notifications" aria-hidden={open() ? undefined : "true"} inert={!open()}>
       <div class="tds-centre-head">
         <b>Notifications</b>
         <button type="button" class="tds-centre-read" disabled={unreadNotes() === 0} onClick={markAllRead}>

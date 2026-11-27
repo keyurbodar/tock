@@ -255,7 +255,7 @@ export function ThreadMenu() {
   return (
     <>
       <Menu controller={threadMenu} onAction={(value) => run(String(value))}>
-        <MenuContent<Session> class="tds-menu" align="start" sideOffset={tokens.size["menu-offset"]}>
+        <MenuContent<Session> class="tds-menu tds-over" align="start" sideOffset={tokens.size["menu-offset"]}>
           {(state) => (
             <Show when={state.payload}>
               {(session) => (
@@ -291,7 +291,7 @@ export function ThreadMenu() {
                         Snooze
                         <Icon name="caret-right" size="chip" class="tds-menu-caret" />
                       </MenuSubTrigger>
-                      <MenuSubContent class="tds-menu tds-menu-subcontent">
+                      <MenuSubContent class="tds-menu tds-menu-subcontent tds-over">
                         <Item value="snooze:hour" label="1 Hour" />
                         <Item value="snooze:tonight" label="Tonight" />
                         <Item value="snooze:tomorrow" label="Tomorrow" />
@@ -321,7 +321,7 @@ export function ThreadMenu() {
         }}
       >
         <AlertDialogBackdrop class="tds-scrim" />
-        <AlertDialogContent class="tds-dialog">
+        <AlertDialogContent class="tds-dialog tds-over">
           <img src="/brand/toast-mascot-36.svg" alt="" class="tds-dialog-mascot" draggable={false} />
           <AlertDialogTitle class="tds-dialog-title">Delete “{titleOf(forever())}” forever?</AlertDialogTitle>
           <AlertDialogDescription class="tds-dialog-text">Its messages and files go too. You can’t undo this.</AlertDialogDescription>

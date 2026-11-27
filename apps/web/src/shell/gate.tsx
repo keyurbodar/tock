@@ -14,7 +14,7 @@ export function Gate() {
   }
   return (
     <div class="fixed inset-0 z-lightbox grid place-items-center bg-scrim">
-      <form class="tds-dialog" onSubmit={unlock} data-shake={state() === "wrong" ? "" : undefined}>
+      <form class="tds-dialog tds-over" onSubmit={unlock} data-shake={state() === "wrong" ? "" : undefined}>
         <img src="/brand/toast-mascot-128.svg" alt="" class="size-mascot-dialog mb-8 rounded-small" />
         <b class="text-dialog text-tx">Unlock Tock</b>
         <span>Enter your access key to open your chats.</span>

@@ -97,7 +97,7 @@ export function ThreadChip(props: { id: string; label?: string }) {
         </svg>
         <span class="tds-chip-label">{title()}</span>
       </HoverCardTrigger>
-      <HoverCardContent class="tds-thread-card" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
+      <HoverCardContent class="tds-thread-card tds-over" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
         <div class="tds-thread-card-head">
           <span class={`tds-row-icon ${glyph().hue}`}>
             <svg class="tds-icon tds-chip-icon" aria-hidden="true">

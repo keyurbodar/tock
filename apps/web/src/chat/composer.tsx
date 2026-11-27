@@ -125,7 +125,7 @@ function Card(props: { item: Attachment; onRemove: () => void; onRetry: () => vo
 function Preview(props: { item: Attachment; left: number; bottom: number }) {
   const kind = () => fileChip(props.item.name)
   return (
-    <div class="tds-attach-preview" role="tooltip" style={{ left: `${props.left}px`, bottom: `${props.bottom}px` }}>
+    <div class="tds-attach-preview" data-material="solid" role="tooltip" style={{ left: `${props.left}px`, bottom: `${props.bottom}px` }}>
       <Show when={props.item.preview}>{(src) => <img class="tds-attach-preview-image" src={src()} alt="" draggable={false} />}</Show>
       <div class="tds-attach-preview-head">
         <Show when={!props.item.preview}>
@@ -559,7 +559,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   return (
     <div ref={wrap} class="tds-composer-wrap">
       <Show when={trigger() && suggestions().length > 0}>
-        <div ref={list} class="tds-menu tds-suggest" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: `${caret().left}px`, bottom: `${caret().bottom}px` }}>
+        <div ref={list} class="tds-menu tds-suggest tds-over" role="listbox" aria-label={trigger()?.char === "@" ? "Mention a chat" : "Commands"} style={{ left: `${caret().left}px`, bottom: `${caret().bottom}px` }}>
           <span class="tds-suggest-glide" aria-hidden="true" style={{ top: `${glide().top}px`, height: `${glide().height}px` }} />
           <span class="tds-menu-label">{trigger()?.char === "@" ? "Chats" : "Commands"}</span>
           <For each={suggestions()} keyed={(item) => item.key}>
@@ -584,7 +584,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       </Show>
       <Show when={previewed()}>{(current) => <Preview item={current().item} left={current().left} bottom={current().bottom} />}</Show>
       <Show when={held() && pending().length > 0}>
-        <div class="tds-held" role="status" aria-live="polite">
+        <div class="tds-held tds-over" role="status" aria-live="polite">
           <span class="tds-spinner" />
           <b><TextMorph value={heldLabel()} /></b>
           <span>Edit or press Esc to cancel</span>
@@ -604,7 +604,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
           <MenuTrigger class="tds-press tds-composer-plus" aria-label="Add">
             <Icon name="plus" size="composer" class="tds-plus-glyph" />
           </MenuTrigger>
-          <MenuContent class="tds-menu tds-plus-menu" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
+          <MenuContent class="tds-menu tds-plus-menu tds-over" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
             <MenuItem value="files" class="tds-menu-item">
               <MenuItemIcon class="tds-menu-icon">
                 <Icon name="image" size="menu" />
@@ -638,7 +638,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
                   <Icon name="caret-right" size="chip" />
                 </span>
               </MenuSubTrigger>
-              <MenuSubContent class="tds-menu tds-plus-menu">
+              <MenuSubContent class="tds-menu tds-plus-menu tds-over">
                 <For each={apps} keyed={(entry) => entry.key}>
                   {(entry) => (
                     <MenuItem value={entry().key} disabled class="tds-menu-item">

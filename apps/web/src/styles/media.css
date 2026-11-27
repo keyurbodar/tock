@@ -44,7 +44,7 @@
     & em { display: flex; gap: var(--tds-space-10); margin-right: auto; font-style: normal; font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
   }
   .tds-lightbox-button, .tds-lightbox-nav, .tds-lightbox-film {
-    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow); backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
+    background: var(--tds-glass-fill); box-shadow: var(--tds-glass-shadow);
   }
   .tds-lightbox-button {
     display: flex; align-items: center; gap: var(--tds-space-6); height: var(--tds-size-lightbox-button); padding: 0 var(--tds-space-12); border-radius: var(--tds-radius-pill);

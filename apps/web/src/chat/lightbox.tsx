@@ -138,6 +138,7 @@ function Viewer(props: { opening: Opening }) {
     <div
       ref={mount}
       class="tds-lightbox"
+      data-material="solid"
       tabindex="-1"
       role="dialog"
       aria-modal="true"
@@ -155,27 +156,27 @@ function Viewer(props: { opening: Opening }) {
           </Show>
           <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} /></span>}</Show>
         </em>
-        <button type="button" class="tds-lightbox-button" data-action="download" onClick={() => download()}>
+        <button type="button" class="tds-lightbox-button tds-over" data-action="download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />
           Download
         </button>
-        <button type="button" class="tds-lightbox-button" data-action="copy" onClick={() => void copy()}>
+        <button type="button" class="tds-lightbox-button tds-over" data-action="copy" onClick={() => void copy()}>
           <Icon name="copy" size="menu" />
           Copy
         </button>
-        <button type="button" class="tds-lightbox-button" data-action="close" aria-label="Close" onClick={() => close()}>
+        <button type="button" class="tds-lightbox-button tds-over" data-action="close" aria-label="Close" onClick={() => close()}>
           <Icon name="x" size="menu" />
         </button>
       </div>
       <div ref={(el) => (stage = el)} class="tds-lightbox-stage" />
       <Show when={items.length > 1}>
-        <button type="button" class="tds-lightbox-nav" data-dir="prev" aria-label="Previous image" onClick={() => show(untrack(index) - 1, -1)}>
+        <button type="button" class="tds-lightbox-nav tds-over" data-dir="prev" aria-label="Previous image" onClick={() => show(untrack(index) - 1, -1)}>
           <Icon name="caret-left" size="lightbox-nav" />
         </button>
-        <button type="button" class="tds-lightbox-nav" data-dir="next" aria-label="Next image" onClick={() => show(untrack(index) + 1, 1)}>
+        <button type="button" class="tds-lightbox-nav tds-over" data-dir="next" aria-label="Next image" onClick={() => show(untrack(index) + 1, 1)}>
           <Icon name="caret-right" size="lightbox-nav" />
         </button>
-        <div class="tds-lightbox-film">
+        <div class="tds-lightbox-film tds-over">
           <For each={items} keyed={(entry) => entry.id}>
             {(entry, i) => (
               <button type="button" data-on={i() === index() ? "" : undefined} aria-label={entry().name} onClick={() => show(untrack(i), untrack(i) > untrack(index) ? 1 : -1)}>

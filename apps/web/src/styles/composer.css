@@ -65,7 +65,7 @@
   .tds-bubble .tds-chip { vertical-align: top; margin-block: calc((var(--tds-type-bubble-leading) - var(--tds-size-token)) / 2) }
 
   .tds-suggest {
-    background: var(--tds-overlay-pill); box-shadow: var(--tds-glass-shadow); backdrop-filter: blur(var(--tds-pill-blur)) saturate(var(--tds-pill-saturate));
+    background: var(--tds-overlay-pill); box-shadow: var(--tds-glass-shadow);
     transform-origin: var(--tds-space-14) 100%;
     @starting-style { opacity: 0; scale: .96; translate: 0 var(--tds-space-4); filter: blur(var(--tds-space-2)) }
     transition: opacity var(--tds-dur-menu) var(--tds-ease-out), scale var(--tds-dur-menu) var(--tds-ease-out), translate var(--tds-dur-menu) var(--tds-ease-out), filter var(--tds-dur-menu) var(--tds-ease-out), left var(--tds-dur-hover) var(--tds-ease-out);

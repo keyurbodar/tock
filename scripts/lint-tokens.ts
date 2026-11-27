@@ -55,6 +55,26 @@ for (const file of sources) {
     }
   })
 }
+const material = /\btds-(?:over|glass|veil-glass)\b/
+const overlayTag = /<(\w*(?:MenuContent|MenuSubContent|DialogContent|PopoverContent|HoverCardContent|TooltipContent|SelectContent|ComboboxContent)(?:<[^>]*>)?|\w+(?=[^>]*\brole="(?:dialog|alertdialog|menu|listbox|tooltip)"))(?=[\s>])(?:[^>]|=>)*?(?<!=)>/g
+for (const file of sources) {
+  const text = await readFile(file, "utf8")
+  if (file !== "packages/ui/src/styles.css") {
+    text.split("\n").forEach((line, i) => {
+      if (/backdrop-filter\s*:/.test(line)) {
+        failures++
+        console.error(`${file}:${i + 1}  material  backdrop-filter  Blur lives in the material layer only. Add tds-over, tds-glass or tds-veil-glass to the element instead.`)
+      }
+    })
+  }
+  if (!file.endsWith(".tsx")) continue
+  for (const match of text.matchAll(overlayTag)) {
+    if (material.test(match[0]) || match[0].includes('data-material="solid"')) continue
+    failures++
+    const line = text.slice(0, match.index).split("\n").length
+    console.error(`${file}:${line}  material  <${match[1]}>  Every overlay needs the material. Add tds-over (menus, dialogs, cards) or tds-glass (pills) to its class, or data-material="solid" for an opaque TDS surface.`)
+  }
+}
 if (failures) {
   console.error(`\n${failures} token violation(s)`)
   process.exit(1)

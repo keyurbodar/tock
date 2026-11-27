@@ -76,12 +76,13 @@
   .tds-key-cream { background: var(--tds-key-cream-fill); color: var(--tds-text-on-cream); box-shadow: var(--tds-key-cream-shadow) }
   .tds-key-danger { color: var(--tds-status-failed) }
 
-  .tds-over {
-    background: var(--tds-over-fill);
-    backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
-    -webkit-backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
-    box-shadow: var(--tds-over-shadow);
-  }
+  /* The material layer. Every floating surface takes exactly one of these; lint-tokens rejects backdrop-filter anywhere else
+     and any overlay content element without one. Components may override fill and shadow, never the blur. */
+  .tds-over, .tds-glass, .tds-veil-glass { -webkit-backdrop-filter: var(--material); backdrop-filter: var(--material) }
+  .tds-over { --material: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate)); background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow) }
+  .tds-glass { --material: blur(var(--tds-pill-blur)) saturate(var(--tds-pill-saturate)) }
+  .tds-veil-glass { --material: blur(var(--tds-veil-blur)) saturate(var(--tds-veil-saturate)) }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .tds-over { background: var(--tds-surface-main) } }
 
   .tds-dialog {
     display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-6); text-align: center;
@@ -89,7 +90,6 @@
     border-radius: var(--tds-radius-dialog);
     font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-leading); color: var(--tds-text-muted);
     background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow);
-    backdrop-filter: blur(var(--tds-over-blur)) saturate(var(--tds-over-saturate));
     transition: opacity var(--tds-dur-layout) var(--tds-ease-out), scale var(--tds-dur-layout) var(--tds-ease-out);
     @starting-style { opacity: 0; scale: var(--tds-press) }
   }

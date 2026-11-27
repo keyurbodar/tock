@@ -31,7 +31,7 @@ export function Header(props: { title: string; status: OrbStatus | undefined }) 
           <span class="grid size-header-avatar place-items-center rounded-pill bg-glass shadow-glass">
             <img src="/brand/toast-face-center.svg" alt="" class="size-header-face" draggable={false} />
           </span>
-          <span class="tds-header-pill">
+          <span class="tds-header-pill tds-glass">
             <span class="tds-header-title"><TextMorph value={props.title} /></span>
             <span class="tds-header-status" data-on={status() ? "" : undefined}>
               <Show when={status()}>{(s) => <Orb status={s()} surface="main" size="orb-sm" />}</Show>
@@ -97,7 +97,7 @@ function Finder(props: { onClose: () => void }) {
   })
   queueMicrotask(() => input.focus())
   return (
-    <div class="tds-find" role="search">
+    <div class="tds-find tds-glass" role="search">
       <Icon name="magnifying-glass" size="menu" class="text-faint" />
       <input
         ref={input}

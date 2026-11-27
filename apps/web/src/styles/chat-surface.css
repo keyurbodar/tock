@@ -19,7 +19,6 @@
   .tds-find {
     display: flex; align-items: center; gap: var(--tds-space-6); height: var(--tds-size-header-button); padding: 0 var(--tds-space-6) 0 var(--tds-space-14);
     border-radius: var(--tds-radius-pill); background: var(--tds-overlay-pill); box-shadow: var(--tds-glass-shadow);
-    backdrop-filter: blur(var(--tds-pill-blur)) saturate(var(--tds-pill-saturate));
     transform-origin: right center;
     transition: opacity var(--tds-dur-menu) var(--tds-ease-out), scale var(--tds-dur-menu) var(--tds-ease-out), filter var(--tds-dur-menu) var(--tds-ease-out);
     @starting-style { opacity: 0; scale: var(--tds-press); filter: blur(var(--tds-blur-enter)) }

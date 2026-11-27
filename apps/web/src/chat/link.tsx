@@ -86,7 +86,7 @@ export function LinkMenu(props: { onCopied: (href: string) => void }) {
   }
   return (
     <Menu controller={linkMenu} onAction={(value) => run(String(value))}>
-      <MenuContent<string> class="tds-menu" align="start" sideOffset={tokens.size["menu-offset"]}>
+      <MenuContent<string> class="tds-menu tds-over" align="start" sideOffset={tokens.size["menu-offset"]}>
         {(state) => (
           <>
             <span class="tds-menu-label">{webHost(state.payload) ?? ""}</span>
