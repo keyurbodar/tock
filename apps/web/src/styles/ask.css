@@ -29,9 +29,8 @@
   .tds-wbtn {
     height: var(--tds-size-ask-pill); padding: 0 var(--tds-space-14); border-radius: var(--tds-radius-pill);
     background: var(--tds-overlay-fill-8); color: var(--tds-text-tx); font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-medium);
-    transition: transform var(--tds-dur-press) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-wbtn:active:not(:disabled) { transform: scale(var(--tds-press)) }
   .tds-wbtn[data-primary] { background: var(--tds-text-tx); color: var(--tds-surface-backdrop) }
   .tds-wbtn:disabled { opacity: .5 }
   .tds-act[data-state="needs"] .tds-act-text { color: var(--tds-text-tx) }

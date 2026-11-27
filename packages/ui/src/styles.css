@@ -1,3 +1,5 @@
+:root { --tds-press-transition: scale var(--tds-dur-tooltip) var(--tds-ease-out) }
+
 @layer components {
   .tds-icon {
     flex: none;
@@ -95,8 +97,8 @@
   .tds-morph-text[data-was]::after { content: attr(data-was); position: absolute; inset-block-start: 0; inset-inline-start: 0; opacity: 0; pointer-events: none }
 
   .tds-hoverfill { transition: background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out) }
-  .tds-press { transition: scale var(--tds-dur-spring) var(--tds-ease-spring) }
-  .tds-press:not(:disabled, [data-disabled]):active { scale: var(--tds-press); transition-duration: var(--tds-dur-press); transition-timing-function: var(--tds-ease-out) }
+  .tds-press { transition: var(--tds-press-transition) }
+  .tds-press:not(:disabled, [data-disabled]):active { scale: var(--tds-press); transition: scale var(--tds-dur-press) var(--tds-ease-out) }
 }
 
 @layer components {

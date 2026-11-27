@@ -18,6 +18,7 @@ export function TextMorph(props: { value: string | number; mode: TextMode; class
   let now!: HTMLSpanElement
   let engine: Engine | undefined
   let changed = -Infinity
+  let runs: Animation[] = []
   const mode = props.mode
   const { duration, curve, blur: b } = tokens.motion
   const calm = (value: string) => {
@@ -27,14 +28,16 @@ export function TextMorph(props: { value: string | number; mode: TextMode; class
     const at = performance.now()
     const burst = at - changed < duration.calm
     changed = at
-    el.getAnimations({ subtree: true }).forEach((a) => a.cancel())
+    runs.forEach((a) => a.cancel())
+    runs = []
     if (burst) return el.removeAttribute("data-was")
     el.dataset.was = was
-    animate(el, [{ opacity: 1, filter: blur("0px") }, { opacity: 0, filter: blur(b.calm) }], { duration: duration.calm, pseudoElement: "::after" })?.finished.then(
+    const out = animate(el, [{ opacity: 1, filter: blur("0px") }, { opacity: 0, filter: blur(b.calm) }], { duration: duration.calm, pseudoElement: "::after" })
+    out.finished.then(
       () => el.removeAttribute("data-was"),
       () => {},
     )
-    animate(now, [{ opacity: 0, filter: blur(b.calm) }, { opacity: 1, filter: blur("0px") }], duration.calm)
+    runs = [out, animate(now, [{ opacity: 0, filter: blur(b.calm) }, { opacity: 1, filter: blur("0px") }], duration.calm)]
   }
   createEffect(
     () => String(props.value),

@@ -83,3 +83,21 @@
   mask-composite: intersect;
 }
 
+
+/* Tooltip (tooltip.ts): TDS s-tip. Positioned by --x/--y through translate (so the scale origin stays on the trigger side), fading from .97 at its trigger. */
+@layer components {
+  .tds-tip {
+    position: fixed; left: 0; top: 0; z-index: var(--tds-z-tip); pointer-events: none;
+    display: flex; align-items: center; height: var(--tds-size-tip); padding: 0 var(--tds-space-9) 0 var(--tds-space-10);
+    border-radius: var(--tds-radius-tip); background: var(--tds-tip-fill); box-shadow: var(--tds-tip-shadow);
+    font-size: var(--tds-type-secondary-size); line-height: var(--tds-type-secondary-lh); letter-spacing: var(--tds-type-secondary-tracking); color: var(--tds-text-tx2); white-space: nowrap;
+    opacity: 0; scale: .97; transition: opacity var(--tds-dur-instant) var(--tds-ease-out), scale var(--tds-dur-instant) var(--tds-ease-out);
+  }
+  .tds-tip.tds-glass { --material: blur(var(--tds-tip-blur)) }
+  .tds-tip[data-open] { opacity: 1; scale: 1; transition-duration: var(--tds-dur-tooltip) }
+  .tds-tip[data-instant] { transition: none }
+  .tds-tip[data-side=top] { translate: calc(var(--x) - 50%) calc(var(--y) - 100%); transform-origin: 50% 100% }
+  .tds-tip[data-side=bottom] { translate: calc(var(--x) - 50%) var(--y); transform-origin: 50% 0 }
+  .tds-tip[data-side=right] { translate: var(--x) calc(var(--y) - 50%); transform-origin: 0 50% }
+  .tds-tip[data-side=left] { translate: calc(var(--x) - 100%) calc(var(--y) - 50%); transform-origin: 100% 50% }
+}

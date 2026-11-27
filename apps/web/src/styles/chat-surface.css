@@ -28,7 +28,7 @@
   }
   .tds-header-button {
     display: grid; place-items: center; width: var(--tds-size-header-button); height: var(--tds-size-header-button); border-radius: var(--tds-radius-pill);
-    color: var(--tds-text-tx2); transition: background-color var(--tds-dur-hover) var(--tds-ease-out);
+    color: var(--tds-text-tx2); transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out);
   }
   .tds-header-button[aria-pressed="true"] { background: var(--tds-overlay-hover) }
   @media (hover: hover) and (pointer: fine) { .tds-header-button:hover { background: var(--tds-overlay-hover) } }

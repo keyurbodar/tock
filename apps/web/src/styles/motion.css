@@ -1,8 +1,8 @@
 @layer components {
-  :where(button) { transition: scale var(--tds-dur-tooltip) var(--tds-ease-out) }
+  :where(button) { transition: var(--tds-press-transition) }
   :where(button, .tds-press):not(:disabled, [data-disabled]):active { scale: var(--tds-press); transition: scale var(--tds-dur-press) var(--tds-ease-out) }
 
-  .tds-lift { transition: translate var(--tds-dur-spring) var(--tds-ease-spring), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
+  .tds-lift { transition: translate var(--tds-dur-layout) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
   @media (hover: hover) and (pointer: fine) { .tds-lift:hover { translate: 0 calc(var(--tds-space-1) * -1) } }
 
   .tds-morph-text, .num { font-variant-numeric: tabular-nums }

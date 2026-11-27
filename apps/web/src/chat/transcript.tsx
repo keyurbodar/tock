@@ -1,6 +1,6 @@
 import { clamp } from "./clamp"
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
-import { afterLayout, enter, exit, Skeleton } from "@tock/ui/motion"
+import { afterLayout, enter, exit, scrollBehavior, Skeleton } from "@tock/ui/motion"
 import { Icon } from "@tock/ui/icon"
 import { MorphIcon, TextMorph } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
@@ -58,7 +58,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     setAway(false)
     const height = scroller.scrollHeight
     const top = smooth ? scroller.scrollTop : Math.max(0, height - scroller.clientHeight)
-    scroller.scrollTo({ top: height, behavior: smooth ? "smooth" : "instant" })
+    scroller.scrollTo({ top: height, behavior: smooth ? scrollBehavior() : "instant" })
     baseline = { top, height }
   }
   const onScroll = () => {

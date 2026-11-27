@@ -13,7 +13,7 @@
   .tds-sheet-grip {
     position: absolute; z-index: 2; top: calc(var(--tds-size-sheet-grip-hit) / -2); left: 50%; translate: -50% 0; display: grid; place-items: center;
     width: calc(var(--tds-size-sheet-grip) + var(--tds-space-24)); height: var(--tds-size-sheet-grip-hit);
-    cursor: ns-resize; touch-action: none; opacity: 0; transition: opacity var(--tds-dur-hover) var(--tds-ease-out);
+    cursor: ns-resize; touch-action: none; opacity: 0; transition: var(--tds-press-transition), opacity var(--tds-dur-hover) var(--tds-ease-out);
     &::before {
       content: ""; width: var(--tds-size-sheet-grip); height: var(--tds-size-sheet-grip-h); border-radius: var(--tds-radius-pill);
       background: var(--tds-overlay-fill-16); transition: background-color var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);

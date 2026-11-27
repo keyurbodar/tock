@@ -840,7 +840,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       <form class="tds-composer-row" onSubmit={(e) => (e.preventDefault(), submit())}>
         <input ref={picker} type="file" multiple hidden onChange={(e) => (add([...(e.currentTarget.files ?? [])]), (e.currentTarget.value = ""))} />
         <Menu open={plusOpen()} onOpenChange={(next) => setPlusOpen(next)} onAction={(value) => void plus(String(value))}>
-          <MenuTrigger class="tds-press tds-composer-plus tds-raise-glass" aria-label="Add">
+          <MenuTrigger class="tds-press tds-composer-plus tds-raise-glass" aria-label="Add" data-tip="" data-tip-side="top">
             <Icon name="plus" size="composer" class="tds-plus-glyph" />
           </MenuTrigger>
           <MenuContent class="tds-menu tds-plus-menu tds-over" data-edge-fade="y" side="top" align="start" sideOffset={tokens.size["menu-offset"]}>
@@ -947,7 +947,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             </div>
           </div>
         </div>
-        <button type="submit" class="tds-press tds-send tds-raise-glass" onClick={(event) => stop() && (event.preventDefault(), event.detail <= 1 && props.onStop())} data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
+        <button type="submit" class="tds-press tds-send tds-raise-glass" data-tip="" data-tip-side="top" onClick={(event) => stop() && (event.preventDefault(), event.detail <= 1 && props.onStop())} data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
           <MorphIcon name={stop() ? "stop" : "arrow-up"} size="send" class={stop() ? "" : "tds-optical-up"} weight={tokens.icon["stroke-crisp"]} />
         </button>
       </form>

@@ -19,6 +19,8 @@ export const check: FileCheck = (file, text) => {
         hits.push({ line: at, name: "keyframes-outside-motion", found: "@keyframes", why: "Keyframes live in packages/ui/src/motion/motion.css. Reuse one there (tds-stagger-in, tds-word, tds-peek-in…) or add yours to it; for open/close prefer Presence (enter/exit) or Morph (growFrom)." })
       return
     }
+    if (/behavior\s*:\s*["'`]smooth["'`]|["'`]smooth["'`]\s*:/.test(line))
+      hits.push({ line: at, name: "smooth-scroll-literal", found: "behavior: \"smooth\"", why: "Smooth scrolling must jump instantly under reduced motion, and the CSS reset never reaches scrollTo/scrollIntoView. Use behavior: scrollBehavior() from @tock/ui/motion." })
     if (/\.animate\(/.test(line))
       hits.push({ line: at, name: "raw-waapi", found: ".animate(", why: "Use the motion library: animate()/spring() (Presence) from @tock/ui/motion, watchLayout (Flip) for reflow, growFrom/shrinkInto (Morph) for container→container. They handle reduced motion and retargeting." })
     if (/\b(?:stiffness|damping|mass)\s*:\s*\d/.test(line))

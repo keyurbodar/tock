@@ -1,5 +1,5 @@
 @layer components {
-  .tds-field { justify-content: flex-end; transition: height var(--tds-dur-spring) var(--tds-ease-spring), border-radius var(--tds-dur-spring) var(--tds-ease-spring), background-color var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
+  .tds-field { justify-content: flex-end; transition: height var(--tds-dur-layout) var(--tds-ease-out), border-radius var(--tds-dur-layout) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
   .tds-column { padding-bottom: max(var(--tds-size-column-bottom), calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--tds-space-16))) }
 
   .tds-docs[data-side] { flex-direction: column; flex-wrap: nowrap; gap: var(--tds-space-6) }

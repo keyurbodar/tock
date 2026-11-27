@@ -763,6 +763,57 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "Enter")
     closed("sending to collapse the sheet")
   },
+  tooltips() {
+    fresh()
+    check(js<number>("return document.querySelectorAll('.tds-rail-button[title]').length") === 0, "rail buttons drop the native title")
+    const chats = rect(".tds-rail-button[data-tip='Chats']")!
+    const files = rect(".tds-rail-button[data-tip='Files']")!
+    ab("mouse", "move", String(chats.x + chats.w / 2), String(chats.y + chats.h / 2))
+    wait(150)
+    check(!exists(".tds-tip[data-open]"), "the first tooltip waits for the hover delay")
+    const first = until(() => js<{ text: string; left: number; instant: boolean } | null>("const t = document.querySelector('.tds-tip[data-open]'); return t && getComputedStyle(t).opacity === '1' ? { text: t.textContent, left: t.getBoundingClientRect().left, instant: t.hasAttribute('data-instant') } : null"), Boolean, "the Chats tooltip", 2000)!
+    check(first.text === "Chats" && !first.instant, "Chats tooltip opens with its enter: " + JSON.stringify(first))
+    check(first.left >= chats.x + chats.w, "the rail tooltip sits to the right of its button (" + first.left + " vs " + (chats.x + chats.w) + ")")
+    shot("tooltip-rail")
+    ab("mouse", "move", String(files.x + files.w / 2), String(files.y + files.h / 2))
+    const next = until(() => js<{ text: string; instant: boolean } | null>("const t = document.querySelector('.tds-tip[data-open]'); return t?.textContent === 'Files' ? { text: t.textContent, instant: t.hasAttribute('data-instant') } : null"), Boolean, "the neighbour's tooltip", 400)!
+    check(next.instant, "a neighbour's tooltip opens instantly with no animation")
+    ab("mouse", "move", "900", "450")
+    until(() => !exists(".tds-tip[data-open]"), Boolean, "the tooltip to close on leave", 1000)
+    ab("click", ".ProseMirror")
+    let label = ""
+    for (let i = 0; i < 40 && !label; i++) {
+      ab("press", "Tab")
+      label = js<string>("const a = document.activeElement; return a?.hasAttribute('data-tip') ? (a.dataset.tip || a.getAttribute('aria-label')) : ''")
+    }
+    check(label !== "", "Tab reaches a control with a tooltip")
+    const focused = until(() => js<string>("return document.querySelector('.tds-tip[data-open]')?.textContent ?? ''"), (t) => t === label, "the tooltip on keyboard focus", 300)
+    check(focused === label, "keyboard focus opens the tooltip at once (" + focused + ")")
+    shot("tooltip-focus")
+    ab("press", "Escape")
+    until(() => !exists(".tds-tip[data-open]"), Boolean, "Esc to close the tooltip", 1000)
+  },
+  pressrelease() {
+    fresh()
+    const samples = (sel: string) => {
+      const box = rect(sel)!
+      ab("mouse", "move", String(box.x + box.w / 2), String(box.y + box.h / 2))
+      ab("mouse", "down")
+      wait(250)
+      js("const el = document.querySelector(" + JSON.stringify(sel) + "); window.__press = []; addEventListener('pointerup', () => { const t0 = performance.now(); const tick = () => { window.__press.push(parseFloat(getComputedStyle(el).scale) || 1); if (performance.now() - t0 < 300) requestAnimationFrame(tick) }; tick() }, { once: true, capture: true }); return 0")
+      ab("mouse", "up")
+      return until(() => js<number[]>("return window.__press"), (s) => s.length > 8, "press release samples on " + sel, 2000)
+    }
+    for (const sel of [".tds-header-button[aria-label='Search in chat']", ".tds-header-button[aria-label='Share']", ".tds-rail-button[data-tip='Files']"]) {
+      const s = samples(sel)
+      if (sel.includes("Search")) ab("press", "Escape")
+      const eased = s.filter((v) => v > 0.961 && v < 0.999).length
+      check(s[0]! < 0.99 && eased >= 2, sel + " eases back from the press instead of snapping: " + s.map((v) => v.toFixed(3)).join(" "))
+      check(s.every((v, i) => i === 0 || v >= s[i - 1]! - 0.0005) && Math.max(...s) <= 1.0005, sel + " release never overshoots: " + s.map((v) => v.toFixed(3)).join(" "))
+    }
+    const field = style(".tds-field", "transitionTimingFunction") ?? ""
+    check(!field.includes("linear("), "the composer field resizes on ease-out, not the overshooting spring: " + field)
+  },
   smooth() {
     ensureRows(3)
     ab("open", BASE)
@@ -4277,7 +4328,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "peekcontinuous", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "linkchips", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "headerglyph", "headerstatus", "offline", "toaststack", "toastclose", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "text200", "rtl", "mobile", "ui", "motion", "orb", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "docpreview", "lightboxfail", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "jank", "oddfiles", "seen", "badmedia", "toolio", "escstop", "modk", "archivefocus", "overlays", "altnav", "offlinesend", "pins256", "historyrest", "rtlbubble", "headeredge", "radii", "streamsmooth", "tabhide", "tooltips", "pressrelease", "diagnostics"]
 /**
  * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
  * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.

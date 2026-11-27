@@ -32,7 +32,7 @@
   .tds-swipe-act {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; clip-path: var(--clip);
     font-size: var(--tds-type-micro-size); font-weight: var(--tds-weight-medium); letter-spacing: 0; color: var(--tds-surface-white);
-    transition: clip-path var(--tds-dur-menu) var(--tds-ease-std);
+    transition: var(--tds-press-transition), clip-path var(--tds-dur-menu) var(--tds-ease-std);
   }
   .tds-swipe-body { display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-4); white-space: nowrap; translate: calc(var(--w, 0px) * var(--k)) 0; transition: translate var(--tds-dur-menu) var(--tds-ease-std) }
   .tds-swipe-act[data-act="pin"] { background: var(--tds-swipe-pin) }
@@ -57,7 +57,7 @@
   .tds-pin {
     position: relative; flex: 0 0 calc(100% / var(--pin-cols)); max-width: var(--tds-size-pin-slot); min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-7);
     padding: var(--tds-space-6) var(--tds-space-4) var(--tds-space-8); border-radius: var(--tds-radius-card); color: var(--tds-text-muted);
-    font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-lh); letter-spacing: 0; transition: color var(--tds-dur-hover) var(--tds-ease-out);
+    font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-lh); letter-spacing: 0; transition: var(--tds-press-transition), color var(--tds-dur-hover) var(--tds-ease-out);
   }
   @media (hover: hover) and (pointer: fine) { .tds-pin:hover { color: var(--tds-text-tx2) } }
   .tds-pin::before {

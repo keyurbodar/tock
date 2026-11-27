@@ -5,7 +5,7 @@ import { Orb } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
 import type { JSX } from "@solidjs/web"
 import { tokens } from "@tock/tokens"
-import { animate, spring, watchLayout } from "@tock/ui/motion"
+import { animate, scrollBehavior, spring, watchLayout } from "@tock/ui/motion"
 import { Virtualizer } from "virtua/solid"
 import type { Item, Step } from "./items"
 import { stepLabel, summarize, type Plan, type StepLabel } from "./steps"
@@ -464,7 +464,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     flipTo()
     if (!opening) return
     stick = false
-    setTimeout(() => row.scrollIntoView({ block: "nearest", behavior: "smooth" }), tokens.motion.duration.layout)
+    setTimeout(() => row.scrollIntoView({ block: "nearest", behavior: scrollBehavior() }), tokens.motion.duration.layout)
   }
   const cache = new Map<string, Row>()
   const row = (kind: Row["kind"], key: string) => {

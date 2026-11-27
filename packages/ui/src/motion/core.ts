@@ -9,6 +9,9 @@ export const STAGGER = m.stagger
 export const prefersReducedMotion = () =>
   typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches
 
+/** The behavior for a programmatic scroll: smooth, or an instant jump under reduced motion (the CSS reset never reaches scrollTo). */
+export const scrollBehavior = (): ScrollBehavior => (prefersReducedMotion() ? "instant" : "smooth")
+
 export function springEasing(name: keyof typeof m.spring = "snappy"): { easing: string; duration: number } {
   const { stiffness, damping, mass } = m.spring[name]
   const w0 = Math.sqrt(stiffness / mass)

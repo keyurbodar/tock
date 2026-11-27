@@ -23,7 +23,8 @@ function RailButton(props: { icon: IconName; label: string; on?: boolean; count?
       type="button"
       class="tds-rail-button"
       aria-label={props.count ? `${props.label}, ${props.count} new` : props.label}
-      title={props.label}
+      data-tip={props.label}
+      data-tip-side="right"
       aria-pressed={props.on ? "true" : "false"}
       data-on={props.on ? "" : undefined}
       data-bell={props.bell ? "" : undefined}

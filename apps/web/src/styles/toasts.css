@@ -27,13 +27,13 @@
   .tds-toast-line { flex: 0 1000 auto; min-width: var(--tds-space-24); overflow: hidden; text-overflow: ellipsis; font-weight: var(--tds-weight-regular); color: var(--tds-text-muted) }
   .tds-toast-action {
     flex: none; height: var(--tds-size-toast-action); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-pill); background: var(--tds-overlay-fill-10);
-    font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx); transition: background-color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-tooltip) var(--tds-ease-out);
+    font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx); transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-tooltip) var(--tds-ease-out);
   }
   @media (hover: hover) and (pointer: fine) { .tds-toast-action:hover { background: var(--tds-overlay-fill-12) } }
   .tds-toast-close {
     flex: none; display: grid; place-items: center; width: var(--tds-size-hit-min); height: var(--tds-size-hit-min); margin-inline-start: calc(var(--tds-space-4) * -1);
     border-radius: var(--tds-radius-pill); color: var(--tds-text-muted); opacity: 0;
-    transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out);
+    transition: var(--tds-press-transition), opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out);
   }
   .tds-toast:focus-within .tds-toast-close, .tds-toast-close:focus-visible { opacity: 1 }
   @media (hover: hover) and (pointer: fine) {

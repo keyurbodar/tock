@@ -4,7 +4,7 @@ import { Orb, type OrbStatus } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import type { glyphFor } from "../lib/glyph"
-import { Skeleton } from "@tock/ui/motion"
+import { Skeleton, scrollBehavior } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app } from "../state/app"
 import { visibleTimeout } from "../lib/socket"
@@ -66,10 +66,10 @@ export function Header(props: { title: string; glyph: ReturnType<typeof glyphFor
           <Show when={finding()}>
             <Finder onClose={() => setFinding(false)} />
           </Show>
-          <button type="button" class="tds-header-button tds-press" aria-label="Share" onClick={() => void share()}>
+          <button type="button" class="tds-header-button tds-press" aria-label="Share" data-tip="" data-tip-side="bottom" onClick={() => void share()}>
             <Icon name="export" size="row" />
           </button>
-          <button type="button" class="tds-header-button tds-press" aria-label="Search in chat" aria-pressed={finding() ? "true" : "false"} onClick={() => setFinding((on) => !on)}>
+          <button type="button" class="tds-header-button tds-press" aria-label="Search in chat" data-tip="" data-tip-side="bottom" aria-pressed={finding() ? "true" : "false"} onClick={() => setFinding((on) => !on)}>
             <Icon name="magnifying-glass" size="row" />
           </button>
         </div>
@@ -111,7 +111,7 @@ function Finder(props: { onClose: () => void }) {
     CSS.highlights.set("tds-find-on", current)
     setCount(ranges.length)
     setAt(pick)
-    ranges[pick]?.startContainer.parentElement?.scrollIntoView({ block: "center", behavior: "smooth" })
+    ranges[pick]?.startContainer.parentElement?.scrollIntoView({ block: "center", behavior: scrollBehavior() })
   }
   createEffect(query, (q) => untrack(() => paint(q, 0)))
   const step = (by: number) => paint(query(), at() + by)
