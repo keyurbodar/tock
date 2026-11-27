@@ -29,7 +29,9 @@ function ab(...args: string[]): string {
   if (run.exitCode !== 0) throw new Error(`agent-browser ${args.join(" ")} failed: ${run.stderr.toString().trim() || out}`)
   return out
 }
-const js = <T>(code: string): T => JSON.parse(ab("eval", `JSON.stringify((() => { ${code} })())`).replace(/^"|"$/g, "").replace(/\\"/g, '"')) as T
+/** agent-browser prints the eval result as a JSON string literal; decode that, then the JSON our wrapper made. (Unescaping quotes by hand broke on any page text containing a double quote.) */
+const decode = (out: string): string => (out.startsWith('"') ? (JSON.parse(out) as string) : out)
+const js = <T>(code: string): T => JSON.parse(decode(ab("eval", `JSON.stringify((() => { ${code} })())`))) as T
 const wait = (ms: number) => Bun.sleepSync(ms)
 const shot = (name: string) => ab("screenshot", join(OUT, `${name}.png`))
 function check(ok: unknown, message: string): asserts ok {
@@ -162,11 +164,13 @@ function seeded(text = WEATHER): string {
 }
 /** At least n live rows in the sidebar, creating chats if the store has fewer, then back home. */
 function ensureRows(n: number) {
-  for (let i = 0; liveRows() < n && i < n; i++) {
+  // The roster is virtual, so only the rows in view are in the DOM: a list that already scrolls has enough rows.
+  const enough = () => liveRows() >= n || js<boolean>("const s = document.querySelector('.tds-sidebar .tds-scroll'); return !!s && s.scrollHeight > s.clientHeight + 1")
+  for (let i = 0; !enough() && i < n; i++) {
     seeded(WEATHER)
     reset()
   }
-  until(liveRows, (count) => count >= n, `${n} sidebar rows`)
+  until(enough, Boolean, `${n} sidebar rows (or a roster that scrolls)`)
 }
 
 const tapSocket = () => ab("eval", "window.__frames = []; window.__drop = false; const send = WebSocket.prototype.send; WebSocket.prototype.send = function (data) { window.__ws = this; window.__frames.push(String(data)); if (!window.__drop) send.call(this, data) }; true")
@@ -1929,20 +1933,23 @@ const journeys: Record<string, () => void> = {
     settled()
     ab("open", `${BASE}/t/${id}`)
     for (const end = Date.now() + 2500; Date.now() < end; wait(40)) check(!exists(".tds-ask .tds-key"), "an answered ask never flashes its keys after a reload")
-    ab("eval", `(async () => {
-      const db = await new Promise((r) => { const q = indexedDB.open("tock"); q.onsuccess = () => r(q.result) })
-      const tx = (mode) => db.transaction("threads", mode).objectStore("threads")
-      const entries = await new Promise((r) => { const q = tx("readonly").get(${JSON.stringify(id)}); q.onsuccess = () => r(q.result ?? []) })
-      const stale = entries.map((entry) => ({ ...entry, model: (entry.model ?? []).filter((m) => !(m.role === "toolResult" && m.toolName === "ask_owner")) }))
-      await new Promise((r) => { const q = tx("readwrite").put(stale, ${JSON.stringify(id)}); q.onsuccess = r })
-      sessionStorage.setItem("tock.slow", "1500")
-      return "ok"
-    })()`)
-    ab("open", `${BASE}/t/${id}`)
-    try {
-      for (const end = Date.now() + 1200; Date.now() < end; wait(40)) check(!exists(".tds-ask .tds-key") && !exists(".tds-wa .tds-wbtn"), "a cached transcript with the ask still open never shows its keys before the server answers")
-    } finally {
-      ab("eval", "sessionStorage.removeItem('tock.slow')")
+    if (!devServer()) console.log("      askqueued: stale-cache flash check skipped, it delays socket frames through the dev-only tock.slow switch")
+    else {
+      ab("eval", `(async () => {
+        const db = await new Promise((r) => { const q = indexedDB.open("tock"); q.onsuccess = () => r(q.result) })
+        const tx = (mode) => db.transaction("threads", mode).objectStore("threads")
+        const entries = await new Promise((r) => { const q = tx("readonly").get(${JSON.stringify(id)}); q.onsuccess = () => r(q.result ?? []) })
+        const stale = entries.map((entry) => ({ ...entry, model: (entry.model ?? []).filter((m) => !(m.role === "toolResult" && m.toolName === "ask_owner")) }))
+        await new Promise((r) => { const q = tx("readwrite").put(stale, ${JSON.stringify(id)}); q.onsuccess = r })
+        sessionStorage.setItem("tock.slow", "1500")
+        return "ok"
+      })()`)
+      ab("open", `${BASE}/t/${id}`)
+      try {
+        for (const end = Date.now() + 1200; Date.now() < end; wait(40)) check(!exists(".tds-ask .tds-key") && !exists(".tds-wa .tds-wbtn"), "a cached transcript with the ask still open never shows its keys before the server answers")
+      } finally {
+        ab("eval", "sessionStorage.removeItem('tock.slow')")
+      }
     }
     until(() => exists(".tds-ask-done"), Boolean, "the answer to persist across a reload", 15000)
     until(() => js<string>("return [...document.querySelectorAll('.tds-ask-done')].filter((e) => !e.closest('[data-ghost]')).map((e) => e.textContent).join(' | ')"), (s) => s.includes("You chose main"), "the summary to say You chose main after a reload")
@@ -2380,6 +2387,7 @@ const journeys: Record<string, () => void> = {
       shot("edges-bottom")
       ab("set", "viewport", "1440", "900")
       until(() => js<boolean>("const e = document.querySelector('.tds-roster'); return e.scrollHeight <= e.clientHeight ? !e.hasAttribute('data-edge') : true"), Boolean, "a roster that fits to drop its mask")
+      if (!devServer()) return console.log("      edges: /__motion demo strip skipped, the route exists only on the dev server")
       ab("open", BASE + "/__motion")
       until(() => exists(".tds-motion-strip"), Boolean, "the motion demo")
       const strip = until(() => js<{ l: number; r: number; edge: boolean }>("const e = document.querySelector('.tds-motion-strip'); return { l: parseFloat(e.style.getPropertyValue('--edge-l')), r: parseFloat(e.style.getPropertyValue('--edge-r')), edge: e.hasAttribute('data-edge') }"), (s) => s.r > 0, "the demo strip to fade its right edge")
@@ -3151,6 +3159,22 @@ const journeys: Record<string, () => void> = {
 }
 
 const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "editorboot", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "diagnostics"]
+/**
+ * Journeys that drive a dev-only hook (a /src import, the /__motion route, sessionStorage fault or seed switches) or
+ * that need a production build (the service worker). They are skipped by name, explicitly, wherever they can't run.
+ */
+const requires: Record<string, { mode: "dev" | "build"; why: string }> = {
+  newdivider: { mode: "dev", why: "imports /src/chat/items.ts to build its fixtures" },
+  faults: { mode: "dev", why: "uses the dev-only sessionStorage tock.fault switch" },
+  longchat: { mode: "dev", why: "seeds 650 bubbles with the dev-only window.__tockSeed" },
+  offlinereload: { mode: "build", why: "the service worker registers only in a production build" },
+  swdeploy: { mode: "build", why: "swaps the files of a local production build (vite preview + TOCK_DIST)" },
+}
+let devCache: boolean | undefined
+function devServer(): boolean {
+  devCache ??= js<boolean>("return !!document.querySelector('script[src*=\"/@vite/client\"]')")
+  return devCache
+}
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
@@ -3158,6 +3182,11 @@ for (const name of run) {
   const journey = journeys[name]
   if (!journey) throw new Error(`unknown journey ${name}; known: ${order.join(", ")}`)
   const started = Date.now()
+  const need = requires[name]
+  if (need && (need.mode === "dev") !== devServer()) {
+    console.log(`skip  ${name.padEnd(12)} ${need.mode === "dev" ? "dev server only" : "production build only"}: ${need.why}`)
+    continue
+  }
   try {
     if (name !== "doctor" && name !== "diagnostics") reset()
     journey()
