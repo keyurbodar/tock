@@ -17,6 +17,8 @@ import { app, type ThreadState } from "../state/app"
 const SPANS = /\[([^\]\n]+)\]\(tock-thread:([\w-]+)\)|https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"\]]/g
 
 /** A sent message stays plain text, except thread mentions become chips and bare URLs become links. */
+const RICH = /(^|\n)([-*+] |\d+\. |> |```)|\*\*[^*\n]+\*\*|(^|[\s(])[*_][^*_\n]+[*_]|`[^`\n]+`|\[[^\]\n]+\]\((?!tock-)[^)\s]+\)/
+
 function Prose(props: { text: string }) {
   const parts = createMemo(() => {
     const out: ({ kind: "text"; value: string } | { kind: "thread"; id: string; label: string } | { kind: "link"; href: string })[] = []
@@ -74,7 +76,11 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
       </For>
       <Show when={parts().text}>
         <div class="tds-bubble" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
-          <Prose text={parts().text} />
+          <Show when={RICH.test(parts().text)} fallback={<Prose text={parts().text} />}>
+            <div class="tds-bubble-rich">
+              <Markdown text={parts().text} />
+            </div>
+          </Show>
         </div>
       </Show>
     </>

@@ -1052,7 +1052,40 @@ const journeys: Record<string, () => void> = {
     until(gap, (g) => g <= 140, "sending to jump to the bottom", 4000)
     shot("scroll-sent")
     ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
-  },  diagnostics() {
+  },
+  rich() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "make **bold** and _soft_ and `code` ")
+    until(() => exists(".tds-input strong") && exists(".tds-input em") && exists(".tds-input code"), Boolean, "markdown marks to render live")
+    ab("press", "Control+b")
+    ab("keyboard", "type", "loud")
+    ab("press", "Control+b")
+    check(js<string>("return [...document.querySelectorAll('.tds-input strong')].map((e) => e.textContent).join('|')").includes("loud"), "Ctrl+B bolds")
+    ab("press", "Shift+Enter")
+    ab("keyboard", "type", "- first")
+    until(() => exists(".tds-input ul li"), Boolean, "a bullet list from '- '")
+    ab("press", "Shift+Enter")
+    ab("keyboard", "type", "second")
+    check(js<number>("return document.querySelectorAll('.tds-input ul li').length") === 2, "Shift+Enter adds a list item")
+    shot("rich-editor")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me'] .tds-bubble-rich"), Boolean, "the rich bubble")
+    const sent = js<{ strong: string[]; em: number; code: number; li: number }>("const b = [...document.querySelectorAll('.tds-bubble[data-side=me]')].at(-1); return { strong: [...b.querySelectorAll('strong')].map((e) => e.textContent), em: b.querySelectorAll('em').length, code: b.querySelectorAll('code').length, li: b.querySelectorAll('li').length }")
+    check(sent.strong.includes("bold") && sent.strong.includes("loud") && sent.em === 1 && sent.code === 1 && sent.li === 2, "the bubble renders the same markdown: " + JSON.stringify(sent))
+    wait(300)
+    shot("rich-sent")
+    ab("click", ".ProseMirror")
+    js<boolean>("const dt = new DataTransfer(); dt.setData('text/plain', '> quoted\\n\\n1. one\\n2. two'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
+    until(() => exists(".tds-input blockquote") && js<number>("return document.querySelectorAll('.tds-input ol li').length") === 2, Boolean, "pasted markdown to parse")
+    js<boolean>("const dt = new DataTransfer(); dt.setData('text/html', '<p>an <b>html</b> <i>paste</i></p>'); dt.setData('text/plain', 'an html paste'); document.querySelector('.ProseMirror').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); return true")
+    until(() => js<string>("return [...document.querySelectorAll('.tds-input strong')].map((e) => e.textContent).join('|')"), (t) => t.includes("html"), "rich HTML paste to keep its bold")
+    shot("rich-paste")
+    ab("press", "Control+a")
+    ab("press", "Backspace")
+  },
+  diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
     check(bad.length === 0, `console diagnostics:\n${bad.slice(0, 5).join("\n")}`)
@@ -1061,7 +1094,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "ask", "question", "composer", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "flip", "rich", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

@@ -49,6 +49,7 @@ export const Token = Node.create({
     ]
   },
   renderText: ({ node }) => tokenText(node.attrs as TokenAttrs),
+  renderMarkdown: (node) => tokenText(node.attrs as TokenAttrs),
 })
 
 /** The first Backspace after a token selects it; the second deletes it. */

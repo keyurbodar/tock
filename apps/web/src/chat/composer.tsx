@@ -3,11 +3,9 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack }
 import { useNavigate } from "@solidjs/router"
 import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from "@ui-sdk/solid/menu"
 import { Editor, type JSONContent } from "@tiptap/core"
-import Document from "@tiptap/extension-document"
-import Paragraph from "@tiptap/extension-paragraph"
-import Text from "@tiptap/extension-text"
-import HardBreak from "@tiptap/extension-hard-break"
-import { Placeholder, UndoRedo } from "@tiptap/extensions"
+import StarterKit from "@tiptap/starter-kit"
+import { Markdown } from "@tiptap/markdown"
+import { Placeholder } from "@tiptap/extensions"
 import { EditorState } from "@tiptap/pm/state"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
@@ -169,6 +167,7 @@ const drafts = new Map<string, JSONContent>()
 const typing = (e: KeyboardEvent) => e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey
 const editable = (el: Element | null) => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)
 const URL_ONLY = /^https?:\/\/\S+$/
+const MARKDOWN = /(^|\n)(#{1,6} |[-*+] |\d+\. |> |```)|\*\*[^*\n]+\*\*|(^|\s)_[^_\n]+_(\s|$)|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\)/
 const pad = (value: number) => String(value).padStart(2, "0")
 
 async function screenshot(): Promise<File | null> {
@@ -247,7 +246,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     sync()
   }
 
-  const text = () => editor?.getText({ blockSeparator: "\n" }).trim() ?? ""
+  const text = () => (editor?.isEmpty ? "" : (editor?.getMarkdown().replace(/&nbsp;/g, " ").trim() ?? ""))
 
   /** T3Code's held send: a send while files upload or read waits for them, then goes on its own; editing or Esc cancels it. */
   const submit = () => {
@@ -419,7 +418,12 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
     editor = new Editor({
       element,
       autofocus: matchMedia("(pointer: fine)").matches ? "end" : false,
-      extensions: [Document, Paragraph, Text, HardBreak, Token, UndoRedo, Placeholder.configure({ placeholder: "Message toast" })],
+      extensions: [
+        StarterKit.configure({ heading: false, horizontalRule: false, dropcursor: false, gapcursor: false, trailingNode: false, link: { openOnClick: false, autolink: false, linkOnPaste: false } }),
+        Markdown,
+        Token,
+        Placeholder.configure({ placeholder: "Message toast" }),
+      ],
       editorProps: {
         handlePaste: (_view, event) => {
           const files = [...(event.clipboardData?.files ?? [])]
@@ -428,7 +432,10 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             return true
           }
           const value = event.clipboardData?.getData("text/plain") ?? ""
-          return longPaste(value) || pasteLink(value)
+          if (longPaste(value) || pasteLink(value)) return true
+          if (event.clipboardData?.types.includes("text/html") || !MARKDOWN.test(value) || !editor) return false
+          editor.commands.insertContent(value, { contentType: "markdown" })
+          return true
         },
         attributes: { class: "tds-input", role: "textbox", "aria-multiline": "true", "aria-label": "Message toast" },
         handleKeyDown: (view, event) => {
@@ -451,7 +458,9 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
             return false
           }
           if (event.key === "Backspace" && selectTokenBefore(view)) return true
-          if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return false
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) return event.preventDefault(), submit(), true
+          if (event.key === "Enter" && event.shiftKey && editor && !editor.isActive("codeBlock")) return editor.isActive("listItem") ? editor.commands.splitListItem("listItem") : editor.commands.splitBlock()
+          if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229 || editor?.isActive("codeBlock")) return false
           event.preventDefault()
           submit()
           return true

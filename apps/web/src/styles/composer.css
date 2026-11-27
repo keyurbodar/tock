@@ -79,3 +79,24 @@
   .tds-send:active { scale: var(--tds-press-tight) }
 }
 
+
+@layer components {
+  .tds-input {
+    & strong { font-weight: var(--tds-weight-semibold) }
+    & code { padding: 0 var(--tds-space-4); border-radius: var(--tds-radius-kbd); background: var(--tds-overlay-fill-10); font-family: var(--tds-font-mono); font-size: .9em }
+    & pre { margin: var(--tds-space-4) 0; padding: var(--tds-space-8) var(--tds-space-10); border-radius: var(--tds-radius-small); background: var(--tds-surface-code); white-space: pre-wrap; & code { padding: 0; background: none } }
+    & ul, & ol { margin: 0; padding-left: var(--tds-space-20) }
+    & ul { list-style: disc } & ol { list-style: decimal }
+    & li p { margin: 0 }
+    & blockquote { margin: 0; padding-left: var(--tds-space-10); box-shadow: inset var(--tds-space-2) 0 0 var(--tds-overlay-fill-16); color: var(--tds-text-tx2) }
+    & a { color: var(--tds-text-tx); text-decoration: underline dotted var(--tds-accent-rose-75); text-underline-offset: var(--tds-space-3) }
+  }
+  .tds-bubble-rich {
+    white-space: normal;
+    & > * { margin-block: 0 !important }
+    & > * + * { margin-top: var(--tds-space-6) !important }
+    & > .tds-bubble { max-width: none; padding: 0; border-radius: 0; background: none; box-shadow: none; color: inherit; &::before, &::after { display: none } }
+    & ul, & ol { margin: 0; padding-left: var(--tds-space-20) }
+  }
+}
+
