@@ -8,9 +8,8 @@ import { buildItems, type Item } from "./items"
 import { Markdown } from "./markdown"
 import { Activity, Typing, WorkLog, type Work } from "./activity"
 import { AskCard } from "./ask"
-import { fileUrl, isImage, splitFiles } from "./attachments"
-import { FileCard, ThreadChip } from "./chip"
-import { openLightbox } from "./lightbox-state"
+import { splitFiles } from "./attachments"
+import { ThreadChip } from "./chip"
 import { Attachments } from "./files"
 import { ExternalLink, LinkMenu, openLinkMenu, shortUrl, webHost } from "./link"
 import { toast } from "../shell/toasts"
@@ -46,20 +45,9 @@ function Prose(props: { text: string }) {
   )
 }
 
-/** A plain click grows the picture into the lightbox, with every picture in this chat as its gallery; modified clicks keep the link. */
-function viewImage(event: MouseEvent) {
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
-  event.preventDefault()
-  const from = event.currentTarget as HTMLElement
-  const all = [...(from.closest(".tds-column") ?? from.parentElement!).querySelectorAll<HTMLElement>(".tds-sent-image[data-file]")]
-  openLightbox(all.map((el) => ({ id: el.dataset.file!, name: el.dataset.name ?? "" })), all.indexOf(from), from)
-}
-
 function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queued?: boolean }) {
   const mine = () => props.item.kind === "user"
   const parts = createMemo(() => splitFiles(props.item.text))
-  const images = () => parts().files.filter((file) => isImage(file.name))
-  const docs = () => parts().files.filter((file) => !isImage(file.name))
   return (
     <>
       <Show when={parts().files.length > 0}>

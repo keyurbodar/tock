@@ -81,7 +81,6 @@ function RenameField(props: { session: Session }) {
   )
 }
 
-const L = tokens.limit
 const D = tokens.motion.duration
 const curve = tokens.motion.curve
 let closeOpenSwipe: (() => void) | undefined
