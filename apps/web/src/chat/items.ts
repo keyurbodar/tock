@@ -39,7 +39,7 @@ export type Item =
   | { readonly kind: "typing"; readonly key: string }
   | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
   | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string; readonly retry?: string }
-  | { readonly kind: "caption"; readonly key: string; readonly text: string; readonly side: "me" | "agent"; readonly seen?: boolean }
+  | { readonly kind: "caption"; readonly key: string; readonly text: string; readonly side: "me" | "agent" }
   | { readonly kind: "divider"; readonly key: string; readonly text: string; readonly tone?: "passed" | "new" }
   | { readonly kind: "ask"; readonly key: string; readonly ask: Ask; readonly answer: string | undefined; readonly pending: boolean }
 
@@ -260,9 +260,6 @@ export function buildItems(
   const current = turn as Work | undefined
   if (running && current) current.active = true
   if (running && !current && items.at(-1)?.kind !== "text") items.splice(turnAt, 0, { kind: "typing", key: "typing" })
-  const mine = items.findLastIndex((item) => item.kind === "user")
-  if (running && mine >= 0 && !items.slice(mine + 1).some((item) => item.kind === "text" || item.kind === "user"))
-    items.splice(mine + 1, 0, { kind: "caption", key: "caption:seen", text: "Seen", side: "me", seen: true })
   pending.forEach(({ text }, index) => items.push({ kind: "user", key: `user:${users + index}`, text, images: [], at: null, queued: true }))
   const held = running || pending.some((item) => item.status === "queued")
   if (pending.length > 0 && !online) items.push({ kind: "caption", key: "caption:offline", text: "Sends when you’re back online", side: "me" })

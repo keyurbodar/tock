@@ -26,6 +26,8 @@ export function Header(props: { title: string; status: OrbStatus | undefined; lo
   addEventListener("keydown", onKey)
   onCleanup(() => removeEventListener("keydown", onKey))
   const status = () => (props.status && props.status !== "done" ? props.status : undefined)
+  const [shown, setShown] = createSignal<OrbStatus>()
+  createEffect(status, (now) => void (now && setShown(now)))
   return (
     <>
       <header class="tds-header">
@@ -40,8 +42,10 @@ export function Header(props: { title: string; status: OrbStatus | undefined; lo
               </Skeleton>
             </span>
             <span class="tds-header-status" data-on={status() ? "" : undefined}>
-              <Show when={status()}>{(s) => <Orb status={s()} surface="main" size="orb-sm" />}</Show>
-              <TextMorph value={status() ? LABEL[status()!] : ""} mode="morph" />
+              <span class="tds-header-orb">
+                <Show when={shown()}>{(s) => <Orb status={s()} surface="main" size="orb-header" />}</Show>
+              </span>
+              <TextMorph value={status() ? LABEL[status()!] : ""} mode="calm" />
             </span>
           </span>
         </div>
@@ -164,7 +168,7 @@ function OfflineBanner() {
     },
   )
   return (
-    <div class="tds-banner" data-state={shown()} role="status" aria-live="polite" aria-hidden={shown() === "off" ? "true" : undefined}>
+    <div class="tds-banner tds-raise-1" data-state={shown()} role="status" aria-live="polite" aria-hidden={shown() === "off" ? "true" : undefined}>
       <Icon name={shown() === "ok" ? "check" : online() ? "arrow-clockwise" : "wifi-slash"} size="toast" />
       <TextMorph value={shown() === "ok" ? "Back online" : online() ? "Reconnecting…" : "You’re offline. Messages and files wait, and send when you’re back."} mode="calm" />
     </div>

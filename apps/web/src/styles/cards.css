@@ -37,7 +37,13 @@
   .tds-fault-art { width: var(--tds-size-empty-art-sm); height: auto; margin-bottom: var(--tds-space-4) }
   .tds-centre-body > .tds-empty { padding-block: var(--tds-space-32) }
 
-  /* InYours "Seen": toast's eyes, tiny, under your bubble once the run has picked it up */
-  .tds-caption[data-seen] { display: inline-flex; align-items: center; gap: var(--tds-space-5) }
-  .tds-seen-face { width: var(--tds-size-seen-face); height: var(--tds-size-seen-face) }
+
+  /* Connection banners: a solid tinted card, and while one shows the chat clears the band under it (mask + column top) so no bubble sits behind it */
+  .tds-banner { background: linear-gradient(var(--tds-wash-needs-10), var(--tds-wash-needs-10)), var(--tds-surface-card) }
+  .tds-banner[data-state="ok"] { background: linear-gradient(var(--tds-wash-done-12), var(--tds-wash-done-12)), var(--tds-surface-card) }
+  :has(> .tds-banner:is([data-state="on"], [data-state="ok"])) .tds-transcript {
+    --banner-clear: calc(var(--tds-size-banner-top) + var(--tds-size-banner) + var(--tds-space-8));
+    --banner-fade: calc(var(--banner-clear) + var(--tds-space-24));
+  }
+  :has(> .tds-banner:is([data-state="on"], [data-state="ok"])) .tds-transcript .tds-column { padding-top: calc(var(--banner-fade) + var(--tds-space-8)) }
 }
