@@ -1,6 +1,8 @@
 /* App shell for offline reloads: the HTML shell and the hashed /assets/* it loads. /api, /ws and /mcp never touch a cache.
  * Navigations go to the network first, so a deploy is picked up on the next online load; the cached shell answers only
- * when the network is down. Hashed assets are immutable, so they are served from the cache, and old builds' files age out. */
+ * when the network is down (fetched with cache: no-cache, so neither the HTTP cache nor this one can pin an old index).
+ * Hashed assets are immutable, so they are served from the cache, and old builds' files age out. A new worker takes
+ * over at once (skipWaiting + clients.claim); the page reloads into the new build only when idle (lib/update.ts). */
 const SHELL = "tock-shell-v1"
 const ASSETS = "tock-assets-v1"
 const KEEP_DAYS = 7
@@ -49,7 +51,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== location.origin || live.test(url.pathname)) return
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request.url, { cache: "no-cache", credentials: "same-origin" })
         .then((response) => {
           if (response.ok && (response.headers.get("content-type") ?? "").includes("text/html")) event.waitUntil(keepShell(response.clone()))
           return response

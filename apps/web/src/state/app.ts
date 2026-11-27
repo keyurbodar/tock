@@ -4,6 +4,7 @@ import { idb } from "../lib/idb"
 import { RequestError, socket, type ConnectionState } from "../lib/socket"
 import { addNote, needsNote } from "./notes"
 import { settleQueue, type Pending } from "./queue"
+import { mergeSessions } from "./sessions"
 import { finishedElsewhere } from "../shell/finished"
 import { announce } from "../shell/announce"
 import { tokens } from "@tock/tokens"
@@ -125,6 +126,7 @@ socket.onEvent(({ event, payload }) => {
   }
   if (event === "session.needs") {
     const needs = typeof payload.needs === "string" ? payload.needs : null
+    if (!app.sessions.some((session) => session.id === sessionId)) void refreshSessions()
     setApp((s) => {
       const known = s.sessions.find((session) => session.id === sessionId)
       if (known) Object.assign(known, { needs })
@@ -167,8 +169,10 @@ export async function boot() {
 
 export async function refreshSessions() {
   try {
+    const asked = Date.now()
     const list = await socket.request<(SessionSummary & { busy?: boolean; meta?: ThreadMeta })[]>("session.list")
-    const sessions = ordered(list.map((session) => ({ ...session, busy: Boolean(session.busy), meta: { ...noMeta, ...session.meta } })))
+    const fromServer = list.map((session) => ({ ...session, busy: Boolean(session.busy), meta: { ...noMeta, ...session.meta } }))
+    const sessions = ordered(mergeSessions(fromServer, snapshot(app.sessions), asked, (id) => (app.threads[id]?.pending.length ?? 0) > 0))
     setApp((s) => {
       reconcile(sessions, "id")(s.sessions)
       s.sessionsLoaded = true

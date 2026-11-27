@@ -4,7 +4,7 @@
  * fails loudly. Usage: bun scripts/verify.ts [journey ...]
  * Needs Vite on :5199 and wrangler dev on :8787 (see .agents/skills/verify-tock).
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { tokens } from "../packages/tokens/dist/tokens"
@@ -3004,6 +3004,37 @@ const journeys: Record<string, () => void> = {
     }
     until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "ok", "back online", 15000)
   },
+  swdeploy() {
+    const prod = js<boolean>("return !document.querySelector('script[src*=\"/@vite/client\"]')")
+    if (!prod) return console.log("      swdeploy: skipped, needs a production build (vite preview on TOCK_URL, TOCK_DIST pointing at its dist)")
+    const dist = process.env.TOCK_DIST ?? join(import.meta.dir, "../apps/web/dist")
+    const files = { index: join(dist, "index.html"), sw: join(dist, "sw.js") }
+    const a = { index: readFileSync(files.index, "utf8"), sw: readFileSync(files.sw, "utf8") }
+    ab("open", BASE)
+    until(() => js<boolean>("return !!navigator.serviceWorker?.controller"), Boolean, "the service worker to control build A", 15000)
+    check(!exists('meta[name="tock-build"]'), "build A has no marker")
+    try {
+      writeFileSync(files.index, a.index.replace("<head>", '<head><meta name="tock-build" content="B">'))
+      writeFileSync(files.sw, `${a.sw}\n// build B\n`)
+      ab("eval", "window.__stay = 1")
+      ab("click", "button[aria-label='New chat']")
+      until(() => exists(".ProseMirror"), Boolean, "the composer")
+      ab("click", ".ProseMirror")
+      ab("keyboard", "type", "draft in progress")
+      ab("eval", "navigator.serviceWorker.getRegistration().then((r) => r && r.update())")
+      until(() => js<boolean>("return document.documentElement.hasAttribute('data-update-waiting')"), Boolean, "build B's worker to take over", 15000)
+      wait(1500)
+      check(js<number>("return window.__stay ?? 0") === 1, "a tab with a draft is never reloaded under you")
+      check(!exists('meta[name="tock-build"]'), "the open tab keeps running build A until it reloads")
+      ab("eval", "document.querySelector('.ProseMirror').innerHTML = ''")
+      ab("open", BASE)
+      until(() => js<string>("return document.querySelector('meta[name=\"tock-build\"]')?.getAttribute('content') ?? ''"), (v) => v === "B", "a reload to load build B's index, not the cached one")
+      until(() => exists(".tds-sidebar"), Boolean, "the app to boot on build B")
+    } finally {
+      writeFileSync(files.index, a.index)
+      writeFileSync(files.sw, a.sw)
+    }
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line) && !line.includes("tock.fault"))
@@ -3013,7 +3044,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "queuestop", "askqueued", "enterstop", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "swdeploy", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0
