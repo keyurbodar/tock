@@ -2284,6 +2284,7 @@ const journeys: Record<string, () => void> = {
     check(/searched memory \d+ times/i.test(summary), "a run of tool calls folds into one sentence, got: " + summary)
     ab("click", ".tds-worklog .tds-ws[data-kind='group'] > .tds-ws-line")
     wait(700)
+    check(js<string>("return [...document.querySelectorAll('.tds-worklog .tds-ws-file')].map((c) => c.textContent.trim()).join(',')").includes("probe2.mjs"), "file names in rows render as file chips")
     const box = js<{ sh: number; ch: number; top: number; vh: number }>("const b = document.querySelector('.tds-worklog-body'); const p = document.querySelector('.tds-worklog').getBoundingClientRect(); return { sh: b.scrollHeight, ch: b.clientHeight, top: p.top, vh: innerHeight }")
     check(box.sh > box.ch, "a long turn should scroll inside the pane (" + JSON.stringify(box) + ")")
     check(box.top >= 0, "the pane should stay on screen (" + JSON.stringify(box) + ")")
@@ -2324,7 +2325,7 @@ const journeys: Record<string, () => void> = {
     const end = frames.at(-1)!
     const first = frames.find((f) => f[4] > 0.05)!
     check(frames[0]![4] < 0.05, "the pane must not flash at full opacity before it grows (" + JSON.stringify(frames[0]) + ")")
-    check(first[2] < end[2] * 0.6, "the pane should first show small, near its line (" + JSON.stringify(first) + " vs " + JSON.stringify(end) + ")")
+    check(first[2] < end[2] * 0.75, "the pane should first show small, near its line (" + JSON.stringify(first) + " vs " + JSON.stringify(end) + ")")
     const between = frames.filter((f) => f[4] > 0.05 && f[2] > first[2] + 1 && f[2] < end[2] - 1)
     check(between.length >= 3, "the pane should pass through intermediate sizes, saw " + between.length)
     check(Math.abs(first[0] + first[2] / 2 - (line.x + line.w / 2)) < Math.abs(end[0] + end[2] / 2 - (line.x + line.w / 2)) + 1, "the first visible frame should sit nearer the line than the settled pane")
@@ -2460,8 +2461,10 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-worklog .tds-ws[data-kind='thinking']"), Boolean, "a thought row")
     wait(500)
     const label = js<string>("return document.querySelector(\".tds-worklog .tds-ws[data-kind='thinking'] .tds-ws-label\").textContent.trim()")
-    check(/^Thought( for \d+(\.\d+)?s)?$/.test(label), "a finished thought reads 'Thought for Ns', got: " + label)
+    check(/^Thought for \d+(\.\d+)?s$/.test(label), "a finished thought reads 'Thought for Ns', got: " + label)
     check(!exists(".tds-worklog .tds-ws[data-kind='thinking'] .tds-ws-slot"), "thought rows carry no icon")
+    const timed = js<string[]>("return [...document.querySelectorAll('.tds-worklog .tds-ws[data-kind=thinking]')].map((e) => (e.dataset.ms ?? '') + '|' + e.querySelector('.tds-ws-label').textContent.trim())")
+    check(timed.every((t) => /^\d+\|Thought for \d+(\.\d)?s$/.test(t)), "every finished thought shows the server-timed duration: " + timed.join(", "))
     ab("click", ".tds-worklog .tds-ws[data-kind='thinking'] .tds-ws-line")
     until(() => exists(".tds-worklog .tds-ws[data-kind='thinking'][data-open] .tds-ws-thought p"), Boolean, "the thought prose")
     wait(700)

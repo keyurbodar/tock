@@ -20,6 +20,8 @@ export interface ThreadState {
   live: LiveState | null
   pending: readonly Pending[]
   error: string | null
+  /** Real reasoning times from the server: "<assistant message timestamp>:<block index>" -> ms. */
+  thinking: Readonly<Record<string, number>>
 }
 
 export interface Session extends SessionSummary {
@@ -38,7 +40,7 @@ interface AppState {
   threads: Record<string, ThreadState>
 }
 
-const blank = (): ThreadState => ({ phase: "loading", entries: [], live: null, pending: [], error: null })
+const blank = (): ThreadState => ({ phase: "loading", entries: [], live: null, pending: [], error: null, thinking: {} })
 
 export const [app, setApp] = createStore<AppState>({ connection: "connecting", sessionsLoaded: false, sessions: [], threads: {} })
 
@@ -116,6 +118,10 @@ socket.onEvent(({ event, payload }) => {
     needsNote(sessionId, titleOf(app.sessions.find((session) => session.id === sessionId)), needs)
     return
   }
+  if (event === "session.thinking" && typeof payload.key === "string" && typeof payload.ms === "number") {
+    const { key, ms } = payload
+    return thread(sessionId, (state) => void (state.thinking = { ...state.thinking, [key]: ms }))
+  }
   if (event === "session.status" && typeof payload.busy === "boolean") {
     const busy = payload.busy
     setApp((s) => {
@@ -187,9 +193,10 @@ export async function subscribe(sessionId: string) {
     })
   }
   try {
-    const result = await socket.request<{ messages: readonly EntryRecord[] }>("chat.subscribe", { sessionId })
+    const result = await socket.request<{ messages: readonly EntryRecord[]; thinking?: Record<string, number> }>("chat.subscribe", { sessionId })
     thread(sessionId, (state) => {
       withEntries(state, result.messages)
+      state.thinking = { ...state.thinking, ...(result.thinking ?? {}) }
       state.phase = "ready"
     })
   } catch (cause) {

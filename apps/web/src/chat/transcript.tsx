@@ -112,7 +112,7 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   onCleanup(() => grow.disconnect())
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
   const toggle = (key: string, anchor: HTMLElement) => setOpen((current) => (current?.key === key ? undefined : { key, anchor }))
-  const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting") : []))
+  const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting", Date.now(), props.state.thinking) : []))
   const [depth, setDepth] = createSignal<number>(tokens.limit["transcript-window"])
   /** Long chats mount their newest items first and the rest as you scroll up (overflow-anchor keeps your place), so opening a 500-message chat costs what opening a short one does. */
   const shown = createMemo(() => {

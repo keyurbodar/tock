@@ -53,6 +53,7 @@ const scripted: FauxResponseFactory = (context) => {
       return fauxAssistantMessage([
         fauxThinking("A long job: I'll work through it in batches and dump the full log once so you can scroll it."),
         fauxToolCall("codemode", { code: "return Array.from({ length: 160 }, (_, i) => `line ${i + 1}: processed shard ${i}`).join(\"\\n\")" }),
+        fauxToolCall("file_write", { name: "probe2.mjs", content: "export const probe = 2" }),
         fauxToolCall("memory_search", { query: "long job batch 1" }),
       ], { stopReason: "toolUse" })
     return fauxAssistantMessage([0, 1, 2].map((n) => fauxToolCall("memory_search", { query: `long job batch ${ran + n}` })), { stopReason: "toolUse" })

@@ -95,7 +95,7 @@ export function summarize(calls: readonly ToolCallBlock[]): string {
   const groups = new Map<string, ToolCallBlock[]>()
   for (const call of calls) groups.set(call.name, [...(groups.get(call.name) ?? []), call])
   const kinds = [...groups.values()]
-  const shown = kinds.slice(0, 2)
+  const shown = [...kinds].sort((a, b) => b.length - a.length).slice(0, 2).sort((a, b) => kinds.indexOf(a) - kinds.indexOf(b))
   const clauses = shown.map((group) => (group.length === 1 ? sentence(stepLabel(group[0]!)) : (counted[group[0]!.name]?.(group.length) ?? `${stepLabel(group[0]!).verb} ${group.length} times`)))
   const rest = calls.length - shown.reduce((n, group) => n + group.length, 0)
   if (rest > 0) clauses.push(plural.select(rest) === "one" ? "performed 1 other action" : `performed ${rest} other actions`)

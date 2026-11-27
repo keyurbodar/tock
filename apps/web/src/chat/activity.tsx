@@ -9,6 +9,7 @@ import { Virtualizer } from "virtua/solid"
 import type { Item, Step } from "./items"
 import { stepLabel, summarize, type Plan, type StepLabel } from "./steps"
 import { AskButtons } from "./ask"
+import { Chip, fileChip } from "./chip"
 import { askOf } from "./items"
 import { elapsed } from "../lib/time"
 import { now } from "../lib/clock"
@@ -19,7 +20,8 @@ type Row = { kind: "plan" | "step" | "group"; key: string }
 
 type Status = "running" | "done" | "failed" | "cancelled"
 
-const spent = (ms: number | undefined) => (ms !== undefined && ms >= 1000 ? elapsed(ms) : "")
+const FILE = /^[\w.@/-]+\.[a-z0-9]{1,8}$/i
+const spent = (ms: number | undefined) => (ms === undefined || ms < 100 ? "" : ms < 10_000 ? `${Math.round(ms / 100) / 10}s` : elapsed(ms))
 const toolMs = (step: Step) => (step.kind === "tool" ? (step.result as { durationMs?: number } | undefined)?.durationMs : undefined)
 const statusOf = (step: Step): Status => (step.kind === "thinking" ? (step.active ? "running" : "done") : step.status)
 const labelOf = (step: Step): StepLabel =>
@@ -41,7 +43,12 @@ function Label(props: { label: StepLabel; live?: boolean }) {
     <Show when={!props.live} fallback={props.label.live}>
       <span class="tds-step-verb"><TextMorph value={props.label.verb} mode="morph" /></span>
       <Show when={props.label.object}>
-        {(object) => <b class="tds-step-object"> {object()}</b>}
+        {(object) => (
+          <Show when={FILE.test(object())} fallback={<b class="tds-step-object"> {object()}</b>}>
+            {" "}
+            <Chip {...fileChip(object())} label={object()} class="tds-ws-file" title={object()} />
+          </Show>
+        )}
       </Show>
     </Show>
   )
@@ -143,7 +150,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
     return out ? { kind: "out" as const, text: out, bad: step.status === "failed" } : undefined
   })
   return (
-    <div ref={row} class="tds-ws" data-key={props.step.key} data-kind={props.step.kind} data-nested={props.nested ? "" : undefined} data-status={status()} data-open={open() ? "" : undefined}>
+    <div ref={row} class="tds-ws" data-key={props.step.key} data-kind={props.step.kind} data-ms={props.ms === undefined ? undefined : Math.round(props.ms)} data-nested={props.nested ? "" : undefined} data-status={status()} data-open={open() ? "" : undefined}>
       <button type="button" class="tds-ws-line" disabled={!body()} aria-expanded={body() ? (open() ? "true" : "false") : undefined} onClick={() => {
         setSeen(true)
         props.onToggle(row)
@@ -440,6 +447,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     const out = new Map<string, number | undefined>()
     list.forEach((step, index) => {
       if (step.kind === "tool") return out.set(step.key, toolMs(step))
+      if (step.ms !== undefined) return out.set(step.key, step.ms)
       if (step.at === null) return out.set(step.key, undefined)
       const next = list.slice(index + 1).find((later) => later.at !== null && later.at > step.at!)?.at ?? props.work?.endedAt ?? undefined
       out.set(step.key, next !== undefined && next !== null ? next - step.at : undefined)

@@ -11,7 +11,7 @@ import type {
 import { isPlan, planOf, type Plan } from "./steps"
 
 export type Step =
-  | { readonly kind: "thinking"; readonly key: string; readonly text: string; readonly active: boolean; readonly at: number | null }
+  | { readonly kind: "thinking"; readonly key: string; readonly text: string; readonly active: boolean; readonly at: number | null; readonly ms: number | undefined }
   | {
       readonly kind: "tool"
       readonly key: string
@@ -140,6 +140,7 @@ export function buildItems(
   pending: readonly { readonly text: string; readonly seq: number }[],
   online = true,
   now = Date.now(),
+  thinking: Readonly<Record<string, number>> = {},
 ): Item[] {
   const items: (Exclude<Item, { kind: "work" }> | Work)[] = []
   let lastAt: number | null = null
@@ -188,7 +189,7 @@ export function buildItems(
         if (block.thinking.trim() === "") return
         const group = work()
         const active = streaming && index === message.content.length - 1
-        group.steps.push({ kind: "thinking", key: blockKey, text: block.thinking, active, at: message.timestamp ?? null })
+        group.steps.push({ kind: "thinking", key: blockKey, text: block.thinking, active, at: message.timestamp ?? null, ms: message.timestamp === undefined ? undefined : thinking[`${message.timestamp}:${index}`] })
         group.active ||= active
         return
       }

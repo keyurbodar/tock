@@ -28,6 +28,7 @@ import { SkillStore } from "./core/skills.js";
 import { constantTimeEqual } from "./core/auth.js";
 import { parseClientFrame } from "./core/schemas.js";
 import { buildModels, parseModelSpec, resolveModel } from "./core/models.js";
+import { ThinkingSpans } from "./core/thinking.js";
 import { createTockExtension, OwnerAnswer, type OwnerAsk } from "./core/tools.js";
 import { DEMO_MODEL } from "./core/demo.js";
 import { DjsRuntime, type DjsRunResult } from "./dev/djs.js";
@@ -74,6 +75,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly backgroundSessions = new Set<string>();
   private readonly pendingAsks = new Map<string, { taskId: TaskId; ask: OwnerAsk }>();
   private readonly threads: ThreadIds;
+  private readonly thinking: ThinkingSpans;
 
   readonly mcpManager = new MCPClientManager("tock", "0.1.0");
 
@@ -126,6 +128,7 @@ export class TockDO extends DurableObject<Env> {
     super(ctx, env);
     ensureSchema(ctx.storage.sql, env.DEFAULT_TIMEZONE ?? "UTC");
     this.threads = new ThreadIds(ctx.storage.sql);
+    this.thinking = new ThinkingSpans(ctx.storage.sql);
     this.threads.thread(ROOT_SESSION);
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     this.settingsStore = new SettingsStore(ctx.storage.sql);
@@ -283,6 +286,7 @@ export class TockDO extends DurableObject<Env> {
         );
         this.announceRun(sessionId, call.value);
         if (this.queuedSessions.has(sessionId)) await this.announceQueue(sessionId);
+        this.trackThinking(sessionId, call.value);
       } else {
         this.broadcastSession(sessionId, "session.error", { sessionId, error: String(call.error) });
       }
@@ -313,6 +317,14 @@ export class TockDO extends DurableObject<Env> {
     else this.queuedSessions.delete(sessionId);
     if (had || queued.length > 0) this.broadcastSession(sessionId, "chat.queue", { sessionId, queued }, false);
     return queued;
+  }
+
+  private trackThinking(sessionId: string, value: unknown): void {
+    const docs = (value as { docs?: Record<string, unknown> } | undefined)?.docs;
+    if (!docs || !("pi.live" in docs)) return;
+    const live = docs["pi.live"] as { generation?: { message?: { timestamp?: number; content?: { type: string }[] } } } | undefined;
+    for (const span of this.thinking.observe(sessionId, live?.generation?.message))
+      this.broadcastSession(sessionId, "session.thinking", { sessionId, key: span.key, ms: span.ms }, false);
   }
 
   /** Every socket hears when a chat starts or stops working, not only the one watching it, so other tabs and the notification centre stay true. */
@@ -396,6 +408,7 @@ export class TockDO extends DurableObject<Env> {
           messages: await this.harness.session(sessionId).messages(),
           ask: this.pendingAsks.get(sessionId)?.ask,
           queued: await this.queuedSends(sessionId),
+          thinking: this.thinking.list(sessionId),
         };
       }
       case "ask.answer":
