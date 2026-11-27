@@ -1,9 +1,10 @@
-import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
 import { tokens } from "@tock/tokens"
+import { spring, watchLayout } from "@tock/ui/motion"
 import { Virtualizer } from "virtua/solid"
 import type { Item, Step } from "./items"
 import { kinds, stepLabel, type Plan, type StepLabel } from "./steps"
@@ -124,6 +125,13 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
   let row!: HTMLDivElement
   const open = () => props.open
   const [seen, setSeen] = createSignal(false)
+  const [ran, setRan] = createSignal(false)
+  createEffect(
+    () => statusOf(props.step) === "running",
+    (running) => {
+      if (running) setRan(true)
+    },
+  )
   const status = () => (asking(props.step) ? "needs" : statusOf(props.step))
   const label = createMemo(() => labelOf(props.step))
   const kind = () => kinds[label().kind]
@@ -143,7 +151,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
         props.onToggle(row)
       }}>
         <span class="tds-ws-slot" style={{ color: status() === "failed" ? undefined : kind().hue }}>
-          <Switch fallback={<MorphIcon name={kind().icon} size="menu" class="tds-ws-kind" />}>
+          <Switch fallback={<MorphIcon name={status() === "running" ? "spinner" : ran() ? "check" : kind().icon} size="menu" class="tds-ws-kind" />}>
             <Match when={status() === "failed"}>
               <Orb status="failed" surface="main" size="orb-row" />
             </Match>
@@ -213,6 +221,9 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   let stick = true
 
   let side: "up" | "down" | undefined
+  let base: number | undefined
+  let drift = 0
+  let glide: Animation | undefined
   const measure = () => {
     const host = panel?.offsetParent
     if (!props.anchor || !host) return
@@ -228,10 +239,19 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
       .map((el) => el.getBoundingClientRect())
       .filter((r) => r.bottom > box.top && r.top < box.bottom && r.left > at.left)
     const room = Math.min(...mine.map((r) => r.left - at.left - tokens.size["worklog-anchor"]), tokens.size["worklog-pane"])
+    const edge = up ? box.bottom - at.top + tokens.size["worklog-anchor"] : at.bottom - box.top + tokens.size["worklog-anchor"]
+    if (base === undefined || want <= 0) base = edge
+    const shift = up ? base - edge : edge - base
+    if (Math.abs(shift - drift) >= 1 && panel) {
+      const [, from = "0"] = getComputedStyle(panel).translate.split(" ")
+      glide?.cancel()
+      glide = spring(panel, [{ translate: `0 ${parseFloat(from) || 0}px` }, { translate: `0 ${shift}px` }], "snappy", { fill: "forwards" })
+      drift = shift
+    }
     setPlace({
       width: Math.max(room, tokens.size["worklog-pane-min"]),
       left: at.left - box.left,
-      edge: up ? box.bottom - at.top + tokens.size["worklog-anchor"] : at.bottom - box.top + tokens.size["worklog-anchor"],
+      edge: base,
       up,
       max: up ? above : below,
     })
@@ -262,9 +282,21 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     fit()
     measure()
     setTimeout(() => setReady(true), tokens.motion.duration.panel)
+    reflow()
     if (content) grow.observe(content)
     if (props.anchor?.offsetParent) grow.observe(props.anchor.offsetParent)
     fit()
+  })
+  let flip: { stop: () => void } | undefined
+  let fold = 0
+  const reflow = () => {
+    flip?.stop()
+    const list = content?.firstElementChild as HTMLElement | null
+    flip = list ? watchLayout(list, ":scope > div", (el) => el.querySelector<HTMLElement>("[data-key]")?.dataset.key ?? "plan") : undefined
+  }
+  onCleanup(() => {
+    flip?.stop()
+    clearTimeout(fold)
   })
   const onScroll = (e: Event) => {
     if (!panel.contains(e.target as Node)) measure()
@@ -286,6 +318,10 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
   const [expanded, setExpanded] = createSignal<ReadonlySet<string>>(new Set<string>())
   const toggleRow = (key: string, row: HTMLElement) => {
     const opening = !untrack(expanded).has(key)
+    flip?.stop()
+    flip = undefined
+    clearTimeout(fold)
+    fold = window.setTimeout(reflow, tokens.motion.duration.spring)
     setExpanded((current) => {
       const next = new Set(current)
       if (opening) next.add(key)
