@@ -2017,6 +2017,16 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-jump[data-on]"), (on) => !on, "the pill to leave after jumping to the end")
     ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
   },
+  seen() {
+    fresh()
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => exists(".tds-caption[data-seen] .tds-seen-face"), Boolean, "Seen under my bubble while the run works", 10000)
+    check(js<boolean>("const c = document.querySelector('.tds-caption[data-seen]'); return c.previousElementSibling?.matches('.tds-bubble[data-side=me]') ?? false"), "Seen sits right under my bubble")
+    shot("seen")
+    until(() => exists(".tds-caption[data-seen]"), (on) => !on, "Seen to leave once the reply arrives", 20000)
+  },
   newdivider() {
     fresh()
     ab("click", ".ProseMirror")
@@ -2912,7 +2922,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "seen", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

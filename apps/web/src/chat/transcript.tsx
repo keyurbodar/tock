@@ -169,7 +169,12 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
         <Typing />
       </Match>
       <Match when={item().kind === "caption"}>
-        <span class="tds-caption" data-side={(item() as Extract<Item, { kind: "caption" }>).side}>{(item() as Extract<Item, { kind: "caption" }>).text}</span>
+        <span class="tds-caption" data-side={(item() as Extract<Item, { kind: "caption" }>).side} data-seen={(item() as Extract<Item, { kind: "caption" }>).seen ? "" : undefined}>
+          <Show when={(item() as Extract<Item, { kind: "caption" }>).seen}>
+            <img class="tds-seen-face" src="/brand/toast-face-up.svg" alt="" draggable={false} />
+          </Show>
+          {(item() as Extract<Item, { kind: "caption" }>).text}
+        </span>
       </Match>
       <Match when={item().kind === "divider"}>
         <div class="tds-divider" role="separator" data-tone={(item() as Extract<Item, { kind: "divider" }>).tone}>

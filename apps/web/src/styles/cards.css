@@ -36,4 +36,8 @@
   /* EmptyObjects: the burnt-toast object on error states, the moon on a quiet notification centre */
   .tds-fault-art { width: var(--tds-size-empty-art-sm); height: auto; margin-bottom: var(--tds-space-4) }
   .tds-centre-body > .tds-empty { padding-block: var(--tds-space-32) }
+
+  /* InYours "Seen": toast's eyes, tiny, under your bubble once the run has picked it up */
+  .tds-caption[data-seen] { display: inline-flex; align-items: center; gap: var(--tds-space-5) }
+  .tds-seen-face { width: var(--tds-size-seen-face); height: var(--tds-size-seen-face) }
 }
