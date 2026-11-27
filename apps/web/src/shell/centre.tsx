@@ -1,4 +1,5 @@
 import { createSignal, For, onCleanup, Show } from "solid-js"
+import { TextMorph } from "@tock/ui/text-morph"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { useNavigate } from "@solidjs/router"
 import { Icon, type IconName } from "@tock/ui/icon"
@@ -21,7 +22,7 @@ function Card(props: { note: Note; tone: Tone; index: number; onOpen: () => void
         <b>{props.note.title}</b>
         <span>{props.note.body}</span>
       </span>
-      <i class="num">{shortTime(props.note.at, now())}</i>
+      <i class="num"><TextMorph value={shortTime(props.note.at, now())} /></i>
     </div>
   )
 }

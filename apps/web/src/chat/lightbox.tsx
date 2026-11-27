@@ -1,4 +1,5 @@
 import { createSignal, For, onCleanup, Show, untrack } from "solid-js"
+import { TextMorph } from "@tock/ui/text-morph"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { animate } from "@tock/motion"
@@ -150,9 +151,9 @@ function Viewer(props: { opening: Opening }) {
         <b>{item().name}</b>
         <em class="num">
           <Show when={items.length > 1}>
-            <span class="tds-lightbox-count">{index() + 1 + " of " + items.length}</span>
+            <span class="tds-lightbox-count"><TextMorph value={index() + 1 + " of " + items.length} /></span>
           </Show>
-          <Show when={sizes()[item().id]}>{(bytes) => <span>{formatSize(bytes())}</span>}</Show>
+          <Show when={sizes()[item().id]}>{(bytes) => <span><TextMorph value={formatSize(bytes())} /></span>}</Show>
         </em>
         <button type="button" class="tds-lightbox-button" data-action="download" onClick={() => download()}>
           <Icon name="download-simple" size="menu" />

@@ -35,7 +35,7 @@ const planAt = (work: Work) => (work.plan ? (work.active ? work.plan.current : w
 function Label(props: { label: StepLabel; live?: boolean }) {
   return (
     <Show when={!props.live} fallback={props.label.live}>
-      <span class="tds-step-verb">{props.label.verb}</span>
+      <span class="tds-step-verb"><TextMorph value={props.label.verb} /></span>
       <Show when={props.label.object}>
         {(object) => <b class="tds-step-object"> {object()}</b>}
       </Show>
@@ -108,7 +108,7 @@ function PlanList(props: { plan: Plan; at: number }) {
                   </Match>
                 </Switch>
               </span>
-              <span class="tds-plan-title">{title()}</span>
+              <span class="tds-plan-title"><TextMorph value={title()} /></span>
             </div>
           )
         }}

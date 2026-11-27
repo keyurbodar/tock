@@ -63,7 +63,7 @@ function png(path: string, width: number, height: number, rgb: readonly [number,
   Bun.write(path, Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", head), chunk("IDAT", deflateSync(Buffer.concat(Array.from({ length: height }, () => row)))), chunk("IEND", Buffer.alloc(0))]))
   return path
 }
-const lightboxCount = () => js<string>("return document.querySelector('.tds-lightbox-count')?.textContent ?? ''")
+const lightboxCount = () => js<string>("const e = document.querySelector('.tds-lightbox-count'); return (e?.querySelector('[torph-sr]') ?? e)?.textContent ?? ''")
 const openRow = () => {
   ab("hover", ".tds-row-wrap")
   ab("click", ".tds-row-wrap .tds-row-more")

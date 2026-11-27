@@ -292,7 +292,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
             <RenameField session={props.session} />
           </Show>
         </span>
-        <span class="tds-row-time num">{shortTime(props.session.updatedAt, now())}</span>
+        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, now())} /></span>
         <span class="tds-row-preview">
           <Highlight text={plainText(props.session.preview) || " "} query={props.query} />
         </span>
