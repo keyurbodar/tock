@@ -1577,7 +1577,7 @@ const journeys: Record<string, () => void> = {
     check(!exists(".tds-jump[data-on]"), "no scroll affordance while pinned")
     ab("eval", "{ const s = document.querySelector('.tds-transcript'); s.scrollTop = s.scrollTop - 900 }")
     until(() => exists(".tds-jump[data-on]"), Boolean, "the Scroll to end pill once scrolled up")
-    check(js<string>("return document.querySelector('.tds-jump')?.textContent ?? ''").includes("Scroll to end"), "the pill should read Scroll to end")
+    check(js<string>("return document.querySelector('.tds-jump')?.getAttribute('aria-label') ?? ''").startsWith("Scroll to end"), "the pill should be labelled Scroll to end")
     const before = js<number>("return Math.round(document.querySelector('.tds-bubble[data-side=me]').getBoundingClientRect().top)")
     ab("eval", "{ const d = document.createElement('div'); d.className = 'verify-older'; d.style.height = '600px'; document.querySelector('.tds-transcript .tds-column').prepend(d) }")
     wait(200)
@@ -1627,6 +1627,28 @@ const journeys: Record<string, () => void> = {
     shot("rich-paste")
     ab("press", "Control+a")
     ab("press", "Backspace")
+  },
+  jumppill() {
+    ab("click", "button[aria-label='New chat']")
+    until(() => exists(".ProseMirror"), Boolean, "the composer")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
+    ab("eval", "document.querySelector('.tds-column').insertAdjacentHTML('afterbegin', '<div class=verify-older style=height:2400px></div>')")
+    ab("eval", "document.querySelector('.tds-transcript').scrollTo({ top: 0, behavior: 'instant' }); document.querySelector('.tds-transcript').dispatchEvent(new Event('scroll'))")
+    until(() => exists(".tds-jump[data-on]"), Boolean, "the pill once scrolled up")
+    const count = until(() => js<string>("return document.querySelector('.tds-jump-count [torph-sr]')?.textContent ?? ''"), (t) => /^\d+ new$/.test(t), "the new-message count", 20000)
+    check(js<string>("return document.querySelector('.tds-jump')?.getAttribute('aria-label') ?? ''").includes(count), "the label carries the count")
+    wait(450)
+    const geo = js<{ top: number; bottom: number; h: number; composer: number; band: number }>(`const p = document.querySelector('.tds-jump').getBoundingClientRect(); const c = document.querySelector('.tds-field').getBoundingClientRect(); const t = document.querySelector('.tds-transcript').getBoundingClientRect(); return { top: p.top, bottom: p.bottom, h: p.height, composer: c.top, band: t.bottom - ${tokens.size["column-bottom"]} }`)
+    check(geo.h <= 32, `the pill is compact, got ${geo.h}px`)
+    check(geo.bottom <= geo.composer - 4, `the pill sits above the composer (pill bottom ${geo.bottom}, composer ${geo.composer})`)
+    check(geo.top >= geo.band - 1, `the pill floats in the composer gap, below every fully visible bubble (pill top ${geo.top}, gap starts ${geo.band})`)
+    shot("jump-pill")
+    ab("click", ".tds-jump")
+    until(() => exists(".tds-jump[data-on]"), (on) => !on, "the pill to leave after jumping to the end")
+    ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
   },
   revealstable() {
     ab("click", "button[aria-label='New chat']")
@@ -2117,7 +2139,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "revealstable", "prefetch", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

@@ -53,6 +53,7 @@
   .tds-bubble[data-expanded] { overflow: hidden }
 
   .tds-word-wait { opacity: 0 }
+  .tds-optical-down { translate: 0 calc(var(--tds-optical-arrow-up-y) * -1) }
 
   .tds-banner {
     position: absolute; top: var(--tds-size-banner-top); left: 50%; z-index: var(--tds-z-banner); translate: -50% calc(var(--tds-space-8) * -1);

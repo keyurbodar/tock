@@ -3,6 +3,7 @@ import { createEffect, createMemo, createSignal, For, Match, onCleanup, onSettle
 import { Dynamic } from "@solidjs/web"
 import "skullet/element"
 import { Icon } from "@tock/ui/icon"
+import { MorphIcon, TextMorph } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { buildItems, type Item } from "./items"
 import { Markdown } from "./markdown"
@@ -142,6 +143,11 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
     () => fill(),
   )
   onCleanup(() => cancelIdleCallback(idle))
+  /** Messages that arrived while you were scrolled up: counted from the moment the pill appears. */
+  const messages = createMemo(() => new Set(items().flatMap((item) => (item.kind === "text" ? [item.key.replace(/:\d+$/, "")] : item.kind === "user" ? [item.key] : []))).size)
+  const [mark, setMark] = createSignal(0)
+  createEffect(away, (on) => void (on && setMark(untrack(messages))))
+  const unseen = () => (away() ? Math.max(0, messages() - mark()) : 0)
   const all = () => setDepth(Number.POSITIVE_INFINITY)
   addEventListener("tds-transcript-all", all)
   onCleanup(() => removeEventListener("tds-transcript-all", all))
@@ -206,9 +212,9 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
         </For>
       </div>
     </div>
-    <button type="button" class="tds-jump tds-glass" data-on={away() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} onClick={() => toEnd(true)}>
-      <Icon name="arrow-down" size="chip" />
-      Scroll to end
+    <button type="button" class="tds-jump tds-glass" data-on={away() ? "" : undefined} data-count={unseen() ? "" : undefined} tabindex={away() ? 0 : -1} aria-hidden={away() ? undefined : "true"} aria-label={unseen() ? `Scroll to end, ${unseen()} new` : "Scroll to end"} onClick={() => toEnd(true)}>
+      <MorphIcon name="arrow-down" size="chip" class="tds-optical-down" weight={tokens.icon["stroke-send"]} />
+      <span class="tds-jump-count"><TextMorph value={unseen() ? `${unseen()} new` : ""} /></span>
     </button>
     <LinkMenu onCopied={(href) => toast("Link copied", { description: shortUrl(href), id: "copy", duration: tokens.motion.toast.copy })} />
     <Show when={open()}>

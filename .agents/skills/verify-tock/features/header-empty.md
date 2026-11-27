@@ -5,3 +5,5 @@
 - `offline`: `agent-browser set offline on` closes the socket (the app closes it on the window `offline` event); the wifi-slash banner slides in 96 from the top, then turns green "Back online" after reconnecting.
 
 - `revealstable`: from the moment the run settles until the last word has faded in, the activity line does not move (under 0.5px). Words take their final space as soon as they arrive; the reveal only fades them in. Fails at about 63px on the old prefix reveal.
+
+- `jumppill`: scrolled up while a reply arrives, the glass pill shows the send arrow pointing down plus "N new" (TextMorph). It stays at most 32px tall and sits above the composer, inside the composer gap, below every fully visible bubble. Clicking it returns to the end, and the pill leaves.
