@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
@@ -15,7 +15,7 @@ import { now } from "../lib/clock"
 
 export type Work = Extract<Item, { kind: "work" }>
 
-type Row = { kind: "plan"; key: string } | { kind: "step"; key: string; step: Step }
+type Row = { kind: "plan" | "step"; key: string }
 
 type Status = "running" | "done" | "failed" | "cancelled"
 
@@ -201,68 +201,45 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
   )
 }
 
-export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | undefined; sessionId: string; onClose: () => void }) {
+export function WorkLog(props: { work: Work | undefined; shut: boolean; sessionId: string; onClose: () => void }) {
   const [closing, setClosing] = createSignal(false)
-  const [place, setPlace] = createSignal({ left: 0, bottom: 0, max: 0 })
   const [scrolled, setScrolled] = createSignal(false)
-  let panel!: HTMLDivElement
   let head!: HTMLDivElement
   let content!: HTMLDivElement
   const [body, setBody] = createSignal<HTMLDivElement>()
-  const [height, setHeight] = createSignal<number>()
+  const [height, setHeight] = createSignal(0)
   let stick = true
 
-  const measure = () => {
-    const host = panel?.offsetParent
-    if (!props.anchor || !host) return
-    const box = host.getBoundingClientRect()
-    const at = props.anchor.getBoundingClientRect()
-    setPlace({
-      left: at.left - box.left,
-      bottom: box.bottom - at.top + tokens.size["worklog-anchor"],
-      max: at.top - box.top - tokens.size["worklog-top"],
-    })
-  }
-
   const close = () => {
-    if (closing()) return
+    if (untrack(closing)) return
     setClosing(true)
-    setTimeout(props.onClose, tokens.motion.duration.exit)
+    setHeight(0)
+    setTimeout(() => props.onClose(), tokens.motion.duration.layout)
   }
-
+  createEffect(
+    () => props.shut,
+    (shut) => {
+      if (shut) close()
+    },
+  )
   const onKey = (e: KeyboardEvent) => e.key === "Escape" && close()
-  const onPointer = (e: PointerEvent) => {
-    const target = e.target as Node
-    if (!panel.contains(target) && !props.anchor?.contains(target)) close()
-  }
   const fit = () => {
     const scroller = body()
-    if (!scroller || !content || !head) return
+    if (!scroller || !content || !head || untrack(closing)) return
     const style = getComputedStyle(scroller)
     setHeight(head.offsetHeight + content.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom))
     if (stick && props.work?.active) requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight))
   }
   const grow = new ResizeObserver(fit)
   const frame = requestAnimationFrame(() => {
-    measure()
     if (content) grow.observe(content)
-    if (props.anchor?.offsetParent) grow.observe(props.anchor.offsetParent)
     fit()
   })
-  const onScroll = (e: Event) => {
-    if (!panel.contains(e.target as Node)) measure()
-  }
   addEventListener("keydown", onKey)
-  addEventListener("pointerdown", onPointer, true)
-  addEventListener("resize", measure)
-  addEventListener("scroll", onScroll, true)
   onCleanup(() => {
     cancelAnimationFrame(frame)
     grow.disconnect()
     removeEventListener("keydown", onKey)
-    removeEventListener("pointerdown", onPointer, true)
-    removeEventListener("resize", measure)
-    removeEventListener("scroll", onScroll, true)
   })
 
   const steps = createMemo(() => props.work?.steps ?? [])
@@ -279,18 +256,24 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
     stick = false
     setTimeout(() => row.scrollIntoView({ block: "nearest", behavior: "smooth" }), tokens.motion.duration.layout)
   }
-  const rows = createMemo((): Row[] => [...(props.work?.plan ? [{ kind: "plan" as const, key: "plan" }] : []), ...steps().map((step) => ({ kind: "step" as const, key: step.key, step }))])
-  const limit = () => Math.max(place().max, tokens.size["worklog-head"])
+  const cache = new Map<string, Row>()
+  const row = (kind: Row["kind"], key: string) => {
+    const known = cache.get(key) ?? { kind, key }
+    cache.set(key, known)
+    return known
+  }
+  const rows = createMemo((): Row[] => [...(props.work?.plan ? [row("plan", "plan")] : []), ...steps().map((step) => row("step", step.key))])
+  const byKey = createMemo(() => new Map(steps().map((step) => [step.key, step])))
+  const limit = () => Math.min(innerHeight * 0.6, tokens.size["worklog-inline"])
   return (
     <div
-      ref={panel}
       class="tds-worklog"
       data-material="solid"
       role="dialog"
       aria-label="Work log"
       data-closing={closing() ? "" : undefined}
       data-up={scrolled() ? "" : undefined}
-      style={{ left: `${place().left}px`, bottom: `${place().bottom}px`, "max-height": `${limit()}px`, height: height() === undefined ? undefined : `${Math.min(height()!, limit())}px` }}
+      style={{ "max-height": `${limit()}px`, height: `${Math.min(height(), limit())}px` }}
     >
       <Show when={props.work}>
         {(work) => (
@@ -339,7 +322,7 @@ export function WorkLog(props: { work: Work | undefined; anchor: HTMLElement | u
                         row.kind === "plan" ? (
                           <Show when={work().plan}>{(plan) => <PlanList plan={plan()} at={planAt(work())} />}</Show>
                         ) : (
-                          <StepRow step={row.step} sessionId={props.sessionId} open={expanded().has(row.key)} onToggle={(el) => toggleRow(row.key, el)} live={work().active && row.key === steps().at(-1)?.key && statusOf(row.step) === "running"} />
+                          <Show when={byKey().get(row.key)}>{(step) => <StepRow step={step()} sessionId={props.sessionId} open={expanded().has(row.key)} onToggle={(el) => toggleRow(row.key, el)} live={work().active && row.key === steps().at(-1)?.key && statusOf(step()) === "running"} />}</Show>
                         )
                       }
                     </Virtualizer>
