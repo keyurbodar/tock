@@ -13,7 +13,7 @@ import { useNavigate, useParams } from "@solidjs/router"
 import { Icon, type IconName } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
 import { app, deleteThread, pinThread, titleOf, updateThread, type Session } from "../state/app"
-import { toast, updateToast } from "./toasts"
+import { isToastOpen, toast, updateToast } from "./toasts"
 
 export const threadMenu = createMenuController<Session>()
 
@@ -83,22 +83,29 @@ const leave = (ids: readonly string[], current: string | undefined, navigate: Go
   if (current && ids.includes(current)) navigate("/")
 }
 
+const archivedBatch = new Set<string>()
+
 export function archive(sessions: readonly Session[], current: string | undefined, navigate: Go) {
   const ids = sessions.map((session) => session.id)
   leave(ids, current, navigate)
   leaveList(ids, () => ids.forEach((id) => void updateThread(id, { archived: true })))
-  const many = ids.length > 1
-  const id = toast(many ? `Archived ${ids.length} chats` : "Archived", {
-    description: many ? undefined : titleOf(sessions[0]),
+  if (!isToastOpen("archive")) archivedBatch.clear()
+  ids.forEach((thread) => archivedBatch.add(thread))
+  const batch = [...archivedBatch]
+  const many = batch.length > 1
+  toast(many ? `Archived ${batch.length} chats` : "Archived", {
+    id: "archive",
+    description: many ? "Undo brings them all back" : titleOf(sessions[0]),
     tone: "mono",
     icon: "archive",
     duration: tokens.motion.toast.undo,
     action: {
       label: "Undo",
       run: () => {
-        markEntering(ids)
-        ids.forEach((thread) => void updateThread(thread, { archived: false }))
-        updateToast(id, "Restored", { description: many ? `${ids.length} chats are back` : titleOf(sessions[0]), icon: "arrow-counter-clockwise" })
+        archivedBatch.clear()
+        markEntering(batch)
+        batch.forEach((thread) => void updateThread(thread, { archived: false }))
+        updateToast("archive", many ? `Restored ${batch.length} chats` : "Restored", { description: many ? undefined : titleOf(sessions[0]), icon: "arrow-counter-clockwise" })
       },
     },
   })

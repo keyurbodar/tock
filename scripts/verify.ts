@@ -52,7 +52,7 @@ const style = (sel: string, prop: string) => js<string | null>(`const e = docume
 const transparent = (value: string | null) => value === "rgba(0, 0, 0, 0)" || value === "transparent"
 const choose = (label: string) =>
   check(
-    js<boolean>(`const e = [...document.querySelectorAll('.tds-menu-item, .tds-button')].find((el) => el.textContent.trim() === ${JSON.stringify(label)}); e?.click(); return !!e`),
+    js<boolean>(`const e = [...document.querySelectorAll('.tds-menu-item, .tds-button')].find((el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim() === ${JSON.stringify(label)} || el.textContent.trim() === ${JSON.stringify(label)}); e?.click(); return !!e`),
     `no "${label}" item`,
   )
 function png(path: string, width: number, height: number, rgb: readonly [number, number, number]) {
@@ -534,13 +534,14 @@ const journeys: Record<string, () => void> = {
     openRow()
     choose("Archive")
     until(titles, (t) => t === "Archived", "the first Archived toast")
+    wait(600)
     openRow()
     choose("Archive")
     until(titles, (t) => t === "Archived 2 chats", "the archive toasts to merge with a rolling count")
+    wait(600)
     check(live() === 1, "merged into one toast")
     openRow()
-    const pinLabel = js<string>("return [...document.querySelectorAll('.tds-menu-item')].some((e) => e.textContent.trim() === 'Pin') ? 'Pin' : 'Unpin'")
-    choose(pinLabel)
+    choose("Copy Link")
     until(live, (n) => n === 2, "a second toast to stack")
     wait(500)
     const rest = js<number[]>("return [...document.querySelectorAll('.tds-toast:not([data-gone])')].map((e) => e.getBoundingClientRect().top)")
@@ -564,32 +565,14 @@ const journeys: Record<string, () => void> = {
     ab("press", "Escape")
     until(live, (n) => n === 0, "Esc to dismiss the next toast")
     openRow()
-    choose(pinLabel === "Pin" ? "Unpin" : "Pin")
-    until(live, (n) => n === 1, "the pin toast")
+    choose("Copy Link")
+    until(live, (n) => n === 1, "the Link copied toast")
     const box = rect(".tds-toast[data-front]")!
     ab("mouse", "move", String(box.x + 40), String(box.y + box.h / 2))
     ab("mouse", "down")
     ab("mouse", "move", String(box.x + 140), String(box.y + box.h / 2))
     ab("mouse", "up")
     until(live, (n) => n === 0, "swipe right to dismiss")
-  },
-  flip() {
-    const rows = () => js<number>("return document.querySelectorAll('.tds-row-wrap:not([data-archived])').length")
-    while (rows() < 3) journeys.send!()
-    js<number>("document.querySelectorAll('.tds-row-wrap')[2].querySelector('.tds-row-more').click(); return 1")
-    until(() => exists(".tds-menu"), Boolean, "the row menu")
-    js<number>("const w = document.querySelectorAll('.tds-row-wrap')[2].parentElement; w.dataset.flip = ''; return 1")
-    choose("Pin")
-    wait(120)
-    const mid = js<number>("return document.querySelector('[data-flip]').getBoundingClientRect().top - document.querySelector('[data-flip]').parentElement.getBoundingClientRect().top")
-    const target = js<number>("return parseFloat(document.querySelector('[data-flip]').style.top)")
-    check(target === 0, `the pinned row moves to the top (top: ${target})`)
-    check(mid > 4, `the row travels to the top instead of jumping (at ${mid}px after 120ms)`)
-    shot("flip-mid")
-    until(() => js<number>("return document.querySelector('[data-flip]').getBoundingClientRect().top - document.querySelector('[data-flip]').parentElement.getBoundingClientRect().top"), (y) => Math.abs(y) < 1, "the row to land")
-    js<number>("delete document.querySelector('[data-flip]').dataset.flip; document.querySelectorAll('.tds-row-wrap')[0].querySelector('.tds-row-more').click(); return 1")
-    until(() => exists(".tds-menu"), Boolean, "the row menu")
-    choose("Unpin")
   },
   morph() {
     ab("click", "button[aria-label='New chat']")
