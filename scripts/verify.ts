@@ -2020,6 +2020,33 @@ const journeys: Record<string, () => void> = {
     ab("eval", "window.__growStop = true")
     ab("click", ".tds-attach-remove")
   },
+  outbox() {
+    const id = fresh()
+    ab("set", "offline", "on")
+    ab("eval", "window.dispatchEvent(new Event('offline'))")
+    try {
+      until(() => js<string>("return document.querySelector('.tds-banner')?.dataset.state ?? ''"), (s) => s === "on", "the offline banner")
+      say("Sent while offline")
+      until(() => js<string[]>("return [...document.querySelectorAll('.tds-caption')].map((e) => e.textContent)"), (c) => c.some((t) => t.includes("back online")), "the offline caption under the queued send")
+      ab("eval", "new Promise((done) => { const r = indexedDB.open('tock'); r.onsuccess = () => { const q = r.result.transaction('outbox').objectStore('outbox').getAll(); q.onsuccess = () => { window.__outbox = q.result.length; done(1) } } })")
+      check(js<number>("return window.__outbox") === 1, "the offline send waits in the IndexedDB outbox")
+      shot("outbox-offline")
+    } finally {
+      ab("set", "offline", "off")
+    }
+    until(() => exists(".tds-bubble[data-side='agent']"), Boolean, "the queued send to flush on reconnect and get a reply", 25000)
+    const mine = () => js<number>("return [...document.querySelectorAll('.tds-bubble[data-side=me]')].filter((b) => b.textContent.includes('Sent while offline')).length")
+    check(mine() === 1, "the flushed send appears once, got " + mine())
+    ab("eval", `new Promise((done) => { const r = indexedDB.open('tock'); r.onsuccess = () => { const tx = r.result.transaction('outbox', 'readwrite'); tx.objectStore('outbox').put({ id: 'verify-outbox-' + Date.now(), sessionId: '${id}', text: 'Survived a reload', seq: 1 }, 'verify-outbox-' + Date.now()); tx.oncomplete = () => done(1) } })`)
+    settled()
+    ab("open", `${BASE}/t/${id}`)
+    until(() => js<number>("return [...document.querySelectorAll('.tds-bubble[data-side=me]')].filter((b) => b.textContent.includes('Survived a reload')).length"), (n) => n === 1, "a send left in the outbox to flush after a reload", 20000)
+    until(() => js<number>("return document.querySelectorAll('.tds-bubble[data-side=me]').length"), (n) => n === 2, "both sends, each once")
+    const outboxSize = () => (ab("eval", "new Promise((done) => { const r = indexedDB.open('tock'); r.onsuccess = () => { const q = r.result.transaction('outbox').objectStore('outbox').getAll(); q.onsuccess = () => { window.__outbox = q.result.length; done(1) } } })"), js<number>("return window.__outbox"))
+    until(outboxSize, (n) => n === 0, "the outbox to drain")
+    check(mine() === 1, "no duplicate of the first send after the reload")
+    shot("outbox-flushed")
+  },
   diagnostics() {
     const logs = ab("console")
     const bad = logs.split("\n").filter((line) => /REACTIVITY|STRICT_READ|UNSTABLE_LIST|CLEANUP_IN|\[error\]/.test(line))
@@ -2029,7 +2056,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "multiselect", "peek", "snooze", "move", "stack", "rename", "dialog", "shortcuts", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "question", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

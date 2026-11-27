@@ -1,7 +1,7 @@
 import { createStore, reconcile, snapshot } from "solid-js"
 import type { ConversationView, EntryRecord, LiveState, SessionSummary, ThreadMeta } from "@tock/protocol"
 import { idb } from "../lib/idb"
-import { socket, type ConnectionState } from "../lib/socket"
+import { RequestError, socket, type ConnectionState } from "../lib/socket"
 import { addNote } from "./notes"
 import { finishedElsewhere } from "../shell/finished"
 import { tokens } from "@tock/tokens"
@@ -79,7 +79,7 @@ socket.onState((connection) => {
   })
   if (connection !== "open") return
   void refreshSessions()
-  for (const sessionId of Object.keys(app.threads)) void subscribe(sessionId)
+  void Promise.all(Object.keys(app.threads).map((sessionId) => subscribe(sessionId))).then(flushOutbox)
 })
 
 socket.onEvent(({ event, payload }) => {
@@ -127,6 +127,7 @@ socket.onEvent(({ event, payload }) => {
 export async function boot() {
   const cached = await idb.get<Session[]>("sessions", "list")
   if (cached?.length && !app.sessionsLoaded) setApp((s) => void (s.sessions = cached.map((session) => ({ ...session, meta: { ...noMeta, ...session.meta } }))))
+  await flushOutbox()
   socket.start()
 }
 
@@ -205,14 +206,53 @@ export async function send(sessionId: string, text: string) {
     messageCount: (known?.messageCount ?? 0) + 1,
     updatedAt: Date.now(),
   })
+  const queued: Queued = { ...item, sessionId }
+  await idb.put("outbox", item.id, queued)
+  await deliver(queued)
+}
+
+interface Queued extends Pending {
+  readonly sessionId: string
+}
+
+const delivering = new Set<string>()
+
+/**
+ * A send lives in the IndexedDB outbox until the server accepts it, so a reload or a dropped connection never loses it.
+ * A lost connection keeps it queued for the next open; any other refusal drops it and says why.
+ */
+async function deliver(item: Queued) {
+  if (delivering.has(item.id)) return
+  delivering.add(item.id)
   try {
-    await socket.request("chat.send", { sessionId, text, operationId: item.id })
+    await socket.request("chat.send", { sessionId: item.sessionId, text: item.text, operationId: item.id })
+    void idb.del("outbox", item.id)
   } catch (cause) {
+    if (cause instanceof RequestError && cause.code === "disconnected") return
+    void idb.del("outbox", item.id)
     const error = cause instanceof Error ? cause.message : "Message not sent. Check your connection and send it again."
-    thread(sessionId, (state) => {
+    thread(item.sessionId, (state) => {
       state.pending = state.pending.filter((entry) => entry.id !== item.id)
       state.error = error
     })
+  } finally {
+    delivering.delete(item.id)
+  }
+}
+
+/** Sends what the outbox still holds, once the thread's entries are fresh: a send the server already has is dropped by its seq, not sent twice. */
+async function flushOutbox() {
+  for (const item of await idb.all<Queued>("outbox")) {
+    const state = app.threads[item.sessionId]
+    if (state && userCount(state.entries) > item.seq) {
+      void idb.del("outbox", item.id)
+      continue
+    }
+    thread(item.sessionId, (next) => {
+      if (!next.pending.some((entry) => entry.id === item.id)) next.pending = [...next.pending, { id: item.id, text: item.text, seq: item.seq }].sort((a, b) => a.seq - b.seq)
+      if (next.phase === "loading" && next.entries.length === 0) next.phase = "ready"
+    })
+    if (socket.state === "open") void deliver(item)
   }
 }
 

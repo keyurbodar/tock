@@ -36,4 +36,5 @@ export const idb = {
   get: <T>(store: StoreName, key: string) => run<T>(store, "readonly", (s) => s.get(key) as IDBRequest<T>),
   put: (store: StoreName, key: string, value: unknown) => run(store, "readwrite", (s) => s.put(value, key)),
   del: (store: StoreName, key: string) => run(store, "readwrite", (s) => s.delete(key)),
+  all: <T>(store: StoreName) => run<T[]>(store, "readonly", (s) => s.getAll() as IDBRequest<T[]>).then((values) => values ?? []),
 }

@@ -95,6 +95,7 @@ export class Socket {
     if (ws.readyState <= WebSocket.OPEN) ws.close()
     for (const [, entry] of this.pending) entry.reject(new RequestError("disconnected", "Connection lost"))
     this.pending.clear()
+    this.queue = []
     clearTimeout(this.retry)
     if (quick && this.attempt > 0) {
       const res = await fetch("/api/auth", { credentials: "same-origin" }).catch(() => null)
