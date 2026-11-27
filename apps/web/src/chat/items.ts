@@ -8,6 +8,7 @@ import type {
   ToolResultMessage,
   ToolSlot,
 } from "@tock/protocol"
+import { tokens } from "@tock/tokens"
 import { isPlan, planOf, type Plan } from "./steps"
 
 export type Step =
@@ -39,7 +40,7 @@ export type Item =
   | { readonly kind: "text"; readonly key: string; readonly text: string; readonly streaming: boolean; readonly at: number | null }
   | { readonly kind: "error"; readonly key: string; readonly title: string; readonly detail: string; readonly retry?: string }
   | { readonly kind: "caption"; readonly key: string; readonly text: string; readonly side: "me" | "agent" }
-  | { readonly kind: "divider"; readonly key: string; readonly text: string }
+  | { readonly kind: "divider"; readonly key: string; readonly text: string; readonly tone?: "passed" | "new" }
   | { readonly kind: "ask"; readonly key: string; readonly ask: Ask; readonly answer: string | undefined; readonly pending: boolean }
 
 export interface Ask {
@@ -95,12 +96,22 @@ const dayLabel = (at: number, now: number) => {
   if (day(at) === day(now - 24 * HOUR)) return "Yesterday"
   return new Date(at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
 }
-/** TDS CxDividersTime: a day divider once per day, and the day with the time after a gap of an hour or more. */
-export function timeDivider(previous: number | null, at: number, now: number): string | undefined {
-  if (previous === null || day(previous) !== day(at)) return dayLabel(at, now)
-  if (at - previous < HOUR) return undefined
+const MINUTE = 60_000
+/**
+ * TDS CxDividersTime: a day divider once per day; a wavy "2 hours later" for a gap inside the same sitting
+ * (limit.divider-passed-min up to limit.divider-sitting-hours); the day with the time after a longer gap.
+ */
+export function timeDivider(previous: number | null, at: number, now: number): { text: string; tone?: "passed" } | undefined {
+  if (previous === null || day(previous) !== day(at)) return { text: dayLabel(at, now) }
+  const gap = at - previous
+  if (gap < tokens.limit["divider-passed-min"] * MINUTE) return undefined
+  if (gap < tokens.limit["divider-sitting-hours"] * HOUR) {
+    const hours = Math.floor(gap / HOUR)
+    const minutes = Math.floor(gap / MINUTE)
+    return { text: hours ? `${hours} ${hours === 1 ? "hour" : "hours"} later` : `${minutes} minutes later`, tone: "passed" }
+  }
   const time = new Date(at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-  return `${new Date(at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${time}`
+  return { text: `${new Date(at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${time}` }
 }
 
 interface Work {
@@ -146,9 +157,9 @@ export function buildItems(
   let lastAt: number | null = null
   const stamp = (key: string, at: number | null) => {
     if (at === null) return
-    const text = timeDivider(lastAt, at, now)
+    const divider = timeDivider(lastAt, at, now)
     lastAt = at
-    if (text) items.push({ kind: "divider", key: `divider:${key}`, text })
+    if (divider) items.push({ kind: "divider", key: `divider:${key}`, ...divider })
   }
   const results = new Map<string, ToolResultMessage>()
   const slots = new Map<string, ToolSlot>((live?.tools ?? []).map((slot) => [slot.callId, slot]))

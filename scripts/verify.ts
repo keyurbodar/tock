@@ -2017,6 +2017,34 @@ const journeys: Record<string, () => void> = {
     until(() => exists(".tds-jump[data-on]"), (on) => !on, "the pill to leave after jumping to the end")
     ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
   },
+  newdivider() {
+    fresh()
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "Check the weather in Tokyo and summarise it")
+    ab("press", "Enter")
+    until(() => exists(".tds-bubble[data-side='me']"), Boolean, "my bubble")
+    ab("eval", "document.querySelector('.tds-column').insertAdjacentHTML('afterbegin', '<div class=verify-older style=height:2400px></div>')")
+    until(() => (ab("eval", "(() => { const t = document.querySelector('.tds-transcript'); t.scrollTo({ top: 0, behavior: 'instant' }); t.dispatchEvent(new Event('scroll')) })()"), wait(150), exists(".tds-jump[data-on]")), Boolean, "the pill once scrolled up")
+    const label = until(() => text(".tds-divider[data-tone='new'] .tds-divider-text"), (t) => /^\d+ new$/.test(t), "the N new divider", 20000)
+    check(js<string>("return getComputedStyle(document.querySelector('.tds-divider[data-tone=new] .tds-divider-text')).color") === js<string>("const p = document.createElement('i'); p.style.color = 'var(--tds-accent-rose)'; document.body.append(p); const c = getComputedStyle(p).color; p.remove(); return c"), "the new divider is rose")
+    ab("click", ".tds-jump")
+    until(() => exists(".tds-jump[data-on]"), (on) => !on, "the pill to leave")
+    ab("eval", "document.querySelector('.tds-divider[data-tone=new]').scrollIntoView({ block: 'center' })")
+    wait(300)
+    shot("divider-new")
+    check(exists(".tds-divider[data-tone='new']"), `the ${label} divider stays after you jump down`)
+    ab("eval", "document.querySelectorAll('.verify-older').forEach((d) => d.remove())")
+    ab("click", ".ProseMirror")
+    ab("keyboard", "type", "thanks")
+    ab("press", "Enter")
+    until(() => exists(".tds-divider[data-tone='new']"), (on) => !on, "the new divider to clear once you send")
+    ab("eval", "import('/src/chat/items.ts').then((m) => { const at = new Date(2026, 10, 27, 9).getTime(); window.__td = [m.timeDivider(at, at + 5 * 60000, at), m.timeDivider(at, at + 2 * 3600000, at), m.timeDivider(at, at + 40 * 60000, at), m.timeDivider(at, at + 5 * 3600000, at)] })")
+    const td = until(() => js<Array<{ text: string; tone?: string } | null> | null>("return window.__td ?? null"), Boolean, "timeDivider samples")
+    check(td![0] === null, "no divider for a short gap")
+    check(td![1]?.text === "2 hours later" && td![1]?.tone === "passed", `a 2h gap in the same sitting reads 2 hours later (got ${JSON.stringify(td![1])})`)
+    check(td![2]?.text === "40 minutes later", `a 40m gap reads 40 minutes later (got ${JSON.stringify(td![2])})`)
+    check(td![3]?.tone === undefined && /PM|AM/.test(td![3]?.text ?? ""), `a 5h gap shows the day and time (got ${JSON.stringify(td![3])})`)
+  },
   revealstable() {
     ab("click", "button[aria-label='New chat']")
     until(() => exists(".ProseMirror"), Boolean, "the composer")
@@ -2884,7 +2912,7 @@ const journeys: Record<string, () => void> = {
   },
 }
 
-const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
+const order = ["doctor", "shell", "resize", "send", "code", "divider", "worklog", "menu", "typography", "pin", "swipe", "swipeintent", "multiselect", "peek", "snooze", "move", "stack", "stackscroll", "pinactive", "rename", "dialog", "shortcuts", "hotkeys", "palette", "notifications", "sheet", "plus", "attach", "lightbox", "finished", "links", "mention", "command", "toasts", "expand", "stopped", "empty", "header", "offline", "toaststack", "morph", "fluid", "ask", "needsrow", "question", "numbered", "multiquestion", "retry", "composer", "writesheet", "tokens", "longpaste", "lifecycle", "tray", "dropzone", "queued", "baseline", "scroll", "rich", "fence", "mdpreview", "clamp", "anchor", "flip", "files", "peekbridge", "trackpad", "rowmorph", "pingrid", "mobile", "ui", "motion", "type", "a11y", "smooth", "calmtext", "steps", "longrun", "growopen", "trayfit", "traygrow", "outbox", "faults", "longchat", "jumppill", "newdivider", "revealstable", "prefetch", "thoughts", "codeexit", "roundtrip", "richpaste", "trayopen", "edges", "skeleton", "markdown", "keys", "hoverread", "subscriptions", "halfopen", "diagnostics"]
 const picked = process.argv.slice(2)
 const run = picked.length ? ["doctor", ...picked.filter((name) => name !== "doctor")] : order
 let failed = 0

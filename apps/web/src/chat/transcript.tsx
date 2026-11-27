@@ -33,6 +33,8 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
   )
 }
 
+const WAVE = `M0 6${"q7.5 -6 15 0t15 0".repeat(20)}`
+
 /** One finished exchange in the shapes a chat loads into: drawn as the transcript's bones while its messages load. */
 const SAMPLE: readonly Item[] = [
   { kind: "divider", key: "divider", text: "Today" },
@@ -79,7 +81,31 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
   onCleanup(() => grow.disconnect())
   const [open, setOpen] = createSignal<{ key: string; anchor: HTMLElement }>()
   const toggle = (key: string, anchor: HTMLElement) => setOpen((current) => (current?.key === key ? undefined : { key, anchor }))
-  const items = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting", Date.now(), props.state.thinking) : []))
+  const built = createMemo(() => (props.state ? buildItems(props.state.entries, props.state.live, props.state.pending, app.connection === "open" || app.connection === "connecting", Date.now(), props.state.thinking) : []))
+  const groupOf = (item: Item) => (item.kind === "text" ? item.key.replace(/:\d+$/, "") : item.kind === "user" ? item.key : undefined)
+  /** TDS CxDividersTime "New": a rose "N new" divider where the messages that arrived while you were scrolled up start; it stays until you send. */
+  const [seen, setSeen] = createSignal<ReadonlySet<string>>()
+  createEffect(away, (on) => {
+    if (on && !untrack(seen)) setSeen(new Set(untrack(built).flatMap((item) => groupOf(item) ?? [])))
+    if (!on && !untrack(items).some((item) => item.key === "divider:new")) setSeen(undefined)
+  })
+  createEffect(
+    () => props.sessionId,
+    () => void setSeen(undefined),
+  )
+  createEffect(
+    () => props.state?.pending.at(-1)?.id,
+    (sent) => void (sent && setSeen(undefined)),
+  )
+  const items = createMemo(() => {
+    const all = built()
+    const known = seen()
+    if (!known) return all
+    const at = all.findIndex((item) => groupOf(item) !== undefined && !known.has(groupOf(item)!))
+    if (at < 0) return all
+    const count = new Set(all.slice(at).flatMap((item) => groupOf(item) ?? [])).size
+    return [...all.slice(0, at), { kind: "divider", key: "divider:new", text: `${count} new`, tone: "new" } as const, ...all.slice(at)]
+  })
   const [depth, setDepth] = createSignal<number>(tokens.limit["transcript-window"])
   /** Long chats mount their newest items first and the rest as you scroll up (overflow-anchor keeps your place), so opening a 500-message chat costs what opening a short one does. */
   const shown = createMemo(() => {
@@ -146,7 +172,15 @@ export function Transcript(props: { state: ThreadState | undefined; sessionId: s
         <span class="tds-caption" data-side={(item() as Extract<Item, { kind: "caption" }>).side}>{(item() as Extract<Item, { kind: "caption" }>).text}</span>
       </Match>
       <Match when={item().kind === "divider"}>
-        <div class="tds-divider" role="separator"><span class="tds-divider-rule" /><span class="tds-divider-text">{(item() as Extract<Item, { kind: "divider" }>).text}</span><span class="tds-divider-rule" /></div>
+        <div class="tds-divider" role="separator" data-tone={(item() as Extract<Item, { kind: "divider" }>).tone}>
+          <Show when={(item() as Extract<Item, { kind: "divider" }>).tone === "passed"} fallback={<span class="tds-divider-rule" />}>
+            <span class="tds-divider-wave"><svg viewBox="0 0 600 12" aria-hidden="true"><path d={WAVE} /></svg></span>
+          </Show>
+          <span class="tds-divider-text">{(item() as Extract<Item, { kind: "divider" }>).text}</span>
+          <Show when={(item() as Extract<Item, { kind: "divider" }>).tone === "passed"} fallback={<span class="tds-divider-rule" />}>
+            <span class="tds-divider-wave" data-end=""><svg viewBox="0 0 600 12" aria-hidden="true"><path d={WAVE} /></svg></span>
+          </Show>
+        </div>
       </Match>
       <Match when={item().kind === "error" && (item() as Extract<Item, { kind: "error" }>)}>
         {(error) => (
