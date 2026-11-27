@@ -27,31 +27,33 @@ const dismissed = (): ReadonlySet<string> => {
  */
 export function Followups(props: { chat: string; set: Set | undefined; working: boolean; onPick: (prompt: string) => void }) {
   const [gone, setGone] = createSignal(dismissed())
-  const [typed, setTyped] = createSignal(false)
+  const [typed, setTyped] = createSignal((document.querySelector(".tds-composer-wrap .ProseMirror")?.textContent ?? "").trim().length > 0)
   const [key, setKey] = createSignal<string>()
   const [chips, setChips] = createSignal<readonly Chip[]>([])
   /** "swap" while a set morphs in, "rest" once the chips show their final labels: the end signal tests wait on. */
   const [phase, setPhase] = createSignal<"swap" | "rest">("rest")
   let row: HTMLDivElement | undefined
-  const drafted = () => (document.querySelector(".tds-composer-wrap .ProseMirror")?.textContent ?? "").trim().length > 0
-  const onInput = (event: Event) => {
-    if ((event.target as HTMLElement | null)?.closest?.(".tds-composer-wrap")) setTyped(drafted())
-  }
-  for (const type of ["input", "keyup", "cut", "paste"]) document.addEventListener(type, onInput, true)
-  onCleanup(() => ["input", "keyup", "cut", "paste"].forEach((type) => document.removeEventListener(type, onInput, true)))
-  createEffect(
-    () => [props.working, props.set?.key] as const,
-    () => void setTyped(drafted()),
-  )
+  /** The composer says when its draft turns empty or not (typing, a restored draft, a send, a pick), so the row hides while there's a draft. */
+  const onDraft = (event: Event) => setTyped(!(event as CustomEvent<boolean>).detail)
+  addEventListener("tds-composer-empty", onDraft)
+  onCleanup(() => removeEventListener("tds-composer-empty", onDraft))
   const wanted = () => (props.set && !props.working && !typed() && !gone().has(props.set.key) ? props.set : undefined)
   let frame = 0
   let leaving = false
+  let leaveRun = 0
+  /** A leave the same or a newer set interrupts: drop its fade so the row stays visible. */
+  const stopLeave = () => {
+    if (!leaving) return
+    leaving = false
+    leaveRun++
+    row?.getAnimations().forEach((animation) => animation.cancel())
+  }
   let run = 0
   onCleanup(() => cancelAnimationFrame(frame))
   /** A reply has settled once its words have finished revealing, so the chips never come up under a sentence still being written. */
   const afterReveal = (show: () => void) => {
     cancelAnimationFrame(frame)
-    const tick = () => (document.querySelector(".tds-transcript .tds-word-wait") ? (frame = requestAnimationFrame(tick)) : show())
+    const tick = () => (document.querySelector(".tds-transcript :is(.tds-word-wait, .tds-word)") ? (frame = requestAnimationFrame(tick)) : show())
     tick()
   }
   const widths = () => [...(row?.querySelectorAll<HTMLElement>(".tds-followup:not(.tds-followup-x)") ?? [])].map((el) => el.getBoundingClientRect().width)
@@ -93,7 +95,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
   }
   const show = (next: Set) => {
     run++
-    leaving = false
+    stopLeave()
     setPhase("rest")
     setKey(next.key)
     setChips(next.items.map((cur) => ({ cur })))
@@ -105,7 +107,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
       chat = untrack(() => props.chat)
       if (untrack(key) && row) handoff = { items: untrack(chips).map((chip) => chip.cur), widths: widths(), at: performance.now() }
       run++
-      leaving = false
+      stopLeave()
       cancelAnimationFrame(frame)
       setKey(undefined)
       setChips([])
@@ -114,21 +116,18 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     const now = untrack(key)
     if (now === next?.key) {
       cancelAnimationFrame(frame)
-      if (next && leaving) {
-        leaving = false
-        run++
-        row?.getAnimations().forEach((animation) => animation.cancel())
-      }
+      if (next) stopLeave()
       return
     }
     if (!next) {
       cancelAnimationFrame(frame)
       if (!row || !now) return
-      const id = ++run
+      const id = ++leaveRun
       leaving = true
       void exit.followup(row)?.finished.then(
         () => {
-          if (id !== run) return
+          if (id !== leaveRun || !leaving) return
+          run++
           leaving = false
           setKey(undefined)
           setChips([])
@@ -170,10 +169,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
                 type="button"
                 class="tds-followup tds-glass"
                 aria-describedby={`followup-tip-${index}`}
-                onClick={() => {
-                  setTyped(true)
-                  props.onPick(chip().cur.prompt)
-                }}
+                onClick={() => props.onPick(chip().cur.prompt)}
               >
                 <span class="tds-followup-emoji" aria-hidden="true">
                   <Show when={chip().prev}>{(prev) => <span data-prev="">{prev().emoji}</span>}</Show>

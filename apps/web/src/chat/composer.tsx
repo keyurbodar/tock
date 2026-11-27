@@ -218,6 +218,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   })
   onSettled(() => reserve.observe(wrap))
   onCleanup(() => reserve.disconnect())
+  createEffect(empty, (isEmpty) => queueMicrotask(() => dispatchEvent(new CustomEvent("tds-composer-empty", { detail: isEmpty }))))
   const fill = (event: Event) => untrack(() => editor?.chain().setContent((event as CustomEvent<string>).detail, { emitUpdate: true }).focus("end").run())
   addEventListener("tds-composer-fill", fill)
   onCleanup(() => removeEventListener("tds-composer-fill", fill))

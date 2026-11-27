@@ -2282,7 +2282,7 @@ const journeys: Record<string, () => void | Promise<void>> = {
     ab("press", "Enter")
     check(!exists(".tds-followups"), "no follow-ups while the run works")
     settle(3, "three follow-ups once the reply settles")
-    check(!exists(".tds-transcript .tds-word-wait"), "the chips wait for the reply to finish revealing")
+    revealed("the reply under the follow-ups")
     check(js<number>("return [...document.querySelectorAll('.tds-followup, .tds-followup *')].flatMap((e) => e.getAnimations()).length") === 0, "a fresh row simply appears, as in the reference")
     check(!text(".tds-transcript").includes("suggest_followups"), "the tool call stays out of the transcript")
     const geo = js<{ h: number; gap: number; left: number; plus: number; row: number; field: number; right: number; send: number }>("const c = [...document.querySelectorAll('.tds-followup')].map((e) => e.getBoundingClientRect()); return { h: c[0].height, gap: c[1].left - c[0].right, left: c[0].left, plus: document.querySelector('.tds-composer-plus').getBoundingClientRect().left, row: Math.max(...c.map((r) => r.bottom)), field: document.querySelector('.tds-field').getBoundingClientRect().top, right: Math.max(...c.map((r) => r.right)), send: document.querySelector('.tds-send').getBoundingClientRect().left }")
