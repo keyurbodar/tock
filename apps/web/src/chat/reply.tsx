@@ -30,7 +30,7 @@ export async function jumpTo(ref: string) {
   const scroller = first.closest<HTMLElement>(".tds-transcript")
   const box = first.getBoundingClientRect()
   const view = scroller?.getBoundingClientRect()
-  const visible = view && box.top >= view.top && box.bottom <= view.bottom
+  const visible = view && box.top >= view.top + tokens.size["column-top"] && box.bottom <= view.bottom - tokens.size["column-bottom"]
   const play = () => found.forEach((el) => flash(el))
   if (visible || !scroller) return play(), true
   scroller.addEventListener("scrollend", play, { once: true })
