@@ -2,8 +2,9 @@ import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
 import { Orb, type OrbStatus } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
-import { MorphIcon } from "@tock/ui/morph-icon"
-import type { glyphFor } from "../lib/glyph"
+import { MenuTrigger } from "@ui-sdk/solid/menu"
+import { useNavigate, useParams } from "@solidjs/router"
+import { glyphFor } from "../lib/glyph"
 import { Skeleton, scrollBehavior } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app } from "../state/app"
@@ -11,6 +12,9 @@ import { visibleTimeout } from "../lib/socket"
 import { STATUS_LABEL } from "../lib/status"
 import { dirOf } from "../lib/dir"
 import { toast } from "../shell/toasts"
+import { threadMenu } from "../shell/thread-menu"
+import { sidebarOpen, toggleSidebar } from "../shell/sidebar"
+import { narrow } from "../shell/narrow"
 
 const LABEL: Record<OrbStatus, string> = STATUS_LABEL
 
@@ -29,48 +33,60 @@ export function Header(props: { title: string; glyph: ReturnType<typeof glyphFor
   }
   addEventListener("keydown", onKey)
   onCleanup(() => removeEventListener("keydown", onKey))
-  const [last, setLast] = createSignal<ReturnType<typeof glyphFor>>()
-  createEffect(
-    () => props.glyph,
-    (glyph) => void (glyph && setLast(glyph)),
-  )
+  const params = useParams<{ id?: string }>()
+  const navigate = useNavigate()
+  const session = () => app.sessions.find((s) => s.id === params.id)
+  const glyph = () => props.glyph ?? (params.id ? glyphFor(params.id) : undefined)
   const status = () => (props.status && props.status !== "done" ? props.status : undefined)
   const [shown, setShown] = createSignal<OrbStatus>()
   createEffect(status, (now) => void (now && setShown(now)))
+  const title = () => (
+    <>
+      <span class={`tds-ttl-icon ${glyph()?.hue ?? ""}`} aria-hidden="true">
+        <Show when={glyph()}>{(g) => <Icon name={g().icon} size="channel" />}</Show>
+      </span>
+      <span class="tds-header-title" dir={dirOf(props.title)}>
+        <Skeleton inline id={props.shape} label="Loading channel name" loading={props.loading === true} sample={() => <span>Planning the week</span>}>
+          <TextMorph value={props.title} mode="morph" />
+        </Skeleton>
+      </span>
+    </>
+  )
   return (
     <>
       <header class="tds-header">
-        <span class="tds-header-band tds-glass" aria-hidden="true" />
-        <div class="tds-header-stack">
-          <span class="tds-header-avatar grid size-header-avatar place-items-center rounded-pill bg-glass shadow-glass" data-glyph={props.glyph ? "" : undefined}>
-            <img src="/brand/toast-face-center.svg" alt="" class="tds-header-mascot size-header-face" draggable={false} />
-            <span class={`tds-header-glyph ${props.glyph?.hue ?? last()?.hue ?? ""}`} data-icon={props.glyph?.icon}>
-              <Show when={props.glyph ?? last()}>{(g) => <MorphIcon name={g().icon} size="header" />}</Show>
+        <span class="tds-header-band" aria-hidden="true" />
+        <h1 class="sr-only">{props.title}</h1>
+        <div class="tds-header-start">
+          <Show when={narrow() || !sidebarOpen()}>
+            <button type="button" class="tds-ib" aria-label={narrow() ? "Channels" : "Open sidebar"} aria-expanded="false" data-tip="" data-tip-side="right" onClick={() => (untrack(narrow) ? navigate("/") : toggleSidebar(true))}>
+              <Icon name="sidebar-simple" size="bar" />
+            </button>
+          </Show>
+          <Show when={session()} fallback={<span class="tds-ttl" data-static="">{title()}</span>}>
+            {(s) => (
+              <MenuTrigger controller={threadMenu} payload={s()} class="tds-ttl" aria-label={`${props.title}, channel options`}>
+                {title()}
+                <Icon name="caret-down" size="caret" class="tds-ttl-cv" />
+              </MenuTrigger>
+            )}
+          </Show>
+          <span class="tds-header-status" data-on={status() ? "" : undefined} role="status">
+            <span class="tds-header-orb">
+              <Show when={shown()}>{(s) => <Orb status={s()} />}</Show>
             </span>
-          </span>
-          <span class="tds-header-pill tds-glass">
-            <span class="tds-header-title" dir={dirOf(props.title)} title={props.title} role="heading" aria-level="1">
-              <Skeleton inline id={props.shape} label="Loading chat title" loading={props.loading === true} sample={() => <span>Planning the week ahead</span>}>
-                <TextMorph value={props.title} mode="morph" />
-              </Skeleton>
-            </span>
-            <span class="tds-header-status" data-on={status() ? "" : undefined}>
-              <span class="tds-header-orb">
-                <Show when={shown()}>{(s) => <Orb status={s()} />}</Show>
-              </span>
-              <TextMorph value={status() ? LABEL[status()!] : ""} mode="calm" />
-            </span>
+            <TextMorph value={status() ? LABEL[status()!] : ""} mode="calm" />
           </span>
         </div>
         <div class="tds-header-actions" data-finding={finding() ? "" : undefined}>
           <Show when={finding()}>
             <Finder onClose={() => setFinding(false)} />
           </Show>
-          <button type="button" class="tds-header-button tds-press" aria-label="Share" data-tip="" data-tip-side="bottom" onClick={() => void share()}>
-            <Icon name="export" size="row" />
+          <button type="button" class="tds-ib" aria-label="Search in channel" data-tip="" data-tip-side="bottom" aria-pressed={finding() ? "true" : "false"} onClick={() => setFinding((on) => !on)}>
+            <Icon name="magnifying-glass" size="bar" />
           </button>
-          <button type="button" class="tds-header-button tds-press" aria-label="Search in chat" data-tip="" data-tip-side="bottom" aria-pressed={finding() ? "true" : "false"} onClick={() => setFinding((on) => !on)}>
-            <Icon name="magnifying-glass" size="row" />
+          <button type="button" class="tds-ib" aria-label="Share" data-tip="" data-tip-side="bottom" onClick={() => void share()}>
+            <Icon name="export" size="bar" />
           </button>
         </div>
       </header>
