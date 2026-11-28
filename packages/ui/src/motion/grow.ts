@@ -88,7 +88,7 @@ export function growFrom(surface: HTMLElement, trigger: Element | DOMRect, kind:
 /** Backdrop: the app behind an expanded surface dims, scales and blurs; nested surfaces stack, the last close clears it. */
 let depth = 0
 export function scrim() {
-  return document.querySelector<HTMLElement>(".tds-backdrop-scrim") ?? document.body.appendChild(Object.assign(document.createElement("div"), { className: "tds-backdrop-scrim", ariaHidden: "true" }))
+  return document.querySelector<HTMLElement>(".tds-backdrop-scrim") ?? document.body.appendChild(Object.assign(document.createElement("div"), { className: "tds-backdrop-scrim tds-backdrop", ariaHidden: "true" }))
 }
 
 export function backdrop(on: boolean) {
