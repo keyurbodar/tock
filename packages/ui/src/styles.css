@@ -86,7 +86,12 @@
   .tds-glass { --material: blur(var(--tds-pill-blur)) saturate(var(--tds-pill-saturate)) }
   .tds-veil-glass { --material: blur(var(--tds-veil-blur)) saturate(var(--tds-veil-saturate)) }
   /* Backdrop: the blurred scrim behind modal surfaces (palette, dialogs, drawers, sheets, lightbox). The blur is static; only the layer's opacity animates. */
-  .tds-backdrop { --material: blur(var(--tds-backdrop-blur)) saturate(var(--tds-backdrop-saturate)); background: var(--tds-backdrop-scrim) }
+  /* Written out rather than through --material: Safari has dropped a prefixed backdrop-filter that resolves through a
+     custom property holding a whole filter list, which left the palette and the drop shell as a flat dim. */
+  .tds-backdrop {
+    --material: blur(var(--tds-backdrop-blur)) saturate(var(--tds-backdrop-saturate)); background: var(--tds-backdrop-scrim);
+    -webkit-backdrop-filter: blur(var(--tds-backdrop-blur)) saturate(var(--tds-backdrop-saturate)); backdrop-filter: blur(var(--tds-backdrop-blur)) saturate(var(--tds-backdrop-saturate));
+  }
   /* Static blur: a glass surface in flight (grow, drive, drag) drops the live blur and takes it back at rest, so the
      backdrop is sampled once instead of every frame. The fill alone carries the surface while it moves. */
   :is(.tds-over, .tds-glass, .tds-veil-glass)[data-moving] { -webkit-backdrop-filter: none; backdrop-filter: none }
@@ -123,7 +128,10 @@
 @layer utilities {
   @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
     .tds-over, .tds-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: var(--tds-surface-card); background-image: none }
-    .tds-veil-glass, .tds-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: var(--tds-overlay-scrim); background-image: none }
+    .tds-veil-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: var(--tds-overlay-scrim); background-image: none }
+    /* A modal backdrop keeps its blur under Reduce Transparency: blurring what sits behind a dialog only makes the dialog
+       easier to read, which is what the setting asks for. It gets a heavier scrim on top. */
+    .tds-backdrop { background-color: var(--tds-overlay-scrim) }
   }
   @media (prefers-contrast: more) {
     .tds-over, .tds-glass, .tds-raise-1, .tds-raise-2, .tds-raise-3, .tds-raise-glass { outline: 1px solid var(--tds-text-muted); outline-offset: -1px }

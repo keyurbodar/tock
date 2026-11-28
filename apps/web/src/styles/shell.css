@@ -5,7 +5,7 @@
     width: calc(100% - var(--tds-size-column-gutter)); max-width: var(--tds-size-column); margin: 0 auto; padding: var(--tds-size-column-top) 0 calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--followup-reserve, 0px) + var(--tds-space-12));
   }
   .tds-bubble {
-    max-width: min(100%, var(--tds-size-bubble-max)); padding: var(--tds-space-7) var(--tds-space-13); border-radius: var(--tds-radius-bubble); margin-top: var(--tds-space-3);
+    max-width: min(100%, var(--tds-size-bubble-max)); padding: var(--tds-space-5) var(--tds-space-12); border-radius: var(--tds-radius-bubble); margin-top: var(--tds-space-3);
     font-size: var(--tds-type-bubble-size); line-height: var(--tds-type-bubble-lh); letter-spacing: var(--tds-type-bubble-tracking);
     white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
     transition: opacity var(--tds-dur-layout) var(--tds-ease-out);

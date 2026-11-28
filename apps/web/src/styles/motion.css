@@ -14,7 +14,7 @@
   .tds-fluid[data-on] { opacity: 1 }
   .tds-fluid[data-instant] { transition: opacity var(--tds-dur-hover) var(--tds-ease-out) }
   [data-fluid] { isolation: isolate }
-  .tds-menu > .tds-fluid { background: var(--tds-overlay-item-on) }
+  :is(.tds-menu, .tds-sidebar .tds-menu) > .tds-fluid { background: var(--tds-overlay-item-on) }
   .tds-palette-list > .tds-fluid { background: var(--tds-overlay-palette-on) }
   .tds-sidebar .tds-fluid { background: var(--tds-surface-row-hover) }
   .tds-fluid { background-image: var(--tds-raise-sheen-hover); box-shadow: var(--tds-raise-shadow-hover) }
