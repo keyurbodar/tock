@@ -18,6 +18,7 @@ export const appHotkeys = defineAppHotkeys({
   "composer.attach": { hotkey: "Mod+O", meta: { name: "Attach files" }, options: { ignoreInputs: false } },
   "toast.undo": { hotkey: "Mod+Z", meta: { name: "Undo the last change" }, options: { preventDefault: false, stopPropagation: false } },
   "layer.escape": { hotkey: "Escape", meta: { name: "Stop toast" }, options: { ignoreInputs: false, preventDefault: false, stopPropagation: false } },
+  "sidebar.toggle": { hotkey: "Mod+B", meta: { name: "Show or hide the sidebar" }, options: { ignoreInputs: false } },
   "help.shortcuts": { hotkey: "?", meta: { name: "Keyboard shortcuts" }, options: { preventDefault: false, stopPropagation: false } },
 })
 
