@@ -2,10 +2,9 @@ import { createEffect, createMemo, createSignal, For, onCleanup, onSettled, Show
 import { Portal, type JSX } from "@solidjs/web"
 import { Icon } from "@tock/ui/icon"
 import { expandTo, growFrom, spring, TextMorph, watchLayout } from "@tock/ui/motion"
-import { createPopoverController, Popover, PopoverContent } from "@ui-sdk/solid/popover"
 import { tokens } from "@tock/tokens"
 import { toast } from "../shell/toasts"
-import { addComment, commentsOf, deleteComment, pillsOf, reacted, settledSince, setReaction } from "../state/reactions"
+import { pillsOf, reacted, settledSince, setReaction } from "../state/reactions"
 
 /** The quick-react bar: the six everyday reactions, then + for the picker. */
 export const QUICK = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const
@@ -60,7 +59,7 @@ interface Unit {
   readonly el: HTMLElement
   readonly ref: string
   readonly label: string
-  /** The message's direct child that holds the unit: its reactions and comments sit right under it. */
+  /** The message's direct child that holds the unit: its reactions sit on its lower edge. */
   readonly lane: HTMLElement
 }
 
@@ -72,7 +71,7 @@ export const messageRef = (ref: string) => ref.split("#", 1)[0]!
 
 const sameUnits = (a: readonly Unit[], b: readonly Unit[]) => a.length === b.length && a.every((unit, i) => unit.el === b[i]!.el && unit.ref === b[i]!.ref && unit.lane === b[i]!.lane)
 
-/** A message in the transcript: its units, the hover bar (React, Comment, Reply, time), and each unit's pills and comments. */
+/** A message in the transcript: its units, the hover bar (React, Reply, time), and each unit's reaction badges. */
 export function Message(props: { sessionId: string; side: "me" | "agent"; target?: string; at: number | null; text: string; children: JSX.Element }) {
   let root!: HTMLDivElement
   let bar: HTMLDivElement | undefined
@@ -81,8 +80,6 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
   const [spot, setSpot] = createSignal<{ x: number; y: number; mode: "side" | "corner" }>()
   const [held, setHeld] = createSignal(false)
   const [open, setOpen] = createSignal<{ anchor: HTMLButtonElement; unit: Unit }>()
-  const [composing, setComposing] = createSignal<Unit>()
-  const composer = createPopoverController<Unit>()
 
   const laneOf = (el: HTMLElement) => {
     let at = el
@@ -118,11 +115,11 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
     () => void (frame ||= requestAnimationFrame(() => ((frame = 0), scan()))),
   )
 
-  /** Lanes holding a unit with pills or comments, each with its units in order. */
+  /** Lanes holding a unit with reactions, each with its units in order. */
   const decorated = createMemo(() => {
     const lanes = new Map<HTMLElement, Unit[]>()
     for (const unit of units()) {
-      if (pillsOf(props.sessionId, unit.ref).length === 0 && commentsOf(props.sessionId, unit.ref).length === 0) continue
+      if (pillsOf(props.sessionId, unit.ref).length === 0) continue
       const list = lanes.get(unit.lane) ?? []
       lanes.set(unit.lane, [...list, unit])
     }
@@ -180,12 +177,12 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
     const w = bar.offsetWidth
     const h = bar.offsetHeight
     const top = at.top - box.top
-    const beside = top + Math.min(at.height, h * 2) / 2 - h / 2
+    const beside = top + at.height / 2 - h / 2
     if (props.side === "agent")
       setSpot(box.right - at.right >= w + gap ? { x: at.right - box.left + gap, y: beside, mode: "side" } : { x: at.right - box.left - w - gap, y: top - h / 2, mode: "corner" })
     else setSpot(at.left - box.left >= w + gap ? { x: at.left - box.left - w - gap, y: beside, mode: "side" } : { x: at.left - box.left + gap, y: top - h / 2, mode: "corner" })
   }
-  const busy = () => untrack(open) !== undefined || untrack(composing) !== undefined || untrack(held)
+  const busy = () => untrack(open) !== undefined || untrack(held)
   const rest = () => {
     if (busy() || root.matches(":hover") || bar?.contains(document.activeElement)) return
     setActive(undefined)
@@ -220,23 +217,6 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
     if (on) remember(emoji)
     if (!on) toast("Reaction removed", { description: emoji, id: `reaction:${ref}`, action: { label: "Undo", run: () => void setReaction(sessionId, ref, emoji, true) } })
   }
-  const startComment = (unit: Unit) => {
-    setComposing(unit)
-    // Anchor to the part of the unit on screen, so a tall code block's composer opens by what you see, not off-screen.
-    const anchor = {
-      getBoundingClientRect: () => {
-        const at = unit.el.getBoundingClientRect()
-        const view = (unit.el.closest(".tds-transcript") ?? document.documentElement).getBoundingClientRect()
-        const top = Math.max(at.top, view.top)
-        return DOMRect.fromRect({ x: at.x, y: top, width: at.width, height: Math.max(0, Math.min(at.bottom, view.bottom) - top) })
-      },
-    }
-    void composer.open({ payload: unit, anchor }).then(() => {
-      setComposing(undefined)
-      setHeld(false)
-      queueMicrotask(rest)
-    })
-  }
   const pop = (el: HTMLElement) => {
     if (!settledSince(untrack(() => props.sessionId))) return
     queueMicrotask(() => el.isConnected && spring(el, [{ opacity: 0, scale: tokens.motion["pop-from"] }, { opacity: 1, scale: 1 }], "press"))
@@ -248,7 +228,7 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
       ref={root}
       class="tds-msg"
       data-side={props.side}
-      data-held={held() || open() || composing() ? "" : undefined}
+      data-held={held() || open() ? "" : undefined}
       onPointerOver={(event) => activate(unitAt(event.target))}
       onPointerLeave={rest}
       onPointerDown={touchDown}
@@ -286,21 +266,6 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
           >
             <Icon name="smiley" size="menu" />
           </button>
-          <button
-            type="button"
-            class="tds-msg-action tds-press"
-            aria-label="Comment"
-            aria-haspopup="dialog"
-            aria-expanded={composing() ? "true" : "false"}
-            data-tip=""
-            data-tip-side="top"
-            onClick={() => {
-              const unit = untrack(active) ?? mainUnit()
-              if (unit) startComment(unit)
-            }}
-          >
-            <Icon name="chat-circle" size="menu" />
-          </button>
           <Show when={replyHandler()}>
             {(reply) => (
               <button type="button" class="tds-msg-action tds-press" aria-label="Reply" data-tip="" data-tip-side="top" onClick={() => reply()({ ref: props.target!, side: props.side, text: props.text })}>
@@ -310,16 +275,6 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
           </Show>
           <Show when={props.at}>{(at) => <time class="tds-msg-time num" datetime={new Date(at()).toISOString()}>{timeOf(at())}</time>}</Show>
         </div>
-        <Popover controller={composer}>
-          <PopoverContent class="tds-comment-pop" data-material="solid" aria-label="Add a comment" side="bottom" align={props.side === "me" ? "end" : "start"} sideOffset={tokens.space[6]} initialFocus="[data-autofocus]">
-            <CommentForm label={composing()?.label ?? "message"} onSave={async (text) => {
-              const unit = untrack(composing)
-              if (!unit) return
-              if (await addComment(untrack(() => props.sessionId), unit.ref, text)) composer.close()
-              else toast("Comment not saved", { description: "Check your connection and try again." })
-            }} onCancel={() => composer.close()} />
-          </PopoverContent>
-        </Popover>
       </Show>
       <For each={decorated()} keyed={(group) => group.lane}>
         {(group) => (
@@ -353,24 +308,6 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
                       </For>
                     </div>
                   </Show>
-                  <Show when={commentsOf(props.sessionId, unit().ref).length > 0}>
-                    <ul class="tds-comments" aria-label={`Comments on ${unit().label}`}>
-                      <For each={commentsOf(props.sessionId, unit().ref)} keyed={(comment) => comment.id}>
-                        {(comment) => (
-                          <li ref={pop} class="tds-comment">
-                            <span class="tds-comment-meta">
-                              <span class="tds-comment-author">{comment().by === "toast" ? "toast" : "You"}</span>
-                              <time class="num" datetime={new Date(comment().at).toISOString()}>{timeOf(comment().at)}</time>
-                              <button type="button" class="tds-comment-delete tds-press" aria-label="Delete comment" data-tip="" data-tip-side="top" onClick={() => void deleteComment(untrack(() => props.sessionId), comment())}>
-                                <Icon name="trash" size="toast" />
-                              </button>
-                            </span>
-                            <p class="tds-comment-text" dir="auto">{comment().text}</p>
-                          </li>
-                        )}
-                      </For>
-                    </ul>
-                  </Show>
                 </div>
               )}
             </For>
@@ -381,51 +318,6 @@ export function Message(props: { sessionId: string; side: "me" | "agent"; target
         {(picking) => <ReactBar anchor={picking().anchor} side={props.side} isOn={(emoji) => reacted(props.sessionId, picking().unit.ref, emoji)} onPick={(emoji) => (toggle(picking().unit.ref, emoji), closePicker(false))} onClose={closePicker} />}
       </Show>
     </div>
-  )
-}
-
-/** The anchored comment composer: Enter saves, Shift+Enter breaks the line, Escape closes. */
-function CommentForm(props: { label: string; onSave: (text: string) => Promise<void>; onCancel: () => void }) {
-  const [text, setText] = createSignal("")
-  const [saving, setSaving] = createSignal(false)
-  const save = async () => {
-    const body = untrack(text).trim()
-    if (!body || untrack(saving)) return
-    setSaving(true)
-    await props.onSave(body)
-    setSaving(false)
-  }
-  return (
-    <form
-      class="tds-comment-form"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void save()
-      }}
-    >
-      <textarea
-        data-autofocus=""
-        class="tds-comment-field"
-        maxlength={tokens.limit["comment-chars"]}
-        aria-label={`Comment on ${props.label}`}
-        placeholder={`Comment on ${props.label}`}
-        value={text()}
-        onInput={(event) => setText(event.currentTarget.value)}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" || event.shiftKey || event.isComposing) return
-          event.preventDefault()
-          void save()
-        }}
-      />
-      <div class="tds-comment-actions">
-        <button type="button" class="tds-comment-button tds-press" onClick={() => props.onCancel()}>
-          Cancel
-        </button>
-        <button type="submit" class="tds-comment-button tds-press" data-primary="" data-empty={text().trim() ? undefined : ""} aria-disabled={saving() ? "true" : undefined}>
-          Comment
-        </button>
-      </div>
-    </form>
   )
 }
 
@@ -453,8 +345,12 @@ function ReactBar(props: { anchor: HTMLElement; side: "me" | "agent"; isOn: (emo
   const measure = () => {
     const box = props.anchor.getBoundingClientRect()
     const gap = tokens.space[6] ?? 0
-    const above = box.bottom + gap + surface.offsetHeight > innerHeight
-    setPlace({ x: props.side === "agent" ? box.left : box.right, y: above ? box.top - gap : box.bottom + gap, above })
+    // Kiko: above the React button and centred on it, flipping below only when it can't fit, clamped to the window.
+    const half = surface.offsetWidth / 2
+    const edge = tokens.space[8] ?? 0
+    const above = box.top - gap - surface.offsetHeight >= edge
+    const x = Math.min(Math.max(box.left + box.width / 2, edge + half), innerWidth - edge - half)
+    setPlace({ x, y: above ? box.top - gap : box.bottom + gap, above })
   }
   onSettled(() => {
     measure()

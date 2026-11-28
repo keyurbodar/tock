@@ -146,8 +146,20 @@ export function flash(el: Element) {
 
 /** Presence for a strip that slides up out of the edge it docks on (the composer's reply preview): rises and unblurs in, sinks and fades out. */
 export const dock = {
-  in: (el: Element) => animate(el, [{ opacity: 0, translate: "0 var(--tds-space-8)", filter: blur(m.blur.exit) }, { opacity: 1, translate: "0 0", filter: clear }], { duration: dur.menu, easing: ease.sheet }),
-  out: (el: Element) => animate(el, [{ opacity: 1, translate: "0 0" }, { opacity: 0, translate: "0 var(--tds-space-6)" }], { duration: dur["exit-small"], easing: ease.in, fill: "forwards" }),
+  /** Telegram's reply strip: it opens by growing its own height out of the field's top edge while its content fades
+   *  and unblurs, so the field below never jumps and nothing slides through it. Closing folds the height back. */
+  in: (el: HTMLElement) => {
+    const h = el.offsetHeight
+    el.style.overflow = "hidden"
+    const run = animate(el, [{ height: "0px", opacity: 0 }, { height: `${h}px`, opacity: 1 }], { duration: dur.menu, easing: ease.sheet, essential: true })
+    for (const child of el.children) animate(child, [{ opacity: 0, filter: blur(m.blur.exit), translate: "0 var(--tds-space-4)" }, { opacity: 1, filter: clear, translate: "0 0" }], { duration: dur.menu, easing: ease.out })
+    void run?.finished.then(() => (el.style.overflow = ""), () => undefined)
+    return run
+  },
+  out: (el: HTMLElement) => {
+    el.style.overflow = "hidden"
+    return animate(el, [{ height: `${el.offsetHeight}px`, opacity: 1 }, { height: "0px", opacity: 0 }], { duration: dur["exit-small"], easing: ease.in, fill: "forwards", essential: true })
+  },
 }
 
 export function flip(els: HTMLElement[], change: () => void, duration: number = dur.swap, easing: string = ease.sheet) {

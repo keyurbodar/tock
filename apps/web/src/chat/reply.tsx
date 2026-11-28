@@ -106,7 +106,7 @@ export function QuotePreview(props: { sessionId: string }) {
     <Show when={shown()}>
       {(quote) => (
         <div ref={el} class="tds-quote-preview" data-kind={quote().kind ?? "text"} role="group" aria-label={`Replying to ${authorOf(quote().ref)}`}>
-          <Icon name={quote().partial ? "quotes" : "arrow-bend-up-left"} size="menu" class="tds-quote-lead" />
+          <Icon name={quote().partial ? "quotes" : "arrow-bend-up-left"} size="composer" class="tds-quote-lead" />
           <span class="tds-quote-card">
             <Show when={quote().kind === "media" && thumbOf(quote().ref)}>{(src) => <img class="tds-quote-thumb" src={src()} alt="" draggable={false} />}</Show>
             <span class="tds-quote-body">

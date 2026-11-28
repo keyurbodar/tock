@@ -13,8 +13,16 @@
 - Composer: ↵ send that morphs to stop, no disclaimer line, long words wrap; follow-ups align with the composer and never cover the last bubble; jump-to-end button centred above the composer.
 - Chips are soft tinted pills; selecting one in the editor brightens it instead of drawing a ring.
 
+## Landed in the second 2026-11-28 pass
+- Comments removed from the message rail: hover shows React and Reply only, centred on the bubble (Kiko).
+- Reactions follow Kiko: the quick bar opens above the React button, centred and clamped; badges are solid pills overlapping the bubble's lower edge and each other, cut out by a page-colour ring.
+- Reply strip grows out of the composer's top edge (height, not a slide); no lines between strip and field.
+- No outlines on the composer, follow-up chips, cards or reaction surfaces; focus never draws on the composer.
+- Fonts: Allo keeps all three axes; roundness is one token (`font.round`, 30). Regular 420 / emphasis 470 (no bold) to sit evenly on the dark ground; slight tracking on 13–16px text; fonts preloaded at build.
+- Pins hold four columns at every sidebar width, so resizing never reshuffles them.
+- Follow-up chips have no tooltip (Wabi).
+
 ## Still open
 - `scripts/verify.ts` still targets some removed DOM; journeys need updating.
 - Dev diagnostics that predate this pass: STRICT_READ_UNTRACKED ("session"), EFFECT_RELAY_TEAR in the composer MorphIcon, IMMUTABLE_UPDATE_IN_STORE on thread/session meta spreads.
-- Allo is not preloaded in index.html (Vite hashes the file); consider a plugin that injects the preload.
-- Follow-up chips still use the full-prompt tooltip card, which Wabi doesn't have; decide whether to keep it.
+- Chip and link hover cards are t3code-inspired, not a line-for-line port.

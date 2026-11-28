@@ -43,10 +43,12 @@
     background: var(--tds-surface-backdrop);
     color: var(--tds-text-tx);
     font-family: var(--tds-font-sans);
+    font-weight: var(--tds-weight-regular);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-optical-sizing: auto;
+    font-variation-settings: "ROND" var(--tds-font-round);
     font-feature-settings: "kern", "calt", "liga";
     font-variant-ligatures: common-ligatures contextual;
     font-synthesis-weight: none;

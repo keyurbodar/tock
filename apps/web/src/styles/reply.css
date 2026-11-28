@@ -18,9 +18,8 @@
     display: flex; align-items: center; gap: var(--tds-space-10); width: 100%;
     padding: var(--tds-space-8) var(--tds-space-6) var(--tds-space-4) var(--tds-space-12);
     border-radius: var(--tds-radius-composer) var(--tds-radius-composer) 0 0; background: var(--tds-duet-raised);
-    box-shadow: inset 1px 0 0 var(--tds-duet-edge), inset -1px 0 0 var(--tds-duet-edge), inset 0 1px 0 var(--tds-duet-edge);
   }
-  .tds-composer-wrap:has(> .tds-quote-preview) .tds-field { border-top-left-radius: 0; border-top-right-radius: 0; box-shadow: inset 1px 0 0 var(--tds-duet-edge), inset -1px 0 0 var(--tds-duet-edge), inset 0 -1px 0 var(--tds-duet-edge) }
+  .tds-composer-wrap:has(> .tds-quote-preview) .tds-field { border-top-left-radius: 0; border-top-right-radius: 0 }
   .tds-quote-lead { flex: none; color: var(--tds-duet-accent) }
   .tds-quote-card {
     display: flex; align-items: center; gap: var(--tds-space-8); flex: 1; min-width: 0;

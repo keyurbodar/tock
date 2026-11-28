@@ -1,5 +1,4 @@
 import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid-js"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@ui-sdk/solid/tooltip"
 import { Icon } from "@tock/ui/icon"
 import { TockIcon } from "@tock/ui/tock-icon"
 import { followupIcon } from "./followup-icons"
@@ -62,7 +61,7 @@ function leaveChips(row: HTMLElement, picked: number | undefined) {
 
 /**
  * Follow-up suggestions: after a reply settles up to three chips sit just above the composer. Hover lifts a chip and
- * parts its glyph; resting on it shows the full prompt (one grouped tooltip, so moving along the row doesn't re-wait).
+ * parts its glyph; the full prompt is its accessible description (Wabi shows no tooltip).
  * A pick puts the prompt in the composer, × (on row hover) waves the row away for that turn, and typing hides it.
  * A new set morphs the chips in place; a row that grows, or one with nothing before it, rises in.
  */
@@ -221,10 +220,10 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
         <div ref={(el) => (row = el)} class="tds-followups" onPointerOver={mouse} onPointerOut={mouse} role="group" aria-label="Suggested next steps" data-key={current()} data-phase={phase()}>
           <For each={chips()} keyed={false}>
             {(chip, index) => (
-              <Tooltip delay={dur["followup-tip-delay"]}>
-                <TooltipTrigger
+                <button
                   type="button"
                   class="tds-followup tds-glass"
+                  aria-description={chip().cur.prompt}
                   onClick={() => {
                     picked = index
                     props.onPick(chip().cur.prompt)
@@ -240,11 +239,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
                     <Show when={chip().prev}>{(prev) => <span data-prev="" aria-hidden="true">{prev().label}</span>}</Show>
                     <span data-cur="">{chip().cur.label}</span>
                   </span>
-                </TooltipTrigger>
-                <TooltipContent class="tds-followup-tip" data-material="solid" side="top" sideOffset={tokens.size["followup-tip-gap"]}>
-                  {chip().cur.prompt}
-                </TooltipContent>
-              </Tooltip>
+                </button>
             )}
           </For>
           <button type="button" class="tds-followup tds-followup-x tds-glass" aria-label="Dismiss suggestions" onClick={() => dismiss(current())}>

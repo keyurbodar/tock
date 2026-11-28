@@ -2,8 +2,8 @@
  * Type: Allo for everything you read, Paper Mono for code. Both are SIL OFL 1.1 (licences sit beside the files).
  * Allo is variable in weight and optical size, so one file covers 400 body text through 600 headings and every size from
  * 12px meta to 34px display, and `font-optical-sizing: auto` (on by default) gives small text open spacing and large text a
- * tighter display cut. Roundness is fixed at 40 when the file is built (`scripts/fonts.py`): a touch crisper than Allo's 50,
- * which keeps the Duet look sharp while staying friendly, and halves the file. Subset to Latin, punctuation, arrows and maths.
+ * tighter display cut. Roundness (ROND, 0 sharp to 100 round) stays a live axis, set once from tokens (`font.round`) on the root, so the
+ * whole app's rounding is one number. Subset to Latin, punctuation, arrows and maths.
  */
 @font-face {
   font-family: "Allo";

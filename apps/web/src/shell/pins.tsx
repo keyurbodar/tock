@@ -40,7 +40,9 @@ function flow(box: HTMLElement) {
     if (box.querySelector(".tds-pin")) localStorage.setItem(PINS_HEIGHT, String(box.offsetHeight))
     // Only a change in the column count moves tiles; otherwise the 1fr tracks just stretch with the sidebar. Calling move()
     // on every resize frame (a sidebar drag, the collapse slide) restarted every tile's glide each frame: that was the jitter.
-    const cols = String(Math.max(1, Math.floor(box.clientWidth / tokens.size["pin-slot-min"])))
+    // Duet keeps four tiles a row at every sidebar width; the tiles stretch and their labels truncate, so dragging the
+    // sidebar edge never reshuffles them (the old width-derived column count did, every few pixels).
+    const cols = String(tokens.limit["pin-cols"])
     if (box.style.getPropertyValue("--pin-cols") === cols) return
     box.style.setProperty("--pin-cols", cols)
     layout.move()

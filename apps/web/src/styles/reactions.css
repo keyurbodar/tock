@@ -16,7 +16,7 @@
   .tds-msg-rail {
     position: absolute; z-index: 2;
     display: flex; align-items: center; gap: var(--tds-space-2); padding: var(--tds-space-2);
-    border-radius: var(--tds-radius-small); background: var(--tds-duet-raised); box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus);
+    border-radius: var(--tds-radius-small); background: var(--tds-duet-raised); box-shadow: var(--tds-over-shadow);
     opacity: 0; pointer-events: none; transition: opacity var(--tds-dur-hover) var(--tds-ease-out);
     &[data-mode="side"] { background: transparent; box-shadow: none }
   }
@@ -47,24 +47,26 @@
   .tds-unit-deco > .tds-unit-notes[data-whole]:first-child > .tds-react-pills:first-child { margin-top: calc(var(--tds-size-react-pill-overlap) * -1) }
   .tds-unit-deco:has(> .tds-unit-notes:last-child .tds-comments) { padding-bottom: var(--tds-space-4) }
 
-  .tds-react-pills { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--tds-space-4) }
-  .tds-unit-deco[data-side="me"] .tds-react-pills { flex-direction: row-reverse }
+  /* Reaction badges, Kiko's: small solid pills that overlap the bubble's lower edge and each other, cut out from the
+     page by a 2px ring of the page colour; yours tint with the accent. No hairlines. */
+  .tds-react-pills { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; padding-inline: var(--tds-space-10); & > :not(:first-child) { margin-left: calc(var(--tds-space-4) * -1) } }
+  .tds-unit-deco[data-side="me"] .tds-react-pills { flex-direction: row-reverse; & > :not(:first-child) { margin-left: 0; margin-right: calc(var(--tds-space-4) * -1) } }
   .tds-unit-label {
-    max-width: var(--tds-size-menu); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: var(--tds-size-menu); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: var(--tds-space-8);
     font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-text-faint);
   }
   .tds-react-pill {
-    display: inline-flex; align-items: center; justify-content: center; gap: var(--tds-space-3);
-    height: var(--tds-size-react-pill); min-width: var(--tds-size-react-pill); padding: 0 var(--tds-space-8);
-    border-radius: var(--tds-radius-pill); background: var(--tds-duet-raised);
-    box-shadow: 0 0 0 var(--tds-space-2) var(--tds-surface-main), inset 0 0 0 1px var(--tds-duet-edge-focus);
-    font-size: var(--tds-type-meta-size); font-weight: var(--tds-weight-regular); color: var(--tds-text-muted);
+    position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--tds-space-3);
+    height: var(--tds-size-react-pill); min-width: var(--tds-size-react-pill); padding: 0 var(--tds-space-6);
+    border-radius: var(--tds-radius-pill); background: var(--tds-duet-select);
+    box-shadow: 0 0 0 var(--tds-space-2) var(--tds-surface-main);
+    font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-regular); color: var(--tds-duet-t2);
     transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
-    &[data-mine] { background: var(--tds-accent-rose-14); color: var(--tds-accent-rose); box-shadow: 0 0 0 var(--tds-space-2) var(--tds-surface-main), inset 0 0 0 1px var(--tds-accent-rose-28) }
+    &[data-mine] { z-index: 1; background: color-mix(in oklab, var(--tds-duet-accent) 22%, var(--tds-duet-bg)); color: var(--tds-duet-accent) }
   }
   @media (hover: hover) and (pointer: fine) {
-    .tds-react-pill:hover { background: var(--tds-duet-select); color: var(--tds-text-tx) }
-    .tds-react-pill[data-mine]:hover { background: var(--tds-accent-rose-22); color: var(--tds-accent-rose) }
+    .tds-react-pill:hover { background: color-mix(in oklab, var(--tds-duet-t1) 14%, var(--tds-duet-bg)); color: var(--tds-text-tx) }
+    .tds-react-pill[data-mine]:hover { background: color-mix(in oklab, var(--tds-duet-accent) 30%, var(--tds-duet-bg)) }
   }
   .tds-react-pill-emoji { font-size: var(--tds-size-react-pill-emoji); line-height: 1 }
   .tds-react-pill-count[data-empty] { display: none }
@@ -95,7 +97,7 @@
   /* The comment composer, a popover anchored to the unit. */
   .tds-comment-pop {
     z-index: var(--tds-z-drop); width: var(--tds-size-menu-list); padding: var(--tds-space-8);
-    border-radius: var(--tds-radius-menu); background: var(--tds-duet-raised); box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus);
+    border-radius: var(--tds-radius-menu); background: var(--tds-duet-raised); box-shadow: var(--tds-over-shadow);
     transform-origin: var(--transform-origin);
     transition: opacity var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-hover) var(--tds-ease-out);
     &[data-starting-style], &[data-ending-style] { opacity: 0; scale: var(--tds-press) }
@@ -106,10 +108,10 @@
   .tds-comment-form { display: flex; flex-direction: column; gap: var(--tds-space-8) }
   .tds-comment-field {
     display: block; width: 100%; min-height: var(--tds-size-menu-search); padding: var(--tds-space-8) var(--tds-space-10); resize: none;
-    border: 0; border-radius: var(--tds-radius-button); background: var(--tds-duet-bg); box-shadow: inset 0 0 0 1px var(--tds-duet-edge);
+    border: 0; border-radius: var(--tds-radius-button); background: var(--tds-duet-hover); box-shadow: none;
     font: inherit; font-size: var(--tds-type-menu-size); line-height: var(--tds-type-menu-lh); color: var(--tds-text-tx);
     &::placeholder { color: var(--tds-text-placeholder) }
-    &:focus { outline: none; box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus) }
+    &:focus { outline: none; background: var(--tds-duet-select) }
   }
   .tds-comment-actions { display: flex; justify-content: flex-end; gap: var(--tds-space-6) }
   .tds-comment-button {
@@ -126,10 +128,9 @@
   /* The quick-react bar and picker. */
   .tds-react-bar {
     position: fixed; z-index: var(--tds-z-drop); padding: var(--tds-space-4);
-    border-radius: var(--tds-radius-menu); background: var(--tds-duet-raised); box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus);
-    &[data-side="me"] { translate: -100% 0 }
-    &[data-above] { translate: 0 -100% }
-    &[data-side="me"][data-above] { translate: -100% -100% }
+    border-radius: var(--tds-radius-menu); background: var(--tds-duet-raised); box-shadow: var(--tds-over-shadow);
+    translate: -50% 0; transform-origin: 50% 100%;
+    &[data-above] { translate: -50% -100% }
     &[data-mode="picker"] { padding: var(--tds-space-8) }
   }
   .tds-react-quick { display: flex; align-items: center; gap: var(--tds-space-2) }
@@ -146,7 +147,7 @@
   }
   .tds-react-search {
     display: block; width: 100%; height: var(--tds-size-react-search); margin-bottom: var(--tds-space-6); padding: 0 var(--tds-space-10);
-    border: 0; border-radius: var(--tds-radius-button); background: var(--tds-duet-bg); box-shadow: inset 0 0 0 1px var(--tds-duet-edge);
+    border: 0; border-radius: var(--tds-radius-button); background: var(--tds-duet-hover); box-shadow: none;
     font: inherit; font-size: var(--tds-type-menu-size); color: var(--tds-text-tx);
     &::placeholder { color: var(--tds-text-placeholder) }
   }
