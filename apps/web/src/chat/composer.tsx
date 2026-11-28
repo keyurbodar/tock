@@ -4,6 +4,7 @@ import { useNavigate } from "@solidjs/router"
 import { Menu, MenuContent, MenuItem, MenuItemIcon, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from "@ui-sdk/solid/menu"
 import type { Editor, JSONContent } from "@tiptap/core"
 import { Icon, type IconName } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { tokens } from "@tock/tokens"
 import { prefersReducedMotion, animate, drive, recede, scrub, growFrom, watchLayout } from "@tock/ui/motion"
@@ -148,6 +149,7 @@ interface Suggestion {
   readonly hint: string
   readonly icon: IconName
   readonly hue?: string
+  readonly tone?: string
   readonly run: () => void
 }
 
@@ -193,7 +195,7 @@ async function screenshot(): Promise<File | null> {
   }
 }
 
-export function Composer(props: { draftKey: string; working: boolean; attachments: Attachments; onSend: (text: string) => void; onStop: () => void }) {
+export function Composer(props: { draftKey: string; channel?: string; working: boolean; attachments: Attachments; onSend: (text: string) => void; onStop: () => void }) {
   const navigate = useNavigate()
   const [empty, setEmpty] = createSignal(true)
   const [length, setLength] = createSignal(0)
@@ -413,6 +415,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         hint: statusOf(session) === "idle" ? messageCount(session.messageCount) : STATUS_LABEL[statusOf(session)],
         icon: glyphFor(session.id).icon,
         hue: glyphFor(session.id).hue,
+        tone: glyphFor(session.id).tone,
         run: () => insertToken({ kind: "thread", id: session.id, label: titleOf(session) }),
       })), skillItems)
   })
@@ -596,7 +599,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
         Token,
         CodeHighlight,
         CodeExit,
-        Placeholder.configure({ placeholder: "Message toast" }),
+        Placeholder.configure({ placeholder: () => (props.channel ? `Message #${props.channel}` : "Message toast") }),
       ],
       editorProps: {
         handlePaste: (_view, event) => {
@@ -787,7 +790,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
                 onMouseDown={(event) => (event.preventDefault(), item().run())}
               >
                 <span class={`tds-menu-icon ${item().hue ?? ""}`}>
-                  <Icon name={item().icon} size="menu" />
+                  <Show when={item().group === "Chats"} fallback={<Icon name={item().icon} size="menu" />}><TockIcon name={item().icon} color={item().tone} size={tokens.icon.channel} /></Show>
                 </span>
                 <span class="tds-suggest-label">{item().label}</span>
                 <Show when={item().hint}>

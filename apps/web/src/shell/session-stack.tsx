@@ -2,7 +2,7 @@ import { createMemo, createSignal, For, onCleanup, Show } from "solid-js"
 import { Portal } from "@solidjs/web"
 import { useNavigate } from "@solidjs/router"
 import { backdrop } from "@tock/ui/motion"
-import { Icon } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
@@ -174,7 +174,7 @@ export function ToastRow(props: { show: boolean }) {
                     onClick={() => close(session().id)}
                   >
                     <span class={`tds-stack-icon ${glyphFor(session().id).hue}`}>
-                      <Icon name={glyphFor(session().id).icon} size="pin" />
+                      <TockIcon name={glyphFor(session().id).icon} color={glyphFor(session().id).tone} size={tokens.icon.tile} />
                     </span>
                     <span class="tds-stack-text">
                       <b title={titleOf(session())}>{titleOf(session())}</b>

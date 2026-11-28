@@ -279,6 +279,5 @@ var TockIcons = (function () {
     data: D
   };
 })();
-if (typeof module !== 'undefined') module.exports = TockIcons;
 
 export default TockIcons;

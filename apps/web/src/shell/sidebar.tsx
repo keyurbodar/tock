@@ -1,10 +1,10 @@
 import { Empty } from "../chat/empty"
-import { animate, inertiaTail, lockAxis, Skeleton, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
+import { animate, lockAxis, Skeleton } from "@tock/ui/motion"
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
-
 import { MenuTrigger } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
+import { MorphIcon } from "@tock/ui/morph-icon"
 import { Orb } from "@tock/ui/orb"
 import { TockIcon } from "@tock/ui/tock-icon"
 import { tokens } from "@tock/tokens"
@@ -15,7 +15,7 @@ import { pressable } from "../lib/keys"
 import { app, newThreadId, titleOf, updateThread, type Session } from "../state/app"
 import { dirOf } from "../lib/dir"
 import { minute } from "../lib/clock"
-import { archive, doomed, markRead, pin, remove, renaming, selected, setRenaming, setSelected, takeEntering, threadAction, threadMenu, ThreadMenu } from "./thread-menu"
+import { archive, doomed, markRead, pin, remove, renaming, selected, setRenaming, setSelected, takeEntering, threadMenu, ThreadMenu } from "./thread-menu"
 import { dropping, Pins, setDropping } from "./pins"
 import { hidePeek, Peek, peekEnter, peekLeave, peekToggle } from "./peek"
 import { ToastRow } from "./session-stack"
@@ -29,6 +29,7 @@ import { centreOpen, setCentreOpen } from "./centre"
 import { unreadNotes } from "../state/notes"
 
 type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number } | { kind: "archive-empty" }
+type ChannelFilter = "all" | "unread" | "active"
 
 const rowEntries = new WeakMap<Session, Entry>()
 const rowEntry = (session: Session): Entry => {
@@ -46,11 +47,10 @@ const archiveEntry = (count: number): Entry => {
 
 const OPEN_KEY = "tock.sidebar.open"
 const [sidebarOpen, setOpen] = createSignal(localStorage.getItem(OPEN_KEY) !== "0")
-/** Collapsing keeps the choice across reloads; the shell animates width and opacity, the contents keep their own width so nothing reflows mid-slide. */
+
 export const toggleSidebar = (next = !untrack(sidebarOpen)) => {
   setOpen(next)
   localStorage.setItem(OPEN_KEY, next ? "1" : "0")
-  // the button that was pressed goes inert or away, so focus moves to the toggle that undoes it
   requestAnimationFrame(() => document.querySelector<HTMLElement>(next ? ".tds-sbt > .tds-ib" : ".tds-header-start > .tds-ib")?.focus({ preventScroll: true }))
 }
 export { sidebarOpen }
@@ -81,10 +81,8 @@ function RenameField(props: { session: Session }) {
 
 const D = tokens.motion.duration
 const curve = tokens.motion.curve
-let closeOpenSwipe: (() => void) | undefined
 let suppressClick = false
 const swallowClick = () => ((suppressClick = true), requestAnimationFrame(() => requestAnimationFrame(() => (suppressClick = false))))
-
 
 const orbOf = (session: Session) => {
   const status = statusOf(session)
@@ -93,120 +91,11 @@ const orbOf = (session: Session) => {
 
 function Row(props: { session: Session; selected: boolean; multi: boolean; current: string | undefined; navigate: (to: string) => void }) {
   const glyph = () => glyphFor(props.session.id)
-  let wrap!: HTMLDivElement
   let row!: HTMLAnchorElement
-  let left!: HTMLDivElement
-  let right!: HTMLDivElement
   let icon!: HTMLSpanElement
-  let start: { x: number; y: number; from: number; id: number; mouse: boolean } | undefined
-  const speed = velocityTracker()
-  let mode: "swipe" | "drag" | undefined
-  let x = 0
-  let stage: SwipeStage = 0
+  let start: { x: number; y: number; id: number; mouse: boolean } | undefined
+  let dragging = false
   let ghost: HTMLElement | undefined
-  const limits = () => swipeThresholds(row.offsetWidth)
-  const actionFor = (side: number, at: 1 | 2) => (side > 0 ? (at === 1 ? "unread" : "pin") : at === 1 ? "archive" : "delete")
-
-  /** Crossing a threshold shows the action that release would run: its pill takes the strip and pops, before you let go. */
-  const arm = (next: SwipeStage) => {
-    if (next === stage) return
-    stage = next
-    wrap.dataset.armed = next ? String(next) : ""
-    if (!next) return
-    const pill = wrap.querySelector(`.tds-swipe-side[data-side="${x > 0 ? "left" : "right"}"] [data-stage="${next}"] .tds-swipe-body`)
-    if (pill) spring(pill, [{ scale: 1 }, { scale: 1.16 }, { scale: 1 }], "press")
-    try {
-      navigator.vibrate?.(tokens.motion.gesture.frame / 2)
-    } catch {}
-  }
-  const paint = (next: number, settle = false) => {
-    x = next
-    const { easing, duration } = springEasing("snappy")
-    const ease = settle ? `${duration}ms ${easing}` : "0s"
-    row.style.transition = `transform ${ease}`
-    row.style.transform = next ? `translateX(${next}px)` : ""
-    for (const [side, w] of [[left, Math.max(0, next)], [right, Math.max(0, -next)]] as const) {
-      side.style.transition = `width ${ease}`
-      side.style.width = `${w}px`
-      side.style.setProperty("--w", `${w}px`)
-    }
-    wrap.toggleAttribute("data-swiping", next !== 0)
-    arm(settle ? 0 : swipeStage(next, limits()))
-  }
-  const close = () => {
-    paint(0, true)
-    if (closeOpenSwipe === close) closeOpenSwipe = undefined
-  }
-  const rest = () => {
-    paint(Math.sign(x) * limits().rest, true)
-    closeOpenSwipe = close
-    const outside = (e: PointerEvent) => {
-      if (wrap.contains(e.target as Node)) return
-      removeEventListener("pointerdown", outside, true)
-      if (closeOpenSwipe === close) close()
-    }
-    addEventListener("pointerdown", outside, true)
-  }
-  const act = (action: string) => {
-    const session = untrack(() => props.session)
-    const from = { rect: icon.getBoundingClientRect(), glyph: icon.innerHTML }
-    if (!wrap.dispatchEvent(new CustomEvent("tds-swipe", { bubbles: true, cancelable: true, detail: action }))) return close()
-    if (action === "pin-drop") return pin(session, from)
-    if (action === "unread") return close(), threadAction(action, session, props.current, props.navigate)
-    row.style.transition = `transform ${D.panel}ms ${curve.sheet}`
-    row.style.transform = `translateX(${Math.sign(x || (action === "pin" ? 1 : -1)) * row.offsetWidth}px)`
-    closeOpenSwipe = undefined
-    setTimeout(() => {
-      if (action === "pin") pin(session, from)
-      if (action === "archive") archive([session], props.current, props.navigate)
-      if (action === "delete") remove([session], props.current, props.navigate)
-    }, D.menu)
-  }
-  const release = (velocity: number) => {
-    const decision = swipeDecision(x, velocity, limits())
-    wrap.dispatchEvent(new CustomEvent("tds-swipe-release", { bubbles: true, detail: decision.kind }))
-    if (decision.kind === "commit") return act(actionFor(x, decision.stage))
-    if (decision.kind === "open") return rest()
-    close()
-  }
-
-  let wheel: { lock?: "x" | "y"; sx: number; sy: number; acc: number; spent: boolean; tail: ReturnType<typeof inertiaTail>; idle?: ReturnType<typeof setTimeout> } | undefined
-  /**
-   * Trackpad swipe: the axis locks once the summed deltas leave the dead zone. When the deltas start decaying smoothly
-   * (the OS inertia tail after the fingers lift), the row settles from where the finger let go and the rest of the tail
-   * is swallowed, so momentum never pushes a swipe into the next action. A vertical scroll closes an open row.
-   */
-  const onWheel = (e: WheelEvent) => {
-    if (renaming() === untrack(() => props.session.id) || start) return
-    wheel ??= { sx: 0, sy: 0, acc: x, spent: false, tail: inertiaTail() }
-    const current = wheel
-    clearTimeout(current.idle)
-    current.idle = setTimeout(() => {
-      wheel = undefined
-      if (current.lock === "x" && !current.spent) release(0)
-    }, D["wheel-idle"])
-    if (!current.lock) {
-      current.sx -= e.deltaX
-      current.sy += e.deltaY
-      current.lock = lockAxis(current.sx, current.sy)
-      if (!current.lock) return Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.preventDefault()
-      if (current.lock === "x") {
-        if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe()
-        hidePeek()
-      }
-    }
-    if (current.lock === "y") return void (x !== 0 && close())
-    e.preventDefault()
-    if (current.spent) return
-    const letGo = current.tail.push(e.deltaX, current.acc)
-    if (letGo !== undefined) {
-      current.spent = true
-      paint(swipeOffset(letGo, limits()))
-      return release(0)
-    }
-    current.acc -= e.deltaX
-    paint(swipeOffset(current.acc, limits()))
-  }
 
   const dragStart = (e: PointerEvent) => {
     const box = row.getBoundingClientRect()
@@ -234,7 +123,9 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; curre
     if (!g) return
     if (over) {
       g.remove()
-      return act("pin-drop")
+      const session = untrack(() => props.session)
+      const from = { rect: icon.getBoundingClientRect(), glyph: icon.innerHTML }
+      return pin(session, from)
     }
     animate(g, [{ translate: "0 0" }, { translate: `0 ${row.getBoundingClientRect().top - parseFloat(g.style.top)}px` }], { duration: D.layout, easing: curve.sheet, fill: "forwards" }).onfinish = () => g.remove()
   }
@@ -242,7 +133,6 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; curre
   return (
     <div
       ref={(el) => {
-        wrap = el
         if (takeEntering(props.session.id)) el.setAttribute("data-entering", "")
       }}
       class="tds-row-wrap"
@@ -254,36 +144,6 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; curre
         e.currentTarget.querySelector<HTMLElement>(".tds-row-more")?.click()
       }}
     >
-      <div class="tds-swipe" aria-hidden="true">
-        <div class="tds-swipe-side" data-side="left" ref={left}>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="pin" data-stage="2" onClick={() => act("pin")}>
-            <span class="tds-swipe-body">
-              <Icon name="push-pin" size="code-action" />
-              Pin
-            </span>
-          </button>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="unread" data-stage="1" onClick={() => act("unread")}>
-            <span class="tds-swipe-body">
-              <Icon name="circle" size="code-action" />
-              {props.session.meta.unread ? "Read" : "Unread"}
-            </span>
-          </button>
-        </div>
-        <div class="tds-swipe-side" data-side="right" ref={right}>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="archive" data-stage="1" onClick={() => act("archive")}>
-            <span class="tds-swipe-body">
-              <Icon name="archive" size="code-action" />
-              Archive
-            </span>
-          </button>
-          <button type="button" tabindex="-1" class="tds-swipe-act" data-act="delete" data-stage="2" onClick={() => act("delete")}>
-            <span class="tds-swipe-body">
-              <Icon name="trash" size="code-action" />
-              Delete
-            </span>
-          </button>
-        </div>
-      </div>
       <a
         ref={row}
         href={`/t/${props.session.id}`}
@@ -296,55 +156,46 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; curre
         aria-current={props.selected ? "page" : undefined}
         onPointerEnter={(e) => peekEnter(untrack(() => props.session), e.currentTarget)}
         onPointerLeave={() => peekLeave()}
-        onWheel={(e) => onWheel(e)}
         onPointerDown={(e) => {
           hidePeek()
           if (e.button !== 0 || renaming() === untrack(() => props.session.id)) return
-          if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe()
-          start = { x: e.clientX, y: e.clientY, from: x, id: e.pointerId, mouse: e.pointerType === "mouse" }
-          speed.reset()
-          speed.push(e.clientX, e.timeStamp)
-          mode = undefined
+          if (e.pointerType !== "mouse" || untrack(() => props.session.meta.archived)) return
+          start = { x: e.clientX, y: e.clientY, id: e.pointerId, mouse: true }
+          dragging = false
         }}
         onPointerMove={(e) => {
           if (!start) return
-          const dx = e.clientX - start.x
-          const dy = e.clientY - start.y
-          if (!mode) {
-            const axis = lockAxis(dx, dy)
+          if (!dragging) {
+            const axis = lockAxis(e.clientX - start.x, e.clientY - start.y)
             if (!axis) return
-            if (axis === "x") {
-              mode = "swipe"
-              start.x += Math.sign(dx) * tokens.motion.gesture["swipe-dead"]
-              hidePeek()
-            } else if (start.mouse && untrack(() => !props.session.meta.archived)) {
-              mode = "drag"
+            if (axis === "y") {
+              dragging = true
               dragStart(e)
-            } else return void (start = undefined)
-            try {
-              e.currentTarget.setPointerCapture(start.id)
-            } catch {}
+              try {
+                e.currentTarget.setPointerCapture(start.id)
+              } catch {}
+            } else {
+              start = undefined
+              return
+            }
           }
-          speed.push(e.clientX, e.timeStamp)
-          if (mode === "swipe") paint(swipeOffset(start.from + e.clientX - start.x, limits()))
-          else dragMove(e)
+          dragMove(e)
         }}
         onPointerUp={() => {
-          if (mode) swallowClick()
-          if (mode === "swipe") release(speed.get())
-          if (mode === "drag") dragEnd()
+          if (dragging) {
+            swallowClick()
+            dragEnd()
+          }
           start = undefined
-          mode = undefined
+          dragging = false
         }}
         onPointerCancel={() => {
-          if (mode === "swipe") close()
-          if (mode === "drag") dragEnd()
+          if (dragging) dragEnd()
           start = undefined
-          mode = undefined
+          dragging = false
         }}
         onClick={(e) => {
           if (suppressClick) return e.preventDefault()
-          if (x !== 0) return e.preventDefault(), close()
           const id = untrack(() => props.session.id)
           if (e.metaKey || e.ctrlKey || e.shiftKey) {
             e.preventDefault()
@@ -383,17 +234,44 @@ export function Sidebar() {
   const params = useParams<{ id?: string }>()
   const navigate = useNavigate()
   let roster!: HTMLDivElement
+  let filterInput: HTMLInputElement | undefined
   const [archiveOpen, setArchiveOpen] = createSignal(false)
+  const [filterOpen, setFilterOpen] = createSignal(false)
+  const [filterMode, setFilterMode] = createSignal<ChannelFilter>("all")
+  const [filterQuery, setFilterQuery] = createSignal("")
+
+  const filterActive = () => filterMode() !== "all" || filterQuery().trim().length > 0
+
+  const toggleFilter = () => {
+    const next = !untrack(filterOpen)
+    setFilterOpen(next)
+    if (next) requestAnimationFrame(() => filterInput?.focus())
+    else {
+      setFilterMode("all")
+      setFilterQuery("")
+    }
+  }
 
   const visible = createMemo(() => app.sessions.filter((s) => !doomed().includes(s.id) && !((s.meta.snoozedUntil ?? 0) > minute())))
   const entries = createMemo<Entry[]>(() => {
-    const list = visible().filter((s) => !s.meta.pinned || s.meta.archived)
+    const q = filterQuery().trim().toLowerCase()
+    const mode = filterMode()
+    const matches = (s: Session) => {
+      if (mode === "unread" && !s.meta.unread) return false
+      if (mode === "active") {
+        const st = statusOf(s)
+        if (st !== "working" && st !== "needs") return false
+      }
+      if (q && !`${titleOf(s)} ${s.preview}`.toLowerCase().includes(q)) return false
+      return true
+    }
+    const list = visible().filter((s) => (!s.meta.pinned || s.meta.archived) && matches(s))
     const rows = list.filter((s) => !s.meta.archived).map(rowEntry)
     const archived = list.filter((s) => s.meta.archived)
-    if (archived.length === 0) return archiveOpen() ? [...rows, archiveEntry(0), ARCHIVE_EMPTY] : rows
-    return [...rows, archiveEntry(archived.length), ...(archiveOpen() ? archived.map(rowEntry) : [])]
+    if (archived.length === 0) return archiveOpen() && !filterActive() ? [...rows, archiveEntry(0), ARCHIVE_EMPTY] : rows
+    return [...rows, archiveEntry(archived.length), ...(archiveOpen() || q ? archived.map(rowEntry) : [])]
   })
-  /** The open chat's row stays in view when the chat changes by keyboard (⌥↑↓) or anywhere else; a row already visible doesn't move. */
+
   let shownFor: string | undefined
   createEffect(
     () => ({ id: params.id, index: entries().findIndex((entry) => entry.kind === "row" && entry.session.id === params.id) }),
@@ -444,15 +322,56 @@ export function Sidebar() {
             type="button"
             class="tds-ib"
             data-size="sec"
-            aria-label={archiveOpen() ? "Hide archived" : "Show archived"}
-            aria-pressed={archiveOpen() ? "true" : "false"}
+            data-filter-active={filterActive() ? "" : undefined}
+            aria-label={filterOpen() ? "Close channel filter" : "Filter channels"}
+            aria-expanded={filterOpen() ? "true" : "false"}
+            aria-pressed={filterOpen() || filterActive() ? "true" : "false"}
             data-tip=""
             data-tip-side="bottom"
-            onClick={() => setArchiveOpen((open) => !open)}
+            onClick={toggleFilter}
           >
             <Icon name="funnel-simple" size="bar" />
           </button>
         </div>
+
+        <Show when={filterOpen()}>
+          <div class="tds-ch-filter" role="search" aria-label="Filter channels">
+            <div class="tds-ch-filter-input">
+              <Icon name="magnifying-glass" size="chip" />
+              <input
+                ref={(el) => (filterInput = el)}
+                type="text"
+                value={filterQuery()}
+                placeholder="Filter channels…"
+                aria-label="Filter channels by name"
+                onInput={(e) => setFilterQuery(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault()
+                    toggleFilter()
+                  }
+                }}
+              />
+              <Show when={filterQuery()}>
+                <button type="button" class="tds-ch-filter-clear" aria-label="Clear filter" onClick={() => (setFilterQuery(""), filterInput?.focus())}>
+                  <Icon name="x" size="chip" />
+                </button>
+              </Show>
+            </div>
+            <div class="tds-ch-filter-pills" role="group" aria-label="Channel status filter">
+              {(["all", "unread", "active"] as const).map((mode) => (
+                <button
+                  type="button"
+                  class="tds-ch-filter-pill"
+                  aria-pressed={filterMode() === mode ? "true" : "false"}
+                  onClick={() => setFilterMode(mode)}
+                >
+                  {mode === "all" ? "All" : mode === "unread" ? "Unread" : "Active"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Show>
 
         <div class="tds-chs" onPointerLeave={() => peekLeave()}>
           <Skeleton fill label="Loading channels" loading={!app.sessionsLoaded && entries().length === 0} sample={() => <SampleRows />}>
@@ -461,11 +380,10 @@ export function Sidebar() {
                 when={entries().length > 0}
                 fallback={
                   <div class="px-12 py-36">
-                    <Empty art="hi" small />
+                    <Empty art={filterActive() ? "search" : "hi"} small />
                   </div>
                 }
               >
-                {/* A plain keyed list: rows keep their identity, so scrolling and selection never re-create them (the virtual list re-mounted rows every frame). */}
                 <div ref={roster} class="tds-roster tds-scroll h-full" tabindex="-1" data-edge-fade="y">
                   <For each={entries()}>
                     {(entry) => {
@@ -478,10 +396,10 @@ export function Sidebar() {
                       if (entry.kind === "archive")
                         return (
                           <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>
-                            <Icon name="archive" size="channel" />
-                            <span>Archive</span>
+                            <Icon name="archive" size="chip" class="tds-archive-icon" />
+                            <span>Archived</span>
                             <span class="tds-archive-count num">{entry.count}</span>
-                            <Icon name="caret-down" size="chip" class="tds-archive-caret" />
+                            <MorphIcon name={archiveOpen() ? "chevron-down" : "chevron-right"} size="chip" class="tds-archive-caret" />
                           </button>
                         )
                       return <Row session={entry.session} selected={params.id === entry.session.id} multi={selected().includes(entry.session.id)} current={params.id} navigate={navigate} />
@@ -530,7 +448,6 @@ export function Sidebar() {
   )
 }
 
-/** Notifications live in the sidebar strip now the rail is gone: a blue dot while anything is unread. */
 function BellButton() {
   return (
     <button
@@ -551,7 +468,6 @@ function BellButton() {
   )
 }
 
-/** Sample rows through the row's own classes, so each bone sits where a loaded row will. */
 function SampleRows() {
   return (
     <div class="h-full">

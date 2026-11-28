@@ -2,6 +2,7 @@ import { Extension, Node, mergeAttributes } from "@tiptap/core"
 import { NodeSelection, Plugin, Selection, type EditorState as State } from "@tiptap/pm/state"
 import type { EditorView } from "@tiptap/pm/view"
 import type { IconName } from "@tock/ui/icon"
+import { fileChip } from "./chip"
 import { iconUrl } from "./link"
 import { tokenText, type TokenAttrs } from "./tokens"
 
@@ -17,7 +18,7 @@ export { convertCodeFenceOnEnter, exitCodeBlockOnClosingFence, linkSelection, Ri
 
 const SVG = "http://www.w3.org/2000/svg svg"
 
-const icons: Record<Exclude<TokenAttrs["kind"], "link">, `${IconName}:duotone`> = { thread: "chat-circle:duotone", command: "lightning:duotone", file: "file-text:duotone", skill: "sparkle:duotone" }
+const icons: Record<Exclude<TokenAttrs["kind"], "link" | "file">, `${IconName}:duotone`> = { thread: "chat-circle:duotone", command: "lightning:duotone", skill: "sparkle:duotone", plugin: "sparkle:duotone" }
 
 /**
  * An inline chip in the draft (TDS PxChips "Tokens"): one atom, so it moves and deletes as a unit. Same markup as a sent
@@ -38,7 +39,7 @@ export const Token = Node.create({
     const slot =
       attrs.kind === "link"
         ? ["span", { class: "tds-chip-slot", "aria-hidden": "true" }, [SVG, { class: "tds-icon tds-link-fav-glyph" }, ["use", { href: "#i-globe" }]], ["img", { src: iconUrl(host), alt: "", draggable: "false", decoding: "async", "data-host": host }]]
-        : ["span", { class: "tds-chip-slot", "aria-hidden": "true" }, [SVG, { class: "tds-icon" }, ["use", { href: `#i-${icons[attrs.kind]}` }]]]
+        : ["span", { class: "tds-chip-slot", "aria-hidden": "true" }, [SVG, { class: "tds-icon" }, ["use", { href: `#i-${attrs.kind === "file" ? `${fileChip(attrs.label).icon}:duotone` : icons[attrs.kind]}` }]]]
     const card = attrs.kind === "command" ? {} : { "data-card": attrs.kind, "data-card-id": attrs.id, "data-card-label": attrs.label }
     return [
       "span",

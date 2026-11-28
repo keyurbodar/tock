@@ -2,16 +2,20 @@ import type { EditorView } from "@tiptap/pm/view"
 import type { ChipKind } from "./chip"
 
 export interface TokenAttrs {
-  readonly kind: Extract<ChipKind, "thread" | "command" | "link" | "file" | "skill">
+  readonly kind: Extract<ChipKind, "thread" | "command" | "link" | "file" | "skill" | "plugin">
   readonly id: string
   readonly label: string
 }
 
-/** What a token sends: the model and the transcript read the same markdown link the chips render from. */
+const cleanLabel = (label: string) => label.replace(/[[\]]/g, "")
+
 export function tokenText(attrs: TokenAttrs) {
-  if (attrs.kind === "thread") return `[@${attrs.label.replace(/[[\]]/g, "")}](tock-thread:${attrs.id})`
+  if (attrs.kind === "thread") return `[@${cleanLabel(attrs.label)}](tock-thread:${attrs.id})`
   if (attrs.kind === "link") return attrs.id
-  if (attrs.kind === "skill") return `[${attrs.label}](tock-skill:${attrs.id})`
+  if (attrs.kind === "skill") return `[${cleanLabel(attrs.label)}](tock-skill:${attrs.id})`
+  if (attrs.kind === "plugin") return `[${cleanLabel(attrs.label)}](tock-plugin:${attrs.id})`
+  if (attrs.kind === "file") return `[${cleanLabel(attrs.label)}](tock-file:${attrs.id})`
+  if (attrs.kind === "command") return `/${attrs.label.replace(/^\//, "")}`
   return attrs.label
 }
 
@@ -22,7 +26,6 @@ export interface Trigger {
   readonly to: number
 }
 
-/** The @ or / the caret is typing after, if any: it must start the line or follow a space. */
 export function triggerAt(view: EditorView): Trigger | null {
   const { selection } = view.state
   if (!selection.empty) return null
@@ -37,7 +40,6 @@ export function triggerAt(view: EditorView): Trigger | null {
 
 const URL_TYPED = /(?:^|\s)(https?:\/\/[^\s\ufffc]+[^\s\ufffc.,;:!?)'"])\s$/
 
-/** A URL followed by a space becomes a link chip, as TDS PxChips "Typed". */
 export function linkTyped(view: EditorView): boolean {
   const { selection } = view.state
   if (!selection.empty) return false
@@ -55,7 +57,6 @@ export function linkTyped(view: EditorView): boolean {
   return true
 }
 
-/** A URL as a link token: host and path, no scheme or trailing slash. */
 export function linkToken(href: string): TokenAttrs | null {
   try {
     const url = new URL(href)

@@ -32,8 +32,8 @@ function enterChips(row: HTMLElement) {
     animate(
       chip,
       [
-        { opacity: 0, translate: `0 ${look.rise}`, scale: look["enter-scale"], filter: `blur(${look.blur})` },
-        { opacity: 1, translate: "0 0", scale: 1, filter: "blur(0)" },
+        { opacity: 0, translate: `0 ${look.rise}`, scale: look["enter-scale"] },
+        { opacity: 1, translate: "0 0", scale: 1 },
       ],
       { duration: dur["followup-enter"], delay, easing: ease.out, fill: "backwards" },
     )
@@ -48,9 +48,9 @@ function enterChips(row: HTMLElement) {
 
 /** Chips drop and soften away together; a picked chip holds a beat so the eye follows it into the composer. */
 function leaveChips(row: HTMLElement, picked: number | undefined) {
-  const gone = { opacity: 0, translate: `0 ${look.rise}`, filter: `blur(${look.blur})` }
+  const gone = { opacity: 0, translate: `0 ${look.rise}`, scale: look["enter-scale"] }
   const runs = [...row.querySelectorAll<HTMLElement>(".tds-followup")].map((el, i) =>
-    animate(el, el.classList.contains("tds-followup-x") ? [gone] : [{ opacity: 1, translate: "0 0", filter: "blur(0)" }, gone], {
+    animate(el, el.classList.contains("tds-followup-x") ? [{ opacity: 0 }] : [{ opacity: 1, translate: "0 0", scale: 1 }, gone], {
       duration: dur["followup-exit"],
       delay: i === picked ? dur["followup-pick"] : 0,
       easing: ease.std,
@@ -207,6 +207,14 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     over?.setAttribute("data-hover", "")
     row.toggleAttribute("data-hover", event.type === "pointerover" || row.contains(event.relatedTarget as Node | null))
   }
+  createEffect(
+    () => !!key(),
+    (shown) => {
+      const host = row?.parentElement ?? document.querySelector<HTMLElement>("[data-pane=thread]")
+      host?.style.setProperty("--followup-reserve", shown ? `${tokens.size["followup-chip"] + tokens.space[12]}px` : "0px")
+    },
+  )
+  onCleanup(() => document.querySelector<HTMLElement>("[data-pane=thread]")?.style.setProperty("--followup-reserve", "0px"))
   return (
     <Show when={key()}>
       {(current) => (

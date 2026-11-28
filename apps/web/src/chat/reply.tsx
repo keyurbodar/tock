@@ -9,7 +9,6 @@ import { setReplyHandler, type ReplyTarget } from "./reactions"
 
 const focusComposer = () => document.querySelector<HTMLElement>(".tds-composer-wrap .ProseMirror")?.focus()
 
-/** Starts a reply in the composer: the quote preview slides up and the caret lands in the field. */
 export function reply(sessionId: string, quote: Quote) {
   setQuote(sessionId, quote)
   requestAnimationFrame(focusComposer)
@@ -17,7 +16,6 @@ export function reply(sessionId: string, quote: Quote) {
 
 const bubblesOf = (ref: string) => [...document.querySelectorAll<HTMLElement>(`.tds-column [data-ref="${CSS.escape(ref)}"]`)]
 
-/** Scrolls the message with this ref into the middle of the chat and flashes it; mounts the rest of a long chat first if it isn't drawn yet. */
 export async function jumpTo(ref: string) {
   let found = bubblesOf(ref)
   if (found.length === 0) {
@@ -38,7 +36,6 @@ export async function jumpTo(ref: string) {
   return true
 }
 
-/** The compact quote above a sent message's text: a thin bar, who said it and one line of what they said. A click goes to the source. */
 export function QuoteChip(props: { source: string; excerpt: string; exists: boolean }) {
   return (
     <button
@@ -46,23 +43,23 @@ export function QuoteChip(props: { source: string; excerpt: string; exists: bool
       class="tds-quote-chip tds-press"
       data-gone={props.exists ? undefined : ""}
       disabled={!props.exists}
-      aria-label={props.exists ? `Go to the quoted message from ${authorOf(props.source)}` : "The quoted message is no longer in this chat"}
+      aria-label={props.exists ? `Go to quoted message from ${authorOf(props.source)}` : "Quoted message removed"}
       onClick={() => void jumpTo(props.source)}
     >
       <span class="tds-quote-bar" aria-hidden="true" />
       <span class="tds-quote-body">
-        <b class="tds-quote-author">{props.exists ? authorOf(props.source) : "Message Removed"}</b>
-        <span class="tds-quote-text">{props.exists ? props.excerpt : "The original is no longer in this chat"}</span>
+        <b class="tds-quote-author">{props.exists ? authorOf(props.source) : "Message removed"}</b>
+        <span class="tds-quote-text">{props.exists ? props.excerpt : "Original message is no longer in this channel"}</span>
       </span>
     </button>
   )
 }
 
-/** The reply preview docked above the composer: excerpt, author and a close. Esc or the close clears it. */
 export function QuotePreview(props: { sessionId: string }) {
   const [shown, setShown] = createSignal<Quote>()
   let el: HTMLDivElement | undefined
   let leaving: Animation | undefined
+
   createEffect(
     () => quoteFor(props.sessionId),
     (quote) => {
@@ -79,6 +76,7 @@ export function QuotePreview(props: { sessionId: string }) {
       leaving.finished.then(() => setShown(undefined), () => undefined)
     },
   )
+
   const clear = () => setQuote(props.sessionId, undefined)
   const onKey = (event: KeyboardEvent) => {
     if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || !quoteFor(props.sessionId)) return
@@ -89,18 +87,28 @@ export function QuotePreview(props: { sessionId: string }) {
   }
   addEventListener("keydown", onKey, { capture: true })
   onCleanup(() => removeEventListener("keydown", onKey, { capture: true }))
+
   return (
     <Show when={shown()}>
       {(quote) => (
-        <div ref={el} class="tds-quote-preview tds-over" role="group" aria-label={`Replying to ${authorOf(quote().ref)}`}>
+        <div ref={el} class="tds-quote-preview" role="group" aria-label={`Replying to ${authorOf(quote().ref)}`}>
           <span class="tds-quote-bar" aria-hidden="true" />
           <span class="tds-quote-body">
             <b class="tds-quote-author">
-              <Icon name="arrow-bend-up-left" size="chip" /> Replying to {authorOf(quote().ref)}
+              <Icon name="arrow-bend-up-left" size="chip" />
+              <span>Reply to {authorOf(quote().ref)}</span>
             </b>
             <span class="tds-quote-text">{excerpt(quote().text)}</span>
           </span>
-          <button type="button" class="tds-press tds-quote-close" aria-label="Clear Reply" data-tip="" data-tip-side="top" onMouseDown={(event) => event.preventDefault()} onClick={() => (clear(), focusComposer())}>
+          <button
+            type="button"
+            class="tds-press tds-quote-close"
+            aria-label="Clear reply"
+            data-tip="Clear reply"
+            data-tip-side="top"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => (clear(), focusComposer())}
+          >
             <Icon name="x" size="chip" />
           </button>
         </div>
@@ -111,23 +119,21 @@ export function QuotePreview(props: { sessionId: string }) {
 
 const menuItems = (selected: string): readonly { value: string; icon: IconName; label: string }[] => [
   { value: "reply", icon: "arrow-bend-up-left", label: "Reply" },
-  ...(selected ? [{ value: "quote", icon: "quotes", label: "Quote Selection" } as const] : []),
-  { value: "copy", icon: "copy", label: selected ? "Copy Selection" : "Copy Text" },
+  ...(selected ? [{ value: "quote", icon: "quotes", label: "Quote selection" } as const] : []),
+  { value: "copy", icon: "copy", label: selected ? "Copy selection" : "Copy text" },
 ]
 
 const bubbleAt = (node: Node | null) => (node instanceof Element ? node : node?.parentElement)?.closest<HTMLElement>(".tds-column .tds-bubble[data-ref]:not([data-queued])") ?? undefined
 
-/**
- * Reply from a message three ways: Reply on the message's hover rail (reactions.tsx hands it over through setReplyHandler),
- * the bubble's context menu, and a glass Quote / Reply pair over text you select in it. text(ref) gives the whole message for a reply.
- */
 export function ReplyActions(props: { sessionId: string; scroller: () => HTMLElement | undefined; text: (ref: string) => string | undefined }) {
   const whole = (ref: string): Quote => ({ ref, text: plainText(props.text(ref) ?? "") })
   onSettled(() => void setReplyHandler(() => (target: ReplyTarget) => reply(untrack(() => props.sessionId), whole(target.ref))))
   onCleanup(() => setReplyHandler(undefined))
+
   const [picked, setPicked] = createSignal<{ ref: string; text: string; left: number; top: number; below: boolean }>()
   let bar: HTMLDivElement | undefined
   let frame = 0
+
   const readSelection = () => {
     frame = 0
     const selection = getSelection()
@@ -144,10 +150,12 @@ export function ReplyActions(props: { sessionId: string; scroller: () => HTMLEle
     setPicked({ ref: from.dataset.ref!, text, left: box.left + box.width / 2, top: below ? box.bottom + tokens.size["reply-gap"] : box.top - tokens.size["reply-gap"], below })
     if (!was) requestAnimationFrame(() => bar && enter.menu(bar))
   }
+
   const onSelection = () => void (frame ||= requestAnimationFrame(readSelection))
   const onScroll = () => void (untrack(picked) && onSelection())
   const menu = createMenuController<{ ref: string; selected: string }>()
-  const open = (event: MouseEvent) => {
+
+  const onContextMenu = (event: MouseEvent) => {
     if (event.defaultPrevented || event.shiftKey || (event.target as Element).closest?.("a[data-link=web]")) return
     const bubble = bubbleAt(event.target as Node)
     if (!bubble) return
@@ -157,28 +165,47 @@ export function ReplyActions(props: { sessionId: string; scroller: () => HTMLEle
     const at = DOMRect.fromRect({ x: event.clientX, y: event.clientY, width: 0, height: 0 })
     void menu.open({ payload: { ref: bubble.dataset.ref!, selected }, anchor: { getBoundingClientRect: () => at } as Element })
   }
-  /** The column reflows under a still selection (a reply lands, a block expands): follow it like a scroll. */
+
+  const onDblClick = (event: MouseEvent) => {
+    if ((event.target as Element).closest?.("a, button, pre, code")) return
+    const bubble = bubbleAt(event.target as Node)
+    if (!bubble?.dataset.ref) return
+    const sel = getSelection()
+    if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) return
+    reply(props.sessionId, whole(bubble.dataset.ref))
+  }
+
   const moved = new ResizeObserver(onScroll)
   let scroller: HTMLElement | undefined
   onSettled(() => {
     scroller = props.scroller()
     scroller?.addEventListener("scroll", onScroll, { passive: true })
-    scroller?.addEventListener("contextmenu", open)
+    scroller?.addEventListener("contextmenu", onContextMenu)
+    scroller?.addEventListener("dblclick", onDblClick)
     document.addEventListener("selectionchange", onSelection)
     const column = scroller?.querySelector(".tds-column")
     if (column) moved.observe(column)
   })
   onCleanup(() => {
     scroller?.removeEventListener("scroll", onScroll)
-    scroller?.removeEventListener("contextmenu", open)
+    scroller?.removeEventListener("contextmenu", onContextMenu)
+    scroller?.removeEventListener("dblclick", onDblClick)
     document.removeEventListener("selectionchange", onSelection)
     moved.disconnect()
     cancelAnimationFrame(frame)
   })
+
   const take = (quote: Quote) => {
     reply(props.sessionId, quote)
     getSelection()?.removeAllRanges()
   }
+
+  const copySelection = (text: string) => {
+    void navigator.clipboard.writeText(text)
+    getSelection()?.removeAllRanges()
+    setPicked(undefined)
+  }
+
   const run = (action: string) => {
     const payload = menu.getPayload()
     if (!payload) return
@@ -186,16 +213,31 @@ export function ReplyActions(props: { sessionId: string; scroller: () => HTMLEle
     if (action === "quote") reply(props.sessionId, { ref: payload.ref, text: payload.selected })
     if (action === "copy") void navigator.clipboard.writeText(payload.selected || (props.text(payload.ref) ?? ""))
   }
+
   return (
     <>
       <Show when={picked()}>
         {(at) => (
-          <div ref={bar} class="tds-select-bar tds-over" role="toolbar" aria-label="Selection" data-below={at().below ? "" : undefined} style={{ left: `${at().left}px`, top: `${at().top}px` }} onPointerDown={(event) => event.preventDefault()}>
+          <div
+            ref={bar}
+            class="tds-select-bar tds-over"
+            role="toolbar"
+            aria-label="Selection actions"
+            data-below={at().below ? "" : undefined}
+            style={{ left: `${at().left}px`, top: `${at().top}px` }}
+            onPointerDown={(event) => event.preventDefault()}
+          >
             <button type="button" class="tds-press tds-select-action" onClick={() => take({ ref: at().ref, text: at().text })}>
-              <Icon name="quotes" size="menu" /> Quote
+              <Icon name="quotes" size="chip" />
+              <span>Quote</span>
             </button>
             <button type="button" class="tds-press tds-select-action" onClick={() => take(whole(at().ref))}>
-              <Icon name="arrow-bend-up-left" size="menu" /> Reply
+              <Icon name="arrow-bend-up-left" size="chip" />
+              <span>Reply</span>
+            </button>
+            <button type="button" class="tds-press tds-select-action" onClick={() => copySelection(at().text)}>
+              <Icon name="copy" size="chip" />
+              <span>Copy</span>
             </button>
           </div>
         )}

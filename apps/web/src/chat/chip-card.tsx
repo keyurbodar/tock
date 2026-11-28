@@ -1,5 +1,6 @@
 import { createSignal, Match, onCleanup, onSettled, Show, Switch, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { animate } from "@tock/ui/motion"
 import { tokens } from "@tock/tokens"
 import { app, titleOf } from "../state/app"
@@ -215,6 +216,9 @@ export function ChipCards() {
             <Match when={value.kind === "skill"}>
               <SkillCardBody name={value.id} />
             </Match>
+            <Match when={value.kind === "plugin"}>
+              <PluginCardBody name={value.id} />
+            </Match>
           </Switch>
         </div>
       )}
@@ -229,9 +233,7 @@ function ThreadCardBody(props: { id: string; label: string }) {
     <>
       <span class="tds-chip-card-head">
         <span class={`tds-row-icon ${glyph().hue}`}>
-          <svg class="tds-icon tds-chip-icon" aria-hidden="true">
-            <use href={`#i-${glyph().icon}`} />
-          </svg>
+          <TockIcon name={glyph().icon} color={glyph().tone} size={tokens.icon.channel} />
         </span>
         <b class="tds-chip-card-title">{session() ? titleOf(session()) : props.label}</b>
       </span>
@@ -276,6 +278,18 @@ function SkillCardBody(props: { name: string }) {
         <b class="tds-chip-card-title">{props.name}</b>
       </span>
       <span class="tds-chip-card-site">{skill() ? skill()!.description || "Skill" : skills() === undefined ? "Skill" : "Not installed"}</span>
+    </>
+  )
+}
+
+function PluginCardBody(props: { name: string }) {
+  return (
+    <>
+      <span class="tds-chip-card-head" style={{ "--tds-chip-accent": "var(--tds-chip-plugin)" }}>
+        <Icon name="sparkle" size="chip" />
+        <b class="tds-chip-card-title">{props.name}</b>
+      </span>
+      <span class="tds-chip-card-line">Plugin</span>
     </>
   )
 }

@@ -47,9 +47,20 @@ export function formatSize(bytes: number) {
 export const withFiles = (text: string, files: readonly { name: string; id: string }[]) =>
   [text.trim(), files.map((file) => `[${file.name.replace(/[[\]]/g, "")}](tock-file:${file.id})`).join("\n")].filter(Boolean).join("\n\n")
 
+const FILE_LINE = /^\s*(\[[^\]\n]+\]\(tock-file:[\w-]+\)\s*)+$/
+
 export function splitFiles(text: string) {
-  const files = [...text.matchAll(LINK)].map((match) => ({ name: match[1]!, id: match[2]! }))
-  return { text: text.replace(LINK, "").trim(), files }
+  const lines = text.split("\n")
+  let cut = lines.length
+  while (cut > 0) {
+    const line = lines[cut - 1]!
+    if (line.trim() === "" || FILE_LINE.test(line)) cut--
+    else break
+  }
+  const tail = lines.slice(cut).join("\n")
+  const files = [...tail.matchAll(LINK)].map((match) => ({ name: match[1]!, id: match[2]! }))
+  if (files.length === 0) return { text: text.trim(), files: [] }
+  return { text: lines.slice(0, cut).join("\n").trim(), files }
 }
 
 function upload(file: File, onProgress: (fraction: number) => void): Promise<FileMeta> {

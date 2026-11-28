@@ -86,7 +86,7 @@ export function Thread() {
       <ChipCards />
       <Boundary surface="composer">
         <Followups chat={params.id} set={followupsIn(state()?.entries ?? [])} working={isWorking(state())} onPick={fillComposer} />
-        <Composer draftKey={params.id} attachments={attachments} working={isWorking(state())} onSend={(text) => untrack(() => sendReply(params.id, text))} onStop={() => void abort(params.id)} />
+        <Composer draftKey={params.id} channel={session()?.title || undefined} attachments={attachments} working={isWorking(state())} onSend={(text) => untrack(() => sendReply(params.id, text))} onStop={() => void abort(params.id)} />
       </Boundary>
       <Show when={dragging()}>
         <div class="tds-drop tds-veil-glass" data-bad={unreadable() ? "" : undefined} aria-hidden="true">

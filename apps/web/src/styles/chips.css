@@ -1,46 +1,47 @@
 @layer components {
-  /* One chip for every reference (link, file, chat, skill, command), as t3code's ContextChip: an inline-flex row aligned on
-     the baseline, a 14px icon slot whose bottom edge is that baseline, then a label that clips with an ellipsis. The box is
-     the TDS token height, centred on the line by padding and cancelled by negative margins, so it never grows the line.
-     Hover underlines the label of a chip that navigates; nothing else moves. */
+  /* Ported from t3code ContextChip: inline-flex items-center aligned to Geist text metrics without shifting line-height. */
   .tds-chip {
     --tds-chip-ink: color-mix(in oklab, var(--tds-chip-accent) 82%, var(--tds-text-tx));
-    display: inline-flex; align-items: baseline; gap: var(--tds-space-4); max-width: 100%; box-sizing: border-box;
-    height: var(--tds-size-token); padding: calc((var(--tds-size-token) - 1lh) / 2) var(--tds-space-2);
-    margin-block: calc((1lh - var(--tds-size-token)) / 2); border-radius: var(--tds-radius-kbd); vertical-align: baseline;
+    display: inline-flex; align-items: center; gap: 0.24em; max-width: 100%; box-sizing: border-box;
+    padding: 0 var(--tds-space-2); border-radius: var(--tds-radius-kbd); vertical-align: -0.14em;
     background: transparent; color: var(--tds-chip-ink);
-    font-size: var(--tds-type-bubble-size); font-weight: var(--tds-weight-medium); line-height: inherit; text-decoration: none; white-space: nowrap; cursor: pointer;
+    font-size: inherit; font-weight: var(--tds-weight-medium); line-height: normal; text-decoration: none; white-space: nowrap; cursor: pointer;
+    transition: background-color var(--tds-dur-fast) var(--tds-ease-out), color var(--tds-dur-fast) var(--tds-ease-out);
   }
   .tds-chip:focus-visible { outline: var(--tds-size-focus-width) solid currentColor; outline-offset: calc(var(--tds-size-focus-width) * -1) }
   .tds-chip-label {
     display: block; min-width: 0; overflow-x: clip; text-overflow: ellipsis; white-space: nowrap;
-    text-decoration: underline transparent; text-decoration-thickness: var(--tds-size-focus-width); text-underline-offset: .2em;
-    transition: text-decoration-color var(--tds-dur-chip-hover) var(--tds-ease-tw);
+    text-decoration: underline transparent; text-decoration-thickness: 1px; text-underline-offset: 0.2em;
+    transition: text-decoration-color var(--tds-dur-fast) var(--tds-ease-out);
   }
-  @media (hover: hover) and (pointer: fine) { .tds-chip:is(a, button):hover .tds-chip-label { text-decoration-color: currentColor } }
-  @media (prefers-reduced-motion: reduce) { .tds-chip-label { transition: none } }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-chip:is(a, button):hover .tds-chip-label { text-decoration-color: currentColor }
+    .tds-chip:hover { background: color-mix(in oklab, var(--tds-chip-accent) 12%, transparent) }
+  }
+  @media (prefers-reduced-motion: reduce) { .tds-chip, .tds-chip-label { transition: none } }
   .tds-chip[data-state="invalid"] { --tds-chip-accent: var(--tds-text-faint); color: var(--tds-text-faint); & .tds-chip-label { text-decoration: line-through } }
-  .tds-chip-icon { display: block; flex: none; width: var(--tds-icon-chip); height: var(--tds-icon-chip) }
+  .tds-chip-icon { display: block; flex: none; width: 1em; height: 1em }
   .tds-chip-action {
-    display: grid; place-items: center; flex: none; align-self: center; margin-inline: var(--tds-space-1) calc(var(--tds-space-3) * -1); width: var(--tds-size-badge); height: var(--tds-size-badge);
-    border-radius: var(--tds-radius-kbd); color: inherit; opacity: .7; & .tds-chip-icon { width: var(--tds-space-10); height: var(--tds-space-10) }
+    display: inline-flex; align-items: center; justify-content: center; flex: none; margin-left: 0.14em; width: 1em; height: 1em;
+    border-radius: var(--tds-radius-kbd); color: inherit; opacity: 0.7;
+    transition: var(--tds-press-transition), opacity var(--tds-dur-fast) var(--tds-ease-out), background-color var(--tds-dur-fast) var(--tds-ease-out);
+    & .tds-chip-icon { width: 0.85em; height: 0.85em }
   }
   @media (hover: hover) and (pointer: fine) { .tds-chip-action:hover { opacity: 1; background: color-mix(in oklab, var(--tds-chip-accent) 22%, transparent) } }
   .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-text-me) }
 
-  /* The icon box: reserved before anything loads, children out of flow, so the box (not its content) sets the baseline. */
   .tds-chip-slot, .tds-link-fav {
-    position: relative; display: inline-block; flex: none; width: var(--tds-size-favicon); height: var(--tds-size-favicon); vertical-align: baseline;
+    position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 1em; height: 1em; align-self: center;
     & > svg, & > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: var(--tds-radius-favicon) }
     & > img { opacity: 0; object-fit: contain }
-    & > .tds-link-fav-glyph { opacity: .7 }
+    & > .tds-link-fav-glyph { opacity: 0.72 }
   }
 
-  /* Linked words: the favicon glued to the first characters, the words keep flowing; a solid underline on hover. */
   .tds-link {
     color: var(--tds-text-tx); border-radius: var(--tds-radius-kbd);
-    text-decoration: underline transparent; text-decoration-thickness: var(--tds-size-focus-width); text-underline-offset: .2em;
-    transition: color var(--tds-dur-chip-hover) var(--tds-ease-tw), text-decoration-color var(--tds-dur-chip-hover) var(--tds-ease-tw);
+    text-decoration: underline transparent; text-decoration-thickness: 1px; text-underline-offset: 0.2em;
+    transition: color var(--tds-dur-fast) var(--tds-ease-out), text-decoration-color var(--tds-dur-fast) var(--tds-ease-out);
   }
   @media (hover: hover) and (pointer: fine) {
     .tds-link:hover { color: var(--tds-text-rose-tint); text-decoration-color: currentColor }
@@ -50,12 +51,10 @@
   .tds-bubble[data-side="me"] .tds-link { color: inherit }
   .tds-link-lead { white-space: nowrap }
   .tds-link-break { overflow-wrap: anywhere }
-  .tds-link-fav { margin-inline-end: var(--tds-space-4) }
+  .tds-link-fav { margin-inline-end: 0.24em; vertical-align: -0.14em }
 
   .tds-input .tds-chip { cursor: default; user-select: none }
 
-  /* The one shared hover card (chip-card.tsx), drawn as t3code's tooltip popup: content-sized up to chip-card, placed by
-     script, entering from .98 at its trigger-side origin. It starts hidden so it never flashes before it is placed. */
   .tds-chip-card {
     position: fixed; top: 0; left: 0; z-index: var(--tds-z-lay); display: flex; flex-direction: column; gap: var(--tds-space-6);
     width: max-content; max-width: min(var(--tds-size-chip-card), calc(100vw - var(--tds-size-card-edge) * 2)); padding: var(--tds-space-12);

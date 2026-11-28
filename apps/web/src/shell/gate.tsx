@@ -15,7 +15,7 @@ export function Gate() {
     socket.start()
   }
   return (
-    <div class="fixed inset-0 z-lightbox grid place-items-center bg-scrim">
+    <div class="fixed inset-0 z-lightbox grid place-items-center bg-scrim tds-veil-glass">
       <form class="tds-dialog tds-over" novalidate onSubmit={unlock} data-shake={state() === "wrong" ? "" : undefined}>
         <img src="/brand/toast-mascot-128.svg" alt="" class="size-mascot-dialog mb-8 rounded-small" />
         <b class="text-dialog text-tx">Unlock Tock</b>

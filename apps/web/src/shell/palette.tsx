@@ -5,6 +5,7 @@ import { useNavigate } from "@solidjs/router"
 import { Command, CommandEmpty, CommandGroup, CommandGroupLabel, CommandInput, CommandItem, CommandList } from "@ui-sdk/solid/command"
 import { Dialog, DialogBackdrop, DialogContent, DialogTitle } from "@ui-sdk/solid/dialog"
 import { Icon, type IconName } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { app, newThreadId, plainText, titleOf } from "../state/app"
@@ -96,7 +97,7 @@ export function Palette() {
                       data-hit={hit() === `chat:${session().id}` ? "" : undefined}
                     >
                       <span class={`tds-palette-icon ${glyphFor(session().id).hue}`}>
-                        <Icon name={glyphFor(session().id).icon} size="menu" />
+                        <TockIcon name={glyphFor(session().id).icon} color={glyphFor(session().id).tone} size={tokens.icon.channel} />
                       </span>
                       <span class="tds-palette-title" dir={dirOf(titleOf(session()))}>{titleOf(session())}</span>
                       <span class="tds-palette-trail num">

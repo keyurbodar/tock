@@ -8,7 +8,7 @@ import { fileUrl, isImage } from "./attachments"
 export type ChipKind = keyof typeof tokens.color.chip
 
 /** The chips that open the shared hover card (chip-card.tsx); the trigger carries what the card needs as data attributes. */
-export type CardKind = "link" | "thread" | "file" | "skill"
+export type CardKind = "link" | "thread" | "file" | "skill" | "plugin"
 
 const documents: readonly { test: RegExp; kind: ChipKind; icon: IconName }[] = [
   { test: /\.pdf$/i, kind: "pdf", icon: "file-pdf" },
@@ -119,4 +119,8 @@ export function ThreadChip(props: { id: string; label?: string }) {
 /** A skill reference (`[$name](tock-skill:name)`): the chip names the skill, and its card shows what the skill is for. */
 export function SkillChip(props: { name: string }) {
   return <Chip kind="skill" icon="sparkle" label={props.name} card={{ kind: "skill", id: props.name }} />
+}
+
+export function PluginChip(props: { name: string }) {
+  return <Chip kind="plugin" icon="sparkle" label={props.name} card={{ kind: "plugin", id: props.name }} />
 }

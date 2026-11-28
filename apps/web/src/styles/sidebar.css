@@ -9,41 +9,16 @@
     @starting-style { opacity: 0; clip-path: inset(0 0 100% 0) }
   }
   .tds-row { user-select: none; -webkit-user-drag: none }
-  .tds-row-wrap[data-swiping] .tds-row:not([data-selected]) { background: var(--tds-surface-side) }
   .tds-row-title > .tds-morph-text, .tds-row-preview > .tds-morph-text, :is(.tds-row-title, .tds-row-preview) > .tds-morph-text > span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-  .tds-row-wrap[data-swiping] .tds-row { will-change: transform }
   @media (hover: hover) and (pointer: fine) {
     .tds-row-wrap:hover :is(.tds-row-time, .tds-row-mark) { opacity: 0 }
   }
-  .tds-row-wrap:has(.tds-row-more[aria-expanded="true"]) .tds-row-mark, .tds-row-wrap[data-swiping] :is(.tds-row-more, .tds-row-time, .tds-row-mark) { opacity: 0 }
-  .tds-row-wrap[data-swiping] .tds-row-more { pointer-events: none }
   .tds-row[data-multi] { background: var(--tds-accent-rose-10); box-shadow: inset 0 0 0 1px var(--tds-accent-rose-28) }
   .tds-row[data-multi][data-selected] { background: var(--tds-accent-rose-16) }
   .tds-row-lift {
     position: fixed; z-index: var(--tds-z-lift); pointer-events: none; list-style: none;
     background: var(--tds-cap-fill); box-shadow: var(--tds-cap-shadow), var(--tds-lift-ghost);
   }
-
-  .tds-swipe { position: absolute; inset: 0; display: flex; justify-content: space-between; border-radius: var(--tds-radius-row); opacity: 0 }
-  .tds-row-wrap[data-swiping] .tds-swipe { opacity: 1 }
-  .tds-swipe-side { position: relative; height: 100%; width: 0; overflow: hidden }
-  .tds-swipe-act {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; clip-path: var(--clip);
-    font-size: var(--tds-type-micro-size); font-weight: var(--tds-weight-medium); letter-spacing: 0; color: var(--tds-surface-white);
-    transition: var(--tds-press-transition), clip-path var(--tds-dur-menu) var(--tds-ease-std);
-  }
-  .tds-swipe-body { display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-4); white-space: nowrap; translate: calc(var(--w, 0px) * var(--k)) 0; transition: translate var(--tds-dur-menu) var(--tds-ease-std) }
-  .tds-swipe-act[data-act="pin"] { background: var(--tds-swipe-pin) }
-  .tds-swipe-act[data-act="unread"] { background: var(--tds-swipe-unread) }
-  .tds-swipe-act[data-act="archive"] { background: var(--tds-swipe-archive) }
-  .tds-swipe-act[data-act="delete"] { background: var(--tds-swipe-delete) }
-  /* at rest the strip splits in two: the near action (stage 1) beside the row, the far one (stage 2) at the edge */
-  [data-side="right"] > [data-stage="1"], [data-side="left"] > [data-stage="2"] { --clip: inset(0 50% 0 0); --k: -.25 }
-  [data-side="right"] > [data-stage="2"], [data-side="left"] > [data-stage="1"] { --clip: inset(0 0 0 50%); --k: .25 }
-  /* an armed action takes the whole strip, so what you see is what release runs */
-  .tds-row-wrap[data-armed="1"] [data-stage="1"], .tds-row-wrap[data-armed="2"] [data-stage="2"] { z-index: 1; --clip: inset(0); --k: 0 }
-  .tds-row-wrap[data-armed="1"] [data-side="right"] > [data-stage="2"], .tds-row-wrap[data-armed="2"] [data-side="left"] > [data-stage="1"] { --clip: inset(0 0 0 100%); --k: .5 }
-  .tds-row-wrap[data-armed="1"] [data-side="left"] > [data-stage="2"], .tds-row-wrap[data-armed="2"] [data-side="right"] > [data-stage="1"] { --clip: inset(0 100% 0 0); --k: -.5 }
 
   /* Duet sidebar: 276 wide on the page ground, no divider. Strip 52, agent row 42, pinned tiles, "Channels", 32 rows, footer 70. */
   .tds-sidebar {
@@ -109,7 +84,7 @@
   .tds-pin-label {
     max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-size: var(--tds-type-tile-size); line-height: var(--tds-type-tile-lh); letter-spacing: var(--tds-type-tile-tracking); color: var(--tds-duet-t2);
-    transition: color var(--tds-dur-fast) var(--tds-ease-duet);
+    transition: var(--tds-press-transition), color var(--tds-dur-fast) var(--tds-ease-duet);
   }
   .tds-pin:is([data-active], [data-unread]) .tds-pin-label { color: var(--tds-duet-t1) }
   .tds-pin-rename {
@@ -132,7 +107,7 @@
     position: relative; display: flex; align-items: center; gap: var(--tds-space-7); height: var(--tds-size-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8);
     border-radius: var(--tds-radius-row); color: var(--tds-duet-t2); text-decoration: none; outline-offset: calc(var(--tds-size-focus-width) * -1);
     font-size: var(--tds-type-row-size); line-height: var(--tds-type-row-lh); letter-spacing: var(--tds-type-row-tracking);
-    transition: background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
   }
   @media (hover: hover) and (pointer: fine) { .tds-row:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
   /* selection paints on press, before the route changes */
@@ -160,15 +135,40 @@
     all: unset; width: 100%; box-sizing: border-box; padding: 0 var(--tds-space-4); margin-inline: calc(var(--tds-space-4) * -1);
     border-radius: var(--tds-radius-link); background: var(--tds-duet-raised); color: var(--tds-duet-t1); caret-color: var(--tds-duet-accent);
   }
-  .tds-archive-head {
-    display: flex; align-items: center; gap: var(--tds-space-7); width: 100%; height: var(--tds-size-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8);
-    border-radius: var(--tds-radius-row); font-size: var(--tds-type-row-size); color: var(--tds-duet-t3);
-    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
+  .tds-ch-filter {
+    display: flex; flex-direction: column; gap: var(--tds-space-6); flex: none;
+    margin: var(--tds-space-4) var(--tds-space-10) var(--tds-space-4);
+    @starting-style { opacity: 0; translate: 0 calc(var(--tds-space-4) * -1) }
+    transition: opacity var(--tds-dur-fast) var(--tds-ease-out), translate var(--tds-dur-fast) var(--tds-ease-out);
   }
-  @media (hover: hover) and (pointer: fine) { .tds-archive-head:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
+  .tds-ch-filter-input {
+    display: flex; align-items: center; gap: var(--tds-space-6); height: var(--tds-size-row); padding: 0 var(--tds-space-8);
+    border-radius: var(--tds-radius-row); background: var(--tds-duet-raised); color: var(--tds-duet-t2);
+    & input { all: unset; flex: 1; min-width: 0; font-size: var(--tds-type-caption-size); color: var(--tds-duet-t1); caret-color: var(--tds-duet-accent) }
+    & input::placeholder { color: var(--tds-duet-t3) }
+  }
+  .tds-ch-filter-clear { display: grid; place-items: center; flex: none; color: var(--tds-duet-t3) }
+  @media (hover: hover) and (pointer: fine) { .tds-ch-filter-clear:hover { color: var(--tds-duet-t1) } }
+  .tds-ch-filter-pills { display: flex; align-items: center; gap: var(--tds-space-4) }
+  .tds-ch-filter-pill {
+    padding: var(--tds-space-2) var(--tds-space-8); border-radius: var(--tds-radius-pill);
+    font-size: var(--tds-type-caption-size); color: var(--tds-duet-t2); background: transparent;
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
+    &[aria-pressed="true"] { background: var(--tds-duet-select); color: var(--tds-duet-t1) }
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-ch-filter-pill:not([aria-pressed="true"]):hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
+  .tds-ib[data-filter-active] { color: var(--tds-duet-accent) }
+
+  .tds-archive-head {
+    display: flex; align-items: center; gap: var(--tds-space-6); width: 100%; height: var(--tds-size-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8);
+    margin-top: var(--tds-space-8); background: transparent; border: none; box-shadow: none;
+    font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-regular); color: var(--tds-duet-t3);
+    transition: var(--tds-press-transition), color var(--tds-dur-fast) var(--tds-ease-duet);
+  }
+  .tds-archive-icon { background: transparent; color: currentColor; flex: none }
+  @media (hover: hover) and (pointer: fine) { .tds-archive-head:hover { background: transparent; color: var(--tds-duet-t2) } }
   .tds-archive-count { margin-left: auto; color: var(--tds-duet-t3) }
-  .tds-archive-caret { rotate: -90deg; transition: rotate var(--tds-dur-fast) var(--tds-ease-duet) }
-  .tds-archive-head[aria-expanded="true"] .tds-archive-caret { rotate: 0deg }
+  .tds-archive-caret { color: var(--tds-duet-t3); flex: none }
 
   .tds-me {
     display: flex; align-items: center; gap: var(--tds-space-12); flex: none; height: var(--tds-size-footer); padding: 0 var(--tds-space-12) 0 var(--tds-space-22);

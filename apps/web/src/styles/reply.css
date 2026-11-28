@@ -1,53 +1,59 @@
 @layer components {
-  /* Reply and quote: the preview docked above the composer, the chip in a sent bubble, the hover Reply button and the selection pair. */
-  .tds-quote-bar { flex: none; align-self: stretch; width: var(--tds-size-quote-bar); border-radius: var(--tds-radius-pill); background: var(--tds-accent-rose) }
+  /* Telegram-accurate reply & quote system: flush composer dock, clickable bubble quote card, and crisp selection toolbar. */
+  .tds-quote-bar { flex: none; align-self: stretch; width: var(--tds-size-quote-bar); border-radius: var(--tds-radius-pill); background: var(--tds-duet-accent) }
   .tds-quote-body { display: grid; min-width: 0; gap: var(--tds-space-1); text-align: start }
   .tds-quote-author {
     display: inline-flex; align-items: center; gap: var(--tds-space-4); min-width: 0;
-    font-size: var(--tds-type-micro-size); font-weight: var(--tds-weight-semibold); color: var(--tds-accent-rose);
+    font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium); line-height: var(--tds-type-caption-lh); color: var(--tds-duet-accent);
   }
-  .tds-quote-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-caption-size); color: var(--tds-text-muted) }
+  .tds-quote-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-caption-size); line-height: var(--tds-type-caption-lh); color: var(--tds-duet-t2) }
 
   .tds-quote-preview {
-    display: flex; align-items: center; gap: var(--tds-space-10); width: 100%; max-width: var(--tds-size-quote-preview-max);
-    margin-bottom: var(--tds-space-8); padding: var(--tds-space-8) var(--tds-space-8) var(--tds-space-8) var(--tds-space-12);
-    border-radius: var(--tds-radius-menu);
+    display: flex; align-items: center; gap: var(--tds-space-10); width: 100%;
+    margin-bottom: var(--tds-space-6); padding: var(--tds-space-8) var(--tds-space-8) var(--tds-space-8) var(--tds-space-10);
+    border-radius: var(--tds-radius-composer); background: var(--tds-duet-raised); box-shadow: var(--tds-ring-composer);
     & .tds-quote-body { flex: 1 }
   }
   .tds-quote-close {
     flex: none; display: grid; place-items: center; width: var(--tds-size-reply-hit); height: var(--tds-size-reply-hit);
-    border-radius: var(--tds-radius-pill); color: var(--tds-text-muted);
+    border-radius: var(--tds-radius-pill); color: var(--tds-duet-t2);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-out), color var(--tds-dur-fast) var(--tds-ease-out);
   }
-  @media (hover: hover) and (pointer: fine) { .tds-quote-close:hover { color: var(--tds-text-tx); background: var(--tds-overlay-hover) } }
+  @media (hover: hover) and (pointer: fine) { .tds-quote-close:hover { color: var(--tds-duet-t1); background: var(--tds-duet-hover) } }
 
   .tds-quote-chip {
-    display: flex; gap: var(--tds-space-8); width: 100%; min-width: 0; margin: var(--tds-space-2) 0 var(--tds-space-6);
-    padding: var(--tds-space-4) var(--tds-space-8) var(--tds-space-4) var(--tds-space-4);
-    border-radius: var(--tds-radius-button); background: var(--tds-overlay-hover); cursor: pointer; white-space: normal;
-    &[data-gone] { cursor: default; & .tds-quote-bar { background: var(--tds-text-faint) } & .tds-quote-author { color: var(--tds-text-faint) } }
+    display: flex; align-items: stretch; gap: var(--tds-space-8); width: 100%; min-width: 0; margin: 0 0 var(--tds-space-6);
+    padding: var(--tds-space-5) var(--tds-space-10) var(--tds-space-5) var(--tds-space-6);
+    border-radius: var(--tds-radius-button); background: color-mix(in srgb, var(--tds-duet-accent) 10%, transparent);
+    cursor: pointer; white-space: normal; text-align: start;
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-out);
+    & .tds-quote-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; color: var(--tds-duet-t2) }
+    &[data-gone] { cursor: default; background: var(--tds-overlay-hover); & .tds-quote-bar { background: var(--tds-text-faint) } & .tds-quote-author { color: var(--tds-text-faint) } }
   }
-  .tds-bubble[data-side="me"] .tds-quote-chip .tds-quote-text { color: var(--tds-text-me); opacity: .72 }
-  @media (hover: hover) and (pointer: fine) { .tds-quote-chip:not([data-gone]):hover { background: var(--tds-overlay-press) } }
-
+  .tds-bubble[data-side="me"] .tds-quote-chip { background: var(--tds-overlay-hover) }
+  .tds-bubble[data-side="me"] .tds-quote-chip .tds-quote-text { color: var(--tds-text-me); opacity: 0.78 }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-quote-chip:not([data-gone]):hover { background: color-mix(in srgb, var(--tds-duet-accent) 16%, transparent) }
+    .tds-bubble[data-side="me"] .tds-quote-chip:not([data-gone]):hover { background: var(--tds-overlay-press) }
+  }
 
   .tds-select-bar {
-    position: fixed; z-index: var(--tds-z-lift); display: flex; gap: var(--tds-space-2); padding: var(--tds-space-3);
+    position: fixed; z-index: var(--tds-z-lift); display: inline-flex; align-items: center; gap: var(--tds-space-2); padding: var(--tds-space-3);
     translate: -50% -100%; border-radius: var(--tds-radius-pill); transform-origin: 50% 100%;
   }
-  /* No room above (the header band): the pair flips under the selection. */
   .tds-select-bar[data-below] { translate: -50% 0; transform-origin: 50% 0 }
   .tds-select-action {
     display: inline-flex; align-items: center; gap: var(--tds-space-5); height: var(--tds-size-reply-hit); padding: 0 var(--tds-space-10);
-    border-radius: var(--tds-radius-pill); font-size: var(--tds-type-menu-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx);
+    border-radius: var(--tds-radius-pill); font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-out);
   }
-  @media (hover: hover) and (pointer: fine) { .tds-select-action:hover { background: var(--tds-overlay-hover) } }
+  @media (hover: hover) and (pointer: fine) { .tds-select-action:hover { background: var(--tds-duet-hover) } }
 
-  /* The quote a reply points at, on its peek line: the bubble chip at peek size. */
   .tds-peek-line .tds-peek-quote {
     display: flex; gap: var(--tds-space-6); min-width: 0; margin-bottom: var(--tds-space-3);
     padding: var(--tds-space-3) var(--tds-space-6) var(--tds-space-3) var(--tds-space-3); border-radius: var(--tds-radius-button-sm); background: var(--tds-overlay-hover);
     & .tds-quote-body { display: grid }
     & .tds-quote-author, & .tds-quote-text { display: block; font-size: var(--tds-type-micro-size) }
   }
-  .tds-peek-line[data-me] .tds-peek-quote .tds-quote-text { color: var(--tds-text-tx); opacity: .72 }
+  .tds-peek-line[data-me] .tds-peek-quote .tds-quote-text { color: var(--tds-text-tx); opacity: 0.72 }
 }

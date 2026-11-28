@@ -2,6 +2,7 @@ import { createSignal, For, Show } from "solid-js"
 import { Portal } from "@solidjs/web"
 import { useNavigate } from "@solidjs/router"
 import { Icon } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { Orb } from "@tock/ui/orb"
 import { tokens } from "@tock/tokens"
 import { animate, morphFrom } from "@tock/ui/motion"
@@ -148,6 +149,7 @@ export function Peek() {
         {(peek) => (
           <div
             class="tds-peek tds-over"
+            data-tock-target=""
             role="dialog"
             aria-label={`Peek at ${titleOf(peek().session)}`}
             data-place={peek().place}
@@ -159,8 +161,8 @@ export function Peek() {
           >
             <div class="tds-peek-body">
             <div class="tds-peek-head">
-              <span class={glyphFor(peek().session.id).hue}>
-                <Icon name={glyphFor(peek().session.id).icon} size="toast" />
+              <span class={`tds-row-icon ${glyphFor(peek().session.id).hue}`}>
+                <TockIcon name={glyphFor(peek().session.id).icon} color={glyphFor(peek().session.id).tone} size={tokens.icon.channel} />
               </span>
               <b>{titleOf(peek().session)}</b>
               <Show when={peek().session.busy} fallback={<em class="num">{shortTime(peek().session.updatedAt, minute())}</em>}>
