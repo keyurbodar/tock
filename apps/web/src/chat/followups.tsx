@@ -1,6 +1,8 @@
 import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid-js"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ui-sdk/solid/tooltip"
 import { Icon } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
+import { followupIcon } from "./followup-icons"
 import { animate, dur, ease, swapFollowup } from "@tock/ui/motion"
 import type { Followup } from "@tock/protocol"
 import { tokens } from "@tock/tokens"
@@ -221,9 +223,9 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
                   }}
                 >
                   <span class="tds-followup-emoji" aria-hidden="true">
-                    <Show when={chip().prev}>{(prev) => <span data-prev="">{prev().emoji}</span>}</Show>
-                    <span data-cur="" data-glyph={chip().cur.emoji}>
-                      {chip().cur.emoji}
+                    <Show when={chip().prev}>{(prev) => <span data-prev=""><TockIcon name={followupIcon(prev())} variant="glass" size={tokens.size["followup-emoji-box"]} /></span>}</Show>
+                    <span data-cur="">
+                      <TockIcon name={followupIcon(chip().cur)} variant="glass" size={tokens.size["followup-emoji-box"]} />
                     </span>
                   </span>
                   <span class="tds-followup-label">

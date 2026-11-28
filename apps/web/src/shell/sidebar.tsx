@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "@solidjs/router"
 import { MenuTrigger } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
@@ -358,7 +359,7 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; curre
         onDblClick={(e) => (e.target as HTMLElement).closest(".tds-row-title") && setRenaming(untrack(() => props.session.id))}
       >
         <span class={`tds-row-icon ${glyph().hue}`} ref={icon}>
-          <Icon name={glyph().icon} size="channel" />
+          <TockIcon name={glyph().icon} color={glyph().tone} size={tokens.icon.channel} selected={props.selected} />
         </span>
         <span class="tds-row-title" dir={dirOf(titleOf(props.session))}>
           <Show when={renaming() === props.session.id} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}>

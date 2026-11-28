@@ -2,6 +2,7 @@ import { For, Show, untrack } from "solid-js"
 import { useNavigate, useParams } from "@solidjs/router"
 import { createMenuController, Menu, MenuContent, MenuContextTrigger, MenuItem, MenuItemIcon } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { tokens } from "@tock/tokens"
 import { animate, watchLayout } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
@@ -124,7 +125,7 @@ export function Pins(props: { show: boolean }) {
               <MenuContextTrigger payload={session()} class="tds-pin-slot">
                 <button type="button" class={`tds-pin ${glyphFor(session().id).hue}`} onPointerEnter={(e) => peekEnter(untrack(session), e.currentTarget, "below")} onPointerLeave={() => peekLeave()} onPointerDown={() => hidePeek()} data-id={session().id} data-active={params.id === session().id ? "" : undefined} data-unread={session().meta.unread ? "" : undefined} aria-current={params.id === session().id ? "page" : undefined} aria-label={titleOf(session())} onClick={() => navigate(`/t/${session().id}`)}>
                   <i class="tds-pin-circle" ref={(el) => land(el, session().id)}>
-                    <Icon name={glyphFor(session().id).icon} size="tile" />
+                    <TockIcon name={glyphFor(session().id).icon} color={glyphFor(session().id).tone} size={tokens.icon.tile} selected={params.id === session().id} />
                     <Show when={pinStatus(session())}>{(status) => <Orb status={status()} size="corner" class="tds-pin-status" />}</Show>
                   </i>
                   <PinLabel session={session()} />

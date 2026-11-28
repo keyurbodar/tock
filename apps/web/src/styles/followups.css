@@ -31,26 +31,10 @@
     transition-duration: var(--tds-dur-press);
   }
 
-  /* The glyph is two glass layers: a soft blurred copy behind and the glyph in front. Hover parts them, the back
-     slipping up-left while the front lifts, like Duet's .tg-back / .tg-fw. */
+  /* The glyph is a glass Tock icon: its engine parts the frosted front from the solid back on hover (data-h). */
   .tds-followup-emoji, .tds-followup-label { display: grid; & > * { grid-area: 1 / 1 } }
-  .tds-followup-emoji {
-    place-items: center; width: var(--tds-size-followup-emoji-box); height: var(--tds-size-followup-emoji-box);
-    font-family: "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif; font-size: var(--tds-size-followup-emoji); line-height: 1;
-  }
-  .tds-followup-emoji > [data-cur] {
-    position: relative; display: grid; place-items: center;
-    transition: translate var(--tds-dur-followup-part) var(--tds-ease-out), scale var(--tds-dur-followup-part) var(--tds-ease-out);
-    &::before {
-      content: attr(data-glyph); position: absolute; inset: 0; display: grid; place-items: center; z-index: -1;
-      filter: blur(var(--tds-followup-back-blur)); opacity: 0;
-      transition: translate var(--tds-dur-followup-part) var(--tds-ease-out), opacity var(--tds-dur-followup-part) var(--tds-ease-out);
-    }
-  }
-  .tds-followup:is([data-hover], :focus-visible) .tds-followup-emoji > [data-cur] {
-    translate: var(--tds-followup-part-front); scale: var(--tds-followup-lift);
-    &::before { translate: var(--tds-followup-part-back); opacity: var(--tds-followup-back-opacity) }
-  }
+  .tds-followup-emoji { place-items: center; width: var(--tds-size-followup-emoji-box); height: var(--tds-size-followup-emoji-box) }
+  .tds-followup-emoji > [data-cur] { display: grid; place-items: center }
   .tds-followup-label { justify-items: start; min-width: 0; overflow: hidden }
   .tds-followups[data-measure] [data-prev] { display: none }
 
@@ -77,7 +61,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .tds-followup, .tds-followup:is([data-hover], :focus-visible, :active) { scale: none }
-    .tds-followup:is([data-hover], :focus-visible) .tds-followup-emoji > [data-cur] { translate: none; scale: none; &::before { translate: none } }
     .tds-followup-tip[data-starting-style] { scale: none; filter: none }
   }
 }

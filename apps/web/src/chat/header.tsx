@@ -1,5 +1,6 @@
 import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js"
 import { Icon } from "@tock/ui/icon"
+import { TockIcon } from "@tock/ui/tock-icon"
 import { Orb, type OrbStatus } from "@tock/ui/orb"
 import { TextMorph } from "@tock/ui/text-morph"
 import { MenuTrigger } from "@ui-sdk/solid/menu"
@@ -43,7 +44,7 @@ export function Header(props: { title: string; glyph: ReturnType<typeof glyphFor
   const title = () => (
     <>
       <span class={`tds-ttl-icon ${glyph()?.hue ?? ""}`} aria-hidden="true">
-        <Show when={glyph()}>{(g) => <Icon name={g().icon} size="channel" />}</Show>
+        <Show when={glyph()}>{(g) => <TockIcon name={g().icon} color={g().tone} size={tokens.icon.channel} />}</Show>
       </span>
       <span class="tds-header-title" dir={dirOf(props.title)}>
         <Skeleton inline id={props.shape} label="Loading channel name" loading={props.loading === true} sample={() => <span>Planning the week</span>}>
