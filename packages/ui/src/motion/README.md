@@ -75,7 +75,7 @@ scrub(grip, { axis: "y", direction: -1, area: field, distance: () => travel(), f
 - `scrub` follows the pointer outside the handle once pressed, swallows the click that ends a drag, and with `area` keeps a wheel gesture going after the handle moves out from under it. `distance` may be a function, read at the start of each gesture.
 
 ## Backdrop
-`backdrop(true | false)` (reference counted) and `backdropTo(holder, p)` fade one static scrim (`--tds-backdrop-scrim`) behind the open surface. Opacity only: blurring or scaling the whole app every frame cost 50+ long frames per palette open on the production build. Morph sources with `backdrop: true` call it for you. `recede(el, p)` is the per-element version the composer sheet uses.
+`backdrop(true | false)` (reference counted) and `backdropTo(holder, p)` fade one static, pre-blurred scrim (`.tds-backdrop`: `--tds-backdrop-blur` over `--tds-backdrop-scrim`) behind the open surface. The blur radius never animates, only the layer's opacity: blurring or scaling the whole app every frame cost 50+ long frames per palette open on the production build. Morph sources with `backdrop: true` call it for you. `recede(el, p)` is the per-element version the composer sheet uses.
 
 `backdropTo(holder, amount)` is the same recede keyed off a 0..1 progress, for surfaces that ride `drive()` or a gesture: the layers follow the surface frame by frame and reverse with it. Holders stack and the deepest wins. The notification centre uses `drive({ backdrop: "centre" })` + `scrub`, so the scrim rides the spring as a compositor track instead of a per-frame variable on :root (which restyled the whole document every frame).
 
