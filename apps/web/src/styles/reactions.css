@@ -1,95 +1,152 @@
-/* Reactions (TOCK-4): the hover rail beside a message, the glass quick-react bar and picker, and the pills on a bubble's edge. */
+/* Reactions and comments: the hover bar on any message unit (bubble, code block, attachment), the quick-react bar and
+   picker, and each unit's pills and comments, which sit in flow right under the unit. Calm Duet surfaces: raised fill,
+   inset hairline, no shadow or blur. */
 @layer components {
-  .tds-msg { position: relative; display: flex; flex-direction: column; anchor-scope: --tds-msg }
-  .tds-msg > :nth-last-child(1 of :not(.tds-msg-rail, .tds-react-pills, .tds-react-room)) { anchor-name: --tds-msg }
+  .tds-msg { position: relative; display: flex; flex-direction: column }
   .tds-msg[data-side="me"] + .tds-msg[data-side="agent"] > :first-child,
   .tds-msg[data-side="agent"] + .tds-msg[data-side="me"] > :first-child,
   .tds-work + .tds-msg > :first-child, .tds-msg + .tds-work { margin-top: var(--tds-space-14) }
   .tds-act + .tds-msg > :first-child { margin-top: var(--tds-space-10) }
   .tds-msg[data-side="me"]:has(+ .tds-msg[data-side="me"]) > .tds-bubble:nth-last-child(1 of .tds-bubble) { border-bottom-right-radius: var(--tds-radius-tail) }
-  .tds-react-room { flex: none; height: 0; margin: 0 }
-  .tds-react-room[data-on] { height: calc(var(--tds-size-react-pill) - var(--tds-size-react-pill-overlap)) }
 
+  /* The hover bar: one per message, placed by Message beside the hovered unit or on its top corner. */
   .tds-msg-rail {
-    position: absolute; position-anchor: --tds-msg; top: anchor(center); translate: 0 -50%;
-    display: flex; align-items: center; gap: var(--tds-space-2);
+    position: absolute; z-index: 2;
+    display: flex; align-items: center; gap: var(--tds-space-2); padding: var(--tds-space-2);
+    border-radius: var(--tds-radius-small); background: var(--tds-duet-raised); box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus);
     opacity: 0; pointer-events: none; transition: opacity var(--tds-dur-hover) var(--tds-ease-out);
+    &[data-mode="side"] { background: transparent; box-shadow: none }
   }
-  .tds-msg[data-side="agent"] > .tds-msg-rail { left: anchor(right); padding-left: var(--tds-space-8) }
-  .tds-msg[data-side="me"] > .tds-msg-rail { right: anchor(left); padding-right: var(--tds-space-8); flex-direction: row-reverse }
-  .tds-msg[data-held] > .tds-msg-rail, .tds-msg-rail:focus-within { opacity: 1; pointer-events: auto }
+  .tds-msg[data-held] > .tds-msg-rail[data-on], .tds-msg-rail:focus-within { opacity: 1; pointer-events: auto }
   @media (hover: hover) and (pointer: fine) {
-    .tds-msg:hover > .tds-msg-rail { opacity: 1; pointer-events: auto }
+    .tds-msg-rail[data-on] { opacity: 1; pointer-events: auto }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .tds-msg-rail { transition: none }
+  }
+  .tds-msg[data-side="me"] > .tds-msg-rail[data-mode="side"] { flex-direction: row-reverse }
   .tds-msg-action {
     display: grid; place-items: center; width: var(--tds-size-react-button); height: var(--tds-size-react-button);
-    border-radius: var(--tds-radius-pill); color: var(--tds-text-muted);
+    border-radius: var(--tds-radius-button); color: var(--tds-text-muted);
     transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
-    &[aria-expanded="true"] { background: var(--tds-overlay-hover); color: var(--tds-text-tx2) }
+    &[aria-expanded="true"] { background: var(--tds-duet-select); color: var(--tds-text-tx) }
   }
   @media (hover: hover) and (pointer: fine) {
-    .tds-msg-action:hover { background: var(--tds-overlay-hover); color: var(--tds-text-tx2) }
+    .tds-msg-action:hover { background: var(--tds-duet-select); color: var(--tds-text-tx) }
   }
-  .tds-msg-time { padding: 0 var(--tds-space-4); font-size: var(--tds-type-micro-size); color: var(--tds-text-faint); white-space: nowrap }
+  .tds-msg-time { padding: 0 var(--tds-space-6); font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-text-faint); white-space: nowrap }
 
-  .tds-react-pills {
-    position: absolute; position-anchor: --tds-msg; top: calc(anchor(bottom) - var(--tds-size-react-pill-overlap));
-    display: flex; gap: var(--tds-space-4); z-index: 1;
+  /* A unit's notes: its pills (overlapping the unit's lower edge when the unit is the whole lane) and its comments. */
+  .tds-unit-deco { display: flex; flex-direction: column; align-items: flex-start; gap: var(--tds-space-6); padding: 0 var(--tds-space-4) }
+  .tds-unit-deco[data-side="me"] { align-items: flex-end }
+  .tds-unit-notes { display: flex; flex-direction: column; align-items: inherit; gap: var(--tds-space-6); max-width: min(100%, var(--tds-size-bubble-max)) }
+  .tds-unit-notes:not([data-whole]) { margin-top: var(--tds-space-4) }
+  .tds-unit-deco > .tds-unit-notes[data-whole]:first-child > .tds-react-pills:first-child { margin-top: calc(var(--tds-size-react-pill-overlap) * -1) }
+  .tds-unit-deco:has(> .tds-unit-notes:last-child .tds-comments) { padding-bottom: var(--tds-space-4) }
+
+  .tds-react-pills { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--tds-space-4) }
+  .tds-unit-deco[data-side="me"] .tds-react-pills { flex-direction: row-reverse }
+  .tds-unit-label {
+    max-width: var(--tds-size-menu); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-text-faint);
   }
-  .tds-msg[data-side="agent"] > .tds-react-pills { right: calc(anchor(right) - var(--tds-space-4)); flex-direction: row-reverse }
-  .tds-msg[data-side="me"] > .tds-react-pills { left: calc(anchor(left) - var(--tds-space-4)) }
   .tds-react-pill {
-    display: inline-flex; align-items: center; gap: var(--tds-space-2); height: var(--tds-size-react-pill); min-width: var(--tds-size-react-pill);
-    padding: 0 var(--tds-space-6); justify-content: center; border-radius: var(--tds-radius-pill);
-    background: var(--tds-surface-bubble); box-shadow: 0 0 0 var(--tds-space-2) var(--tds-surface-main);
-    font-size: var(--tds-type-micro-size); color: var(--tds-text-muted);
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--tds-space-3);
+    height: var(--tds-size-react-pill); min-width: var(--tds-size-react-pill); padding: 0 var(--tds-space-8);
+    border-radius: var(--tds-radius-pill); background: var(--tds-duet-raised);
+    box-shadow: 0 0 0 var(--tds-space-2) var(--tds-surface-main), inset 0 0 0 1px var(--tds-duet-edge-focus);
+    font-size: var(--tds-type-meta-size); font-weight: var(--tds-weight-regular); color: var(--tds-text-muted);
     transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
-    &[data-mine] { background: var(--tds-accent-me); color: var(--tds-accent-rose) }
+    &[data-mine] { background: var(--tds-accent-rose-14); color: var(--tds-accent-rose); box-shadow: 0 0 0 var(--tds-space-2) var(--tds-surface-main), inset 0 0 0 1px var(--tds-accent-rose-28) }
   }
   @media (hover: hover) and (pointer: fine) {
-    .tds-react-pill:hover { color: var(--tds-text-tx2) }
+    .tds-react-pill:hover { background: var(--tds-duet-select); color: var(--tds-text-tx) }
+    .tds-react-pill[data-mine]:hover { background: var(--tds-accent-rose-22); color: var(--tds-accent-rose) }
   }
   .tds-react-pill-emoji { font-size: var(--tds-size-react-pill-emoji); line-height: 1 }
   .tds-react-pill-count[data-empty] { display: none }
 
+  /* Comments: a compact quoted list under the unit. */
+  .tds-comments { display: flex; flex-direction: column; gap: var(--tds-space-8); width: 100%; margin: 0; padding: 0; list-style: none }
+  .tds-comment {
+    display: flex; flex-direction: column; gap: var(--tds-space-2); padding: var(--tds-space-2) 0 var(--tds-space-2) var(--tds-space-10);
+    box-shadow: inset var(--tds-space-2) 0 0 var(--tds-overlay-fill-12);
+  }
+  .tds-comment-meta { display: flex; align-items: center; gap: var(--tds-space-6); font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-text-faint) }
+  .tds-comment-author { font-weight: var(--tds-weight-medium); color: var(--tds-text-title) }
+  .tds-comment-text { margin: 0; font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-text-tx); white-space: pre-wrap; overflow-wrap: anywhere }
+  .tds-comment-delete {
+    display: grid; place-items: center; width: var(--tds-space-22); height: var(--tds-space-22); margin-left: auto;
+    border-radius: var(--tds-radius-button-sm); color: var(--tds-text-faint); opacity: 0;
+    transition: var(--tds-press-transition), opacity var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
+    &:focus-visible { opacity: 1 }
+  }
+  .tds-comment:hover .tds-comment-delete { opacity: 1 }
+  @media (hover: none) { .tds-comment-delete { opacity: 1 } }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-comment-delete:hover { background: var(--tds-duet-select); color: var(--tds-text-tx) }
+  }
+
+  /* The comment composer, a popover anchored to the unit. */
+  .tds-comment-pop {
+    z-index: var(--tds-z-drop); width: var(--tds-size-menu-list); padding: var(--tds-space-8);
+    border-radius: var(--tds-radius-menu); background: var(--tds-duet-raised); box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus);
+    transform-origin: var(--transform-origin);
+    transition: opacity var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-hover) var(--tds-ease-out);
+    &[data-starting-style], &[data-ending-style] { opacity: 0; scale: var(--tds-press) }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tds-comment-pop { transition: none }
+  }
+  .tds-comment-form { display: flex; flex-direction: column; gap: var(--tds-space-8) }
+  .tds-comment-field {
+    display: block; width: 100%; min-height: var(--tds-size-menu-search); padding: var(--tds-space-8) var(--tds-space-10); resize: none;
+    border: 0; border-radius: var(--tds-radius-button); background: var(--tds-duet-bg); box-shadow: inset 0 0 0 1px var(--tds-duet-edge);
+    font: inherit; font-size: var(--tds-type-menu-size); line-height: var(--tds-type-menu-lh); color: var(--tds-text-tx);
+    &::placeholder { color: var(--tds-text-placeholder) }
+    &:focus { outline: none; box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus) }
+  }
+  .tds-comment-actions { display: flex; justify-content: flex-end; gap: var(--tds-space-6) }
+  .tds-comment-button {
+    height: var(--tds-size-react-button); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-button);
+    font-size: var(--tds-type-meta-size); color: var(--tds-text-muted);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out);
+    &[data-primary] { background: var(--tds-accent-rose); color: var(--tds-text-on-rose) }
+    &:disabled { opacity: .4; pointer-events: none } /* lint-tokens-ignore */
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-comment-button:not([data-primary]):hover { background: var(--tds-duet-select); color: var(--tds-text-tx) }
+  }
+
+  /* The quick-react bar and picker. */
   .tds-react-bar {
     position: fixed; z-index: var(--tds-z-drop); padding: var(--tds-space-4);
-    border-radius: var(--tds-radius-pill); background: var(--tds-overlay-pill); box-shadow: var(--tds-glass-shadow);
+    border-radius: var(--tds-radius-menu); background: var(--tds-duet-raised); box-shadow: inset 0 0 0 1px var(--tds-duet-edge-focus);
     &[data-side="me"] { translate: -100% 0 }
     &[data-above] { translate: 0 -100% }
     &[data-side="me"][data-above] { translate: -100% -100% }
-    &[data-mode="picker"] { padding: var(--tds-space-8); border-radius: var(--tds-radius-menu) }
+    &[data-mode="picker"] { padding: var(--tds-space-8) }
   }
   .tds-react-quick { display: flex; align-items: center; gap: var(--tds-space-2) }
   .tds-react-emoji, .tds-react-more {
     display: grid; place-items: center; width: var(--tds-size-react-cell); height: var(--tds-size-react-cell);
-    border-radius: var(--tds-radius-pill); font-size: var(--tds-size-react-emoji); line-height: 1; color: var(--tds-text-muted);
+    border-radius: var(--tds-radius-button); font-size: var(--tds-size-react-emoji); line-height: 1; color: var(--tds-text-muted);
     transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out);
-    &[data-on] { background: var(--tds-accent-rose-28) }
+    &[data-on] { background: var(--tds-accent-rose-22) }
     &:focus-visible { outline-offset: 0 }
   }
   .tds-react-bar[data-mode="picker"] .tds-react-emoji { border-radius: var(--tds-radius-item) }
   @media (hover: hover) and (pointer: fine) {
-    .tds-react-emoji:hover, .tds-react-more:hover { background: var(--tds-overlay-hover) }
+    .tds-react-emoji:hover, .tds-react-more:hover { background: var(--tds-duet-select) }
   }
   .tds-react-search {
     display: block; width: 100%; height: var(--tds-size-react-search); margin-bottom: var(--tds-space-6); padding: 0 var(--tds-space-10);
-    border: 0; border-radius: var(--tds-radius-field); background: var(--tds-overlay-hover); color: var(--tds-text-tx);
-    font: inherit; font-size: var(--tds-type-menu-size);
-    &::placeholder { color: var(--tds-text-faint) }
+    border: 0; border-radius: var(--tds-radius-button); background: var(--tds-duet-bg); box-shadow: inset 0 0 0 1px var(--tds-duet-edge);
+    font: inherit; font-size: var(--tds-type-menu-size); color: var(--tds-text-tx);
+    &::placeholder { color: var(--tds-text-placeholder) }
   }
   .tds-react-grid { display: grid; gap: var(--tds-space-2) }
-  .tds-react-label { margin: 0; padding: var(--tds-space-2) var(--tds-space-4) var(--tds-space-4); font-size: var(--tds-type-micro-size); color: var(--tds-text-faint) }
+  .tds-react-label { margin: 0; padding: var(--tds-space-2) var(--tds-space-4) var(--tds-space-4); font-size: var(--tds-type-meta-size); color: var(--tds-text-faint) }
   .tds-react-recent { margin-bottom: var(--tds-space-8) }
-  .tds-react-none { margin: 0; padding: var(--tds-space-8) var(--tds-space-4); font-size: var(--tds-type-caption-size); color: var(--tds-text-faint) }
-
-  /* No CSS anchor positioning (Firefox): Message measures its last bubble into --a-l/t/w/h and these place the rail and pills. */
-  [data-anchorless] {
-    & .tds-msg > .tds-msg-rail { top: calc(var(--a-t, 0px) + var(--a-h, 0px) / 2) }
-    & .tds-msg[data-side="agent"] > .tds-msg-rail { left: calc(var(--a-l, 0px) + var(--a-w, 0px)) }
-    & .tds-msg[data-side="me"] > .tds-msg-rail { left: var(--a-l, 0px); right: auto; translate: -100% -50% }
-    & .tds-msg > .tds-react-pills { top: calc(var(--a-t, 0px) + var(--a-h, 0px) - var(--tds-size-react-pill-overlap)) }
-    & .tds-msg[data-side="agent"] > .tds-react-pills { left: calc(var(--a-l, 0px) + var(--a-w, 0px) + var(--tds-space-4)); right: auto; translate: -100% 0 }
-    & .tds-msg[data-side="me"] > .tds-react-pills { left: calc(var(--a-l, 0px) - var(--tds-space-4)) }
-  }
+  .tds-react-none { margin: 0; padding: var(--tds-space-8) var(--tds-space-4); font-size: var(--tds-type-meta-size); color: var(--tds-text-faint) }
 }
