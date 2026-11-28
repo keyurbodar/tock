@@ -3,7 +3,18 @@
   .tds-worklog.tds-over, .tds-centre.tds-over { background-color: var(--tds-surface-field); background-image: none }
   .tds-worklog .tds-ws-line { display: flex; align-items: center; gap: var(--tds-space-6); min-height: var(--tds-size-worklog-row); padding: var(--tds-space-4) var(--tds-space-8) }
   .tds-worklog .tds-ws-text { flex: 1; min-width: 0; gap: var(--tds-space-6) }
-  .tds-worklog .tds-ws-slot { width: auto; height: auto }
+  .tds-worklog .tds-ws-slot { flex: none; width: var(--tds-size-grid-step); height: var(--tds-size-grid-step) }
+  .tds-ws-slot[data-state="done"] { opacity: .5 }
+
+  /* Status label shimmer (the "Thinking" pills): a narrow bright band, tinted by its grid's hue at the edges, sweeps left to right then rests. Background-position only, so it stays cheap. */
+  :is(.tds-act-text, .tds-worklog .tds-ws-label)[data-shimmer] {
+    --grid-band: color-mix(in srgb, var(--grid-tint, var(--tds-status-working)) 55%, var(--tds-text-title));
+    background: linear-gradient(100deg, var(--tds-text-muted) 0 41%, var(--grid-band) 46%, var(--tds-text-title) 50%, var(--grid-band) 54%, var(--tds-text-muted) 59% 100%);
+    background-size: 250% 100%; background-clip: text; -webkit-background-clip: text; color: transparent;
+    animation: tds-grid-shimmer var(--tds-dur-grid-shimmer) linear infinite;
+  }
+  .tds-worklog [data-shimmer] :is(.tds-step-verb, .tds-step-object) { color: transparent }
+  @media (prefers-reduced-motion: reduce) { :is(.tds-act-text, .tds-worklog .tds-ws-label)[data-shimmer] { animation: none; background: none; color: var(--tds-text-muted) } }
   .tds-worklog .tds-ws-label { color: var(--tds-text-tx2) }
   .tds-worklog .tds-ws[data-kind="thinking"] .tds-ws-label, .tds-worklog .tds-step-verb { color: var(--tds-text-muted) }
   .tds-worklog .tds-step-object { color: var(--tds-text-tx); font-weight: var(--tds-weight-regular) }
