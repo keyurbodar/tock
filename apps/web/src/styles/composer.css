@@ -86,11 +86,7 @@
     padding: 0 0 var(--tds-space-14);
   }
   .tds-composer-row {
-    position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "field field" "plus note"; align-items: center; gap: 0;
-    &::after {
-      content: "toast is AI and can make mistakes."; grid-area: note; justify-self: end; padding-top: var(--tds-space-8);
-      font-size: var(--tds-type-caption-size); line-height: var(--tds-type-caption-lh); color: var(--tds-text-faint); pointer-events: none;
-    }
+    position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "field field" "plus ."; align-items: center; gap: 0;
   }
   .tds-field {
     grid-area: field; border-radius: var(--tds-radius-composer); background: var(--tds-duet-raised); box-shadow: var(--tds-ring-composer);

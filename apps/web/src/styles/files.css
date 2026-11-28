@@ -67,7 +67,7 @@
     position: absolute; right: var(--tds-space-8); display: grid; place-items: center; width: var(--tds-size-lightbox-button); height: var(--tds-size-lightbox-button); border-radius: var(--tds-radius-pill);
     background: var(--tds-overlay-fill-8); color: var(--tds-text-tx2); opacity: 0; scale: .9; transition: opacity var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-file-wide-save:focus-visible { opacity: 1; scale: 1 }
+  html[data-kbd] .tds-file-wide-save:focus-visible { opacity: 1; scale: 1 }
   @media (hover: hover) and (pointer: fine) { .tds-file-wide:hover .tds-file-wide-save { opacity: 1; scale: 1 } }
   @media (hover: none) { .tds-file-wide-save { opacity: 1; scale: 1 } }
 

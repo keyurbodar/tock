@@ -1,5 +1,6 @@
 @property --fade-top { syntax: "<length>"; inherits: false; initial-value: 0px }
 @property --fade-bottom { syntax: "<length>"; inherits: false; initial-value: 0px }
+@property --row-fade { syntax: "<length>"; inherits: false; initial-value: 0px }
 
 @layer components {
   /* TDS px2 sidebar: pins, swipe actions, multi-select, bulk bar, peek, session stack, move dialog */
@@ -22,13 +23,13 @@
 
   /* Duet sidebar: 276 wide on the page ground, no divider. Strip 52, agent row 42, pinned tiles, "Channels", 32 rows, footer 70. */
   .tds-sidebar {
-    position: relative; flex: none; width: var(--tds-size-sidebar); min-height: 0; overflow: hidden;
+    position: relative; flex: none; width: var(--sb-w, var(--tds-size-sidebar)); min-height: 0; overflow: hidden;
     background: var(--tds-duet-bg);
     transition: width var(--tds-dur-mid) var(--tds-ease-duet), opacity var(--tds-dur-mid) var(--tds-ease-duet); /* lint-tokens-ignore: Duet slides the sidebar by width; the inner keeps its width so only the chat reflows */
   }
   .tds-sidebar[data-collapsed] { width: 0; opacity: 0 }
   /* the contents keep their width while the sidebar narrows, so nothing inside reflows mid-slide */
-  .tds-sidebar-inner { position: relative; display: flex; flex-direction: column; width: var(--tds-size-sidebar); height: 100%; contain: layout paint }
+  .tds-sidebar-inner { position: relative; display: flex; flex-direction: column; width: var(--sb-w, var(--tds-size-sidebar)); height: 100%; contain: layout paint }
 
   .tds-ib {
     position: relative; display: grid; place-items: center; flex: none; width: var(--tds-size-icon-button); height: var(--tds-size-icon-button);
@@ -123,7 +124,7 @@
     position: absolute; right: var(--tds-space-4); top: 50%; translate: 0 -50%; display: grid; place-items: center;
     width: var(--tds-size-section-button); height: var(--tds-size-section-button); border-radius: var(--tds-radius-button);
     color: var(--tds-duet-t2); opacity: 0; transition: var(--tds-press-transition), opacity var(--tds-dur-fast) var(--tds-ease-duet), background-color var(--tds-dur-fast) var(--tds-ease-duet);
-    &[aria-expanded="true"], &:focus-visible { opacity: 1; background: var(--tds-duet-select); color: var(--tds-duet-t1) }
+    &[aria-expanded="true"], html[data-kbd] &:focus-visible { opacity: 1; background: var(--tds-duet-select); color: var(--tds-duet-t1) }
   }
   @media (hover: hover) and (pointer: fine) {
     .tds-row-wrap:hover .tds-row-more { opacity: 1 }
@@ -131,33 +132,41 @@
     .tds-row-more:hover { color: var(--tds-duet-t1) }
   }
   .tds-row-wrap:has(.tds-row-more[aria-expanded="true"]) .tds-row-mark { opacity: 0 }
+  /* The title fades out before the ⋯ button instead of running under it: on hover (and while its menu is open) the
+     ellipsis gives way to a soft mask that ends clear of the button. --row-fade is registered (motion.css) so it eases. */
+  .tds-row-title { --row-fade: 0px; mask-image: linear-gradient(to right, black calc(100% - var(--row-fade)), transparent calc(100% - var(--row-fade) + var(--tds-space-14))); transition: --row-fade var(--tds-dur-fast) var(--tds-ease-duet) }
+  .tds-row-wrap:has(.tds-row-more[aria-expanded="true"]) .tds-row-title { --row-fade: var(--tds-space-36); text-overflow: clip }
+  @media (hover: hover) and (pointer: fine) { .tds-row-wrap:hover .tds-row-title { --row-fade: var(--tds-space-36); text-overflow: clip } }
+
+  /* Resize: Duet's edge. A 9px grab zone on the sidebar's right edge with a hairline that shows on hover and lights up
+     while dragging; the sidebar follows the pointer with no transition (html[data-resizing]). */
+  .tds-sb-handle { position: absolute; z-index: 3; top: 0; bottom: 0; right: 0; width: var(--tds-space-9); cursor: col-resize; touch-action: none }
+  .tds-sb-handle::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 1px; background: var(--tds-duet-line); opacity: 0; transition: opacity var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out) }
+  @media (hover: hover) and (pointer: fine) { .tds-sb-handle:hover::after { opacity: 1; transition-delay: var(--tds-dur-press) } }
+  .tds-sb-handle[data-dragging]::after, html[data-kbd] .tds-sb-handle:focus-visible::after { opacity: 1; background: var(--tds-duet-edge-lit); transition-delay: 0ms }
+  html[data-kbd] .tds-sb-handle:focus-visible { outline: none }
+  html[data-resizing], html[data-resizing] * { cursor: col-resize !important; user-select: none }
+  html[data-resizing] .tds-sidebar { transition: none }
   .tds-row-rename {
     all: unset; width: 100%; box-sizing: border-box; padding: 0 var(--tds-space-4); margin-inline: calc(var(--tds-space-4) * -1);
     border-radius: var(--tds-radius-link); background: var(--tds-duet-raised); color: var(--tds-duet-t1); caret-color: var(--tds-duet-accent);
   }
-  .tds-ch-filter {
-    display: flex; flex-direction: column; gap: var(--tds-space-6); flex: none;
-    margin: var(--tds-space-4) var(--tds-space-10) var(--tds-space-4);
-    @starting-style { opacity: 0; translate: 0 calc(var(--tds-space-4) * -1) }
-    transition: opacity var(--tds-dur-fast) var(--tds-ease-out), translate var(--tds-dur-fast) var(--tds-ease-out);
-  }
-  .tds-ch-filter-input {
-    display: flex; align-items: center; gap: var(--tds-space-6); height: var(--tds-size-row); padding: 0 var(--tds-space-8);
-    border-radius: var(--tds-radius-row); background: var(--tds-duet-raised); color: var(--tds-duet-t2);
-    & input { all: unset; flex: 1; min-width: 0; font-size: var(--tds-type-caption-size); color: var(--tds-duet-t1); caret-color: var(--tds-duet-accent) }
-    & input::placeholder { color: var(--tds-duet-t3) }
-  }
-  .tds-ch-filter-clear { display: grid; place-items: center; flex: none; color: var(--tds-duet-t3) }
-  @media (hover: hover) and (pointer: fine) { .tds-ch-filter-clear:hover { color: var(--tds-duet-t1) } }
-  .tds-ch-filter-pills { display: flex; align-items: center; gap: var(--tds-space-4) }
-  .tds-ch-filter-pill {
-    padding: var(--tds-space-2) var(--tds-space-8); border-radius: var(--tds-radius-pill);
-    font-size: var(--tds-type-caption-size); color: var(--tds-duet-t2); background: transparent;
-    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
-    &[aria-pressed="true"] { background: var(--tds-duet-select); color: var(--tds-duet-t1) }
-  }
-  @media (hover: hover) and (pointer: fine) { .tds-ch-filter-pill:not([aria-pressed="true"]):hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
-  .tds-ib[data-filter-active] { color: var(--tds-duet-accent) }
+  /* Channels filter menu (shell/channel-filter.tsx), Claude's: a setting on the left, its value in grey on the right, a
+     caret into the choices; a choice carries a check. The button keeps its glyph and gains a small accent dot while any
+     filter narrows the list, so the state reads without the icon itself changing colour. */
+  .tds-fm { min-width: 248px }
+  .tds-fm-row { display: flex; align-items: center; gap: var(--tds-space-12) }
+  .tds-fm-name { flex: none; color: var(--tds-duet-t1) }
+  .tds-fm-value { margin-left: auto; color: var(--tds-duet-t2); white-space: nowrap }
+  .tds-fm-row .tds-menu-caret { margin-left: 0; padding-left: 0 }
+  .tds-fm-choice { display: flex; align-items: center; gap: var(--tds-space-16) }
+  .tds-fm-check { display: grid; place-items: center; width: var(--tds-icon-chip); margin-left: auto; color: var(--tds-duet-t1) }
+  .tds-ib[data-size="sec"] { position: relative }
+  .tds-fm-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--tds-duet-accent); box-shadow: 0 0 0 2px var(--tds-duet-bg); scale: var(--tds-press); opacity: 0; transition: scale var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-hover) var(--tds-ease-out) }
+  .tds-ib[data-filter-active] .tds-fm-dot { scale: 1; opacity: 1 }
+  /* Group headings when the list is grouped by status or date: the same grey label as "Channels", inset to the row text. */
+  .tds-ch-group { display: flex; align-items: flex-end; height: 28px; padding: 0 var(--tds-space-8) var(--tds-space-4) calc(var(--tds-space-8) + var(--tds-space-2)); font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-lh); color: var(--tds-duet-t2) }
+  .tds-ch-group:not(:first-child) { margin-top: var(--tds-space-8) }
 
   .tds-archive-head {
     display: flex; align-items: center; gap: var(--tds-space-6); width: 100%; height: var(--tds-size-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8);

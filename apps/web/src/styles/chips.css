@@ -1,26 +1,30 @@
 @layer components {
   /* Ported from t3code ContextChip: inline-flex items-center aligned to Geist text metrics without shifting line-height. */
+  /* Chips, Duet's link pill: a soft tint of the chip's own accent, a 5px corner, regular weight, the icon at the cap
+     height, sitting on the text baseline without changing the line's height. Same in the composer and in sent bubbles. */
   .tds-chip {
-    --tds-chip-ink: color-mix(in oklab, var(--tds-chip-accent) 82%, var(--tds-text-tx));
-    display: inline-flex; align-items: center; gap: 0.24em; max-width: 100%; box-sizing: border-box;
-    padding: 0 var(--tds-space-2); border-radius: var(--tds-radius-kbd); vertical-align: -0.14em;
-    background: transparent; color: var(--tds-chip-ink);
-    font-size: inherit; font-weight: var(--tds-weight-medium); line-height: normal; text-decoration: none; white-space: nowrap; cursor: pointer;
+    --tds-chip-ink: color-mix(in oklab, var(--tds-chip-accent) 70%, var(--tds-text-tx));
+    display: inline-flex; align-items: center; gap: 0.28em; max-width: 100%; box-sizing: border-box;
+    margin-block: -0.12em; padding: 0.06em 0.36em; border-radius: var(--tds-radius-link); vertical-align: baseline;
+    background: color-mix(in oklab, var(--tds-chip-accent) 13%, transparent); color: var(--tds-chip-ink);
+    font-size: inherit; font-weight: var(--tds-weight-regular); line-height: inherit; text-decoration: none; white-space: nowrap; cursor: pointer;
     transition: background-color var(--tds-dur-fast) var(--tds-ease-out), color var(--tds-dur-fast) var(--tds-ease-out);
   }
-  .tds-chip:focus-visible { outline: var(--tds-size-focus-width) solid currentColor; outline-offset: calc(var(--tds-size-focus-width) * -1) }
+  html[data-kbd] .tds-chip:focus-visible { outline: var(--tds-size-focus-width) solid currentColor; outline-offset: calc(var(--tds-size-focus-width) * -1) }
   .tds-chip-label {
     display: block; min-width: 0; overflow-x: clip; text-overflow: ellipsis; white-space: nowrap;
     text-decoration: underline transparent; text-decoration-thickness: 1px; text-underline-offset: 0.2em;
     transition: text-decoration-color var(--tds-dur-fast) var(--tds-ease-out);
   }
   @media (hover: hover) and (pointer: fine) {
-    .tds-chip:is(a, button):hover .tds-chip-label { text-decoration-color: currentColor }
-    .tds-chip:hover { background: color-mix(in oklab, var(--tds-chip-accent) 12%, transparent) }
+    .tds-chip:hover { background: color-mix(in oklab, var(--tds-chip-accent) 22%, transparent); color: color-mix(in oklab, var(--tds-chip-accent) 55%, var(--tds-text-tx)) }
   }
   @media (prefers-reduced-motion: reduce) { .tds-chip, .tds-chip-label { transition: none } }
   .tds-chip[data-state="invalid"] { --tds-chip-accent: var(--tds-text-faint); color: var(--tds-text-faint); & .tds-chip-label { text-decoration: line-through } }
-  .tds-chip-icon { display: block; flex: none; width: 1em; height: 1em }
+  .tds-chip-icon { display: block; flex: none; width: 0.9em; height: 0.9em }
+  /* A chip picked in the editor (ProseMirror node selection) brightens instead of drawing a ring. */
+  .ProseMirror .tds-chip.ProseMirror-selectednode, .ProseMirror-selectednode > .tds-chip { outline: none; background: color-mix(in oklab, var(--tds-chip-accent) 28%, transparent) }
+  .ProseMirror .ProseMirror-selectednode { outline: none }
   .tds-chip-action {
     display: inline-flex; align-items: center; justify-content: center; flex: none; margin-left: 0.14em; width: 1em; height: 1em;
     border-radius: var(--tds-radius-kbd); color: inherit; opacity: 0.7;
@@ -28,7 +32,7 @@
     & .tds-chip-icon { width: 0.85em; height: 0.85em }
   }
   @media (hover: hover) and (pointer: fine) { .tds-chip-action:hover { opacity: 1; background: color-mix(in oklab, var(--tds-chip-accent) 22%, transparent) } }
-  .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-text-me) }
+  .tds-bubble[data-side="me"] .tds-chip { --tds-chip-ink: var(--tds-duet-mine-text); background: var(--tds-overlay-hover) }
 
   .tds-chip-slot, .tds-link-fav {
     position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
@@ -47,7 +51,7 @@
     .tds-link:hover { color: var(--tds-text-rose-tint); text-decoration-color: currentColor }
     .tds-bubble[data-side="me"] .tds-link:hover { color: inherit }
   }
-  .tds-link:focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-accent-rose); outline-offset: var(--tds-space-1) }
+  html[data-kbd] .tds-link:focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-accent-rose); outline-offset: var(--tds-space-1) }
   .tds-bubble[data-side="me"] .tds-link { color: inherit }
   .tds-link-lead { white-space: nowrap }
   .tds-link-break { overflow-wrap: anywhere }

@@ -89,13 +89,13 @@ export function Thread() {
         <Composer draftKey={params.id} channel={session()?.title || undefined} attachments={attachments} working={isWorking(state())} onSend={(text) => untrack(() => sendReply(params.id, text))} onStop={() => void abort(params.id)} />
       </Boundary>
       <Show when={dragging()}>
-        <div class="tds-drop tds-veil-glass" data-bad={unreadable() ? "" : undefined} aria-hidden="true">
+        <div class="tds-drop tds-backdrop" data-bad={unreadable() ? "" : undefined} aria-hidden="true">
           <span class="tds-drop-fan">
             <i><Icon name="file-pdf" size="menu" /></i>
             <i><Icon name="image" size="menu" /></i>
             <i><Icon name="file-text" size="menu" /></i>
           </span>
-          <b>{unreadable() ? "Tock can’t read some of these" : "Drop to add to your message"}</b>
+          <b>{unreadable() ? "Tock can’t read some of these" : "Drop files here"}</b>
           <span>{unreadable() ? "Try a PDF, image, text or code file" : `Images, PDFs, docs, code, audio and video, up to ${tokens.limit["file-mb"]} MB each`}</span>
         </div>
       </Show>

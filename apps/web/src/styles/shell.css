@@ -293,16 +293,18 @@
     background: var(--tds-overlay-remove); color: var(--tds-text-tx); box-shadow: var(--tds-lift-remove);
     opacity: 0; transition: opacity var(--tds-dur-hover) var(--tds-ease-out), scale var(--tds-dur-press) var(--tds-ease-out);
   }
-  .tds-attach-remove:focus-visible, .tds-attach[data-status="failed"] .tds-attach-remove { opacity: 1 }
+  html[data-kbd] .tds-attach-remove:focus-visible, .tds-attach[data-status="failed"] .tds-attach-remove { opacity: 1 }
   @media (hover: hover) and (pointer: fine) { .tds-attach:hover .tds-attach-remove { opacity: 1 } }
   @media (hover: none) { .tds-attach-remove { opacity: 1 } }
 
+  /* Drop target, Claude's: the whole window goes soft behind a blur, a thin accent outline sits just inside its edge, and
+     a small fan of file glyphs over one line says what happens. Only the veil's opacity animates. */
   .tds-drop {
-    position: absolute; inset: var(--tds-space-12); z-index: var(--tds-z-drop); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--tds-space-6);
-    border-radius: var(--tds-radius-drop); box-shadow: var(--tds-ring-drop); background: var(--tds-overlay-drop); pointer-events: none; text-align: center;
+    position: fixed; inset: var(--tds-space-6); z-index: var(--tds-z-drop); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--tds-space-4);
+    border-radius: var(--tds-radius-drop); box-shadow: inset 0 0 0 1px var(--tds-duet-accent); pointer-events: none; text-align: center;
     @starting-style { opacity: 0 } transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out);
-    & b { font-size: var(--tds-type-title-size); font-weight: var(--tds-weight-semibold); color: var(--tds-text-tx) }
-    & > span:last-child { font-size: var(--tds-type-secondary-size); color: var(--tds-text-muted) }
+    & b { font-size: var(--tds-type-body-size); font-weight: var(--tds-weight-medium); color: var(--tds-duet-accent) }
+    & > span:last-child { font-size: var(--tds-type-meta-size); color: var(--tds-duet-t2) }
   }
   .tds-drop-fan {
     display: flex; margin-bottom: var(--tds-space-10);

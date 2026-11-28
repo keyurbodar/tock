@@ -10,7 +10,8 @@ import { TockIcon } from "@tock/ui/tock-icon"
 import { tokens } from "@tock/tokens"
 import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
-import { statusOf } from "../lib/status"
+import { STATUS_LABEL, statusOf } from "../lib/status"
+import { ChannelFilterButton, channelView, filtering } from "./channel-filter"
 import { pressable } from "../lib/keys"
 import { app, newThreadId, titleOf, updateThread, type Session } from "../state/app"
 import { dirOf } from "../lib/dir"
@@ -28,8 +29,23 @@ import { setShortcutsOpen } from "./shortcuts"
 import { centreOpen, setCentreOpen } from "./centre"
 import { unreadNotes } from "../state/notes"
 
-type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number } | { kind: "archive-empty" }
-type ChannelFilter = "all" | "unread" | "active"
+type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number } | { kind: "archive-empty" } | { kind: "group"; label: string }
+
+const groupEntries = new Map<string, Entry>()
+const groupEntry = (label: string): Entry => {
+  let entry = groupEntries.get(label)
+  if (!entry) groupEntries.set(label, (entry = { kind: "group", label }))
+  return entry
+}
+const DAY = 86_400_000
+const dayBucket = (at: number | null) => {
+  const start = new Date().setHours(0, 0, 0, 0)
+  if (!at || at >= start) return "Today"
+  if (at >= start - DAY) return "Yesterday"
+  if (at >= start - 7 * DAY) return "This week"
+  if (at >= start - 30 * DAY) return "This month"
+  return "Older"
+}
 
 const rowEntries = new WeakMap<Session, Entry>()
 const rowEntry = (session: Session): Entry => {
@@ -54,6 +70,65 @@ export const toggleSidebar = (next = !untrack(sidebarOpen)) => {
   requestAnimationFrame(() => document.querySelector<HTMLElement>(next ? ".tds-sbt > .tds-ib" : ".tds-header-start > .tds-ib")?.focus({ preventScroll: true }))
 }
 export { sidebarOpen }
+
+/** Sidebar width: dragged on its edge between the token min and max, double-click resets; persisted per browser. */
+const WIDTH_KEY = "tock.sidebar.width"
+const clampWidth = (w: number) => Math.round(Math.min(tokens.size["sidebar-max"], Math.max(tokens.size["sidebar-min"], w)))
+const [sidebarWidth, setSidebarWidth] = createSignal(clampWidth(Number(localStorage.getItem(WIDTH_KEY)) || tokens.size.sidebar))
+
+function ResizeHandle() {
+  const [dragging, setDragging] = createSignal(false)
+  let from = 0
+  let base = 0
+  let last = 0
+  const commit = (w: number) => {
+    last = w
+    setSidebarWidth(w)
+  }
+  return (
+    <div
+      class="tds-sb-handle"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize sidebar"
+      aria-valuemin={tokens.size["sidebar-min"]}
+      aria-valuemax={tokens.size["sidebar-max"]}
+      aria-valuenow={sidebarWidth()}
+      tabindex="0"
+      data-dragging={dragging() ? "" : undefined}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        from = e.clientX
+        base = untrack(sidebarWidth)
+        last = base
+        setDragging(true)
+        document.documentElement.setAttribute("data-resizing", "")
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        if (!untrack(dragging)) return
+        commit(clampWidth(base + e.clientX - from))
+      }}
+      onPointerUp={() => {
+        if (!untrack(dragging)) return
+        setDragging(false)
+        document.documentElement.removeAttribute("data-resizing")
+        localStorage.setItem(WIDTH_KEY, String(last))
+      }}
+      onPointerCancel={() => (setDragging(false), document.documentElement.removeAttribute("data-resizing"))}
+      onDblClick={() => (commit(tokens.size.sidebar), localStorage.setItem(WIDTH_KEY, String(tokens.size.sidebar)))}
+      onKeyDown={(e) => {
+        const step = e.shiftKey ? 40 : 8
+        const next = e.key === "ArrowLeft" ? untrack(sidebarWidth) - step : e.key === "ArrowRight" ? untrack(sidebarWidth) + step : NaN
+        if (Number.isNaN(next)) return
+        e.preventDefault()
+        commit(clampWidth(next))
+        localStorage.setItem(WIDTH_KEY, String(last))
+      }}
+    />
+  )
+}
 
 function RenameField(props: { session: Session }) {
   let done = false
@@ -234,42 +309,38 @@ export function Sidebar() {
   const params = useParams<{ id?: string }>()
   const navigate = useNavigate()
   let roster!: HTMLDivElement
-  let filterInput: HTMLInputElement | undefined
   const [archiveOpen, setArchiveOpen] = createSignal(false)
-  const [filterOpen, setFilterOpen] = createSignal(false)
-  const [filterMode, setFilterMode] = createSignal<ChannelFilter>("all")
-  const [filterQuery, setFilterQuery] = createSignal("")
-
-  const filterActive = () => filterMode() !== "all" || filterQuery().trim().length > 0
-
-  const toggleFilter = () => {
-    const next = !untrack(filterOpen)
-    setFilterOpen(next)
-    if (next) requestAnimationFrame(() => filterInput?.focus())
-    else {
-      setFilterMode("all")
-      setFilterQuery("")
-    }
-  }
+  const filterActive = () => filtering()
 
   const visible = createMemo(() => app.sessions.filter((s) => !doomed().includes(s.id) && !((s.meta.snoozedUntil ?? 0) > minute())))
   const entries = createMemo<Entry[]>(() => {
-    const q = filterQuery().trim().toLowerCase()
-    const mode = filterMode()
+    const v = channelView()
+    const since = v.activity === "all" ? 0 : new Date().setHours(0, 0, 0, 0) - (v.activity === "today" ? 0 : v.activity === "week" ? 6 : 29) * DAY
     const matches = (s: Session) => {
-      if (mode === "unread" && !s.meta.unread) return false
-      if (mode === "active") {
-        const st = statusOf(s)
-        if (st !== "working" && st !== "needs") return false
-      }
-      if (q && !`${titleOf(s)} ${s.preview}`.toLowerCase().includes(q)) return false
+      const st = statusOf(s)
+      if (v.status === "unread" && !s.meta.unread) return false
+      if (v.status === "working" && st !== "working") return false
+      if (v.status === "needs" && st !== "needs") return false
+      if (v.status === "done" && (st !== "idle" || s.meta.unread)) return false
+      if (since && (s.updatedAt ?? 0) < since) return false
       return true
     }
-    const list = visible().filter((s) => (!s.meta.pinned || s.meta.archived) && matches(s))
-    const rows = list.filter((s) => !s.meta.archived).map(rowEntry)
+    const order = (list: Session[]) => (v.sort === "name" ? [...list].sort((a, b) => titleOf(a).localeCompare(titleOf(b))) : list)
+    const list = order(visible().filter((s) => (!s.meta.pinned || s.meta.archived) && matches(s)))
+    const live = list.filter((s) => !s.meta.archived)
+    let rows: Entry[]
+    if (v.group === "none") rows = live.map(rowEntry)
+    else {
+      const key = (s: Session) => (v.group === "status" ? STATUS_LABEL[statusOf(s)] : dayBucket(s.updatedAt))
+      const buckets = new Map<string, Session[]>()
+      for (const s of live) buckets.set(key(s), [...(buckets.get(key(s)) ?? []), s])
+      const rank = v.group === "status" ? ["Needs you", "Working", "Failed", "Idle"] : ["Today", "Yesterday", "This week", "This month", "Older"]
+      rows = [...buckets.entries()].sort(([a], [b]) => rank.indexOf(a) - rank.indexOf(b)).flatMap(([label, items]) => [groupEntry(label === "Idle" ? "Done" : label), ...items.map(rowEntry)])
+    }
+    if (!v.archived) return rows
     const archived = list.filter((s) => s.meta.archived)
     if (archived.length === 0) return archiveOpen() && !filterActive() ? [...rows, archiveEntry(0), ARCHIVE_EMPTY] : rows
-    return [...rows, archiveEntry(archived.length), ...(archiveOpen() || q ? archived.map(rowEntry) : [])]
+    return [...rows, archiveEntry(archived.length), ...(archiveOpen() ? archived.map(rowEntry) : [])]
   })
 
   let shownFor: string | undefined
@@ -296,7 +367,7 @@ export function Sidebar() {
   createHotkey(appHotkeys["sidebar.toggle"], () => toggleSidebar())
 
   return (
-    <aside class="tds-sidebar" data-backdrop-layer data-collapsed={sidebarOpen() || narrow() ? undefined : ""} aria-label="Channels" inert={!sidebarOpen() && !narrow()}>
+    <aside class="tds-sidebar" style={{ "--sb-w": `${sidebarWidth()}px` }} data-backdrop-layer data-collapsed={sidebarOpen() || narrow() ? undefined : ""} aria-label="Channels" inert={!sidebarOpen() && !narrow()}>
       <div class="tds-sidebar-inner">
         <div class="tds-sbt">
           <button type="button" class="tds-ib" aria-label="Close sidebar" aria-expanded="true" data-tip="" data-tip-side="right" onClick={() => toggleSidebar(false)}>
@@ -318,60 +389,8 @@ export function Sidebar() {
           <button type="button" class="tds-ib" data-size="sec" aria-label="New channel" data-tip="" data-tip-side="bottom" onClick={startChat}>
             <Icon name="plus" size="bar" />
           </button>
-          <button
-            type="button"
-            class="tds-ib"
-            data-size="sec"
-            data-filter-active={filterActive() ? "" : undefined}
-            aria-label={filterOpen() ? "Close channel filter" : "Filter channels"}
-            aria-expanded={filterOpen() ? "true" : "false"}
-            aria-pressed={filterOpen() || filterActive() ? "true" : "false"}
-            data-tip=""
-            data-tip-side="bottom"
-            onClick={toggleFilter}
-          >
-            <Icon name="funnel-simple" size="bar" />
-          </button>
+          <ChannelFilterButton />
         </div>
-
-        <Show when={filterOpen()}>
-          <div class="tds-ch-filter" role="search" aria-label="Filter channels">
-            <div class="tds-ch-filter-input">
-              <Icon name="magnifying-glass" size="chip" />
-              <input
-                ref={(el) => (filterInput = el)}
-                type="text"
-                value={filterQuery()}
-                placeholder="Filter channels…"
-                aria-label="Filter channels by name"
-                onInput={(e) => setFilterQuery(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    e.preventDefault()
-                    toggleFilter()
-                  }
-                }}
-              />
-              <Show when={filterQuery()}>
-                <button type="button" class="tds-ch-filter-clear" aria-label="Clear filter" onClick={() => (setFilterQuery(""), filterInput?.focus())}>
-                  <Icon name="x" size="chip" />
-                </button>
-              </Show>
-            </div>
-            <div class="tds-ch-filter-pills" role="group" aria-label="Channel status filter">
-              {(["all", "unread", "active"] as const).map((mode) => (
-                <button
-                  type="button"
-                  class="tds-ch-filter-pill"
-                  aria-pressed={filterMode() === mode ? "true" : "false"}
-                  onClick={() => setFilterMode(mode)}
-                >
-                  {mode === "all" ? "All" : mode === "unread" ? "Unread" : "Active"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </Show>
 
         <div class="tds-chs" onPointerLeave={() => peekLeave()}>
           <Skeleton fill label="Loading channels" loading={!app.sessionsLoaded && entries().length === 0} sample={() => <SampleRows />}>
@@ -387,6 +406,7 @@ export function Sidebar() {
                 <div ref={roster} class="tds-roster tds-scroll h-full" tabindex="-1" data-edge-fade="y">
                   <For each={entries()}>
                     {(entry) => {
+                      if (entry.kind === "group") return <div class="tds-ch-group">{entry.label}</div>
                       if (entry.kind === "archive-empty")
                         return (
                           <div class="tds-archive-empty">
@@ -441,6 +461,9 @@ export function Sidebar() {
           </button>
         </footer>
       </div>
+      <Show when={!narrow()}>
+        <ResizeHandle />
+      </Show>
       <ThreadMenu />
       <MoveDialog />
       <Peek />

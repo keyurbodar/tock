@@ -1,6 +1,6 @@
 @layer components {
   .tds-field { justify-content: flex-end; transition: height var(--tds-dur-layout) var(--tds-ease-out), border-radius var(--tds-dur-layout) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out), box-shadow var(--tds-dur-hover) var(--tds-ease-out) }
-  .tds-column { padding-bottom: max(var(--tds-size-column-bottom), calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--tds-space-16))) }
+  .tds-column { padding-bottom: max(var(--tds-size-column-bottom), calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--followup-reserve, 0px) + var(--tds-space-16))) }
 
   .tds-docs[data-side] { flex-direction: column; flex-wrap: nowrap; gap: var(--tds-space-6) }
   .tds-docs[data-side="me"] { align-items: flex-end }

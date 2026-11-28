@@ -1,18 +1,31 @@
 @layer components {
   /* Telegram-accurate reply & quote system: flush composer dock, clickable bubble quote card, and crisp selection toolbar. */
-  .tds-quote-bar { flex: none; align-self: stretch; width: var(--tds-size-quote-bar); border-radius: var(--tds-radius-pill); background: var(--tds-duet-accent) }
-  .tds-quote-body { display: grid; min-width: 0; gap: var(--tds-space-1); text-align: start }
+  /* Reply and quote, Telegram's model. One card shape everywhere: tinted with the accent, the bar is its left edge, the
+     author sits in the accent over one line of the original. Code quotes in mono, media leads with a thumbnail, and a
+     quoted selection carries a quote glyph in its top corner. */
+  .tds-quote-body { display: grid; flex: 1; min-width: 0; gap: 0; text-align: start }
   .tds-quote-author {
-    display: inline-flex; align-items: center; gap: var(--tds-space-4); min-width: 0;
-    font-size: var(--tds-type-caption-size); font-weight: var(--tds-weight-medium); line-height: var(--tds-type-caption-lh); color: var(--tds-duet-accent);
+    min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    font-size: var(--tds-type-meta-size); font-weight: var(--tds-weight-medium); line-height: var(--tds-type-meta-lh); color: var(--tds-duet-accent);
   }
-  .tds-quote-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-caption-size); line-height: var(--tds-type-caption-lh); color: var(--tds-duet-t2) }
+  .tds-quote-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-duet-t1) }
+  [data-kind="code"] > .tds-quote-body .tds-quote-text, [data-kind="code"] .tds-quote-card .tds-quote-text { font-family: var(--tds-font-mono); font-size: var(--tds-type-code-size); letter-spacing: 0 }
+  .tds-quote-thumb { flex: none; width: var(--tds-size-quote-thumb); height: var(--tds-size-quote-thumb); border-radius: var(--tds-radius-button-sm); object-fit: cover }
 
+  /* Composer: the reply strip docks into the top of the field, as one panel: a reply (or quote) glyph in the gutter,
+     the quote card, and × at the end. The field below loses its top corners so the two read as one. */
   .tds-quote-preview {
     display: flex; align-items: center; gap: var(--tds-space-10); width: 100%;
-    margin-bottom: var(--tds-space-6); padding: var(--tds-space-8) var(--tds-space-8) var(--tds-space-8) var(--tds-space-10);
-    border-radius: var(--tds-radius-composer); background: var(--tds-duet-raised); box-shadow: var(--tds-ring-composer);
-    & .tds-quote-body { flex: 1 }
+    padding: var(--tds-space-8) var(--tds-space-6) var(--tds-space-4) var(--tds-space-12);
+    border-radius: var(--tds-radius-composer) var(--tds-radius-composer) 0 0; background: var(--tds-duet-raised);
+    box-shadow: inset 1px 0 0 var(--tds-duet-edge), inset -1px 0 0 var(--tds-duet-edge), inset 0 1px 0 var(--tds-duet-edge);
+  }
+  .tds-composer-wrap:has(> .tds-quote-preview) .tds-field { border-top-left-radius: 0; border-top-right-radius: 0; box-shadow: inset 1px 0 0 var(--tds-duet-edge), inset -1px 0 0 var(--tds-duet-edge), inset 0 -1px 0 var(--tds-duet-edge) }
+  .tds-quote-lead { flex: none; color: var(--tds-duet-accent) }
+  .tds-quote-card {
+    display: flex; align-items: center; gap: var(--tds-space-8); flex: 1; min-width: 0;
+    padding: var(--tds-space-4) var(--tds-space-10) var(--tds-space-4) var(--tds-space-10);
+    border-radius: var(--tds-radius-button-sm); background: var(--tds-accent-quote-fill); box-shadow: inset var(--tds-size-quote-bar) 0 0 var(--tds-duet-accent);
   }
   .tds-quote-close {
     flex: none; display: grid; place-items: center; width: var(--tds-size-reply-hit); height: var(--tds-size-reply-hit);
@@ -21,21 +34,23 @@
   }
   @media (hover: hover) and (pointer: fine) { .tds-quote-close:hover { color: var(--tds-duet-t1); background: var(--tds-duet-hover) } }
 
+  /* In the sent bubble: the same card at the top of the message. */
   .tds-quote-chip {
-    display: flex; align-items: stretch; gap: var(--tds-space-8); width: 100%; min-width: 0; margin: 0 0 var(--tds-space-6);
-    padding: var(--tds-space-5) var(--tds-space-10) var(--tds-space-5) var(--tds-space-6);
-    border-radius: var(--tds-radius-button); background: color-mix(in srgb, var(--tds-duet-accent) 10%, transparent);
-    cursor: pointer; white-space: normal; text-align: start;
+    position: relative; display: flex; align-items: center; gap: var(--tds-space-8); width: 100%; min-width: 0; margin: var(--tds-space-1) 0 var(--tds-space-6);
+    padding: var(--tds-space-4) var(--tds-space-10) var(--tds-space-4) var(--tds-space-10);
+    border-radius: var(--tds-radius-button-sm); background: var(--tds-accent-quote-fill); box-shadow: inset var(--tds-size-quote-bar) 0 0 var(--tds-duet-accent);
+    cursor: pointer; text-align: start;
     transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-out);
-    & .tds-quote-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; color: var(--tds-duet-t2) }
-    &[data-gone] { cursor: default; background: var(--tds-overlay-hover); & .tds-quote-bar { background: var(--tds-text-faint) } & .tds-quote-author { color: var(--tds-text-faint) } }
+    &[data-gone] { cursor: default; background: var(--tds-overlay-hover); box-shadow: inset var(--tds-size-quote-bar) 0 0 var(--tds-text-faint); & .tds-quote-author { color: var(--tds-text-faint) } }
   }
-  .tds-bubble[data-side="me"] .tds-quote-chip { background: var(--tds-overlay-hover) }
-  .tds-bubble[data-side="me"] .tds-quote-chip .tds-quote-text { color: var(--tds-text-me); opacity: 0.78 }
-  @media (hover: hover) and (pointer: fine) {
-    .tds-quote-chip:not([data-gone]):hover { background: color-mix(in srgb, var(--tds-duet-accent) 16%, transparent) }
-    .tds-bubble[data-side="me"] .tds-quote-chip:not([data-gone]):hover { background: var(--tds-overlay-press) }
-  }
+  .tds-quote-mark { position: absolute; top: var(--tds-space-4); right: var(--tds-space-6); color: var(--tds-duet-accent); opacity: .7 }
+  .tds-quote-chip:has(.tds-quote-mark) { padding-right: var(--tds-space-24) }
+  /* The quote never decides how wide a bubble is (Telegram): it takes the message's width, with a sensible floor. */
+  .tds-quote-chip { contain: inline-size; min-width: var(--tds-size-quote-min) }
+  .tds-bubble[data-side="me"] .tds-quote-text { color: var(--tds-duet-mine-text) }
+  @media (hover: hover) and (pointer: fine) { .tds-quote-chip:not([data-gone]):hover { background: var(--tds-accent-quote-fill-hover) } }
+  .tds-ref { display: flex; flex-direction: column }
+  .tds-ref[data-side="me"] { align-items: flex-end }
 
   .tds-select-bar {
     position: fixed; z-index: var(--tds-z-lift); display: inline-flex; align-items: center; gap: var(--tds-space-2); padding: var(--tds-space-3);

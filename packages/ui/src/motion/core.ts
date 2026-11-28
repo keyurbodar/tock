@@ -126,12 +126,22 @@ export function swapFollowup(chip: HTMLElement, from: number, to: number, parts:
   return Promise.all(runs.map((run) => run?.finished.catch(() => {}))).then(() => undefined)
 }
 
-/** Highlight: a message the reader was sent to (a quote chip's source) blooms a soft rose ring that settles, with a small lift. The ring is colour, not movement, so it stays under reduced motion. */
+/**
+ * Highlight: a message the reader was sent to (a quote's source). Telegram's way: no ring, no lift. The whole message row
+ * takes a soft accent band that reaches across the column, holds for a beat so the eye lands, then dissolves. The band is
+ * the row's ::before (reactions.css), so the bubble itself never moves. Colour only, so it stays under reduced motion.
+ */
 export function flash(el: Element) {
-  const ring = (color: string) => `0 0 0 var(--tds-size-quote-bar) ${color}`
-  const on = ring("var(--tds-accent-quote-flash)")
-  animate(el, [{ boxShadow: ring("transparent") }, { boxShadow: on, offset: 0.15 }, { boxShadow: on, offset: 0.6 }, { boxShadow: ring("transparent") }], { duration: dur.flash, easing: ease.std, essential: true })
-  return spring(el, [{ scale: 1 }, { scale: 1.02 }, { scale: 1 }], "soft")
+  const row = el.closest(".tds-msg") ?? el
+  row.setAttribute("data-jump", "")
+  const run = animate(row, [{ opacity: 0 }, { opacity: 1, offset: 0.12 }, { opacity: 1, offset: 0.45 }, { opacity: 0 }], {
+    duration: dur.flash,
+    easing: ease.std,
+    essential: true,
+    pseudoElement: "::before",
+  })
+  void run?.finished.catch(() => {}).then(() => row.removeAttribute("data-jump"))
+  return run
 }
 
 /** Presence for a strip that slides up out of the edge it docks on (the composer's reply preview): rises and unblurs in, sinks and fades out. */

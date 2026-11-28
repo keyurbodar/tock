@@ -1,15 +1,20 @@
-# Pending — Duet redesign
+# Pending
 
-Landed: Duet token system (warm palette, `color.duet` semantic layer, flat surfaces, Geist type scale, radii, motion), rail removed, 276px sidebar with channels/tiles/footer, 52px top bar, 735px column, 41px composer, sidebar jitter fix (keyed list instead of re-mounting virtual rows), Tock icon sprite (line/duet/fill), 9×9 status grids with shimmer across worklog/activity/orb, followup chips hover/tooltip/stagger (ui-sdk tooltip), and partial work from the reactions/comments, overlays/toasts, chips and streaming streams (see below).
+## Landed in the 2026-11-28 pass
+- Type: Allo (opsz + wght variable, roundness pinned at 40, `scripts/fonts.py`) for UI, Paper Mono for code; metric-matched fallbacks; no letter-spacing so ligatures stay on.
+- Focus rings only for keyboard navigation (`lib/modality.ts` sets `html[data-kbd]`); 1px accent ring, 2px offset.
+- Channels filter is a Claude-style menu (`shell/channel-filter.tsx`): status, last activity, group by, sort by, archived; persisted; accent dot when filtering.
+- Sidebar resizes on its edge (232–420px, double-click resets, arrows when focused); hairline lights while dragging; pins only reflow when their column count changes (the old per-frame FLIP was the jitter).
+- Row titles fade out before the ⋯ button instead of running under it.
+- Reply and quote, Telegram's model: reply strip docks into the composer, quote card in the sent bubble (code in mono, media thumbnail, quote glyph for selections); code blocks and media are repliable; jumping to a quote shows a soft row band instead of a ring.
+- Streaming reveal is frame-based and adaptive (`motion.stream`): steady floor rate, drains any backlog in ~0.4s, bursts long replies; always whole words.
+- Status grid: device-pixel canvas, additive LED bloom, visible unlit grid.
+- Overlays blur (palette, dialogs, composer sheet, session stack); the app no longer scales back. Drop target is a full-window blur with an accent outline.
+- Composer: ↵ send that morphs to stop, no disclaimer line, long words wrap; follow-ups align with the composer and never cover the last bubble; jump-to-end button centred above the composer.
+- Chips are soft tinted pills; selecting one in the editor brightens it instead of drawing a ring.
 
-## Unfinished (stopped mid-way, verify each before relying on it)
-- **Reactions + comments**: server comments store (`apps/server/src/core/comments.ts`), protocol types and web state are in; UI coverage of attachments/code blocks/previews and the comment popover are not verified end to end.
-- **Overlays + toasts**: t3code-style backdrop blur for palette/dialogs/composer sheet/drawer and toast sizing were in progress; not verified.
-- **Composer chips in sent bubbles**: chip round-trip into user bubbles and calm (400-weight) chip redesign were in progress; not verified. Composer still says "Message toast" (should be "Message #<channel>"), send is an arrow (Duet uses ↵), no mic button.
-- **Streaming + perf**: per-frame delta coalescing, memoised finished blocks, word fade/blur-in, black flash on scroll and slow channel switch were in progress; not verified. Known costs: transcript skeleton measuring (~336ms over 4 switches), `state/app.ts` spreading `sessions[i].meta` re-runs the whole sidebar, `composer.tsx` EFFECT_RELAY_TEAR warning, `thread.tsx` still says "New Chat", follow-up chips can cover the last bubble.
-- **Tock icon engine**: channel icons (sidebar rows, pin tiles, header) are duet Tock icons and follow-up chips use glass Tock icons, both rendered by the vendored engine (`packages/ui/vendor/tock-icons`) with their built-in hover/press/select motion. Other places that show a channel glyph (session stack, peek, chip cards) still use the static sprite. Follow-ups map the agent's emoji to an icon in `apps/web/src/chat/followup-icons.ts`; letting the tool pick an icon name directly would be more exact. `@phosphor-icons/core` dev dependency and `icon.weight-boost`, old orb tokens and `.tds-worklog-ok` are now unused.
-- **Status grid**: queued bubbles have no indicator yet; canvas doesn't re-rasterise on DPR change.
-- **scripts/verify.ts** still targets removed DOM (`.tds-rail*`, `.tds-search input/hint`, `.tds-row-preview/time`, `.tds-header-pill/avatar/button`, `.tds-sidebar-handle`, `.tds-toast-hint`, follow-up tooltip selectors). Update journeys and rerun the full suite.
-- **Tests**: `apps/server/test/writes.test.ts` (2 write-budget tests) and the `do.ts:102` typecheck error fail on the previous commit too, because the patched `agents@0.34.0` was not applied by the old Bun 1.3.1 install. Reinstall with Bun ≥ 1.4 (the lockfile is v2) and recheck.
-- **Dev**: `apps/server/.dev.vars` needs `VAULT_MASTER_KEY=<anything>` locally or every reply fails.
-- **Deploy**: `cf` CLI needs a scoped API token (it rejects Global API Keys); deploys currently go through wrangler with `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`.
+## Still open
+- `scripts/verify.ts` still targets some removed DOM; journeys need updating.
+- Dev diagnostics that predate this pass: STRICT_READ_UNTRACKED ("session"), EFFECT_RELAY_TEAR in the composer MorphIcon, IMMUTABLE_UPDATE_IN_STORE on thread/session meta spreads.
+- Allo is not preloaded in index.html (Vite hashes the file); consider a plugin that injects the preload.
+- Follow-up chips still use the full-prompt tooltip card, which Wabi doesn't have; decide whether to keep it.

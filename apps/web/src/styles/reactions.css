@@ -3,6 +3,9 @@
    inset hairline, no shadow or blur. */
 @layer components {
   .tds-msg { position: relative; display: flex; flex-direction: column }
+  /* Jump target (motion/core flash): a soft band across the whole column behind the row, Telegram style. */
+  .tds-msg[data-jump] { isolation: isolate }
+  .tds-msg[data-jump]::before { content: ""; position: absolute; inset: calc(var(--tds-space-1) * -1) calc(var(--tds-space-6) * -1); border-radius: var(--tds-radius-card); background: var(--tds-accent-quote-flash); opacity: 0; pointer-events: none; z-index: -1 }
   .tds-msg[data-side="me"] + .tds-msg[data-side="agent"] > :first-child,
   .tds-msg[data-side="agent"] + .tds-msg[data-side="me"] > :first-child,
   .tds-work + .tds-msg > :first-child, .tds-msg + .tds-work { margin-top: var(--tds-space-14) }
@@ -79,7 +82,7 @@
     display: grid; place-items: center; width: var(--tds-space-22); height: var(--tds-space-22); margin-left: auto;
     border-radius: var(--tds-radius-button-sm); color: var(--tds-text-faint); opacity: 0;
     transition: var(--tds-press-transition), opacity var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out);
-    &:focus-visible { opacity: 1 }
+    html[data-kbd] &:focus-visible { opacity: 1 }
   }
   @media (hover: hover) and (pointer: fine) {
     .tds-comment:hover .tds-comment-delete { opacity: 1 }
@@ -135,7 +138,7 @@
     border-radius: var(--tds-radius-button); font-size: var(--tds-size-react-emoji); line-height: 1; color: var(--tds-text-muted);
     transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out);
     &[data-on] { background: var(--tds-accent-rose-22) }
-    &:focus-visible { outline-offset: 0 }
+    html[data-kbd] &:focus-visible { outline-offset: 0 }
   }
   .tds-react-bar[data-mode="picker"] .tds-react-emoji { border-radius: var(--tds-radius-item) }
   @media (hover: hover) and (pointer: fine) {

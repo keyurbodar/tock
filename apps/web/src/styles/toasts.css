@@ -54,7 +54,7 @@
     border-radius: var(--tds-radius-item); color: var(--tds-text-muted); opacity: 0;
     transition: var(--tds-press-transition), opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out);
   }
-  .tds-toast:focus-within .tds-toast-close, .tds-toast-close:focus-visible { opacity: 1 }
+  .tds-toast:focus-within .tds-toast-close, html[data-kbd] .tds-toast-close:focus-visible { opacity: 1 }
   @media (hover: hover) and (pointer: fine) {
     .tds-toast:hover .tds-toast-close { opacity: 1 }
     .tds-toast-close:hover { color: var(--tds-text-tx); background: var(--tds-overlay-fill-10) }

@@ -5,6 +5,8 @@
 @layer components {
   .tds-scrim {
     position: fixed; inset: 0; z-index: var(--tds-z-veil); contain: strict; will-change: opacity;
+    /* Claude's overlay: the app behind dims and goes soft. The blur is static on the scrim, and only the scrim's opacity
+       animates, so the blur fades in and out with it at compositor cost. */
     background: var(--tds-backdrop-scrim);
     transition: opacity var(--tds-dur-backdrop-in) var(--tds-ease-out);
     &:is([data-starting-style], [data-ending-style], [data-closed]) { opacity: 0 }

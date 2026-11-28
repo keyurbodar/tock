@@ -38,7 +38,11 @@ function flow(box: HTMLElement) {
       return columns.disconnect()
     }
     if (box.querySelector(".tds-pin")) localStorage.setItem(PINS_HEIGHT, String(box.offsetHeight))
-    box.style.setProperty("--pin-cols", String(Math.max(1, Math.floor(box.clientWidth / tokens.size["pin-slot-min"]))))
+    // Only a change in the column count moves tiles; otherwise the 1fr tracks just stretch with the sidebar. Calling move()
+    // on every resize frame (a sidebar drag, the collapse slide) restarted every tile's glide each frame: that was the jitter.
+    const cols = String(Math.max(1, Math.floor(box.clientWidth / tokens.size["pin-slot-min"])))
+    if (box.style.getPropertyValue("--pin-cols") === cols) return
+    box.style.setProperty("--pin-cols", cols)
     layout.move()
   })
   columns.observe(box)

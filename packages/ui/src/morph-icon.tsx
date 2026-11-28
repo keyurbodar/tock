@@ -26,6 +26,10 @@ const shapes = {
   "chevron-up": { lines: chevron, rotate: 180 },
   pause: { lines: [[4.5, 3, 4.5, 11], [9.5, 3, 9.5, 11], C, C] },
   play: { lines: [[4, 2.5, 4, 11.5], [4, 2.5, 11.5, 7], [4, 11.5, 11.5, 7], C] },
+  /** Funnel as three tapering bars (Claude's filter glyph); morphs from and to `menu` and `x`. */
+  filter: { lines: [[2, 3.5, 12, 3.5], [4, 7, 10, 7], [5.75, 10.5, 8.25, 10.5], C] },
+  /** Return key (↵), Duet's send: a stem down the right, a foot to the left and the arrowhead. Morphs into `stop` while a reply runs. */
+  return: { lines: [[11, 2.5, 11, 8.5], [11, 8.5, 3, 8.5], [3, 8.5, 5.75, 5.75], [3, 8.5, 5.75, 11.25]], rotate: 0 },
   spinner: { lines: [[7, 1.5, 7, 4], [12.5, 7, 10, 7], [7, 12.5, 7, 10], [1.5, 7, 4, 7]], rotate: 0, spin: true },
 } satisfies Record<string, Shape>
 

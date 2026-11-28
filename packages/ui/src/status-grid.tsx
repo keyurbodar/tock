@@ -222,7 +222,7 @@ function ramp(hue: GridHue): Ramp {
   const cached = ramps.get(hue)
   if (cached) return cached
   const c = tokens.color.grid[hue]
-  const stops: [number, number[]][] = [[0, channels(c.deep)], [0.28, channels(c.deep)], [0.58, channels(c.hue)], [0.84, channels(c.tint)], [1, channels(c.core)]]
+  const stops: [number, number[]][] = [[0, channels(c.hue)], [0.28, channels(c.hue)], [0.58, channels(c.hue)], [0.84, channels(c.tint)], [1, channels(c.core)]]
   const fill: string[] = []
   const alpha: number[] = []
   for (let i = 0; i < 64; i++) {
@@ -287,33 +287,40 @@ export function StatusGrid(props: { state?: GridState; pattern?: GridPattern; hu
   let kind: GridPattern = "check"
   const painter: Painter = { live: false, seen: false, paint: () => {} }
 
+  /**
+   * LED paint, after the reference capture: the canvas is exactly the element's device pixels (no oversample-then-shrink,
+   * which softened every dot), dots sit on a fractional pitch so the grid fills the box evenly, and lit dots get a small
+   * additive bloom (`lighter`) drawn first, so neighbours glow into each other the way real LEDs do instead of greying.
+   */
   const draw = (t: number, kind: GridPattern, colours: Ramp) => {
     if (!ctx) return
     PATTERNS[kind](t, out)
     const side = pitch * N
     ctx.clearRect(0, 0, side, side)
     const radius = (pitch * g.dot) / 2
-    const glowRadius = pitch * 0.92
+    const glowRadius = pitch * g["bloom-reach"]
+    ctx.globalCompositeOperation = "lighter"
     for (let k = 0; k < N * N; k++) {
       const v = out[k]!
-      const i = Math.min(63, Math.round(v * 63))
-      const cx = (k % N) * pitch + pitch / 2
-      const cy = Math.floor(k / N) * pitch + pitch / 2
-      if (v > g.bloom) {
-        const strength = (v - g.bloom) / (1 - g.bloom)
-        const grad = ctx.createRadialGradient(cx, cy, radius * 0.4, cx, cy, glowRadius)
-        grad.addColorStop(0, colours.glow)
-        grad.addColorStop(1, "transparent")
-        ctx.globalAlpha = strength * g["bloom-alpha"]
-        ctx.fillStyle = grad
-        ctx.beginPath()
-        ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2)
-        ctx.fill()
-      }
+      if (v <= g.bloom) continue
+      const cx = ((k % N) + 0.5) * pitch
+      const cy = (Math.floor(k / N) + 0.5) * pitch
+      const grad = ctx.createRadialGradient(cx, cy, radius * 0.5, cx, cy, glowRadius)
+      grad.addColorStop(0, colours.glow)
+      grad.addColorStop(1, "transparent")
+      ctx.globalAlpha = ((v - g.bloom) / (1 - g.bloom)) * g["bloom-alpha"]
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.globalCompositeOperation = "source-over"
+    for (let k = 0; k < N * N; k++) {
+      const i = Math.min(63, Math.round(out[k]! * 63))
       ctx.globalAlpha = colours.alpha[i]!
       ctx.fillStyle = colours.fill[i]!
       ctx.beginPath()
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+      ctx.arc(((k % N) + 0.5) * pitch, (Math.floor(k / N) + 0.5) * pitch, radius, 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.globalAlpha = 1
@@ -323,9 +330,9 @@ export function StatusGrid(props: { state?: GridState; pattern?: GridPattern; hu
     () => [pattern(), hue(), size(), !!props.still] as const,
     ([next, tone, px, still]) => {
       kind = next
-      const dpr = Math.max(window.devicePixelRatio || 1, 2)
-      pitch = Math.max(8, Math.round((px * dpr * 2) / N))
-      canvas.width = canvas.height = pitch * N
+      const device = Math.round(px * Math.max(window.devicePixelRatio || 1, 1))
+      pitch = device / N
+      canvas.width = canvas.height = device
       canvas.style.width = canvas.style.height = `${px}px`
       ctx = canvas.getContext("2d")
       const colours = ramp(tone)

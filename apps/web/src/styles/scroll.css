@@ -19,14 +19,14 @@
   .tds-ws-clip > .tds-ws-body[data-edge-fade] { max-height: var(--tds-size-worklog-out); overflow-y: auto; overscroll-behavior: contain }
   .tds-jump {
     position: absolute; z-index: 1;
-    right: max(var(--tds-space-32), calc((100% - var(--tds-size-column)) / 2 + var(--tds-space-32)));
-    bottom: calc(var(--composer-reserve, var(--tds-size-fade-bottom)) + var(--tds-space-8));
+    /* Duet: centred on the column, just above the composer (and above any follow-ups). */
+    left: 0; right: 0; margin-inline: auto;
+    bottom: calc(var(--composer-reserve, var(--tds-size-fade-bottom)) + var(--followup-reserve, 0px) + var(--tds-space-8));
     display: grid; place-items: center; width: var(--tds-size-send); height: var(--tds-size-send); border-radius: var(--tds-radius-pill);
     background-color: var(--tds-glass-fill); color: var(--tds-text-tx2);
     opacity: 0; pointer-events: none; transform-origin: 50% 100%;
   }
   .tds-jump[data-on] { opacity: 1; pointer-events: auto }
-  [data-narrow] .tds-jump { right: var(--tds-space-12) }
   .tds-jump-count {
     position: absolute; top: calc(var(--tds-space-4) * -1); right: calc(var(--tds-space-4) * -1);
     display: grid; place-items: center; min-width: var(--tds-size-badge); height: var(--tds-size-badge); padding: 0 var(--tds-space-4);

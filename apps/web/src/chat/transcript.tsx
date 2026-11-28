@@ -25,11 +25,13 @@ function Bubble(props: { item: Extract<Item, { kind: "user" | "routine" }>; queu
   return (
     <>
       <Show when={parts().files.length > 0}>
-        <Attachments files={parts().files} side={mine() ? "me" : "agent"} queued={props.queued} />
+        <div class="tds-ref" data-ref={props.item.kind === "user" ? props.item.ref : undefined} data-kind="media" data-side={mine() ? "me" : "agent"} data-queued={props.queued ? "" : undefined}>
+          <Attachments files={parts().files} side={mine() ? "me" : "agent"} queued={props.queued} />
+        </div>
       </Show>
       <Show when={parts().text}>
         <div ref={(el) => clamp(el)} class="tds-bubble" dir="auto" data-side={mine() ? "me" : "agent"} data-ref={props.item.kind === "user" ? props.item.ref : undefined} data-queued={props.queued ? "" : undefined}>
-          <Show when={quoted()}>{(quote) => <QuoteChip source={quote().ref} excerpt={quote().excerpt} exists={props.has(quote().ref)} />}</Show>
+          <Show when={quoted()}>{(quote) => <QuoteChip source={quote().ref} excerpt={quote().excerpt} kind={quote().kind} partial={quote().partial} exists={props.has(quote().ref)} />}</Show>
           <Show when={quoted() ? quoted()!.body.trim() : parts().text}>
             {(body) => (
               <div class="tds-bubble-rich">

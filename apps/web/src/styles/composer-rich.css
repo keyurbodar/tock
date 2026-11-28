@@ -27,3 +27,8 @@
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0;
 }
+
+/* Long unbroken input (a URL, a hash, a run of letters) wraps inside the field instead of running under Send. */
+@layer components {
+  .tds-composer-wrap .ProseMirror, .tds-composer-wrap .tds-input { overflow-wrap: anywhere; word-break: break-word; min-width: 0 }
+}

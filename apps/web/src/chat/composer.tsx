@@ -930,7 +930,7 @@ export function Composer(props: { draftKey: string; channel?: string; working: b
           </div>
         </div>
         <button type="submit" class="tds-press tds-send tds-raise-glass" data-tip="" data-tip-side="top" onClick={(event) => stop() && (event.preventDefault(), event.detail <= 1 && props.onStop())} data-empty={(blank() || tooLong()) && !stop() ? "" : undefined} data-held={held() ? "" : undefined} data-stop={stop() ? "" : undefined} aria-label={stop() ? "Stop" : held() ? "Sending when files finish" : "Send"}>
-          <MorphIcon name={stop() ? "stop" : "arrow-up"} size="send" class={stop() ? "" : "tds-optical-up"} weight={tokens.icon["stroke-crisp"]} />
+          <MorphIcon name={stop() ? "stop" : "return"} size="send" weight={tokens.icon["stroke-crisp"]} />
         </button>
       </form>
     </div>

@@ -20,7 +20,7 @@
     }
     &:active::before { scale: var(--tds-press-tight) }
   }
-  .tds-composer-row:has(> .tds-field:is([data-tall], [data-sheet])) > .tds-sheet-grip, .tds-sheet-grip:focus-visible { opacity: 1 }
+  .tds-composer-row:has(> .tds-field:is([data-tall], [data-sheet])) > .tds-sheet-grip, html[data-kbd] .tds-sheet-grip:focus-visible { opacity: 1 }
   @media (hover: hover) and (pointer: fine) { .tds-composer-row:has(> .tds-field:hover) > .tds-sheet-grip, .tds-sheet-grip:hover { opacity: 1 } }
   @media (hover: hover) and (pointer: fine) { .tds-sheet-grip:hover::before { background: var(--tds-overlay-fill-20) } }
 }
@@ -31,6 +31,7 @@
   .tds-composer-wrap > .tds-sheet-veil {
     position: fixed; inset: 0; z-index: -1;
     opacity: 0; pointer-events: none; contain: strict;
+    background: var(--tds-backdrop-scrim);
   }
   .tds-composer-wrap:not(:has(> .tds-composer-row > .tds-field[data-sheet])) > .tds-sheet-veil { visibility: hidden }
 }

@@ -1,23 +1,45 @@
+/*
+ * Type: Allo for everything you read, Paper Mono for code. Both are SIL OFL 1.1 (licences sit beside the files).
+ * Allo is variable in weight and optical size, so one file covers 400 body text through 600 headings and every size from
+ * 12px meta to 34px display, and `font-optical-sizing: auto` (on by default) gives small text open spacing and large text a
+ * tighter display cut. Roundness is fixed at 40 when the file is built (`scripts/fonts.py`): a touch crisper than Allo's 50,
+ * which keeps the Duet look sharp while staying friendly, and halves the file. Subset to Latin, punctuation, arrows and maths.
+ */
 @font-face {
-  font-family: "Geist";
+  font-family: "Allo";
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url("../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2-variations");
+  src: url("./fonts/Allo.woff2") format("woff2-variations");
 }
 @font-face {
-  font-family: "Geist Mono";
+  font-family: "Allo";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/Allo-Oblique.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Paper Mono";
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url("../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2-variations");
+  src: url("./fonts/PaperMono.woff2") format("woff2-variations");
 }
-/* Metric-matched local fallback, so the swap to Geist doesn't reflow the first paint. */
+/* Metric-matched local fallbacks, so the swap to Allo and Paper Mono doesn't reflow the first paint. */
 @font-face {
-  font-family: "Geist Fallback";
+  font-family: "Allo Fallback";
   src: local("Arial");
-  ascent-override: 95%;
-  descent-override: 22%;
+  ascent-override: 96.9%;
+  descent-override: 24.1%;
   line-gap-override: 0%;
-  size-adjust: 104%;
+  size-adjust: 97%;
+}
+@font-face {
+  font-family: "Paper Mono Fallback";
+  src: local("Courier New");
+  ascent-override: 95.5%;
+  descent-override: 24.5%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
 }

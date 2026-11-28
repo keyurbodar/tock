@@ -47,7 +47,7 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-optical-sizing: auto;
-    font-feature-settings: "kern", "calt", "ss01";
+    font-feature-settings: "kern", "calt", "liga";
     font-variant-ligatures: common-ligatures contextual;
     font-synthesis-weight: none;
     font-synthesis-small-caps: none;
@@ -58,14 +58,18 @@
   body { margin: 0; height: 100dvh; overflow: hidden; font-size: var(--tds-type-body-size); line-height: var(--tds-type-body-lh); letter-spacing: var(--tds-type-body-tracking); }
   #app { height: 100%; }
   button { cursor: default; }
-  input, textarea, button, select, [contenteditable] { font-family: inherit; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: "kern", "calt", "ss01"; }
+  input, textarea, button, select, [contenteditable] { font-family: inherit; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: "kern", "calt", "liga"; }
   code, kbd, pre, samp { font-family: var(--tds-font-mono); }
   ::selection { background: var(--tds-accent-rose-28); }
   *, *::before, *::after { box-sizing: border-box }
   b, strong, th { font-weight: var(--tds-weight-medium) }
-  :focus { outline: none }
-  :focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-focus-outline); outline-offset: var(--tds-size-focus-offset) }
-  input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { outline: none }
+  /* Focus rings belong to the keyboard. html[data-kbd] is set by Tab, the arrows or a shortcut and cleared by any pointer
+     press (lib/modality.ts), so a click, a tap or focus moved by code never draws one. When it does show it is one crisp
+     1px line in the accent, 2px off the edge, following the element's own corners. */
+  :focus, :focus-visible { outline: none }
+  html[data-kbd] :focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-focus-outline); outline-offset: var(--tds-size-focus-offset) }
+  html[data-kbd] :is(input, textarea, [contenteditable]):focus-visible { outline: none }
+  code, kbd, pre, samp, .tds-mono { font-variant-ligatures: none; font-feature-settings: "kern", "calt" 0, "liga" 0 }
   .num { font-variant-numeric: tabular-nums; }
 }
 @import "./lightbox-docs.css";

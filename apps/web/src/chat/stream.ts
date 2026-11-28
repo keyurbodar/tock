@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, untrack } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js"
 import { tokens } from "@tock/tokens"
 
 interface Progress {
@@ -31,31 +31,61 @@ export function createReveal(text: () => string, live: () => boolean) {
   const saved = remembered.get(keyOf(initial))
   const progress: Progress = saved ?? { count: untrack(live) ? 0 : Number.POSITIVE_INFINITY, times: [] }
   const [count, setCount] = createSignal(progress.count)
-  const ends = () => Array.from(text().matchAll(/\S+/g), (match) => match.index + match[0].length)
-  let timer: ReturnType<typeof setTimeout> | undefined
+  // Word ends, recomputed only when the text changes (not on every reveal step).
+  const ends = createMemo(() => Array.from(text().matchAll(/\S+/g), (match) => match.index + match[0].length))
+  let frame = 0
+  let last = 0
+  let carry = 0
+  const S = tokens.motion.stream
 
-  const step = () => {
-    timer = undefined
+  /**
+   * Time-based, adaptive reveal on animation frames. The pace is a floor rate (words a second) or whatever drains the
+   * backlog within `drain` ms, whichever is faster, so a slow model reads as steady typing and a fast or huge reply
+   * catches up within a fraction of a second instead of crawling. A backlog past `stream-burst` words lands at once
+   * except a short tail that still fades. Words are always whole; nothing ever streams character by character.
+   */
+  const tick = (now: number) => {
+    frame = 0
+    const dt = last ? Math.min(now - last, 64) : 16
+    last = now
     const all = ends()
     const shown = Math.min(progress.count, all.length)
     const backlog = all.length - shown
     if (backlog <= 0) {
-      if (!live()) remembered.delete(keyOf(text()))
-      if (live()) timer = setTimeout(step, tokens.motion.duration["word-step"])
+      carry = 0
+      if (!live()) {
+        remembered.delete(keyOf(text()))
+        last = 0
+        return
+      }
+      frame = requestAnimationFrame(tick)
       return
     }
-    const burst = backlog > tokens.limit["stream-burst"]
-    const take = burst ? backlog - tokens.limit["stream-tail"] : Math.max(1, Math.ceil(backlog / tokens.limit["word-catchup"]))
-    const at = performance.now()
-    for (let i = burst ? shown + take - tokens.limit["stream-tail"] : shown; i < shown + take; i++) progress.times[i] = at
-    progress.count = shown + take
-    remember(keyOf(text()), progress)
-    setCount(progress.count)
-    timer = setTimeout(step, tokens.motion.duration["word-step"])
+    let take: number
+    if (backlog > tokens.limit["stream-burst"]) take = backlog - tokens.limit["stream-tail"]
+    else {
+      const rate = Math.max(S["words-per-second"], (backlog * 1000) / S.drain)
+      carry += (rate * dt) / 1000
+      take = Math.min(backlog, Math.floor(carry))
+      carry -= take
+    }
+    if (take > 0) {
+      const at = performance.now()
+      for (let i = Math.max(shown, shown + take - tokens.limit["stream-tail"] * 2); i < shown + take; i++) progress.times[i] = at
+      progress.count = shown + take
+      remember(keyOf(text()), progress)
+      setCount(progress.count)
+    }
+    frame = requestAnimationFrame(tick)
   }
-  if (progress.count !== Number.POSITIVE_INFINITY) timer = setTimeout(step, tokens.motion.duration["word-step"])
+  const start = () => {
+    if (!frame && progress.count !== Number.POSITIVE_INFINITY) frame = requestAnimationFrame(tick)
+  }
+  start()
+  // New text after the reveal caught up and parked: wake it.
+  createEffect(ends, () => start())
   onCleanup(() => {
-    clearTimeout(timer)
+    cancelAnimationFrame(frame)
     if (!untrack(live)) remembered.delete(keyOf(untrack(text)))
   })
 

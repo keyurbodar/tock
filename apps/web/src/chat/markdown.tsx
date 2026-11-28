@@ -195,9 +195,17 @@ function Block(props: { token: Token; clock?: () => Words | undefined; nested?: 
   return (
     <Switch fallback={<div ref={bubble} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-ref={props.address} data-open={props.open ? "" : undefined}>{props.token.raw.trim()}</div>}>
       <Match when={props.token.type === "code"}>
-        <CodeCard token={props.token as Tokens.Code} />
+        <div class="tds-ref" data-ref={props.address} data-kind="code">
+          <CodeCard token={props.token as Tokens.Code} />
+        </div>
       </Match>
-      <Match when={filesOnly(props.token)}>{(files) => <Attachments files={files()} side="agent" />}</Match>
+      <Match when={filesOnly(props.token)}>
+        {(files) => (
+          <div class="tds-ref" data-ref={props.address} data-kind="media" data-side="agent">
+            <Attachments files={files()} side="agent" />
+          </div>
+        )}
+      </Match>
       <Match when={props.token.type === "paragraph" || props.token.type === "heading"}>
         <div ref={bubble} class="tds-bubble" dir={side() && "auto"} data-side={side()} data-ref={props.address} data-open={props.open ? "" : undefined} data-heading={props.token.type === "heading" ? "" : undefined} data-level={props.token.type === "heading" ? (props.token as Tokens.Heading).depth : undefined}>
           {inline((props.token as Tokens.Paragraph).tokens, props.clock?.())}
