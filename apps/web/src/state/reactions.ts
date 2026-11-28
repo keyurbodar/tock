@@ -1,5 +1,5 @@
 import { createStore } from "solid-js"
-import type { Reaction, ReactionActor, ReactionPreview, ReactionsByRef } from "@tock/protocol"
+import type { Comment, CommentsByRef, Reaction, ReactionActor, ReactionPreview, ReactionsByRef } from "@tock/protocol"
 import { socket } from "../lib/socket"
 import { app, setApp, titleOf } from "./app"
 import { addNote } from "./notes"
@@ -21,11 +21,52 @@ const loadedAt = new Map<string, number>()
 /** Pills pop in only for reactions that land after a chat's reactions loaded, so opening a chat shows them at rest. */
 export const settledSince = (sessionId: string) => performance.now() - (loadedAt.get(sessionId) ?? Infinity) > tokens.motion.duration.menu
 
-/** chat.subscribe hands the chat's reactions over grouped by ref; they replace what was held, so a reload is the truth. */
-export function loadReactions(sessionId: string, byRef: ReactionsByRef | undefined) {
+/** Comments on message units, held like reactions: grouped by chat, then by ref. */
+export const [comments, setComments] = createStore<{ chats: Record<string, Record<string, Comment[]>> }>({ chats: {} })
+
+/** chat.subscribe hands the chat's reactions and comments over grouped by ref; they replace what was held, so a reload is the truth. */
+export function loadReactions(sessionId: string, byRef: ReactionsByRef | undefined, notes?: CommentsByRef) {
   if (!loadedAt.has(sessionId)) loadedAt.set(sessionId, performance.now())
   setReactions((s) => void (s.chats[sessionId] = Object.fromEntries(Object.entries(byRef ?? {}).map(([ref, list]) => [ref, [...list]]))))
+  setComments((s) => void (s.chats[sessionId] = Object.fromEntries(Object.entries(notes ?? {}).map(([ref, list]) => [ref, [...list]]))))
 }
+
+function applyComment(sessionId: string, comment: Comment, on: boolean) {
+  setComments((s) => {
+    const chat = (s.chats[sessionId] ??= {})
+    const list = (chat[comment.ref] ?? []).filter((item) => item.id !== comment.id)
+    chat[comment.ref] = on ? [...list, comment].sort((a, b) => a.at - b.at) : list
+  })
+}
+
+export const commentsOf = (sessionId: string, ref: string): readonly Comment[] => comments.chats[sessionId]?.[ref] ?? []
+
+/** Saves a comment; the server's copy (with its id) replaces nothing locally until it answers, so a refusal leaves no ghost. */
+export async function addComment(sessionId: string, ref: string, text: string): Promise<boolean> {
+  try {
+    const comment = await socket.request<Comment>("comment.add", { sessionId, ref, text })
+    applyComment(sessionId, comment, true)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Removes a comment at once; a refusal puts it back. */
+export async function deleteComment(sessionId: string, comment: Comment) {
+  applyComment(sessionId, comment, false)
+  try {
+    await socket.request("comment.delete", { sessionId, commentId: comment.id })
+  } catch {
+    applyComment(sessionId, comment, true)
+  }
+}
+
+socket.onEvent(({ event, payload }) => {
+  if (event !== "comment" || !isRecord(payload) || typeof payload.sessionId !== "string" || !isRecord(payload.comment)) return
+  const comment = payload.comment as unknown as Comment
+  if (typeof comment.id === "string" && typeof comment.ref === "string") applyComment(payload.sessionId, comment, payload.on === true)
+})
 
 function apply(sessionId: string, reaction: Reaction, on: boolean) {
   setReactions((s) => {

@@ -9,8 +9,6 @@
     @starting-style { opacity: 0; clip-path: inset(0 0 100% 0) }
   }
   .tds-row { user-select: none; -webkit-user-drag: none }
-  /* rows are see-through so the shared glide highlight (fluid.ts lane) shades the whole row, title and preview included; a swiped row turns solid over its actions */
-  .tds-row:not([data-selected]) { background: transparent }
   .tds-row-wrap[data-swiping] .tds-row:not([data-selected]) { background: var(--tds-surface-side) }
   .tds-row-title > .tds-morph-text, .tds-row-preview > .tds-morph-text, :is(.tds-row-title, .tds-row-preview) > .tds-morph-text > span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
   .tds-row-wrap[data-swiping] .tds-row { will-change: transform }
@@ -47,51 +45,142 @@
   .tds-row-wrap[data-armed="1"] [data-side="right"] > [data-stage="2"], .tds-row-wrap[data-armed="2"] [data-side="left"] > [data-stage="1"] { --clip: inset(0 0 0 100%); --k: .5 }
   .tds-row-wrap[data-armed="1"] [data-side="left"] > [data-stage="2"], .tds-row-wrap[data-armed="2"] [data-side="right"] > [data-stage="1"] { --clip: inset(0 100% 0 0); --k: -.5 }
 
+  /* Duet sidebar: 276 wide on the page ground, no divider. Strip 52, agent row 42, pinned tiles, "Channels", 32 rows, footer 70. */
+  .tds-sidebar {
+    position: relative; flex: none; width: var(--tds-size-sidebar); min-height: 0; overflow: hidden;
+    background: var(--tds-duet-bg);
+    transition: width var(--tds-dur-mid) var(--tds-ease-duet), opacity var(--tds-dur-mid) var(--tds-ease-duet); /* lint-tokens-ignore: Duet slides the sidebar by width; the inner keeps its width so only the chat reflows */
+  }
+  .tds-sidebar[data-collapsed] { width: 0; opacity: 0 }
+  /* the contents keep their width while the sidebar narrows, so nothing inside reflows mid-slide */
+  .tds-sidebar-inner { position: relative; display: flex; flex-direction: column; width: var(--tds-size-sidebar); height: 100%; contain: layout paint }
+
+  .tds-ib {
+    position: relative; display: grid; place-items: center; flex: none; width: var(--tds-size-icon-button); height: var(--tds-size-icon-button);
+    border-radius: var(--tds-radius-button); color: var(--tds-duet-sys);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
+    &[data-size="sec"] { width: var(--tds-size-section-button); height: var(--tds-size-section-button); color: var(--tds-duet-t1) }
+    &[data-size="me"] { width: var(--tds-size-footer-button); height: var(--tds-size-footer-button) }
+    &[aria-pressed="true"] { background: var(--tds-duet-select); color: var(--tds-duet-t1) }
+    &:active { background: var(--tds-duet-select) }
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-ib:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
+  .tds-bd { position: absolute; top: var(--tds-space-5); right: var(--tds-space-5); width: var(--tds-size-unread); height: var(--tds-size-unread); border-radius: var(--tds-radius-pill); background: var(--tds-duet-unread); box-shadow: var(--tds-ring-badge) }
+
+  .tds-sbt { display: flex; align-items: center; justify-content: space-between; flex: none; height: var(--tds-size-sidebar-strip); padding: 0 var(--tds-space-9) }
+  .tds-sbt-end { display: flex; align-items: center; gap: var(--tds-space-2) }
+
+  .tds-toast-row {
+    display: flex; align-items: center; gap: var(--tds-space-16); flex: none; height: var(--tds-size-agent-row); margin: var(--tds-space-10) var(--tds-space-10) 0; padding: 0 var(--tds-space-10);
+    border-radius: var(--tds-radius-agent); text-align: left; touch-action: none;
+    font-size: var(--tds-type-name-size); line-height: var(--tds-type-name-lh); color: var(--tds-duet-t1);
+    transition: background-color var(--tds-dur-fast) var(--tds-ease-duet), scale var(--tds-dur-fast) var(--tds-ease-duet);
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-toast-row:hover { background: var(--tds-duet-hover) } }
+  .tds-toast-row[data-press], .tds-toast-row[aria-expanded="true"] { background: var(--tds-duet-select) }
+  .tds-toast-row[data-press] { scale: var(--tds-press-row) }
+  .tds-toast-avatar { width: var(--tds-size-avatar); height: var(--tds-size-avatar); flex: none; border-radius: var(--tds-radius-avatar) }
+  .tds-toast-name { flex: none }
+  .tds-toast-status {
+    flex: 1; min-width: 0; text-align: right; font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-duet-t2);
+    & > .tds-morph-text, & > .tds-morph-text > span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  }
+
+  /* pinned channels as tiles; open tints with the icon's own colour, 17% at rest and 22% on hover */
   .tds-pins {
-    --pin-cols: 4; position: relative; display: flex; flex-wrap: wrap; justify-content: center; row-gap: var(--tds-space-4);
-    min-height: var(--tds-size-pins); padding: var(--tds-space-14) 0 var(--tds-space-2);
-    border-radius: var(--tds-radius-card); transition: background-color var(--tds-dur-menu) var(--tds-ease-out), box-shadow var(--tds-dur-menu) var(--tds-ease-out);
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--tds-space-6); flex: none; margin: var(--tds-space-8) var(--tds-space-10) 0;
+    border-radius: var(--tds-radius-tile); transition: background-color var(--tds-dur-fast) var(--tds-ease-duet), box-shadow var(--tds-dur-fast) var(--tds-ease-duet);
   }
   .tds-pins[data-drop] { background: var(--tds-accent-rose-6); box-shadow: inset 0 0 0 1px var(--tds-accent-rose-28) }
   .tds-pin-slot { display: contents }
   .tds-pin {
-    position: relative; flex: 0 0 calc(100% / var(--pin-cols)); max-width: var(--tds-size-pin-slot); min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-7);
-    padding: var(--tds-space-6) var(--tds-space-4) var(--tds-space-8); border-radius: var(--tds-radius-card); color: var(--tds-text-muted);
-    font-size: var(--tds-type-label-size); line-height: var(--tds-type-label-lh); letter-spacing: 0; transition: var(--tds-press-transition), color var(--tds-dur-hover) var(--tds-ease-out);
+    display: flex; flex-direction: column; align-items: center; gap: var(--tds-space-6); min-width: 0; height: var(--tds-size-tile); padding: var(--tds-space-11) var(--tds-space-4) var(--tds-space-9);
+    border-radius: var(--tds-radius-tile); background: var(--tds-duet-tile);
+    transition: background-color var(--tds-dur-fast) var(--tds-ease-duet), scale var(--tds-dur-fast) var(--tds-ease-duet);
+    &:active { scale: var(--tds-press) }
   }
-  @media (hover: hover) and (pointer: fine) { .tds-pin:hover { color: var(--tds-text-tx2) } }
-  .tds-pin::before {
-    content: ""; position: absolute; inset: 0; border-radius: var(--tds-radius-card); background: var(--tds-overlay-fill-8); box-shadow: var(--tds-raise-shadow-1);
-    opacity: 0; scale: .94; transition: opacity var(--tds-dur-menu) var(--tds-ease-out), scale var(--tds-dur-menu) var(--tds-ease-sheet); pointer-events: none;
+  .tds-pin[data-active] { background: color-mix(in srgb, currentColor 17%, var(--tds-duet-bg)) }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-pin:hover { background: var(--tds-duet-hover); & .tds-pin-label { color: var(--tds-duet-t-hover) } }
+    .tds-pin[data-active]:hover { background: color-mix(in srgb, currentColor 22%, var(--tds-duet-bg)) }
   }
-  .tds-pin[data-active] { color: var(--tds-text-tx) }
-  .tds-pin[data-active]::before { opacity: 1; scale: 1 }
-  .tds-pin > * { position: relative }
-  .tds-pin-circle {
-    position: relative; flex: none; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pin-glyph); display: grid; place-items: center;
-    background: color-mix(in oklab, currentColor var(--tds-raise-tint), var(--tds-surface-side)); box-shadow: var(--tds-glass-shadow);
-    transition: scale var(--tds-dur-tooltip) var(--tds-ease-out);
-  }
-  .tds-pin:active .tds-pin-circle { scale: var(--tds-press-tight) }
+  .tds-pin-circle { position: relative; display: grid; place-items: center; width: var(--tds-icon-tile); height: var(--tds-icon-tile) }
   .tds-pin-status { position: absolute; right: calc(var(--tds-space-4) * -1); bottom: calc(var(--tds-space-4) * -1) }
   .tds-pin-label {
-    max-width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: var(--tds-type-tile-size); line-height: var(--tds-type-tile-lh); letter-spacing: var(--tds-type-tile-tracking); color: var(--tds-duet-t2);
+    transition: color var(--tds-dur-fast) var(--tds-ease-duet);
   }
+  .tds-pin:is([data-active], [data-unread]) .tds-pin-label { color: var(--tds-duet-t1) }
   .tds-pin-rename {
-    all: unset; box-sizing: border-box; width: var(--tds-size-pin-slot); padding: 0 var(--tds-space-4); text-align: center;
-    border-radius: var(--tds-radius-kbd); background: var(--tds-surface-field); box-shadow: inset 0 0 0 1px var(--tds-accent-rose-45); color: var(--tds-text-tx);
+    all: unset; width: 100%; box-sizing: border-box; text-align: center; border-radius: var(--tds-radius-link);
+    font-size: var(--tds-type-tile-size); line-height: var(--tds-type-tile-lh); background: var(--tds-duet-select); color: var(--tds-duet-t1); caret-color: var(--tds-duet-accent);
   }
-  .tds-pin-ghost { position: fixed; z-index: var(--tds-z-flight); display: grid; place-items: center; pointer-events: none; color: var(--tds-hue-rose) }
+  .tds-pin-ghost { position: fixed; z-index: var(--tds-z-flight); display: grid; place-items: center; pointer-events: none; color: var(--tds-duet-t1) }
 
-  .tds-toast-row { touch-action: none }
-  .tds-toast-row[data-press] { scale: var(--tds-press-row); background: var(--tds-overlay-press) }
-  .tds-toast-status { font-size: var(--tds-type-preview-size); line-height: var(--tds-type-preview-lh) }
-  .tds-toast-status > .tds-morph-text, .tds-toast-status > .tds-morph-text > span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis }
-  .tds-pin[data-unread] .tds-pin-label { color: var(--tds-text-tx); font-weight: var(--tds-weight-semibold) }
-  .tds-sidebar { container: sidebar / inline-size }
-  @container sidebar (max-width: 330px) { .tds-toast-hint { display: none } }
-  .tds-toast-hint { font-size: var(--tds-type-label-size); color: var(--tds-text-faint); opacity: 0; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out) }
-  @media (hover: hover) and (pointer: fine) { .tds-toast-row:hover .tds-toast-hint { opacity: 1 } }
+  .tds-sec {
+    display: flex; align-items: center; flex: none; height: var(--tds-size-section); margin-top: var(--tds-space-14); padding: 0 var(--tds-space-10) 0 var(--tds-space-22);
+    font-size: var(--tds-type-section-size); line-height: var(--tds-type-section-lh); color: var(--tds-duet-t2);
+    & > span { flex: 1; min-width: 0 }
+  }
+
+  .tds-chs { position: relative; flex: 1; min-height: 0; padding-top: var(--tds-space-2) }
+  .tds-roster[data-edge-fade] { display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--tds-space-10) var(--tds-space-16) }
+  .tds-roster[data-edge-fade] > * { flex: none }
+  .tds-row-wrap { position: relative; border-radius: var(--tds-radius-row); touch-action: pan-y }
+  .tds-row {
+    position: relative; display: flex; align-items: center; gap: var(--tds-space-7); height: var(--tds-size-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8);
+    border-radius: var(--tds-radius-row); color: var(--tds-duet-t2); text-decoration: none; outline-offset: calc(var(--tds-size-focus-width) * -1);
+    font-size: var(--tds-type-row-size); line-height: var(--tds-type-row-lh); letter-spacing: var(--tds-type-row-tracking);
+    transition: background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-row:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
+  /* selection paints on press, before the route changes */
+  .tds-row:active, .tds-row[data-selected] { background: var(--tds-duet-select); color: var(--tds-duet-t1) }
+  .tds-row[data-unread] { color: var(--tds-duet-t1) }
+  .tds-row-icon { display: grid; place-items: center; flex: none; width: var(--tds-icon-channel); height: var(--tds-icon-channel) }
+  .tds-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  .tds-row-mark { display: grid; place-items: center; flex: none; min-width: var(--tds-size-unread); margin-right: var(--tds-space-1); transition: opacity var(--tds-dur-fast) var(--tds-ease-duet) }
+  .tds-row-mark:empty { display: none }
+  .tds-unread { display: block; width: var(--tds-size-unread); height: var(--tds-size-unread); border-radius: var(--tds-radius-pill); background: var(--tds-duet-unread) }
+  .tds-row-wrap[data-archived] .tds-row { color: var(--tds-duet-t3) }
+  .tds-row-more {
+    position: absolute; right: var(--tds-space-4); top: 50%; translate: 0 -50%; display: grid; place-items: center;
+    width: var(--tds-size-section-button); height: var(--tds-size-section-button); border-radius: var(--tds-radius-button);
+    color: var(--tds-duet-t2); opacity: 0; transition: var(--tds-press-transition), opacity var(--tds-dur-fast) var(--tds-ease-duet), background-color var(--tds-dur-fast) var(--tds-ease-duet);
+    &[aria-expanded="true"], &:focus-visible { opacity: 1; background: var(--tds-duet-select); color: var(--tds-duet-t1) }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-row-wrap:hover .tds-row-more { opacity: 1 }
+    .tds-row-wrap:hover .tds-row-mark { opacity: 0 }
+    .tds-row-more:hover { color: var(--tds-duet-t1) }
+  }
+  .tds-row-wrap:has(.tds-row-more[aria-expanded="true"]) .tds-row-mark { opacity: 0 }
+  .tds-row-rename {
+    all: unset; width: 100%; box-sizing: border-box; padding: 0 var(--tds-space-4); margin-inline: calc(var(--tds-space-4) * -1);
+    border-radius: var(--tds-radius-link); background: var(--tds-duet-raised); color: var(--tds-duet-t1); caret-color: var(--tds-duet-accent);
+  }
+  .tds-archive-head {
+    display: flex; align-items: center; gap: var(--tds-space-7); width: 100%; height: var(--tds-size-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8);
+    border-radius: var(--tds-radius-row); font-size: var(--tds-type-row-size); color: var(--tds-duet-t3);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-archive-head:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
+  .tds-archive-count { margin-left: auto; color: var(--tds-duet-t3) }
+  .tds-archive-caret { rotate: -90deg; transition: rotate var(--tds-dur-fast) var(--tds-ease-duet) }
+  .tds-archive-head[aria-expanded="true"] .tds-archive-caret { rotate: 0deg }
+
+  .tds-me {
+    display: flex; align-items: center; gap: var(--tds-space-12); flex: none; height: var(--tds-size-footer); padding: 0 var(--tds-space-12) 0 var(--tds-space-22);
+    font-size: var(--tds-type-body-size); color: var(--tds-duet-t1);
+    & > b { font-weight: var(--tds-weight-medium) }
+  }
+  .tds-me-initial {
+    display: grid; place-items: center; flex: none; width: var(--tds-size-initial); height: var(--tds-size-initial); border-radius: var(--tds-radius-pill);
+    background: var(--tds-duet-avatar); color: var(--tds-duet-avatar-text);
+    font-size: var(--tds-type-initial-size); font-weight: var(--tds-type-initial-weight); letter-spacing: var(--tds-type-initial-tracking);
+  }
+  @media (prefers-reduced-motion: reduce) { .tds-sidebar { transition: none } }
 
   .tds-veil {
     position: fixed; inset: 0; z-index: var(--tds-z-centre); opacity: 0; pointer-events: none; background: var(--tds-overlay-veil);
@@ -186,4 +275,9 @@
   }
   .tds-move-item[data-on] { background: var(--tds-overlay-item-on); color: var(--tds-text-tx) }
   .tds-move-trail { margin-left: auto; color: var(--tds-text-faint); font-size: var(--tds-type-label-size) }
+}
+
+@layer components {
+  [data-narrow] .tds-sidebar-inner { width: 100% }
+  [data-narrow] .tds-sidebar .tds-sbt > .tds-ib:first-child { visibility: hidden }
 }

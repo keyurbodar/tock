@@ -1,5 +1,5 @@
 import { createStore, reconcile, snapshot } from "solid-js"
-import type { ConversationView, EntryRecord, LiveState, QueuedSend, ReactionsByRef, SessionSummary, ThreadMeta } from "@tock/protocol"
+import type { CommentsByRef, ConversationView, EntryRecord, LiveState, QueuedSend, ReactionsByRef, SessionSummary, ThreadMeta } from "@tock/protocol"
 import { idb } from "../lib/idb"
 import { RequestError, socket, type ConnectionState } from "../lib/socket"
 import { addNote, needsNote } from "./notes"
@@ -264,8 +264,8 @@ export async function subscribe(sessionId: string) {
   if (app.sessions.find((session) => session.id === sessionId)?.meta.unread) queueMicrotask(() => void updateThread(sessionId, { unread: false }))
   await warm(sessionId)
   try {
-    const result = await socket.request<{ messages: readonly EntryRecord[]; thinking?: Record<string, number>; queued?: QueuedSend[]; reactions?: ReactionsByRef }>("chat.subscribe", { sessionId })
-    loadReactions(sessionId, result.reactions)
+    const result = await socket.request<{ messages: readonly EntryRecord[]; thinking?: Record<string, number>; queued?: QueuedSend[]; reactions?: ReactionsByRef; comments?: CommentsByRef }>("chat.subscribe", { sessionId })
+    loadReactions(sessionId, result.reactions, result.comments)
     thread(sessionId, (state) => {
       withEntries(sessionId, state, result.messages)
       state.pending = settleQueue(state.pending, result.queued ?? [])

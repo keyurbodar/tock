@@ -58,7 +58,7 @@ export function Palette() {
   const sessions = () => app.sessions.filter((session) => !session.meta.archived)
   return (
     <Dialog modal="trap-focus" open={open()} onOpenChange={(next) => setOpen(next)}>
-      <DialogBackdrop class="tds-palette-scrim" />
+      <DialogBackdrop class="tds-scrim tds-palette-scrim tds-backdrop" />
       <DialogContent class="tds-palette tds-over">
         <DialogTitle class="sr-only">Search or run a command</DialogTitle>
         <Command onAction={(value) => run(String(value))}>

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "@solidjs/router"
 import { createMenuController, Menu, MenuContent, MenuContextTrigger, MenuItem, MenuItemIcon } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { tokens } from "@tock/tokens"
-import { animate, morphFrom, watchLayout } from "@tock/ui/motion"
+import { animate, watchLayout } from "@tock/ui/motion"
 import { glyphFor } from "../lib/glyph"
 import { dirOf } from "../lib/dir"
 import { app, pinnedSessions, titleOf, updateThread, type Session } from "../state/app"
@@ -93,7 +93,7 @@ function PinLabel(props: { session: Session }) {
   )
 }
 
-/** Pinned chats above the list, after TDS px2 renderPins (48 shaded circles, a 12 label, a 9 rose dot when unread) in a wrapping grid that reflows with the sidebar. */
+/** Pinned channels as Duet tiles: a four-column grid of 18 icons over 12/16 labels, tinted by the icon colour when open. */
 export function Pins(props: { show: boolean }) {
   const navigate = useNavigate()
   const params = useParams<{ id?: string }>()
@@ -103,7 +103,7 @@ export function Pins(props: { show: boolean }) {
   return (
     <>
     <Show when={props.show && !app.sessionsLoaded && pinnedSessions().length === 0 && reserved() > 0}>
-      <div class="tds-pins" aria-busy="true" aria-label="Loading pinned chats" style={{ height: reserved() + "px" }} />
+      <div class="tds-pins" aria-busy="true" aria-label="Loading pinned channels" style={{ height: reserved() + "px" }} />
     </Show>
     <Show when={props.show && (pinnedSessions().length > 0 || dropping() !== "")}>
       <Menu
@@ -118,13 +118,13 @@ export function Pins(props: { show: boolean }) {
           if (value === "rename") setRenamingPin(session.id)
         }}
       >
-        <div class="tds-pins" ref={flow} data-drop={dropping() === "over" ? "" : undefined} aria-label="Pinned chats">
+        <div class="tds-pins" ref={flow} data-drop={dropping() === "over" ? "" : undefined} aria-label="Pinned channels">
           <For each={pinnedSessions()} keyed={(session) => session.id}>
             {(session) => (
               <MenuContextTrigger payload={session()} class="tds-pin-slot">
-                <button type="button" class="tds-pin" onPointerEnter={(e) => peekEnter(untrack(session), e.currentTarget, "below")} onPointerLeave={() => peekLeave()} onPointerDown={() => hidePeek()} data-id={session().id} data-active={params.id === session().id ? "" : undefined} data-unread={session().meta.unread ? "" : undefined} aria-current={params.id === session().id ? "page" : undefined} aria-label={titleOf(session())} onClick={(e) => (morphFrom(e.currentTarget), navigate(`/t/${session().id}`))}>
-                  <i class={`tds-pin-circle ${glyphFor(session().id).hue}`} ref={(el) => land(el, session().id)}>
-                    <Icon name={glyphFor(session().id).icon} size="pin" />
+                <button type="button" class={`tds-pin ${glyphFor(session().id).hue}`} onPointerEnter={(e) => peekEnter(untrack(session), e.currentTarget, "below")} onPointerLeave={() => peekLeave()} onPointerDown={() => hidePeek()} data-id={session().id} data-active={params.id === session().id ? "" : undefined} data-unread={session().meta.unread ? "" : undefined} aria-current={params.id === session().id ? "page" : undefined} aria-label={titleOf(session())} onClick={() => navigate(`/t/${session().id}`)}>
+                  <i class="tds-pin-circle" ref={(el) => land(el, session().id)}>
+                    <Icon name={glyphFor(session().id).icon} size="tile" />
                     <Show when={pinStatus(session())}>{(status) => <Orb status={status()} size="corner" class="tds-pin-status" />}</Show>
                   </i>
                   <PinLabel session={session()} />

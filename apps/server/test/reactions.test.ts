@@ -82,6 +82,37 @@ describe("reactions", () => {
     again.ws.close();
   }, 20_000);
 
+  it("reacts to and comments on one unit of a message, and lists both again on a resubscribe", async () => {
+    const { ws, frames, until, request, settled } = await connect("comments@test", [fauxAssistantMessage(fauxText("Here is code."))]);
+    const sessionId = crypto.randomUUID();
+    await request("chat.subscribe", { sessionId });
+    await request("chat.send", { sessionId, text: "show code" });
+    const entries = await settled(sessionId, "Here is code.");
+    const user = entries.find((e) => e.model?.some((m) => m.role === "user"))!;
+    const ref = `${user.id}:${user.model!.findIndex((m) => m.role === "user")}#code1`;
+
+    expect(await request("reaction.set", { sessionId, ref, emoji: "🔥", on: true })).toMatchObject({ type: "ok", data: { ref, changed: true } });
+    const added = await request("comment.add", { sessionId, ref, text: "  nice block  " });
+    expect(added).toMatchObject({ type: "ok", data: { ref, text: "nice block", by: "me" } });
+    const comment = added.data as { id: string };
+    expect((await until(() => frames.find((f) => f.event === "comment"), "comment event")).payload).toMatchObject({ sessionId, on: true, comment: { id: comment.id } });
+    expect((await request("comment.add", { sessionId, ref, text: "   " })).type).toBe("error");
+    expect((await request("comment.add", { sessionId, ref: "nope", text: "x" })).type).toBe("error");
+    await request("comment.add", { sessionId, ref, text: "second" });
+
+    ws.close();
+    const again = await connect("comments@test", [fauxAssistantMessage(fauxText("unused"))]);
+    const sub = (await again.request("chat.subscribe", { sessionId })).data as { reactions: Record<string, unknown[]>; comments: Record<string, Array<{ id: string; text: string }>> };
+    expect(sub.reactions[ref]).toHaveLength(1);
+    expect(sub.comments[ref]?.map((c) => c.text)).toEqual(["nice block", "second"]);
+
+    expect((await again.request("comment.delete", { sessionId, commentId: comment.id })).data).toEqual({ deleted: true });
+    expect((await again.request("comment.delete", { sessionId, commentId: comment.id })).data).toEqual({ deleted: false });
+    const after = (await again.request("chat.subscribe", { sessionId })).data as { comments: Record<string, Array<{ text: string }>> };
+    expect(after.comments[ref]?.map((c) => c.text)).toEqual(["second"]);
+    again.ws.close();
+  }, 20_000);
+
   it("lets the agent react to the owner's latest message without breaking the run", async () => {
     const { ws, frames, until, request, settled } = await connect("reactions-agent@test", [
       fauxAssistantMessage(fauxText("First.")),
