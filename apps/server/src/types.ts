@@ -189,6 +189,8 @@ export type ClientFrame =
   | { id: string; type: "chat.abort"; sessionId?: string; operationId?: string }
   | { id: string; type: "ask.answer"; sessionId?: string; answer: string }
   | { id: string; type: "reaction.set"; sessionId?: string; ref: string; emoji: string; on: boolean }
+  | { id: string; type: "comment.add"; sessionId?: string; ref: string; text: string }
+  | { id: string; type: "comment.delete"; sessionId?: string; commentId: string }
   | { id: string; type: "session.list" }
   | { id: string; type: "session.create"; title?: string }
   | { id: string; type: "thread.update"; threadId: string; title?: string | null; pinned?: boolean; archived?: boolean; unread?: boolean; folder?: string | null; snoozedUntil?: number | null }
