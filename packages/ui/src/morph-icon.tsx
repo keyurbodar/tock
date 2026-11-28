@@ -1,12 +1,14 @@
 import { createEffect, createSignal, For, onCleanup, untrack } from "solid-js"
 import { animate } from "./motion/core"
 import { tokens } from "@tock/tokens"
-import { Icon, type IconName, type IconSize } from "./icon"
+import { Icon, type DuetName, type IconName, type IconSize } from "./icon"
 
 type Line = readonly [number, number, number, number]
 type Shape = { readonly lines: readonly [Line, Line, Line, Line]; readonly rotate?: number; readonly weight?: number; readonly spin?: boolean }
 
 const C: Line = [7, 7, 7, 7]
+// Tock regular strokes 16/256 of the box, so line shapes match the weight of sprite icons.
+const regular = (16 / 256) * 14
 const arrow: Shape["lines"] = [[7, 12, 7, 2.5], [2.8, 6.5, 7, 2.3], [11.2, 6.5, 7, 2.3], C]
 const chevron: Shape["lines"] = [[3, 5, 7, 9], [11, 5, 7, 9], C, C]
 const shapes = {
@@ -30,7 +32,7 @@ const shapes = {
 export type MorphIconName = keyof typeof shapes
 export type GlyphName = MorphIconName | IconName
 
-const isLine = (name: GlyphName): name is MorphIconName => Object.hasOwn(shapes, name)
+const isLine = (name: string): name is MorphIconName => Object.hasOwn(shapes, name)
 const reduce = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches
 
 /**
@@ -42,7 +44,7 @@ function Lines(props: { name: MorphIconName; size: string; weight?: number }) {
   let svg!: SVGSVGElement
   const target = () => {
     const shape: Shape = shapes[props.name]
-    return { points: shape.lines.flat(), weight: shape.weight ?? props.weight ?? 1.6, rotate: shape.rotate ?? 0, spin: shape.spin ?? false }
+    return { points: shape.lines.flat(), weight: shape.weight ?? props.weight ?? regular, rotate: shape.rotate ?? 0, spin: shape.spin ?? false }
   }
   let now = untrack(target)
   let frame = 0
@@ -103,7 +105,7 @@ function Lines(props: { name: MorphIconName; size: string; weight?: number }) {
 
 interface Layer {
   readonly id: number
-  readonly name: GlyphName
+  readonly name: GlyphName | DuetName
   readonly phase: "rest" | "in" | "out"
 }
 
@@ -112,7 +114,9 @@ interface Layer {
  * morph their strokes into each other; any other pair swaps per TDS swapIcon: the old one shrinks to .25
  * and blurs 4px while the new one grows out of it.
  */
-export function MorphIcon(props: { name: GlyphName; size?: Exclude<IconSize, "weight-boost">; class?: string; weight?: number }) {
+export function MorphIcon(
+  props: { size?: IconSize; class?: string; weight?: number } & ({ name: GlyphName; variant?: "line" } | { name: DuetName; variant: "duet" }),
+) {
   let next = 0
   const [layers, setLayers] = createSignal<Layer[]>([{ id: next, name: untrack(() => props.name), phase: "rest" }])
   createEffect(
@@ -137,7 +141,11 @@ export function MorphIcon(props: { name: GlyphName; size?: Exclude<IconSize, "we
       <For each={layers()} keyed={(layer) => layer.id}>
         {(layer) => (
           <span class="tds-glyph-layer" data-phase={layer().phase} onAnimationEnd={(e) => e.target === e.currentTarget && settle(layer().id, layer().phase)}>
-            {isLine(layer().name) ? <Lines name={layer().name as MorphIconName} size={size()} weight={props.weight} /> : <Icon name={layer().name as IconName} size={props.size ?? "composer"} />}
+            {isLine(layer().name) ? <Lines name={layer().name as MorphIconName} size={size()} weight={props.weight} /> : props.variant === "duet" ? (
+              <Icon name={layer().name as DuetName} variant="duet" size={props.size ?? "composer"} />
+            ) : (
+              <Icon name={layer().name as IconName} size={props.size ?? "composer"} />
+            )}
           </span>
         )}
       </For>
