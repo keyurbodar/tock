@@ -72,7 +72,7 @@ export function CodeBlock(props: { code: string; lang?: string | null; open?: bo
     timer = setTimeout(() => setCopied(false), tokens.motion.duration.confirm)
   }
   return (
-    <figure class="tds-code" dir="ltr" data-language={label()} data-wrap={wrapped() ? "" : undefined} data-streaming={props.open ? "" : undefined}>
+    <figure class="tds-code" dir="ltr" data-react="code" data-react-label={`${label()} code`} data-language={label()} data-wrap={wrapped() ? "" : undefined} data-streaming={props.open ? "" : undefined}>
       <figcaption class="tds-code-head">
         <span>{label()}</span>
         <span class="tds-code-actions" role="toolbar" aria-label="Code block actions">

@@ -1,0 +1,15 @@
+# Pending — Duet redesign
+
+Landed: Duet token system (warm palette, `color.duet` semantic layer, flat surfaces, Geist type scale, radii, motion), rail removed, 276px sidebar with channels/tiles/footer, 52px top bar, 735px column, 41px composer, sidebar jitter fix (keyed list instead of re-mounting virtual rows), Tock icon sprite (line/duet/fill), 9×9 status grids with shimmer across worklog/activity/orb, followup chips hover/tooltip/stagger (ui-sdk tooltip), and partial work from the reactions/comments, overlays/toasts, chips and streaming streams (see below).
+
+## Unfinished (stopped mid-way, verify each before relying on it)
+- **Reactions + comments**: server comments store (`apps/server/src/core/comments.ts`), protocol types and web state are in; UI coverage of attachments/code blocks/previews and the comment popover are not verified end to end.
+- **Overlays + toasts**: t3code-style backdrop blur for palette/dialogs/composer sheet/drawer and toast sizing were in progress; not verified.
+- **Composer chips in sent bubbles**: chip round-trip into user bubbles and calm (400-weight) chip redesign were in progress; not verified. Composer still says "Message toast" (should be "Message #<channel>"), send is an arrow (Duet uses ↵), no mic button.
+- **Streaming + perf**: per-frame delta coalescing, memoised finished blocks, word fade/blur-in, black flash on scroll and slow channel switch were in progress; not verified. Known costs: transcript skeleton measuring (~336ms over 4 switches), `state/app.ts` spreading `sessions[i].meta` re-runs the whole sidebar, `composer.tsx` EFFECT_RELAY_TEAR warning, `thread.tsx` still says "New Chat", follow-up chips can cover the last bubble.
+- **Duet glass icon variant** not built (needs per-icon gradients). `@phosphor-icons/core` dev dependency and `icon.weight-boost`, old orb tokens and `.tds-worklog-ok` are now unused.
+- **Status grid**: queued bubbles have no indicator yet; canvas doesn't re-rasterise on DPR change.
+- **scripts/verify.ts** still targets removed DOM (`.tds-rail*`, `.tds-search input/hint`, `.tds-row-preview/time`, `.tds-header-pill/avatar/button`, `.tds-sidebar-handle`, `.tds-toast-hint`, follow-up tooltip selectors). Update journeys and rerun the full suite.
+- **Tests**: `apps/server/test/writes.test.ts` (2 write-budget tests) and the `do.ts:102` typecheck error fail on the previous commit too, because the patched `agents@0.34.0` was not applied by the old Bun 1.3.1 install. Reinstall with Bun ≥ 1.4 (the lockfile is v2) and recheck.
+- **Dev**: `apps/server/.dev.vars` needs `VAULT_MASTER_KEY=<anything>` locally or every reply fails.
+- **Deploy**: `cf` CLI needs a scoped API token (it rejects Global API Keys); deploys currently go through wrangler with `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`.
