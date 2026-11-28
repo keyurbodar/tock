@@ -1,45 +1,95 @@
 import { readFile, writeFile } from "node:fs/promises"
-import { createRequire } from "node:module"
-import { dirname, join } from "node:path"
+import { resolve } from "node:path"
 
-const root = join(dirname(createRequire(import.meta.url).resolve("@phosphor-icons/core/package.json")), "assets")
+/**
+ * Builds the icon sprite from the Tock icons (a Phosphor fork on a 256 box, mostly filled outline paths).
+ * Only the shapes listed here ship, vendored in ../icons/tock.json. To add an icon, list it and re-vendor from the
+ * full library: `bun scripts/icons.ts --from <tock-icons>/tock-icons-data.js`.
+ */
 
-const regular = [
-  "chat-circle", "folder-simple", "bell", "keyboard", "gear-six", "magnifying-glass", "note-pencil", "plus", "export", "arrow-up", "arrow-down", "stop",
-  "waveform", "minus", "dots-three", "archive", "trash", "push-pin", "push-pin-slash", "pencil-simple", "circle", "bell-slash", "link-simple",
-  "x", "check", "warning-circle", "hand", "arrow-counter-clockwise", "paperclip", "image", "file", "file-pdf", "file-text", "file-code",
-  "file-audio", "file-video", "file-zip", "text-align-left", "download-simple", "copy", "arrow-u-down-left", "arrows-out-simple", "arrow-square-out",
-  "prohibit", "wifi-slash", "sidebar-simple", "caret-down", "caret-up", "caret-right", "caret-left", "arrow-left", "arrow-right", "globe",
-  "terminal-window", "code", "lightning", "brain", "browser", "desktop", "cloud", "key", "lock-simple", "plug", "puzzle-piece",
-  "list-checks", "clock", "calendar-check", "sparkle", "arrow-clockwise", "camera", "clipboard-text", "github-logo", "notion-logo",
-  "google-drive-logo", "hash", "at", "command", "eye", "eye-slash", "info", "question", "play", "pause", "broom", "drop", "palette",
-  "house", "briefcase", "airplane-tilt", "megaphone-simple", "link-break", "shield-check", "database", "graph", "flow-arrow",
-  "chart-line-up", "currency-dollar", "file-doc", "file-xls", "file-ppt", "chats-circle", "git-branch", "plugs-connected", "paper-plane-tilt", "bookmark-simple", "cpu", "hourglass-medium", "cursor-click", "hand-palm", "folder-simple-plus", "bell-simple", "checks",
-  "smiley", "arrow-bend-up-left", "quotes",
+// Chrome: regular weight in currentColor. Symbol id is the bare name.
+const line = [
+  "chat-circle", "folder-simple", "bell", "keyboard", "gear-six", "magnifying-glass", "note-pencil", "plus", "export", "arrow-up", "arrow-down",
+  "stop", "minus", "dots-three", "archive", "trash", "push-pin", "push-pin-slash", "pencil-simple", "circle", "bell-slash", "link-simple", "x",
+  "check", "warning-circle", "hand", "arrow-counter-clockwise", "paperclip", "image", "file", "file-pdf", "file-text", "file-code", "file-audio",
+  "file-video", "file-zip", "text-align-left", "download-simple", "copy", "arrow-u-down-left", "arrow-square-out", "prohibit", "wifi-slash",
+  "caret-down", "caret-up", "caret-right", "caret-left", "arrow-right", "globe", "terminal-window", "code", "brain", "browser", "cloud", "key",
+  "plug", "clock", "lightning", "calendar-check", "sparkle", "arrow-clockwise", "camera", "clipboard-text", "github-logo", "notion-logo",
+  "google-drive-logo", "hash", "at", "command", "eye", "question", "play", "pause", "broom", "palette", "airplane-tilt", "chart-line-up",
+  "currency-dollar", "file-doc", "file-xls", "file-ppt", "git-branch", "plugs-connected", "paper-plane-tilt", "bookmark-simple", "smiley",
+  "arrow-bend-up-left", "quotes",
+  // The Duet chrome set (duet-spec §4).
+  "sidebar-simple", "funnel-simple", "envelope-simple", "calendar-blank", "paint-brush", "device-mobile", "megaphone-simple", "list-checks",
+  "files", "arrow-elbow-down-left", "microphone", "lock-simple", "check-circle", "chart-bar",
 ]
-const fill = ["chat-circle", "bell", "push-pin", "folder-simple", "check-circle", "warning-circle", "hand", "circle", "star", "sparkle", "lightning", "stop", "play", "pause", "arrow-up"]
-const duotone = ["chat-circle", "bookmark-simple", "paper-plane-tilt", "plugs-connected", "git-branch", "file-doc", "file-xls", "file-ppt", "bell", "folder-simple", "file", "file-pdf", "file-text", "file-code", "file-audio", "file-video", "file-zip", "globe", "terminal-window", "brain", "key", "plug", "list-checks", "browser", "desktop", "lightning", "sparkle", "image", "text-align-left", "magnifying-glass", "clock"]
+// Selected state (the rail) and solid glyphs: `name:fill`.
+const fill = ["chat-circle", "folder-simple", "bell", "play"]
+// Duet: the light line over its filled region, which takes currentColor at reduced opacity. `name:duotone`.
+const duet = [
+  "chat-circle", "lightning", "sparkle", "file-text", "image", "file-pdf", "file-doc", "file-xls", "file-ppt", "file-zip", "file-code", "file-audio",
+  "file-video", "code", "calendar-check", "chart-line-up", "hash", "globe", "broom", "currency-dollar", "airplane-tilt", "palette",
+  // Duet channels (duet-spec §2).
+  "content", "envelope-simple", "calendar-blank", "paint-brush", "magnifying-glass",
+]
+// Phosphor names the Tock set lacks, mapped to the closest Tock icon.
+const alias: Record<string, string> = {}
 
-const symbols: string[] = []
-const names: string[] = []
-async function add(weight: "regular" | "fill" | "duotone", name: string) {
-  const file = weight === "regular" ? `${name}.svg` : `${name}-${weight}.svg`
-  const svg = await readFile(join(root, weight, file), "utf8")
-  const body = svg
-    .replace(/^<svg[^>]*>/, "")
-    .replace(/<\/svg>\s*$/, "")
-    .replace(/opacity="0\.2"/g, 'class="d"')
-  const id = weight === "regular" ? name : `${name}:${weight}`
-  names.push(id)
-  symbols.push(`<symbol id="i-${id}" viewBox="0 0 256 256">${body}</symbol>`)
+type Weight = "thin" | "light" | "regular" | "bold"
+type Tock = { w: Record<Weight, string[]>; u: string[]; f: string[] | "bold"; x?: Record<Weight, string> }
+/** Ready-to-use symbol markup per part. */
+type Shape = { regular?: string; light?: string; fill?: string; region?: string }
+
+const vendored = new URL("../icons/tock.json", import.meta.url)
+const from = process.argv.indexOf("--from")
+let lib: Record<string, Shape>
+
+if (from > 0) {
+  // The library is a browser script that assigns window.TOCK_ICON_DATA.
+  const g = globalThis as unknown as { window: unknown; TOCK_ICON_DATA: Record<string, Tock> }
+  g.window = g
+  await import(resolve(process.argv[from + 1]!))
+  const get = (name: string) => {
+    const icon = g.TOCK_ICON_DATA[alias[name] ?? name]
+    if (!icon) throw new Error(`no Tock icon "${name}"; add it to alias`)
+    return icon
+  }
+  const paths = (d: string[], attrs = "") => d.map((p) => `<path${attrs} d="${p}"/>`).join("")
+  // A few hand-drawn icons (content) are strokes with their own widths rather than filled outlines.
+  const weight = (icon: Tock, w: Weight) =>
+    icon.x ? `<g fill="none" stroke="currentColor" stroke-linejoin="round">${icon.x[w]}</g>` : paths(icon.w[w])
+  lib = {}
+  for (const n of line) (lib[n] ??= {}).regular = weight(get(n), "regular")
+  for (const n of fill) {
+    const icon = get(n)
+    ;(lib[n] ??= {}).fill = paths(icon.f === "bold" ? icon.w.bold : icon.f)
+  }
+  // Document selectors can't reach into <use> clones, but custom properties inherit: set --tds-icon-duet to retune.
+  for (const n of duet)
+    Object.assign((lib[n] ??= {}), { light: weight(get(n), "light"), region: paths(get(n).u, ' class="d" style="opacity:var(--tds-icon-duet,.3)"') })
+  const sorted = Object.fromEntries(Object.keys(lib).sort().map((n) => [n, lib[n]]))
+  await writeFile(vendored, `${JSON.stringify({ "//": "Tock icons, forked from Phosphor Icons (MIT). Generated by scripts/icons.ts --from.", ...sorted }, null, 1)}\n`)
+} else lib = JSON.parse(await readFile(vendored, "utf8"))
+
+const part = (name: string, key: keyof Shape) => {
+  const markup = lib[name]?.[key]
+  if (!markup) throw new Error(`"${name}" (${key}) is not vendored; run with --from`)
+  return markup
 }
-for (const n of regular) await add("regular", n)
-for (const n of fill) await add("fill", n)
-for (const n of duotone) await add("duotone", n)
+const symbol = (id: string, body: string) => `<symbol id="i-${id}" viewBox="0 0 256 256">${body}</symbol>`
+const symbols = [
+  ...line.map((n) => symbol(n, part(n, "regular"))),
+  ...fill.map((n) => symbol(`${n}:fill`, part(n, "fill"))),
+  ...duet.map((n) => symbol(`${n}:duotone`, part(n, "region") + part(n, "light"))),
+]
+const union = (names: string[]) => names.map((n) => JSON.stringify(n)).join(" | ")
+const sprite = `<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${symbols.join("")}</svg>`
 
 const out = `// generated by packages/ui/scripts/icons.ts, do not edit
-export const sprite = ${JSON.stringify(`<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${symbols.join("")}</svg>`)}
-export type IconName = ${names.map((n) => JSON.stringify(n)).join(" | ")}
+export const sprite = ${JSON.stringify(sprite)}
+export type LineName = ${union(line)}
+export type FillName = ${union(fill)}
+export type DuetName = ${union(duet)}
+export type IconName = LineName | \`\${FillName}:fill\` | \`\${DuetName}:duotone\`
 `
 await writeFile(new URL("../src/icons.gen.ts", import.meta.url), out)
-console.log(`icons: ${names.length} symbols`)
+console.log(`icons: ${symbols.length} symbols, sprite ${sprite.length} bytes`)
