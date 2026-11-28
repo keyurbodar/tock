@@ -30,6 +30,7 @@ import { parseClientFrame } from "./core/schemas.js";
 import { buildModels, parseModelSpec, resolveModel } from "./core/models.js";
 import { ThinkingSpans } from "./core/thinking.js";
 import { latestUserRef, Reactions } from "./core/reactions.js";
+import { Comments } from "./core/comments.js";
 import type { ReactionActor } from "@tock/protocol";
 import { createTockExtension, OwnerAnswer, type OwnerAsk } from "./core/tools.js";
 import { DEMO_MODEL } from "./core/demo.js";
@@ -79,6 +80,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly threads: ThreadIds;
   private readonly thinking: ThinkingSpans;
   private readonly reactions: Reactions;
+  private readonly comments: Comments;
 
   readonly mcpManager = new MCPClientManager("tock", "0.1.0");
 
@@ -134,6 +136,7 @@ export class TockDO extends DurableObject<Env> {
     this.threads = new ThreadIds(ctx.storage.sql);
     this.thinking = new ThinkingSpans(ctx.storage.sql);
     this.reactions = new Reactions(ctx.storage.sql);
+    this.comments = new Comments(ctx.storage.sql);
     this.threads.thread(ROOT_SESSION);
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     this.settingsStore = new SettingsStore(ctx.storage.sql);
@@ -415,10 +418,25 @@ export class TockDO extends DurableObject<Env> {
           queued: await this.queuedSends(sessionId),
           thinking: this.thinking.list(sessionId),
           reactions: this.reactions.list(sessionId),
+          comments: this.comments.list(sessionId),
         };
       }
       case "reaction.set":
         return await this.react(frame.sessionId ?? ROOT_SESSION, frame.emoji, "me", frame.on, frame.ref);
+      case "comment.add": {
+        const sessionId = frame.sessionId ?? ROOT_SESSION;
+        const text = frame.text.trim();
+        if (!text) throw new Error("empty comment");
+        const comment = this.comments.add(sessionId, frame.ref, text, "me");
+        this.broadcastSession(sessionId, "comment", { sessionId, comment, on: true }, false);
+        return comment;
+      }
+      case "comment.delete": {
+        const sessionId = frame.sessionId ?? ROOT_SESSION;
+        const comment = this.comments.delete(sessionId, frame.commentId);
+        if (comment) this.broadcastSession(sessionId, "comment", { sessionId, comment, on: false }, false);
+        return { deleted: comment !== null };
+      }
       case "ask.answer":
         return await this.answerAsk(frame.sessionId ?? ROOT_SESSION, frame.answer);
       case "session.configure":
