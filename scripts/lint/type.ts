@@ -5,7 +5,7 @@ const code = /\.tsx?$/
 export const rules: LineRule[] = [
   { name: "line-height-length", files: css, test: /line-height\s*:\s*(?:-?[\d.]+(?:px|rem|em)\b|var\(--tds-(?:type-[\w-]+-leading|space-[\w-]+)\))/g, why: "Line-height is unitless so it scales with the font (better-typography). Use var(--tds-type-<role>-lh); the -leading px token is for geometry calcs only." },
   { name: "font-synthesis-none", files: css, test: /font-synthesis\s*:\s*none/g, why: "font-synthesis: none also kills italic synthesis and no italic face ships, so <em> renders upright. Set only the longhand you mean (font-synthesis-weight: none)." },
-  { name: "variation-wght-opsz", files: css, test: /font-variation-settings\s*:[^;]*["'](?:wght|opsz)["']/g, why: "Use font-weight, and leave font-optical-sizing: auto. Raw axis tags do nothing on a static fallback." },
+  { name: "variation-wght-opsz", files: css, test: /font-variation-settings\s*:[^;]*["'](?:wght["']|opsz["'](?!\s*var\(--tds-font-opsz\)))/g, why: "Use font-weight for weight. The optical cut is one token, set on the root as \"opsz\" var(--tds-font-opsz); never a raw number." },
   { name: "feature-tnum", files: css, test: /font-feature-settings\s*:[^;]*["'](?:tnum|zero|lnum|onum)["']/g, why: "Use font-variant-numeric (tabular-nums, slashed-zero) instead of raw feature tags." },
   { name: "letter-spacing-px", files: css, test: /letter-spacing\s*:\s*-?[\d.]+px/g, why: "Tracking is in em so it scales with size. Use var(--tds-type-<role>-tracking)." },
   { name: "raw-font-weight", files: /(?<!fonts)\.css$/, test: /font-weight\s*:\s*[1-9]00\b/g, why: "Weights live in tokens.json: var(--tds-weight-<name>) or var(--tds-type-<role>-weight)." },

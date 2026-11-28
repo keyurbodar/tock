@@ -21,7 +21,7 @@
     background: var(--tds-cap-fill); box-shadow: var(--tds-cap-shadow), var(--tds-lift-ghost);
   }
 
-  /* Duet sidebar: 276 wide on the page ground, no divider. Strip 52, agent row 42, pinned tiles, "Channels", 32 rows, footer 70. */
+  /* Duet sidebar: 276 wide on the page ground, no divider. Strip 52, agent row 42, pinned tiles, "Channels", 30 rows, footer 70. */
   .tds-sidebar {
     position: relative; flex: none; width: var(--sb-w, var(--tds-size-sidebar)); min-height: 0; overflow: hidden;
     background: var(--tds-duet-bg);
@@ -106,11 +106,11 @@
   .tds-row-wrap { position: relative; border-radius: var(--tds-radius-row); touch-action: pan-y }
   .tds-row {
     position: relative; display: flex; align-items: center; gap: var(--tds-space-7); height: var(--tds-size-row); padding: 0 var(--tds-space-10) 0 var(--tds-space-8);
-    border-radius: var(--tds-radius-row); color: var(--tds-duet-t2); text-decoration: none; outline-offset: calc(var(--tds-size-focus-width) * -1);
+    border-radius: var(--tds-radius-row); color: var(--tds-duet-t-row); text-decoration: none; outline-offset: calc(var(--tds-size-focus-width) * -1);
     font-size: var(--tds-type-row-size); line-height: var(--tds-type-row-lh); letter-spacing: var(--tds-type-row-tracking);
     transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
   }
-  @media (hover: hover) and (pointer: fine) { .tds-row:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) } }
+  @media (hover: hover) and (pointer: fine) { .tds-row:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-row-hover) } }
   /* selection paints on press, before the route changes */
   .tds-row:active, .tds-row[data-selected] { background: var(--tds-duet-select); color: var(--tds-duet-t1) }
   .tds-row[data-unread] { color: var(--tds-duet-t1) }

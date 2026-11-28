@@ -60,7 +60,7 @@ color("glass", "glass-fill"); color("glass-on", "glass-fill-on"); color("over", 
 for (const [name, cssVar] of [["glass", "glass-shadow"], ["over", "over-shadow"], ["cap", "cap-shadow"], ["cap-lift", "cap-lift"], ["key", "key-shadow"], ["cream", "key-cream-shadow"], ["ghost", "lift-ghost"], ["media", "lift-media"], ["fan", "lift-fan"], ["remove", "lift-remove"]] as const)
   th(`shadow-${name}`, `var(--tds-${cssVar})`)
 
-v("font-sans", t.font.sans); v("font-mono", t.font.mono); v("font-round", String(t.font.round))
+v("font-sans", t.font.sans); v("font-mono", t.font.mono); v("font-round", String(t.font.round)); v("font-opsz", String(t.font.opsz))
 th("font-sans", "var(--tds-font-sans)"); th("font-mono", "var(--tds-font-mono)")
 for (const [k, w] of Object.entries(t.weight)) { v(`weight-${k}`, w); th(`font-weight-${k}`, `var(--tds-weight-${k})`) }
 for (const [role, [size, lh, weight, tracking]] of Object.entries(t.type) as [string, [number, number, number, string]][]) {

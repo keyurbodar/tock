@@ -1,9 +1,8 @@
 /*
  * Type: Allo for everything you read, Paper Mono for code. Both are SIL OFL 1.1 (licences sit beside the files).
- * Allo is variable in weight and optical size, so one file covers 400 body text through 600 headings and every size from
- * 12px meta to 34px display, and `font-optical-sizing: auto` (on by default) gives small text open spacing and large text a
- * tighter display cut. Roundness (ROND, 0 sharp to 100 round) stays a live axis, set once from tokens (`font.round`) on the root, so the
- * whole app's rounding is one number. Subset to Latin, punctuation, arrows and maths.
+ * Allo is variable in weight, optical size and roundness. The root pins the optical cut to `font.opsz` (20) instead of
+ * auto, so 13-15px UI text gets the tighter cut Claude's type has rather than Allo's loose text cut, and sets roundness
+ * (ROND, 0 sharp to 100 round) from `font.round`: the whole app's cut and rounding are two numbers. Subset to Latin, punctuation, arrows and maths.
  */
 @font-face {
   font-family: "Allo";
