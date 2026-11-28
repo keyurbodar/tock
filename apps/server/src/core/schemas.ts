@@ -113,6 +113,8 @@ const pluginUpsertInnerSchema = obj({
 });
 
 
+/** A message ref ("entry:index" or "entry:index:block"), optionally narrowed to one unit of it after "#" (a code block, a file). */
+const REF = "^[^:#]+:\\d+(:\\d+)?(#[\\w.:-]{1,120})?$";
 const secretName = str({ minLength: 1, maxLength: 128, pattern: "^[a-zA-Z0-9_.-]+$" });
 const clientFrameSchema = union([
   obj({
@@ -153,9 +155,22 @@ const clientFrameSchema = union([
     id: str({ minLength: 1 }),
     type: lit("reaction.set"),
     sessionId: opt(str({ minLength: 1 })),
-    ref: str({ minLength: 1, maxLength: 200, pattern: "^[^:]+:\\d+(:\\d+)?$" }),
+    ref: str({ minLength: 1, maxLength: 200, pattern: REF }),
     emoji: str({ minLength: 1, maxLength: 32 }),
     on: bool(),
+  }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("comment.add"),
+    sessionId: opt(str({ minLength: 1 })),
+    ref: str({ minLength: 1, maxLength: 200, pattern: REF }),
+    text: str({ minLength: 1, maxLength: 2000 }),
+  }),
+  obj({
+    id: str({ minLength: 1 }),
+    type: lit("comment.delete"),
+    sessionId: opt(str({ minLength: 1 })),
+    commentId: str({ minLength: 1, maxLength: 64 }),
   }),
   obj({ id: str({ minLength: 1 }), type: lit("session.list") }),
   obj({ id: str({ minLength: 1 }), type: lit("session.create"), title: opt(str()) }),
