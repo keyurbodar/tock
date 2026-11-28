@@ -1,8 +1,15 @@
-import { sprite, type IconName } from "./icons.gen"
+import { sprite, type DuetName, type FillName, type IconName } from "./icons.gen"
 import { tokens } from "@tock/tokens"
 
-export type { IconName }
-export type IconSize = keyof typeof tokens.icon
+export type { DuetName, FillName, IconName }
+export type IconSize = Exclude<keyof typeof tokens.icon, "weight-boost" | `stroke-${string}`>
+/** line: chrome, regular weight. duet: light line over a currentColor region (channels, featured). fill: solid. */
+export type IconVariant = "line" | "duet" | "fill"
+export type IconProps = { size?: IconSize; class?: string; label?: string } & (
+  | { name: IconName; variant?: "line" }
+  | { name: DuetName; variant: "duet" }
+  | { name: FillName; variant: "fill" }
+)
 
 let injected = false
 export function injectIconSprite() {
@@ -11,7 +18,9 @@ export function injectIconSprite() {
   document.body.insertAdjacentHTML("afterbegin", sprite)
 }
 
-export function Icon(props: { name: IconName; size?: Exclude<IconSize, "weight-boost">; class?: string; label?: string }) {
+const suffix = { line: "", duet: ":duotone", fill: ":fill" } as const satisfies Record<IconVariant, string>
+
+export function Icon(props: IconProps) {
   const size = () => `var(--tds-icon-${props.size ?? "row"})`
   return (
     <svg
@@ -21,7 +30,7 @@ export function Icon(props: { name: IconName; size?: Exclude<IconSize, "weight-b
       aria-label={props.label}
       role={props.label ? "img" : undefined}
     >
-      <use href={`#i-${props.name}`} />
+      <use href={`#i-${props.name}${suffix[props.variant ?? "line"]}`} />
     </svg>
   )
 }
