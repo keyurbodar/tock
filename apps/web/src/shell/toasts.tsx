@@ -156,7 +156,6 @@ export function updateToast(id: string, title: string, options: Omit<ToastOption
 }
 
 function Card(props: { item: Item; index: number; offset: number }) {
-  let card!: HTMLDivElement
   let start: { x: number; y: number } | undefined
   let axis: "x" | "y" | undefined
   const flick = velocityTracker()
@@ -170,13 +169,12 @@ function Card(props: { item: Item; index: number; offset: number }) {
     if (axis === "x" && moved > 0 && (moved > tokens.size.swipe || flick.get() > tokens.motion.gesture["toast-flick"])) dismissToast(untrack(() => props.item.id), true)
     else setDx(0)
   }
-  const observer = new ResizeObserver(() => setHeights((all) => ({ ...all, [props.item.id]: card.offsetHeight })))
+  // Measures the content, not the card: a collapsed back card is held at the newest one's height.
+  const observer = new ResizeObserver(([entry]) => setHeights((all) => ({ ...all, [props.item.id]: Math.ceil(entry!.borderBoxSize[0]!.blockSize) })))
   onCleanup(() => observer.disconnect())
   const mount = (el: HTMLDivElement) => {
-    card = el
     const clock = clocks.get(untrack(() => props.item.id))
     if (clock) clock.card = el
-    observer.observe(el)
     queueMicrotask(() => enter.toast(el))
   }
   const act = () => {
@@ -196,7 +194,7 @@ function Card(props: { item: Item; index: number; offset: number }) {
       data-hidden={props.index > 2 ? "" : undefined}
       data-gone={props.item.gone}
       data-swiping={dragging() ? "" : undefined}
-      style={{ "--toast-index": props.index, "--toast-offset": `${props.offset}px`, "--toast-swipe-x": `${dx()}px`, opacity: dx() > 0 ? Math.max(0.2, 1 - dx() / (tokens.size.swipe * 4)) : undefined }}
+      style={{ "--toast-index": props.index, "--toast-offset": `${props.offset}px`, "--toast-h": heights()[props.item.id] ? `${heights()[props.item.id]}px` : undefined, "--toast-swipe-x": `${dx()}px`, opacity: dx() > 0 ? Math.max(0.2, 1 - dx() / (tokens.size.swipe * 4)) : undefined }}
       onPointerDown={(e) => {
         if (e.button !== 0 || (e.target as Element).closest("button")) return
         start = { x: e.clientX, y: e.clientY }
@@ -216,30 +214,34 @@ function Card(props: { item: Item; index: number; offset: number }) {
       onPointerUp={() => release()}
       onPointerCancel={() => ((axis = undefined), release())}
     >
-      <span class={`tds-tint tds-tint-${props.item.tone} tds-toast-glyph`}>
-        <Swap on={props.item.icon !== "spin"} a={<span class="tds-spinner" />} b={<MorphIcon name={props.item.icon === "spin" ? "check" : props.item.icon} size="toast-glyph" />} />
-      </span>
-      <span class="tds-toast-body">
-        <b class="tds-toast-title">
-          <TextMorph value={props.item.title} mode="calm" />
-        </b>
-        <Show when={props.item.count > 1 && !props.item.plural}>
-          <span class="tds-toast-count num">
-            ×<TextMorph value={props.item.count} mode="roll" />
+      <div ref={(el) => observer.observe(el)} class="tds-toast-inner">
+        <span class={`tds-tint tds-tint-${props.item.tone} tds-toast-glyph`}>
+          <Swap on={props.item.icon !== "spin"} a={<span class="tds-spinner" />} b={<MorphIcon name={props.item.icon === "spin" ? "check" : props.item.icon} size="toast-glyph" />} />
+        </span>
+        <span class="tds-toast-body">
+          <span class="tds-toast-head">
+            <b class="tds-toast-title">
+              <TextMorph value={props.item.title} mode="calm" />
+            </b>
+            <Show when={props.item.count > 1 && !props.item.plural}>
+              <span class="tds-toast-count num">
+                ×<TextMorph value={props.item.count} mode="roll" />
+              </span>
+            </Show>
           </span>
+          <Show when={props.item.description}>
+            <span class="tds-toast-line" dir="auto">{props.item.description}</span>
+          </Show>
+        </span>
+        <Show when={props.item.action}>
+          <button type="button" class="tds-toast-action tds-press" onClick={() => act()}>
+            {props.item.action?.label}
+          </button>
         </Show>
-        <Show when={props.item.description}>
-          <span class="tds-toast-line">{props.item.description}</span>
-        </Show>
-      </span>
-      <Show when={props.item.action}>
-        <button type="button" class="tds-toast-action tds-press" onClick={() => act()}>
-          {props.item.action?.label}
+        <button type="button" class="tds-toast-close" aria-label="Close" onClick={() => dismissToast(props.item.id)}>
+          <Icon name="x" size="chip" />
         </button>
-      </Show>
-      <button type="button" class="tds-toast-close" aria-label="Close" onClick={() => dismissToast(props.item.id)}>
-        <Icon name="x" size="chip" />
-      </button>
+      </div>
     </div>
   )
 }

@@ -1,3 +1,36 @@
 @layer components {
   .tds-palette-item[data-disabled] { color: var(--tds-text-faint); cursor: default; & .tds-palette-icon, & kbd { opacity: .6 } }
 }
+
+/* Backdrop, after t3code's dialog backdrop: one pre-blurred layer (.tds-backdrop) whose opacity fades. The blur radius never
+   animates, so the compositor samples the page once and only blends the layer while it fades. ui-sdk backdrops drive it with
+   data-starting-style / data-ending-style; a hand-rolled one (the narrow sidebar drawer) toggles data-closed instead. */
+@layer components {
+  .tds-scrim {
+    position: fixed; inset: 0; z-index: var(--tds-z-veil); contain: strict; will-change: opacity;
+    background: var(--tds-backdrop-scrim); transition: opacity var(--tds-dur-backdrop-in) var(--tds-ease-out);
+    &:is([data-starting-style], [data-ending-style], [data-closed]) { opacity: 0 }
+    &:is([data-ending-style], [data-closed]) { transition-duration: var(--tds-dur-backdrop-out) }
+    &[data-closed] { pointer-events: none }
+  }
+  .tds-scrim.tds-palette-scrim { z-index: var(--tds-z-centre) }
+  @media (prefers-reduced-motion: reduce) { .tds-scrim { transition: none } }
+}
+
+/* Modal panels: the Duet raised surface, radius 12, a hairline ring and one soft floating shadow (all from --tds-over-*). */
+@layer components {
+  .tds-dialog { background: var(--tds-over-fill); box-shadow: var(--tds-over-shadow) }
+  /* The palette opens all day, so it appears at once (no scale, no fade); only its backdrop fades in. */
+  .tds-palette { padding: var(--tds-space-4); transition: none }
+  .tds-move { z-index: var(--tds-z-stack); padding: var(--tds-space-4); border-radius: var(--tds-radius-palette) }
+  .tds-move-item { border-radius: var(--tds-radius-menu-item) }
+}
+
+/* Menus: 4px inset so the 8px items sit concentric in the 12px surface. Origin-aware .96 → 1 over --tds-dur-tooltip on the Duet curve
+   (base rule in shell.css); a menu opened from the keyboard appears at once. */
+@layer components {
+  .tds-menu { padding: var(--tds-space-4) }
+  .tds-menu-sep { margin: var(--tds-space-4) var(--tds-space-8) }
+  .tds-menu-keys { font-size: var(--tds-type-meta-size); color: var(--tds-text-faint) }
+  :root[data-input="keyboard"] .tds-menu[data-starting-style] { opacity: 1; scale: 1 }
+}
