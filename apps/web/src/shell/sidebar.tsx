@@ -40,27 +40,14 @@ const archiveEntry = (count: number): Entry => {
   return entry
 }
 
-const WIDTH_KEY = "tock.sidebar.width"
-const clampWidth = (value: number) => Math.min(tokens.size["sidebar-max"], Math.max(tokens.size["sidebar-min"], Math.round(value)))
-const savedWidth = () => {
-  const saved = Number(localStorage.getItem(WIDTH_KEY))
-  return Number.isFinite(saved) && saved > 0 ? clampWidth(saved) : tokens.size.sidebar
+const OPEN_KEY = "tock.sidebar.open"
+const [sidebarOpen, setOpen] = createSignal(localStorage.getItem(OPEN_KEY) !== "0")
+/** Collapsing keeps the choice across reloads; the shell animates width and opacity, the contents keep their own width so nothing reflows mid-slide. */
+export const toggleSidebar = (next = !untrack(sidebarOpen)) => {
+  setOpen(next)
+  localStorage.setItem(OPEN_KEY, next ? "1" : "0")
 }
-
-function Highlight(props: { text: string; query: string }) {
-  const parts = () => {
-    const q = props.query.trim().toLowerCase()
-    if (!q) return [{ text: props.text, hit: false }]
-    const at = props.text.toLowerCase().indexOf(q)
-    if (at < 0) return [{ text: props.text, hit: false }]
-    return [
-      { text: props.text.slice(0, at), hit: false },
-      { text: props.text.slice(at, at + q.length), hit: true },
-      { text: props.text.slice(at + q.length), hit: false },
-    ]
-  }
-  return <For each={parts()} keyed={false}>{(part) => <>{part().hit ? <b class="tds-hit">{part().text}</b> : part().text}</>}</For>
-}
+export { sidebarOpen }
 
 function RenameField(props: { session: Session }) {
   let done = false
@@ -93,20 +80,12 @@ let suppressClick = false
 const swallowClick = () => ((suppressClick = true), requestAnimationFrame(() => requestAnimationFrame(() => (suppressClick = false))))
 
 
-/** A chat waiting on you shows its question; when your own message is newest the row reads "you: …", as WorklogLive. */
-const previewOf = (session: Session) => {
-  const text = plainText(session.preview)
-  if (statusOf(session) === "needs") return `needs you: ${plainText(session.needs ?? "") || text}`
-  if (session.reaction && session.reaction.at >= (session.updatedAt ?? 0)) return reactionLine(session.reaction)
-  if (!text) return "No messages yet"
-  return session.mine ? `you: ${text}` : text
-}
 const orbOf = (session: Session) => {
   const status = statusOf(session)
   return status === "working" || status === "needs" ? status : undefined
 }
 
-function Row(props: { session: Session; selected: boolean; multi: boolean; query: string; current: string | undefined; navigate: (to: string) => void }) {
+function Row(props: { session: Session; selected: boolean; multi: boolean; current: string | undefined; navigate: (to: string) => void }) {
   const glyph = () => glyphFor(props.session.id)
   let wrap!: HTMLDivElement
   let row!: HTMLAnchorElement
@@ -370,26 +349,19 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
             return
           }
           if (selected().length) setSelected([])
-          if (id !== props.current) morphFrom(e.currentTarget)
         }}
         onDblClick={(e) => (e.target as HTMLElement).closest(".tds-row-title") && setRenaming(untrack(() => props.session.id))}
       >
         <span class={`tds-row-icon ${glyph().hue}`} ref={icon}>
-          <MorphIcon name={glyph().icon} size="row" />
+          <Icon name={glyph().icon} size="row" />
         </span>
         <span class="tds-row-title" dir={dirOf(titleOf(props.session))}>
-          <Show when={renaming() === props.session.id} fallback={<Show when={props.query.trim()} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}><Highlight text={titleOf(props.session)} query={props.query} /></Show>}>
+          <Show when={renaming() === props.session.id} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}>
             <RenameField session={props.session} />
           </Show>
         </span>
-        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, minute())} mode="calm" /></span>
-        <span class="tds-row-preview" dir={dirOf(previewOf(props.session))}>
-          <Show when={props.query.trim()} fallback={<TextMorph value={previewOf(props.session)} mode="calm" />}>
-            <Highlight text={previewOf(props.session)} query={props.query} />
-          </Show>
-        </span>
         <span class="tds-row-mark" skullet-ignore="">
-          <Show when={orbOf(props.session)}>
+          <Show when={orbOf(props.session)} fallback={<Show when={props.session.meta.unread && !props.selected}><i class="tds-unread" role="img" aria-label="Unread" /></Show>}>
             {(status) => <Orb status={status()} />}
           </Show>
         </span>

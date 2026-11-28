@@ -47,6 +47,8 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-optical-sizing: auto;
+    font-feature-settings: "kern", "calt";
+    font-variant-ligatures: common-ligatures contextual;
     font-synthesis-weight: none;
     font-synthesis-small-caps: none;
     font-kerning: normal;
@@ -58,6 +60,8 @@
   button { cursor: default; }
   code, kbd, pre, samp { font-family: var(--tds-font-mono); }
   ::selection { background: var(--tds-accent-rose-28); }
+  *, *::before, *::after { box-sizing: border-box }
+  b, strong, th { font-weight: var(--tds-weight-medium) }
   :focus { outline: none }
   :focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-focus-outline); outline-offset: var(--tds-size-focus-offset) }
   input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { outline: none }

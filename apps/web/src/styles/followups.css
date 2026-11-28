@@ -1,7 +1,8 @@
 @layer components {
-  /* Follow-up suggestions, measured 1:1 from Keyur's reference (fb-1650 followups.png at 2x): 32 pills, 4 apart, 8 above the composer,
-     aligned with its left edge and clear of the Send column (and the scroll-to-end button above it). Hover comes from mouse
-     pointer events (data-hover), so a tap never latches it. */
+  /* Follow-up suggestions (Duet .fr, timed frame-by-frame from the wabi capture): 36 pills, radius 18, 4 apart, 8 above
+     the composer, aligned with its left edge and clear of the Send column. Hover comes from mouse pointer events
+     (data-hover), so a tap never latches it. Hover-in is near-instant and hover-out eases, so moving along the row
+     reads as one light jumping between chips. */
   .tds-followups {
     position: absolute; z-index: var(--tds-z-header); inset-inline: 0; bottom: calc(var(--composer-reserve, var(--tds-size-column-bottom)) + var(--tds-space-8));
     display: flex; flex-wrap: wrap; align-items: center; gap: var(--tds-space-4);
@@ -12,29 +13,72 @@
   }
   .tds-followup {
     position: relative; display: inline-flex; align-items: center; gap: var(--tds-space-9); height: var(--tds-size-followup-chip);
-    padding: 0 var(--tds-space-14) 0 var(--tds-space-9); border-radius: var(--tds-radius-pill);
+    padding: 0 var(--tds-space-14) 0 var(--tds-space-8); border-radius: var(--tds-radius-followup);
     font-size: var(--tds-type-followup-size); font-weight: var(--tds-type-followup-weight); line-height: var(--tds-type-followup-lh); letter-spacing: var(--tds-type-followup-tracking);
-    color: var(--tds-text-tx); white-space: nowrap;
-    background: var(--tds-followup-fill); box-shadow: var(--tds-followup-shadow);
-    transition: var(--tds-press-transition), background-color var(--tds-dur-followup-tip) var(--tds-ease-out);
+    color: var(--tds-text-tx2); white-space: nowrap; cursor: pointer;
+    background-color: var(--tds-followup-fill); box-shadow: var(--tds-followup-shadow);
+    transition-property: scale, background-color, box-shadow, color;
+    transition-duration: var(--tds-dur-chip-hover); transition-timing-function: var(--tds-ease-out);
+    -webkit-tap-highlight-color: transparent;
   }
-  .tds-followup[data-hover] { background: var(--tds-followup-fill-hover) }
+  .tds-followup:is([data-hover], :focus-visible) {
+    scale: var(--tds-followup-hover-scale); color: var(--tds-text-tx);
+    background-color: var(--tds-followup-fill-hover); box-shadow: var(--tds-followup-shadow-hover);
+    transition-duration: var(--tds-dur-instant);
+  }
+  .tds-followup:active {
+    scale: var(--tds-followup-press-scale); background-color: var(--tds-followup-fill-press);
+    transition-duration: var(--tds-dur-press);
+  }
+  .tds-followup:focus-visible { outline: var(--tds-size-focus-width) solid var(--tds-focus-ring, currentColor); outline-offset: var(--tds-space-2) }
+
+  /* The glyph is two glass layers: a soft blurred copy behind and the glyph in front. Hover parts them, the back
+     slipping up-left while the front lifts, like Duet's .tg-back / .tg-fw. */
   .tds-followup-emoji, .tds-followup-label { display: grid; & > * { grid-area: 1 / 1 } }
-  .tds-followup-emoji { place-items: center; width: var(--tds-size-followup-emoji-box); font-family: "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif; font-size: var(--tds-size-followup-emoji); line-height: 1 }
+  .tds-followup-emoji {
+    place-items: center; width: var(--tds-size-followup-emoji-box); height: var(--tds-size-followup-emoji-box);
+    font-family: "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif; font-size: var(--tds-size-followup-emoji); line-height: 1;
+  }
+  .tds-followup-emoji > [data-cur] {
+    position: relative; display: grid; place-items: center;
+    transition: translate var(--tds-dur-followup-part) var(--tds-ease-out), scale var(--tds-dur-followup-part) var(--tds-ease-out);
+    &::before {
+      content: attr(data-glyph); position: absolute; inset: 0; display: grid; place-items: center; z-index: -1;
+      filter: blur(var(--tds-followup-back-blur)); opacity: 0;
+      transition: translate var(--tds-dur-followup-part) var(--tds-ease-out), opacity var(--tds-dur-followup-part) var(--tds-ease-out);
+    }
+  }
+  .tds-followup:is([data-hover], :focus-visible) .tds-followup-emoji > [data-cur] {
+    translate: var(--tds-followup-part-front); scale: var(--tds-followup-lift);
+    &::before { translate: var(--tds-followup-part-back); opacity: var(--tds-followup-back-opacity) }
+  }
   .tds-followup-label { justify-items: start; min-width: 0; overflow: hidden }
   .tds-followups[data-measure] [data-prev] { display: none }
+
+  /* Full prompt: an opaque card over the chip. It grows out of the chip after a short rest, and the next chip's
+     card opens at once (data-instant) so moving along the row feels like one card following the pointer. */
   .tds-followup-tip {
-    position: absolute; left: 50%; bottom: calc(100% + var(--tds-space-10)); width: max-content; max-width: var(--tds-size-followup-tip);
+    width: max-content; max-width: var(--tds-size-followup-tip);
     padding: var(--tds-space-6) var(--tds-space-11); border-radius: var(--tds-radius-followup-tip);
     font-size: var(--tds-type-followup-size); font-weight: var(--tds-type-followup-weight); line-height: var(--tds-type-followup-lh); letter-spacing: var(--tds-type-followup-tracking);
-    color: var(--tds-text-tx); text-align: left; white-space: normal;
+    color: var(--tds-text-tx); text-align: left; white-space: normal; pointer-events: none;
     background: var(--tds-followup-tip-fill); box-shadow: var(--tds-followup-tip-shadow);
-    opacity: 0; translate: -50% var(--tds-space-4); pointer-events: none;
-    transition: opacity var(--tds-dur-followup-tip) var(--tds-ease-out), translate var(--tds-dur-followup-tip) var(--tds-ease-out);
+    transform-origin: var(--transform-origin);
+    transition: opacity var(--tds-dur-followup-tip) var(--tds-ease-out), scale var(--tds-dur-followup-tip) var(--tds-ease-out), filter var(--tds-dur-followup-tip) var(--tds-ease-out);
+    &[data-starting-style] { opacity: 0; scale: var(--tds-followup-tip-from); filter: blur(var(--tds-blur-calm)) }
+    &[data-ending-style] { opacity: 0; transition-duration: var(--tds-dur-followup-tip-out) }
+    &[data-instant] { transition: none }
   }
-  .tds-followup[data-hover] .tds-followup-tip, .tds-followup:focus-visible .tds-followup-tip { opacity: 1; translate: -50% 0 }
-  .tds-followup-x { justify-content: center; width: var(--tds-size-followup-chip); padding: 0; color: var(--tds-text-muted); opacity: 0; pointer-events: none }
+
+  .tds-followup-x { justify-content: center; width: var(--tds-size-followup-chip); padding: 0; color: var(--tds-text-muted); opacity: 0; pointer-events: none; transition-property: scale, background-color, box-shadow, color, opacity }
   .tds-followup-x svg { width: var(--tds-size-followup-x-glyph); height: var(--tds-size-followup-x-glyph) }
+  .tds-followup-x:is([data-hover], :focus-visible) { color: var(--tds-text-tx) }
   .tds-followups:is([data-hover], :focus-within) .tds-followup-x { opacity: 1; pointer-events: auto }
   @media (hover: none) and (pointer: coarse) { .tds-followup-x { opacity: 1; pointer-events: auto } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tds-followup, .tds-followup:is([data-hover], :focus-visible, :active) { scale: none }
+    .tds-followup:is([data-hover], :focus-visible) .tds-followup-emoji > [data-cur] { translate: none; scale: none; &::before { translate: none } }
+    .tds-followup-tip[data-starting-style] { scale: none; filter: none }
+  }
 }
