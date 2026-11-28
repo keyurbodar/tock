@@ -245,6 +245,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
   let corner = ""
   let gripEl: HTMLButtonElement | undefined
   let sheetDrive: ReturnType<typeof drive> | undefined
+  let veil: HTMLDivElement | undefined
   const below = (p: number) => ((1 - Math.min(1, Math.max(0, p))) * span).toFixed(2)
   const mountField = (el: HTMLDivElement) => {
     field = el
@@ -252,6 +253,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
       preset: "glide",
       tracks: [
         recede(() => wrap.parentElement?.querySelector(".tds-transcript")),
+        { el: () => veil, at: (p) => ({ opacity: String(Math.min(1, Math.max(0, p))) }) },
         { el: () => field, at: (p) => ({ clipPath: "inset(" + below(p) + "px 0 0 0 round " + corner + ")" }) },
         { el: () => [...field.children], at: (p) => ({ translate: "0 " + ((1 - Math.min(1, Math.max(0, p))) * (span + lift)).toFixed(2) + "px" }) },
         { el: () => gripEl, at: (p) => ({ translate: "-50% " + below(p) + "px" }) },
@@ -766,6 +768,7 @@ export function Composer(props: { draftKey: string; working: boolean; attachment
 
   return (
     <div ref={wrap} class="tds-composer-wrap">
+      <div ref={veil} class="tds-sheet-veil tds-backdrop" aria-hidden="true" />
       <Show when={trigger() && suggestions().length > 0}>
         <div ref={list} class="tds-menu tds-suggest tds-over" data-edge-fade="y" role="listbox" data-kind={trigger()?.char === "@" ? "mention" : "command"} aria-label={trigger()?.char === "@" ? "Mention a file or chat" : "Commands"} style={{ left: "0px", transform: `translateX(${caret().left}px)`, bottom: `${caret().bottom}px` }}>
           <span class="tds-suggest-glide" aria-hidden="true" style={{ translate: `0 ${glide().top}px`, height: `${glide().height}px` }} />
