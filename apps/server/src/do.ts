@@ -79,6 +79,7 @@ export class TockDO extends DurableObject<Env> {
   private readonly threads: ThreadIds;
   private readonly thinking: ThinkingSpans;
   private readonly reactions: Reactions;
+  private readonly comments: Comments;
 
   readonly mcpManager = new MCPClientManager("tock", "0.1.0");
 
@@ -134,6 +135,7 @@ export class TockDO extends DurableObject<Env> {
     this.threads = new ThreadIds(ctx.storage.sql);
     this.thinking = new ThinkingSpans(ctx.storage.sql);
     this.reactions = new Reactions(ctx.storage.sql);
+    this.comments = new Comments(ctx.storage.sql);
     this.threads.thread(ROOT_SESSION);
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     this.settingsStore = new SettingsStore(ctx.storage.sql);
