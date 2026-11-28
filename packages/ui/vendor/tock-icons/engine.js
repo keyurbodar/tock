@@ -1,3 +1,4 @@
+import TOCK_DATA from "./data.js";
 /* eslint-disable */
 // Tock icons 1.1 engine, vendored unchanged apart from this header and the export below. Phosphor Icons fork (MIT).
 /*! Tock icons 1.1. 1,513 icons forked from Phosphor (MIT), recoloured, layered and animated for Tock.
@@ -19,7 +20,7 @@
  * The element listens on its closest button, link or [data-tock-target], so hovering the whole row counts.
  */
 var TockIcons = (function () {
-  var D = (typeof window !== 'undefined' && window.TOCK_ICON_DATA) || {};
+  var D = TOCK_DATA || {};
   var C = {
     defaults: { variant: 'duet', size: 24, weight: 'thin', color: 'auto', mirrored: false },
     palette: {

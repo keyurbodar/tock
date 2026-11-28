@@ -1,6 +1,5 @@
 /* eslint-disable */
 // The Tock icons config as shipped (tock-icons.config.js), with weight defaulting to light: only light is vendored.
-import "./data.js";
 import TockIcons from "./engine.js";
 TockIcons.configure({
   // What an icon gets when you pass nothing
