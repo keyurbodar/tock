@@ -2,6 +2,6 @@
   .tds-dialog-text, .tds-ws-thought, .tds-note-text span, .tds-empty span, .tds-chip-card-line { text-wrap: pretty }
   .tds-empty b, .tds-toast-title, .tds-centre-head b, .tds-ask-q { text-wrap: balance }
   .tds-dialog-text, .tds-note-text span, .tds-empty span { overflow-wrap: break-word }
-  .tds-badge, .tds-row-time, .tds-lightbox-count { font-variant-numeric: tabular-nums }
+  .tds-lightbox-count { font-variant-numeric: tabular-nums }
   a { text-underline-position: from-font; text-decoration-thickness: from-font }
 }

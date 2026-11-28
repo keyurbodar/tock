@@ -1,38 +1,57 @@
 @layer components {
+  /* A Sonner-style stack at the top right, below the header and clear of the composer. Collapsed, older toasts peek 10px
+     under the newest at the newest's height; hovering fans them out at full size, 10px apart. */
   .tds-toasts {
-    position: fixed; top: var(--tds-size-toast-top); right: var(--tds-space-20); z-index: var(--tds-z-toasts); width: var(--tds-size-toast);
-    height: calc(var(--toast-front-height) + var(--toast-peek) * var(--tds-space-8)); transition: height var(--tds-dur-panel) var(--tds-ease-sheet);
+    --toast-gap: var(--tds-space-10);
+    --toast-peek-y: var(--tds-space-10);
+    position: fixed; top: var(--tds-size-toast-top); right: var(--tds-space-20); z-index: var(--tds-z-toasts); width: min(var(--tds-size-toast), calc(100vw - var(--tds-space-24)));
+    height: calc(var(--toast-front-height) + var(--toast-peek) * var(--toast-peek-y)); transition: height var(--tds-dur-toast) var(--tds-ease-sheet);
   }
-  .tds-toasts[data-expanded] { height: calc(var(--toast-stack-height) + (var(--toast-count) - 1) * var(--tds-space-8)) }
+  .tds-toasts[data-expanded] { height: calc(var(--toast-stack-height) + (var(--toast-count) - 1) * var(--toast-gap)) }
+  @media (max-width: 600px) { .tds-toasts { right: var(--tds-space-12); left: var(--tds-space-12); width: auto } }
+
   .tds-toast {
-    --y: calc(var(--toast-index) * var(--tds-space-8));
-    position: absolute; inset-inline: 0; top: 0; z-index: calc(var(--tds-z-toasts) - var(--toast-index)); display: flex; align-items: center; gap: var(--tds-space-10);
-    min-height: var(--tds-size-toast-min); padding: var(--tds-space-8) var(--tds-space-10) var(--tds-space-8) var(--tds-space-14); border-radius: var(--tds-radius-toast);
-    translate: var(--toast-swipe-x, 0px) var(--y); scale: calc(1 - var(--toast-index) * 0.04); transform-origin: 50% 0; user-select: none; touch-action: pan-y;
-    transition: translate var(--tds-dur-toast) var(--tds-ease-sheet), scale var(--tds-dur-toast) var(--tds-ease-sheet), opacity var(--tds-dur-layout) var(--tds-ease-out);
+    --y: calc(var(--toast-index) * var(--toast-peek-y));
+    position: absolute; inset-inline: 0; top: 0; z-index: calc(var(--tds-z-toasts) - var(--toast-index)); overflow: hidden;
+    height: var(--toast-h, auto); border-radius: var(--tds-radius-toast);
+    translate: var(--toast-swipe-x, 0px) var(--y); scale: calc(1 - var(--toast-index) * .05); transform-origin: 50% 0; user-select: none; touch-action: pan-y;
+    transition: translate var(--tds-dur-toast) var(--tds-ease-sheet), scale var(--tds-dur-toast) var(--tds-ease-sheet), height var(--tds-dur-toast) var(--tds-ease-sheet), opacity var(--tds-dur-layout) var(--tds-ease-out);
   }
+  .tds-toasts:not([data-expanded]) .tds-toast[data-back] { height: var(--toast-front-height) }
+  .tds-toasts[data-expanded] .tds-toast { --y: calc(var(--toast-offset) + var(--toast-index) * var(--toast-gap)); scale: 1 }
   .tds-toast[data-back] :is(.tds-toast-body, .tds-toast-action, .tds-toast-glyph, .tds-toast-close) { opacity: 0 }
-  .tds-toasts[data-expanded] .tds-toast { --y: calc(var(--toast-offset) + var(--toast-index) * var(--tds-space-8)); scale: 1; & :is(.tds-toast-body, .tds-toast-action, .tds-toast-glyph) { opacity: 1 } }
+  .tds-toasts[data-expanded] .tds-toast :is(.tds-toast-body, .tds-toast-action, .tds-toast-glyph) { opacity: 1 }
   .tds-toasts:not([data-expanded]) .tds-toast[data-hidden] { opacity: 0; pointer-events: none }
   .tds-toast[data-gone] { pointer-events: none; z-index: calc(var(--tds-z-toasts) + 1) }
   .tds-toast[data-swiping] { transition: none }
-  .tds-toast-glyph.tds-tint { width: var(--tds-icon-toast-glyph); height: var(--tds-icon-toast-glyph); background: none; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-swap) var(--tds-ease-out) }
+
+  /* The measured box: the card clips to it while collapsed behind the newest. Icon and close sit on the title's line; the action centres. */
+  .tds-toast-inner { display: flex; align-items: center; gap: var(--tds-space-10); min-height: var(--tds-size-toast-min); padding: var(--tds-space-12) var(--tds-space-10) var(--tds-space-12) var(--tds-space-14) }
+  .tds-toast-glyph.tds-tint {
+    align-self: flex-start; display: grid; place-items: center; width: var(--tds-icon-toast-glyph); height: var(--tds-type-toast-title-leading); background: none;
+    transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-swap) var(--tds-ease-out);
+  }
   .tds-toast-glyph.tds-tint-mono { color: var(--tds-text-muted) }
-  .tds-toast-body {
-    display: flex; flex: 1; align-items: baseline; gap: var(--tds-space-6); min-width: 0; white-space: nowrap;
-    font-size: var(--tds-type-toast-title-size); line-height: var(--tds-type-toast-title-lh); letter-spacing: var(--tds-type-toast-title-tracking); transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out);
+  .tds-toast-body { display: flex; flex: 1; flex-direction: column; min-width: 0; transition: opacity var(--tds-dur-tooltip) var(--tds-ease-out) }
+  .tds-toast-head { display: flex; align-items: baseline; gap: var(--tds-space-6); min-width: 0; white-space: nowrap }
+  .tds-toast-title {
+    flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--tds-text-tx);
+    font-size: var(--tds-type-toast-title-size); line-height: var(--tds-type-toast-title-lh); font-weight: var(--tds-type-toast-title-weight); letter-spacing: var(--tds-type-toast-title-tracking);
   }
-  .tds-toast-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--tds-type-toast-title-weight); color: var(--tds-text-tx) }
-  .tds-toast-count { flex: none; font-weight: var(--tds-weight-medium); color: var(--tds-text-muted) }
-  .tds-toast-line { flex: 0 1000 auto; min-width: var(--tds-space-24); overflow: hidden; text-overflow: ellipsis; font-weight: var(--tds-weight-regular); color: var(--tds-text-muted) }
+  .tds-toast-count { flex: none; font-size: var(--tds-type-meta-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-muted) }
+  .tds-toast-line {
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--tds-text-muted);
+    font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); font-weight: var(--tds-weight-regular); letter-spacing: var(--tds-type-meta-tracking);
+  }
   .tds-toast-action {
-    flex: none; height: var(--tds-size-toast-action); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-pill); background: var(--tds-overlay-fill-10);
-    font-size: var(--tds-type-label-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx); transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-tooltip) var(--tds-ease-out);
+    flex: none; height: var(--tds-size-toast-action); padding: 0 var(--tds-space-10); border-radius: var(--tds-radius-row); background: var(--tds-overlay-fill-10);
+    font-size: var(--tds-type-meta-size); font-weight: var(--tds-weight-medium); color: var(--tds-text-tx);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out), opacity var(--tds-dur-tooltip) var(--tds-ease-out);
   }
-  @media (hover: hover) and (pointer: fine) { .tds-toast-action:hover { background: var(--tds-overlay-fill-12) } }
+  @media (hover: hover) and (pointer: fine) { .tds-toast-action:hover { background: var(--tds-overlay-fill-14) } }
   .tds-toast-close {
     flex: none; display: grid; place-items: center; width: var(--tds-size-hit-min); height: var(--tds-size-hit-min); margin-inline-start: calc(var(--tds-space-4) * -1);
-    border-radius: var(--tds-radius-pill); color: var(--tds-text-muted); opacity: 0;
+    border-radius: var(--tds-radius-item); color: var(--tds-text-muted); opacity: 0;
     transition: var(--tds-press-transition), opacity var(--tds-dur-tooltip) var(--tds-ease-out), color var(--tds-dur-hover) var(--tds-ease-out), background-color var(--tds-dur-hover) var(--tds-ease-out);
   }
   .tds-toast:focus-within .tds-toast-close, .tds-toast-close:focus-visible { opacity: 1 }
@@ -41,6 +60,7 @@
     .tds-toast-close:hover { color: var(--tds-text-tx); background: var(--tds-overlay-fill-10) }
   }
   @media (hover: none) { .tds-toast-close { opacity: 1 } }
-  .tds-toast-glyph .tds-spinner { width: var(--tds-icon-toast-glyph); height: var(--tds-icon-toast-glyph) }
+  @media (prefers-reduced-motion: reduce) { .tds-toasts, .tds-toast { transition-property: opacity } }
+  .tds-toast-glyph .tds-spinner { width: var(--tds-icon-toast); height: var(--tds-icon-toast) }
   .tds-spinner { width: var(--tds-icon-toast); height: var(--tds-icon-toast); border-radius: var(--tds-radius-pill); border: var(--tds-space-2) solid color-mix(in oklab, currentColor 25%, transparent); border-top-color: currentColor; animation: tds-spin var(--tds-dur-spin) linear infinite }
 }

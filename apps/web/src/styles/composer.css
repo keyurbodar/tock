@@ -78,3 +78,49 @@
   }
 }
 
+
+/* Duet composer: a 41px field across the column with send inside on the right, then a tools row (+) and the disclaimer. */
+@layer components {
+  .tds-composer-wrap {
+    left: 0; right: 0; width: calc(100% - var(--tds-size-column-gutter)); max-width: var(--tds-size-column);
+    padding: 0 0 var(--tds-space-14);
+  }
+  .tds-composer-row {
+    position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "field field" "plus note"; align-items: center; gap: 0;
+    &::after {
+      content: "toast is AI and can make mistakes."; grid-area: note; justify-self: end; padding-top: var(--tds-space-8);
+      font-size: var(--tds-type-caption-size); line-height: var(--tds-type-caption-lh); color: var(--tds-text-faint); pointer-events: none;
+    }
+  }
+  .tds-field {
+    grid-area: field; border-radius: var(--tds-radius-composer); background: var(--tds-duet-raised); box-shadow: var(--tds-ring-composer);
+    &[data-tall] { border-radius: var(--tds-radius-card) }
+  }
+  .tds-field[data-invalid] { box-shadow: inset 0 0 0 var(--tds-size-focus-width) var(--tds-wash-failed-ring) }
+  .tds-field-body { padding: 0 calc(var(--tds-size-composer) + var(--tds-space-4)) 0 var(--tds-space-13) }
+  .tds-send {
+    grid-area: field; justify-self: end; align-self: end; z-index: 1; width: var(--tds-size-composer); height: var(--tds-size-composer);
+    border-radius: var(--tds-radius-composer); background: transparent; color: var(--tds-text-tx2); box-shadow: none;
+    &[data-empty] { opacity: 1; scale: 1; color: var(--tds-text-faint) }
+    &[data-stop] { background: transparent; color: var(--tds-status-failed) }
+    &[data-held] { background: transparent }
+  }
+  .tds-composer-plus {
+    grid-area: plus; width: var(--tds-size-composer-tools); height: var(--tds-size-composer-tools); margin: var(--tds-space-8) 0 0 var(--tds-space-4);
+    border-radius: var(--tds-radius-button); background: transparent; box-shadow: none; color: var(--tds-text-muted);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet), color var(--tds-dur-fast) var(--tds-ease-duet);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tds-composer-plus:hover { background: var(--tds-duet-hover); color: var(--tds-duet-t-hover) }
+    .tds-send:not([data-empty]):hover { color: var(--tds-text-tx) }
+  }
+  .tds-composer-alert { margin-left: 0 }
+}
+
+/* the composer's controls carry raise classes from the markup; Duet keeps them flat, the field with only its inset hairline */
+@layer utilities {
+  .tds-composer-wrap { padding-bottom: calc(var(--tds-space-14) + env(safe-area-inset-bottom, 0px)) }
+  .tds-composer-row :is(.tds-send, .tds-composer-plus) { box-shadow: none; background-image: none }
+  .tds-composer-row .tds-field { box-shadow: var(--tds-raise-ring, var(--tds-ring-composer)); background-image: none }
+  .tds-composer-row .tds-field:focus-within:not([data-invalid]) { --tds-raise-ring: var(--tds-ring-composer-focus) }
+}
