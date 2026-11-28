@@ -2,6 +2,7 @@ import { createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack 
 import { Icon } from "@tock/ui/icon"
 import { MorphIcon } from "@tock/ui/morph-icon"
 import { Orb } from "@tock/ui/orb"
+import { gridTint, StatusGrid, type GridState } from "@tock/ui/status-grid"
 import { TextMorph } from "@tock/ui/text-morph"
 import type { JSX } from "@solidjs/web"
 import { tokens } from "@tock/tokens"
@@ -109,21 +110,15 @@ export function Activity(props: { work: Work; open: boolean; onToggle: (anchor: 
     const plan = props.work.plan
     return plan ? (plan.steps[Math.min(plan.current, plan.steps.length - 1)] ?? "Thinking") : "Thinking"
   }
+  const grid = (): GridState | undefined => {
+    const at = state()
+    return at === "live" ? (thinking() ? "thinking" : "working") : at === "done" ? undefined : at
+  }
   return (
     <div class="tds-act" data-state={state()}>
       <button type="button" class="tds-act-button" aria-expanded={props.open ? "true" : "false"} aria-label="Open the work log" onClick={(e) => props.onToggle(e.currentTarget)}>
-        <Switch>
-          <Match when={state() === "needs"}>
-            <Orb status="needs" />
-          </Match>
-          <Match when={state() === "live"}>
-            <Orb status={thinking() ? "thinking" : "working"} />
-          </Match>
-          <Match when={state() === "failed"}>
-            <Orb status="failed" />
-          </Match>
-        </Switch>
-        <span class="tds-act-text" data-shimmer={state() === "live" ? "" : undefined}>
+        <Show when={grid()}>{(state) => <StatusGrid state={state()} size={tokens.size["grid-act"]} />}</Show>
+        <span class="tds-act-text" data-shimmer={state() === "live" ? "" : undefined} style={{ "--grid-tint": gridTint(grid() ?? "thinking") }}>
           <Show when={state() === "live" || state() === "needs"} fallback={<>{state() === "failed" ? "Failed after " : "Worked for "}<TextMorph value={took(props.work, props.work.active ? now() : Date.now())} mode="calm" /></>}>
             {live()}
           </Show>
@@ -163,6 +158,18 @@ function PlanList(props: { plan: Plan; at: number }) {
   )
 }
 
+/** Every row keeps its slot so a label never shifts as its step settles; finished rows rest on a dim, static check. */
+const slotOf = (status: Status | "needs", think: boolean): GridState | undefined =>
+  status === "running" ? (think ? "thinking" : "working") : status === "cancelled" ? undefined : status
+
+function StepSlot(props: { state: GridState | undefined }) {
+  return (
+    <span class="tds-ws-slot" data-state={props.state}>
+      <Show when={props.state}>{(state) => <StatusGrid state={state()} size={tokens.size["grid-step"]} />}</Show>
+    </span>
+  )
+}
+
 /** CDS work-group row: plain text, the verb muted, the object bright, the time faint, a caret when there is more. Thoughts open into prose under a rule. */
 function StepRow(props: { step: Step; live: boolean; sessionId: string; open: boolean; ms: number | undefined; nested?: boolean; onToggle: (row: HTMLElement) => void }) {
   let row!: HTMLDivElement
@@ -189,11 +196,7 @@ function StepRow(props: { step: Step; live: boolean; sessionId: string; open: bo
         setSeen(true)
         props.onToggle(row)
       }}>
-        <Show when={status() === "failed" || status() === "needs"}>
-          <span class="tds-ws-slot">
-            <Orb status={status() === "failed" ? "failed" : "needs"} />
-          </span>
-        </Show>
+        <StepSlot state={slotOf(status(), props.step.kind === "thinking")} />
         <span class="tds-ws-text">
           <span class="tds-ws-label" data-shimmer={props.live && status() !== "needs" ? "" : undefined}>
             <Label label={label()} live={props.live && status() !== "needs"} />
@@ -256,6 +259,7 @@ function GroupRow(props: { key: string; steps: readonly Step[]; ms: number; live
         setSeen(true)
         props.onToggle(row)
       }}>
+        <StepSlot state={props.live ? "working" : failed() ? "failed" : "done"} />
         <span class="tds-ws-text">
           <span class="tds-ws-label" data-shimmer={props.live ? "" : undefined}>
             <TextMorph value={props.live ? live() : label()} mode="morph" />

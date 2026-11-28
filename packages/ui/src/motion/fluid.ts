@@ -13,10 +13,6 @@ interface Lane {
 export const lanes: readonly Lane[] = [
   { item: ".tds-menu-item", scope: ".tds-menu", follow: "highlighted" },
   { item: ".tds-palette-item", scope: ".tds-palette-list", follow: "highlighted" },
-  { item: ".tds-row-wrap", scope: "grandparent", follow: "pointer" },
-  { item: ".tds-rail-button", scope: "parent", follow: "pointer" },
-  { item: ".tds-header-button", scope: "parent", follow: "pointer" },
-  { item: ".tds-pin", scope: ".tds-pins", follow: "pointer" },
 ]
 
 const glows = new WeakMap<Element, HTMLElement>()
