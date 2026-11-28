@@ -73,7 +73,7 @@ export function Shortcuts() {
 
   return (
     <Dialog modal="trap-focus" open={open()} onOpenChange={(next) => setOpen(next)}>
-      <DialogBackdrop class="tds-scrim" />
+      <DialogBackdrop class="tds-scrim tds-backdrop" />
       <DialogContent class="tds-keys tds-over">
         <div class="tds-keys-head">
           <DialogTitle class="tds-dialog-title">Keyboard shortcuts</DialogTitle>
