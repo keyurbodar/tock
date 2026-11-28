@@ -5,13 +5,8 @@
     flex: none;
     display: block;
     fill: currentColor;
-    stroke: currentColor;
-    stroke-width: var(--tds-icon-weight-boost);
-    stroke-linejoin: round;
-    stroke-linecap: round;
     overflow: visible;
   }
-  .tds-icon .d { stroke: none; opacity: .22 }
 
   .tds-morph {
     flex: none;
