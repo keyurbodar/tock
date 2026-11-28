@@ -1,37 +1,37 @@
 @layer components {
-  .tds-header-pill { font-size: var(--tds-type-header-title-size); font-weight: var(--tds-type-header-title-weight); letter-spacing: var(--tds-type-header-title-tracking) }
-  .tds-header-pill { max-width: var(--tds-size-header-title) }
-  /* TDS .pill + .st: the title gives way (ellipsis) before the status ever does; a 12 orb and a muted label sit a full gap after it */
-  .tds-header-pill { gap: 0 }
-  /* The open chat's own glyph and hue (the sidebar row's) in the avatar; the mascot only for a new or empty chat. They cross-fade and scale through each other */
-  .tds-header-avatar > * { grid-area: 1 / 1; transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out) }
-  .tds-header-glyph { display: grid; place-items: center; opacity: 0; scale: .6 }
-  .tds-header-avatar[data-glyph] .tds-header-glyph { opacity: 1; scale: 1 }
-  .tds-header-avatar[data-glyph] .tds-header-mascot { opacity: 0; scale: .6 }
-  .tds-header-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+  /* Duet top bar: 52 high over the chat, channel icon + name + caret on the left, 32 icon buttons on the right. The bar itself lets the chat through. */
+  .tds-header {
+    position: absolute; inset: 0 0 auto; z-index: var(--tds-z-header); display: flex; align-items: center; gap: var(--tds-space-4);
+    height: var(--tds-size-header); padding: 0 var(--tds-space-16) 0 var(--tds-space-18); pointer-events: none;
+    & > :not(.tds-header-band) { pointer-events: auto }
+  }
+  .tds-header-start { display: flex; flex: 1; align-items: center; gap: var(--tds-space-4); min-width: 0; pointer-events: none !important; & > * { pointer-events: auto } }
+  .tds-ttl {
+    display: flex; align-items: center; gap: var(--tds-space-8); min-width: 0; height: var(--tds-size-icon-button); padding: 0 var(--tds-space-8) 0 var(--tds-space-9);
+    border-radius: var(--tds-radius-button); color: var(--tds-duet-t1);
+    font-size: var(--tds-type-header-title-size); line-height: var(--tds-type-header-title-lh); font-weight: var(--tds-type-header-title-weight); letter-spacing: var(--tds-type-header-title-tracking);
+    transition: var(--tds-press-transition), background-color var(--tds-dur-fast) var(--tds-ease-duet);
+    &[aria-expanded="true"] { background: var(--tds-duet-select) }
+  }
+  @media (hover: hover) and (pointer: fine) { .tds-ttl:not([data-static]):hover { background: var(--tds-duet-hover) } }
+  .tds-ttl-icon { display: grid; place-items: center; flex: none; width: var(--tds-icon-channel); height: var(--tds-icon-channel) }
+  .tds-ttl-cv { flex: none; margin-left: calc(var(--tds-space-2) * -1); color: var(--tds-duet-t3) }
+  .tds-header-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: var(--tds-size-header-title) }
   .tds-header-title :is(.tds-skeleton, [skullet-reveal], [skullet-pane]) { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
   .tds-header-title :is(.tds-morph-text, [torph-item]) { display: inline !important }
   .tds-header-status {
     display: flex; flex: none; align-items: center; gap: var(--tds-space-6); padding-left: 0;
-    font-size: var(--tds-type-secondary-size); font-weight: var(--tds-weight-regular); letter-spacing: var(--tds-type-secondary-tracking); color: var(--tds-text-muted);
+    font-size: var(--tds-type-meta-size); line-height: var(--tds-type-meta-lh); color: var(--tds-duet-t2);
   }
-  .tds-header-status[data-on] { padding-left: var(--tds-space-10) }
+  .tds-header-status[data-on] { padding-left: var(--tds-space-4) }
   .tds-header-orb {
     display: grid; place-items: center; flex: none; width: 0; height: var(--tds-size-orb-header); opacity: 0; scale: .6;
-    transition: opacity var(--tds-dur-swap) var(--tds-ease-out), scale var(--tds-dur-swap) var(--tds-ease-out);
+    transition: opacity var(--tds-dur-mid) var(--tds-ease-duet), scale var(--tds-dur-mid) var(--tds-ease-duet);
   }
   .tds-header-status[data-on] .tds-header-orb { width: var(--tds-size-orb-header); opacity: 1; scale: 1 }
   .tds-header-status:not([data-on]) { gap: 0 }
 
-  .tds-header-actions {
-    position: absolute; top: var(--tds-space-18); right: var(--tds-space-22); display: flex; align-items: center; gap: var(--tds-space-4); pointer-events: auto;
-  }
-  .tds-header-button {
-    display: grid; place-items: center; width: var(--tds-size-header-button); height: var(--tds-size-header-button); border-radius: var(--tds-radius-pill);
-    color: var(--tds-text-tx2); transition: var(--tds-press-transition), background-color var(--tds-dur-hover) var(--tds-ease-out);
-  }
-  .tds-header-button[aria-pressed="true"] { background: var(--tds-overlay-hover) }
-  @media (hover: hover) and (pointer: fine) { .tds-header-button:hover { background: var(--tds-overlay-hover) } }
+  .tds-header-actions { display: flex; align-items: center; gap: var(--tds-space-4) }
 
   .tds-find {
     display: flex; align-items: center; gap: var(--tds-space-6); height: var(--tds-size-header-button); padding: 0 var(--tds-space-6) 0 var(--tds-space-14);
