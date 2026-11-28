@@ -12,7 +12,9 @@
   .tds-motion-row { padding: var(--tds-space-6) var(--tds-space-8); color: var(--tds-text-tx2) }
   .tds-motion-strip[data-edge-fade] { display: flex; flex-basis: 100%; min-width: 0; gap: var(--tds-space-8); overflow-x: auto; & > * { flex: none } }
   .tds-motion-track { --p: 0; position: relative; width: calc(var(--tds-size-pin) * 4); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); background: var(--tds-surface-field); touch-action: pan-y }
-  .tds-motion-orbs { grid-column: 1 / -1 }
+  .tds-motion-orbs, .tds-motion-grids { grid-column: 1 / -1 }
+  .tds-motion-grids { display: grid; grid-template-columns: repeat(2, max-content); gap: var(--tds-space-16) var(--tds-space-32) }
+  .tds-motion-pill { display: flex; align-items: center; gap: var(--tds-space-14); width: var(--tds-size-grid-demo-pill); padding: var(--tds-space-8) var(--tds-space-24) var(--tds-space-8) var(--tds-space-14); border-radius: var(--tds-radius-pill); background: var(--tds-surface-main); font-size: var(--tds-type-title-size) }
   .tds-motion-orb { display: flex; align-items: center; gap: var(--tds-space-12); padding-right: var(--tds-space-16); color: var(--tds-text-muted) }
   .tds-motion-orb .tds-motion-tile { position: relative; .tds-orb { position: absolute; right: calc(var(--tds-space-4) * -1); bottom: calc(var(--tds-space-4) * -1) } }
   .tds-motion-knob { position: absolute; top: 0; left: 0; width: var(--tds-size-pin); height: var(--tds-size-pin); border-radius: var(--tds-radius-pill); background-color: var(--tds-surface-white); translate: calc(var(--p) * var(--tds-size-pin) * 3) 0 }

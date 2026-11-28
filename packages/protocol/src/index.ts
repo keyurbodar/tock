@@ -187,6 +187,25 @@ export interface ReactionPreview {
   readonly at: number
 }
 
+/** A short note left on one message unit (a bubble, code block or attachment). ref uses the same address as reactions. */
+export interface Comment {
+  readonly id: string
+  readonly ref: string
+  readonly text: string
+  readonly by: ReactionActor
+  readonly at: number
+}
+
+/** A chat's comments grouped by ref, oldest first. Sent with chat.subscribe. */
+export type CommentsByRef = Readonly<Record<string, readonly Comment[]>>
+
+/** Sent to the chat's subscribers whenever a comment is added (on) or deleted. */
+export interface CommentEvent {
+  readonly sessionId: string
+  readonly comment: Comment
+  readonly on: boolean
+}
+
 /** Broadcast (never persisted) whenever a reaction is added or removed. */
 export interface ReactionEvent {
   readonly sessionId: string

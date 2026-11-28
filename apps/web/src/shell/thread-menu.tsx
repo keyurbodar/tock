@@ -298,7 +298,7 @@ export function ThreadMenu() {
                       </>
                     }
                   >
-                    <Item value="rename" icon="pencil-simple" label="Rename…" keys="↩" />
+                    <Item value="rename" icon="pencil-simple" label="Rename…" keys="↵" />
                     <Item value="pin" icon={session().meta.pinned ? "push-pin-slash" : "push-pin"} label={session().meta.pinned ? "Unpin" : "Pin"} />
                     <Item value="unread" icon="circle" label={session().meta.unread ? "Mark as Read" : "Mark as Unread"} keys="⌘U" />
                     <MenuSub delay={tokens.motion.duration["submenu-rest"]}>
@@ -338,7 +338,7 @@ export function ThreadMenu() {
           if (session && details.returnValue === "confirm") confirmForever(session)
         }}
       >
-        <AlertDialogBackdrop class="tds-scrim" />
+        <AlertDialogBackdrop class="tds-scrim tds-backdrop" />
         <AlertDialogContent class="tds-dialog tds-over">
           <img src="/brand/toast-mascot-36.svg" alt="" class="tds-dialog-mascot" draggable={false} />
           <AlertDialogTitle class="tds-dialog-title">Delete “{titleOf(forever())}” forever?</AlertDialogTitle>

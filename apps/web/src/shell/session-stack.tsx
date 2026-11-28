@@ -18,9 +18,10 @@ const statusName = STATUS_LABEL
 const orbOf = (status: ChatStatus) => (status === "idle" ? undefined : status)
 const gap = tokens.size["session-gap"]
 const edge = tokens.size["edge-fade"]
+const IDLE = "here when you need me"
 
 /**
- * The toast row, TDS px2 .me: mascot 36, "toast" 15/600 and a live status line. Holding it fans out the session
+ * The agent row (Duet .ag): mascot 28, "toast" 16/400 and a status only while something runs. Holding it fans out the session
  * stack (px4 Stack) over the shared backdrop (the app scales back, blurs and dims). The stack scrolls when there are
  * more chats than fit, fades at the edge that has more, and scrolls itself while you hold near that edge.
  */
@@ -45,7 +46,7 @@ export function ToastRow(props: { show: boolean }) {
       count("needs") && `${count("needs")} needs you`,
       count("failed") && `${count("failed")} failed`,
     ].filter(Boolean)
-    return parts.length ? parts.join(", ") : "here when you need me"
+    return parts.length ? parts.join(", ") : IDLE
   })
 
   /** The pill under the finger; past the stack's top or bottom edge, the nearest visible pill stays hot. */
@@ -106,6 +107,7 @@ export function ToastRow(props: { show: boolean }) {
           ref={row}
           type="button"
           class="tds-toast-row"
+          aria-label={`toast, ${line()}`}
           data-press={pressed() ? "" : undefined}
           aria-haspopup="dialog"
           aria-expanded={open() ? "true" : "false"}
@@ -132,15 +134,11 @@ export function ToastRow(props: { show: boolean }) {
           onPointerCancel={() => (setPressed(false), clearTimeout(hold), (hold = undefined), cancelAnimationFrame(frame))}
           onPointerLeave={() => unpress()}
         >
-          <img src="/brand/toast-mascot-36.svg" alt="" class="size-mascot flex-none rounded-small" draggable={false} />
-          <span class="min-w-0 flex-1 pl-6 text-left">
-            <b class="block text-name">toast</b>
-            <span class="tds-toast-status block truncate text-preview text-muted">
-              <TextMorph value={line()} mode="calm" />
-            </span>
+          <img src="/brand/toast-mascot-36.svg" alt="" class="tds-toast-avatar" draggable={false} />
+          <span class="tds-toast-name">toast</span>
+          <span class="tds-toast-status" aria-hidden="true">
+            <TextMorph value={line() === IDLE ? "" : line()} mode="calm" />
           </span>
-          <span class="tds-toast-hint">Hold for all chats</span>
-          <Icon name="caret-down" size="menu" class="text-faint" />
         </button>
       </Show>
       <Portal>
@@ -154,7 +152,7 @@ export function ToastRow(props: { show: boolean }) {
           style={{ left: `${place().left}px`, top: `${place().top}px` }}
           onKeyDown={(e) => e.key === "Escape" && close()}
         >
-          <div class="tds-stack-label">Hold and slide to a chat, let go to open it</div>
+          <div class="tds-stack-label">Hold and slide to a channel, let go to open it</div>
           <div
             ref={scroller}
             class="tds-stack-scroll"
