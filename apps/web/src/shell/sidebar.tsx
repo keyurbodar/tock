@@ -1,9 +1,8 @@
 import { Empty } from "../chat/empty"
-import { animate, inertiaTail, lockAxis, morphFrom, Skeleton, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
+import { animate, inertiaTail, lockAxis, Skeleton, spring, springEasing, swipeDecision, swipeOffset, swipeStage, swipeThresholds, velocityTracker, type SwipeStage } from "@tock/ui/motion"
 import { createEffect, createMemo, createSignal, For, Show, untrack } from "solid-js"
-import { MorphIcon } from "@tock/ui/morph-icon"
 import { useNavigate, useParams } from "@solidjs/router"
-import { VList, type VListHandle } from "virtua/solid"
+
 import { MenuTrigger } from "@ui-sdk/solid/menu"
 import { Icon } from "@tock/ui/icon"
 import { Orb } from "@tock/ui/orb"
@@ -12,9 +11,8 @@ import { TextMorph } from "@tock/ui/text-morph"
 import { glyphFor } from "../lib/glyph"
 import { statusOf } from "../lib/status"
 import { pressable } from "../lib/keys"
-import { app, newThreadId, plainText, titleOf, updateThread, type Session } from "../state/app"
+import { app, newThreadId, titleOf, updateThread, type Session } from "../state/app"
 import { dirOf } from "../lib/dir"
-import { shortTime } from "../lib/time"
 import { minute } from "../lib/clock"
 import { archive, doomed, markRead, pin, remove, renaming, selected, setRenaming, setSelected, takeEntering, threadAction, threadMenu, ThreadMenu } from "./thread-menu"
 import { dropping, Pins, setDropping } from "./pins"
@@ -23,7 +21,11 @@ import { ToastRow } from "./session-stack"
 import { MoveDialog } from "./move-dialog"
 import { createHotkey } from "@tanstack/solid-hotkeys"
 import { appHotkeys, typing } from "./hotkeys"
-import { reactionLine } from "../state/reactions"
+import { setPaletteOpen } from "./palette"
+import { narrow } from "./narrow"
+import { setShortcutsOpen } from "./shortcuts"
+import { centreOpen, setCentreOpen } from "./centre"
+import { unreadNotes } from "../state/notes"
 
 type Entry = { kind: "row"; session: Session } | { kind: "archive"; count: number } | { kind: "archive-empty" }
 
@@ -33,6 +35,7 @@ const rowEntry = (session: Session): Entry => {
   if (!entry) rowEntries.set(session, (entry = { kind: "row", session }))
   return entry
 }
+const ARCHIVE_EMPTY: Entry = { kind: "archive-empty" }
 const archiveEntries = new Map<number, Entry>()
 const archiveEntry = (count: number): Entry => {
   let entry = archiveEntries.get(count)
@@ -40,27 +43,16 @@ const archiveEntry = (count: number): Entry => {
   return entry
 }
 
-const WIDTH_KEY = "tock.sidebar.width"
-const clampWidth = (value: number) => Math.min(tokens.size["sidebar-max"], Math.max(tokens.size["sidebar-min"], Math.round(value)))
-const savedWidth = () => {
-  const saved = Number(localStorage.getItem(WIDTH_KEY))
-  return Number.isFinite(saved) && saved > 0 ? clampWidth(saved) : tokens.size.sidebar
+const OPEN_KEY = "tock.sidebar.open"
+const [sidebarOpen, setOpen] = createSignal(localStorage.getItem(OPEN_KEY) !== "0")
+/** Collapsing keeps the choice across reloads; the shell animates width and opacity, the contents keep their own width so nothing reflows mid-slide. */
+export const toggleSidebar = (next = !untrack(sidebarOpen)) => {
+  setOpen(next)
+  localStorage.setItem(OPEN_KEY, next ? "1" : "0")
+  // the button that was pressed goes inert or away, so focus moves to the toggle that undoes it
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(next ? ".tds-sbt > .tds-ib" : ".tds-header-start > .tds-ib")?.focus({ preventScroll: true }))
 }
-
-function Highlight(props: { text: string; query: string }) {
-  const parts = () => {
-    const q = props.query.trim().toLowerCase()
-    if (!q) return [{ text: props.text, hit: false }]
-    const at = props.text.toLowerCase().indexOf(q)
-    if (at < 0) return [{ text: props.text, hit: false }]
-    return [
-      { text: props.text.slice(0, at), hit: false },
-      { text: props.text.slice(at, at + q.length), hit: true },
-      { text: props.text.slice(at + q.length), hit: false },
-    ]
-  }
-  return <For each={parts()} keyed={false}>{(part) => <>{part().hit ? <b class="tds-hit">{part().text}</b> : part().text}</>}</For>
-}
+export { sidebarOpen }
 
 function RenameField(props: { session: Session }) {
   let done = false
@@ -93,20 +85,12 @@ let suppressClick = false
 const swallowClick = () => ((suppressClick = true), requestAnimationFrame(() => requestAnimationFrame(() => (suppressClick = false))))
 
 
-/** A chat waiting on you shows its question; when your own message is newest the row reads "you: …", as WorklogLive. */
-const previewOf = (session: Session) => {
-  const text = plainText(session.preview)
-  if (statusOf(session) === "needs") return `needs you: ${plainText(session.needs ?? "") || text}`
-  if (session.reaction && session.reaction.at >= (session.updatedAt ?? 0)) return reactionLine(session.reaction)
-  if (!text) return "No messages yet"
-  return session.mine ? `you: ${text}` : text
-}
 const orbOf = (session: Session) => {
   const status = statusOf(session)
   return status === "working" || status === "needs" ? status : undefined
 }
 
-function Row(props: { session: Session; selected: boolean; multi: boolean; query: string; current: string | undefined; navigate: (to: string) => void }) {
+function Row(props: { session: Session; selected: boolean; multi: boolean; current: string | undefined; navigate: (to: string) => void }) {
   const glyph = () => glyphFor(props.session.id)
   let wrap!: HTMLDivElement
   let row!: HTMLAnchorElement
@@ -370,110 +354,43 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
             return
           }
           if (selected().length) setSelected([])
-          if (id !== props.current) morphFrom(e.currentTarget)
         }}
         onDblClick={(e) => (e.target as HTMLElement).closest(".tds-row-title") && setRenaming(untrack(() => props.session.id))}
       >
         <span class={`tds-row-icon ${glyph().hue}`} ref={icon}>
-          <MorphIcon name={glyph().icon} size="row" />
+          <Icon name={glyph().icon} size="channel" />
         </span>
         <span class="tds-row-title" dir={dirOf(titleOf(props.session))}>
-          <Show when={renaming() === props.session.id} fallback={<Show when={props.query.trim()} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}><Highlight text={titleOf(props.session)} query={props.query} /></Show>}>
+          <Show when={renaming() === props.session.id} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}>
             <RenameField session={props.session} />
           </Show>
         </span>
-        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, minute())} mode="calm" /></span>
-        <span class="tds-row-preview" dir={dirOf(previewOf(props.session))}>
-          <Show when={props.query.trim()} fallback={<TextMorph value={previewOf(props.session)} mode="calm" />}>
-            <Highlight text={previewOf(props.session)} query={props.query} />
-          </Show>
-        </span>
         <span class="tds-row-mark" skullet-ignore="">
-          <Show when={orbOf(props.session)}>
+          <Show when={orbOf(props.session)} fallback={<Show when={props.session.meta.unread && !props.selected}><i class="tds-unread" role="img" aria-label="Unread" /></Show>}>
             {(status) => <Orb status={status()} />}
           </Show>
         </span>
       </a>
       <MenuTrigger controller={threadMenu} payload={props.session} onPointerDown={() => hidePeek()} class="tds-row-more" aria-label={`Actions for ${titleOf(props.session)}`}>
-        <Icon name="dots-three" size="row" />
+        <Icon name="dots-three" size="channel" />
       </MenuTrigger>
     </div>
-  )
-}
-
-function ResizeHandle(props: { width: number; onWidth: (width: number) => void }) {
-  let start = 0
-  let from = 0
-  let last = 0
-  const set = (width: number) => {
-    last = clampWidth(width)
-    props.onWidth(last)
-  }
-  const save = () => localStorage.setItem(WIDTH_KEY, String(last))
-  const move = (e: PointerEvent) => set(from + e.clientX - start)
-  const end = (e: PointerEvent) => {
-    const el = e.currentTarget as HTMLElement
-    if (!el.hasPointerCapture(e.pointerId)) return
-    el.releasePointerCapture(e.pointerId)
-    el.removeEventListener("pointermove", move)
-    document.documentElement.removeAttribute("data-resizing")
-    save()
-  }
-  return (
-    <div
-      class="tds-sidebar-handle"
-      role="separator"
-      tabindex="0"
-      aria-orientation="vertical"
-      aria-label="Resize sidebar"
-      aria-valuemin={tokens.size["sidebar-min"]}
-      aria-valuemax={tokens.size["sidebar-max"]}
-      aria-valuenow={props.width}
-      onPointerDown={(e) => {
-        if (e.button !== 0) return
-        e.preventDefault()
-        start = e.clientX
-        from = last = props.width
-        e.currentTarget.setPointerCapture(e.pointerId)
-        e.currentTarget.addEventListener("pointermove", move)
-        document.documentElement.setAttribute("data-resizing", "")
-      }}
-      onPointerUp={end}
-      onPointerCancel={end}
-      onDblClick={() => (set(tokens.size.sidebar), save())}
-      onKeyDown={(e) => {
-        const step = tokens.size["sidebar-step"] * (e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0)
-        if (!step) return
-        e.preventDefault()
-        set(props.width + step)
-        save()
-      }}
-    />
   )
 }
 
 export function Sidebar() {
   const params = useParams<{ id?: string }>()
   const navigate = useNavigate()
-  let roster!: VListHandle
-  const [query, setQuery] = createSignal("")
+  let roster!: HTMLDivElement
   const [archiveOpen, setArchiveOpen] = createSignal(false)
-  const [width, setWidth] = createSignal<number>(savedWidth())
-  let search!: HTMLInputElement
 
   const visible = createMemo(() => app.sessions.filter((s) => !doomed().includes(s.id) && !((s.meta.snoozedUntil ?? 0) > minute())))
-  const matches = createMemo(() => {
-    const q = query().trim().toLowerCase()
-    if (!q) return visible().filter((s) => !s.meta.pinned || s.meta.archived)
-    return visible().filter((s) => `${titleOf(s)} ${s.preview}`.toLowerCase().includes(q))
-  })
   const entries = createMemo<Entry[]>(() => {
-    const active = matches().filter((s) => !s.meta.archived)
-    const archived = matches().filter((s) => s.meta.archived)
-    const rows = active.map(rowEntry)
-    if (archived.length === 0) return archiveOpen() && query().trim() === "" ? [...rows, archiveEntry(0), { kind: "archive-empty" } as const] : rows
-    const open = archiveOpen() || query().trim() !== ""
-    return [...rows, archiveEntry(archived.length), ...(open ? archived.map(rowEntry) : [])]
+    const list = visible().filter((s) => !s.meta.pinned || s.meta.archived)
+    const rows = list.filter((s) => !s.meta.archived).map(rowEntry)
+    const archived = list.filter((s) => s.meta.archived)
+    if (archived.length === 0) return archiveOpen() ? [...rows, archiveEntry(0), ARCHIVE_EMPTY] : rows
+    return [...rows, archiveEntry(archived.length), ...(archiveOpen() ? archived.map(rowEntry) : [])]
   })
   /** The open chat's row stays in view when the chat changes by keyboard (⌥↑↓) or anywhere else; a row already visible doesn't move. */
   let shownFor: string | undefined
@@ -482,7 +399,7 @@ export function Sidebar() {
     ({ id, index }) => {
       if (id === shownFor || index < 0) return
       shownFor = id
-      requestAnimationFrame(() => roster?.scrollToIndex(index, { align: "nearest" }))
+      requestAnimationFrame(() => roster?.querySelector(`[data-id="${CSS.escape(id ?? "")}"]`)?.scrollIntoView({ block: "nearest" }))
     },
   )
 
@@ -497,82 +414,109 @@ export function Sidebar() {
     e.preventDefault()
     peekToggle({ session, row })
   })
+  createHotkey(appHotkeys["sidebar.toggle"], () => toggleSidebar())
 
   return (
-    <aside class="tds-sidebar" data-backdrop-layer style={{ width: `${width()}px` }} aria-label="Chats">
-      <div class="flex gap-6">
-        <label class="tds-search tds-raise-1" data-filled={query() ? "" : undefined}>
-          <Icon name="magnifying-glass" size="menu" class="tds-search-glyph" />
-          <input ref={search} value={query()} onInput={(e) => setQuery(e.currentTarget.value)} placeholder="Search" aria-label="Search chats" onKeyDown={(e) => e.key === "Escape" && (setQuery(""), e.currentTarget.blur())} />
-          <span class="tds-search-hint" aria-hidden="true"><kbd>⌘</kbd><kbd>K</kbd></span>
-        </label>
-        <button type="button" class="tds-press grid size-new-chat flex-none place-items-center rounded-pill bg-glass text-tx2 tds-raise-1" aria-label="New chat" onClick={startChat}>
-          <Icon name="note-pencil" size="menu" />
-        </button>
-      </div>
-
-      <Pins show={query().trim() === ""} />
-      <ToastRow show={query().trim() === ""} />
-
-      <div class="relative -mx-12 min-h-0 flex-1" onPointerLeave={() => peekLeave()}>
-        <Skeleton fill label="Loading chats" loading={!app.sessionsLoaded && entries().length === 0 && !query()} sample={() => <SampleRows />}>
-        <div class="h-full">
-        <Show
-          when={entries().length > 0}
-          fallback={
-            <div class="px-12 py-36">
-              <Empty art={query() ? "search" : "hi"} small />
-            </div>
-          }
-        >
-          <VList ref={roster} data={entries()} class="tds-roster tds-scroll h-full px-12 pb-16" tabindex="-1" data-edge-fade="y" itemSize={tokens.size.row}>
-            {(entry) =>
-              entry.kind === "archive-empty" ? (
-                <div class="tds-archive-empty">
-                  <Empty art="archive" small />
-                </div>
-              ) : entry.kind === "archive" ? (
-                <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>
-                  <Icon name="archive" size="chip" />
-                  <span>Archive</span>
-                  <span class="tds-archive-count num"><TextMorph value={entry.count} mode="roll" /></span>
-                  <Icon name="caret-down" size="chip" class="tds-archive-caret" />
-                </button>
-              ) : (
-                <Row
-                  session={entry.session}
-                  selected={params.id === entry.session.id}
-                  multi={selected().includes(entry.session.id)}
-                  query={query()}
-                  current={params.id}
-                  navigate={navigate}
-                />
-              )
-            }
-          </VList>
-        </Show>
+    <aside class="tds-sidebar" data-backdrop-layer data-collapsed={sidebarOpen() || narrow() ? undefined : ""} aria-label="Channels" inert={!sidebarOpen() && !narrow()}>
+      <div class="tds-sidebar-inner">
+        <div class="tds-sbt">
+          <button type="button" class="tds-ib" aria-label="Close sidebar" aria-expanded="true" data-tip="" data-tip-side="right" onClick={() => toggleSidebar(false)}>
+            <Icon name="sidebar-simple" size="bar" />
+          </button>
+          <span class="tds-sbt-end">
+            <BellButton />
+            <button type="button" class="tds-ib tds-search" aria-label="Search" data-tip="" data-tip-side="bottom" onClick={() => setPaletteOpen(true)}>
+              <Icon name="magnifying-glass" size="bar" />
+            </button>
+          </span>
         </div>
-        </Skeleton>
-      </div>
 
-      <div class="tds-bulk tds-over" data-open={selected().length > 1 ? "" : undefined} role="toolbar" aria-label="Selected chats" inert={selected().length > 1 ? undefined : true}>
-        <b class="num">
-          <TextMorph value={`${selected().length} selected`} mode="roll" />
-        </b>
-        <button type="button" class="tds-press" onClick={() => (markRead(chosen()), setSelected([]))}>
-          <Icon name="circle" size="menu" />
-          Read
-        </button>
-        <button type="button" class="tds-press" onClick={() => (archive(chosen(), params.id, navigate), setSelected([]))}>
-          <Icon name="archive" size="menu" />
-          Archive
-        </button>
-        <button type="button" class="tds-press" data-danger="" onClick={() => (remove(chosen(), params.id, navigate), setSelected([]))}>
-          <Icon name="trash" size="menu" />
-          Delete
-        </button>
+        <ToastRow show />
+        <Pins show />
+
+        <div class="tds-sec">
+          <span>Channels</span>
+          <button type="button" class="tds-ib" data-size="sec" aria-label="New channel" data-tip="" data-tip-side="bottom" onClick={startChat}>
+            <Icon name="plus" size="bar" />
+          </button>
+          <button
+            type="button"
+            class="tds-ib"
+            data-size="sec"
+            aria-label={archiveOpen() ? "Hide archived" : "Show archived"}
+            aria-pressed={archiveOpen() ? "true" : "false"}
+            data-tip=""
+            data-tip-side="bottom"
+            onClick={() => setArchiveOpen((open) => !open)}
+          >
+            <Icon name="funnel-simple" size="bar" />
+          </button>
+        </div>
+
+        <div class="tds-chs" onPointerLeave={() => peekLeave()}>
+          <Skeleton fill label="Loading channels" loading={!app.sessionsLoaded && entries().length === 0} sample={() => <SampleRows />}>
+            <div class="h-full">
+              <Show
+                when={entries().length > 0}
+                fallback={
+                  <div class="px-12 py-36">
+                    <Empty art="hi" small />
+                  </div>
+                }
+              >
+                <VList ref={roster} data={entries()} class="tds-roster tds-scroll h-full" tabindex="-1" data-edge-fade="y" itemSize={tokens.size.row}>
+                  {(entry) =>
+                    entry.kind === "archive-empty" ? (
+                      <div class="tds-archive-empty">
+                        <Empty art="archive" small />
+                      </div>
+                    ) : entry.kind === "archive" ? (
+                      <button type="button" class="tds-archive-head" aria-expanded={archiveOpen() ? "true" : "false"} onClick={() => setArchiveOpen((open) => !open)}>
+                        <Icon name="archive" size="channel" />
+                        <span>Archive</span>
+                        <span class="tds-archive-count num">{entry.count}</span>
+                        <Icon name="caret-down" size="chip" class="tds-archive-caret" />
+                      </button>
+                    ) : (
+                      <Row session={entry.session} selected={params.id === entry.session.id} multi={selected().includes(entry.session.id)} current={params.id} navigate={navigate} />
+                    )
+                  }
+                </VList>
+              </Show>
+            </div>
+          </Skeleton>
+        </div>
+
+        <div class="tds-bulk tds-over" data-open={selected().length > 1 ? "" : undefined} role="toolbar" aria-label="Selected channels" inert={selected().length > 1 ? undefined : true}>
+          <b class="num">
+            <TextMorph value={`${selected().length} selected`} mode="roll" />
+          </b>
+          <button type="button" class="tds-press" onClick={() => (markRead(chosen()), setSelected([]))}>
+            <Icon name="circle" size="menu" />
+            Read
+          </button>
+          <button type="button" class="tds-press" onClick={() => (archive(chosen(), params.id, navigate), setSelected([]))}>
+            <Icon name="archive" size="menu" />
+            Archive
+          </button>
+          <button type="button" class="tds-press" data-danger="" onClick={() => (remove(chosen(), params.id, navigate), setSelected([]))}>
+            <Icon name="trash" size="menu" />
+            Delete
+          </button>
+        </div>
+
+        <footer class="tds-me">
+          <span class="tds-me-initial" aria-hidden="true">Y</span>
+          <b>You</b>
+          <span class="flex-1" />
+          <button type="button" class="tds-ib" data-size="me" aria-label="Keyboard shortcuts" data-tip="" data-tip-side="top" onClick={() => setShortcutsOpen(true)}>
+            <Icon name="keyboard" size="bar" />
+          </button>
+          <button type="button" class="tds-ib" data-size="me" aria-label="Settings" data-tip="" data-tip-side="top">
+            <Icon name="gear-six" size="bar" />
+          </button>
+        </footer>
       </div>
-      <ResizeHandle width={width()} onWidth={setWidth} />
       <ThreadMenu />
       <MoveDialog />
       <Peek />
@@ -580,21 +524,38 @@ export function Sidebar() {
   )
 }
 
-const sample = { title: "Planning the week ahead", preview: "Three things worth a look today", time: "2h" }
+/** Notifications live in the sidebar strip now the rail is gone: a blue dot while anything is unread. */
+function BellButton() {
+  return (
+    <button
+      type="button"
+      class="tds-ib"
+      data-bell=""
+      aria-label={unreadNotes() ? `Notifications, ${unreadNotes()} new` : "Notifications"}
+      aria-pressed={centreOpen() ? "true" : "false"}
+      data-tip="Notifications"
+      data-tip-side="bottom"
+      onClick={() => setCentreOpen((open) => !open)}
+    >
+      <Icon name="bell" size="bar" />
+      <Show when={unreadNotes() > 0}>
+        <i class="tds-bd" aria-hidden="true" />
+      </Show>
+    </button>
+  )
+}
 
 /** Sample rows through the row's own classes, so each bone sits where a loaded row will. */
 function SampleRows() {
   return (
-    <div class="h-full px-12 pb-16">
+    <div class="h-full">
       <For each={Array.from({ length: tokens.limit["skeleton-rows"] })} keyed={false}>
         {() => (
           <div class="tds-row">
             <span class="tds-row-icon">
-              <Icon name="hash" size="row" />
+              <Icon name="hash" size="channel" />
             </span>
-            <span class="tds-row-title">{sample.title}</span>
-            <span class="tds-row-time num">{sample.time}</span>
-            <span class="tds-row-preview">{sample.preview}</span>
+            <span class="tds-row-title">Planning the week</span>
           </div>
         )}
       </For>

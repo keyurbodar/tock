@@ -1,6 +1,7 @@
 import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid-js"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@ui-sdk/solid/tooltip"
 import { Icon } from "@tock/ui/icon"
-import { exit, swapFollowup } from "@tock/ui/motion"
+import { animate, dur, ease, swapFollowup } from "@tock/ui/motion"
 import type { Followup } from "@tock/protocol"
 import { tokens } from "@tock/tokens"
 
@@ -19,11 +20,49 @@ const dismissed = (): ReadonlySet<string> => {
   }
 }
 
+const look = tokens.material.followup
+const CHIPS = ".tds-followup:not(.tds-followup-x)"
+
+/** Chips rise into place one after another; the glyph follows its label a beat later, as in the reference. */
+function enterChips(row: HTMLElement) {
+  row.querySelectorAll<HTMLElement>(CHIPS).forEach((chip, i) => {
+    const delay = i * dur["followup-stagger"]
+    animate(
+      chip,
+      [
+        { opacity: 0, translate: `0 ${look.rise}`, scale: look["enter-scale"], filter: `blur(${look.blur})` },
+        { opacity: 1, translate: "0 0", scale: 1, filter: "blur(0)" },
+      ],
+      { duration: dur["followup-enter"], delay, easing: ease.out, fill: "backwards" },
+    )
+    animate(chip.querySelector(".tds-followup-emoji"), [{ opacity: 0 }, { opacity: 1 }], {
+      duration: dur["followup-emoji"],
+      delay: delay + dur["followup-emoji"],
+      easing: ease.out,
+      fill: "backwards",
+    })
+  })
+}
+
+/** Chips drop and soften away together; a picked chip holds a beat so the eye follows it into the composer. */
+function leaveChips(row: HTMLElement, picked: number | undefined) {
+  const gone = { opacity: 0, translate: `0 ${look.rise}`, filter: `blur(${look.blur})` }
+  const runs = [...row.querySelectorAll<HTMLElement>(".tds-followup")].map((el, i) =>
+    animate(el, el.classList.contains("tds-followup-x") ? [gone] : [{ opacity: 1, translate: "0 0", filter: "blur(0)" }, gone], {
+      duration: dur["followup-exit"],
+      delay: i === picked ? dur["followup-pick"] : 0,
+      easing: ease.std,
+      fill: "forwards",
+    }),
+  )
+  return Promise.all(runs.map((run) => run.finished))
+}
+
 /**
- * Follow-up suggestions, built 1:1 from Keyur's reference (fb-1650): after a reply settles up to three chips sit just
- * above the composer. Hover shows the full prompt, a pick puts it in the composer, × (on row hover) waves the row away
- * for that turn, and typing hides it. A new set morphs the chips in place; a row that grows, or one with nothing
- * before it, simply appears.
+ * Follow-up suggestions: after a reply settles up to three chips sit just above the composer. Hover lifts a chip and
+ * parts its glyph; resting on it shows the full prompt (one grouped tooltip, so moving along the row doesn't re-wait).
+ * A pick puts the prompt in the composer, × (on row hover) waves the row away for that turn, and typing hides it.
+ * A new set morphs the chips in place; a row that grows, or one with nothing before it, rises in.
  */
 export function Followups(props: { chat: string; set: Set | undefined; working: boolean; onPick: (prompt: string) => void }) {
   const [gone, setGone] = createSignal(dismissed())
@@ -33,6 +72,8 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
   /** "swap" while a set morphs in, "rest" once the chips show their final labels: the end signal tests wait on. */
   const [phase, setPhase] = createSignal<"swap" | "rest">("rest")
   let row: HTMLDivElement | undefined
+  /** The chip just picked, so the leave can let it go last. */
+  let picked: number | undefined
   /** The composer says when its draft turns empty or not (typing, a restored draft, a send, a pick), so the row hides while there's a draft. */
   const onDraft = (event: Event) => setTyped(!(event as CustomEvent<boolean>).detail)
   addEventListener("tds-composer-empty", onDraft)
@@ -46,7 +87,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     if (!leaving) return
     leaving = false
     leaveRun++
-    row?.getAnimations().forEach((animation) => animation.cancel())
+    row?.getAnimations({ subtree: true }).forEach((animation) => animation.cancel())
   }
   let run = 0
   onCleanup(() => cancelAnimationFrame(frame))
@@ -56,7 +97,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     const tick = () => (document.querySelector(".tds-transcript :is(.tds-word-wait, .tds-word)") ? (frame = requestAnimationFrame(tick)) : show())
     tick()
   }
-  const widths = () => [...(row?.querySelectorAll<HTMLElement>(".tds-followup:not(.tds-followup-x)") ?? [])].map((el) => el.getBoundingClientRect().width)
+  const widths = () => [...(row?.querySelectorAll<HTMLElement>(CHIPS) ?? [])].map((el) => el.getBoundingClientRect().width)
   let measured: readonly number[] = []
   const remember = () => requestAnimationFrame(() => (measured = widths()))
   onCleanup(() => {
@@ -69,7 +110,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     setChips(next.items.map((cur, i) => ({ cur, prev: before[i] })))
     queueMicrotask(() => {
       if (id !== run || !row) return void (id === run && setPhase("rest"))
-      const now = [...row.querySelectorAll<HTMLElement>(".tds-followup:not(.tds-followup-x)")]
+      const now = [...row.querySelectorAll<HTMLElement>(CHIPS)]
       row.setAttribute("data-measure", "")
       const to = now.map((el) => el.getBoundingClientRect().width)
       row.removeAttribute("data-measure")
@@ -94,11 +135,14 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     })
   }
   const show = (next: Set) => {
-    run++
+    const id = ++run
+    const fresh = !untrack(key) || leaving
     stopLeave()
+    picked = undefined
     setPhase("rest")
     setKey(next.key)
     setChips(next.items.map((cur) => ({ cur })))
+    queueMicrotask(() => id === run && fresh && row && enterChips(row))
     remember()
   }
   let chat = untrack(() => props.chat)
@@ -121,14 +165,15 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     }
     if (!next) {
       cancelAnimationFrame(frame)
-      if (!row || !now) return
+      if (!row || !now || leaving) return
       const id = ++leaveRun
       leaving = true
-      void exit.followup(row)?.finished.then(
+      void leaveChips(row, picked).then(
         () => {
           if (id !== leaveRun || !leaving) return
           run++
           leaving = false
+          picked = undefined
           setKey(undefined)
           setChips([])
           setPhase("rest")
@@ -140,7 +185,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     afterReveal(() => {
       const target = untrack(wanted)
       if (!target) return
-      const mounted = !!untrack(key) && !!row && row.isConnected && row.getAnimations().length === 0
+      const mounted = !!untrack(key) && !!row && row.isConnected && !leaving
       const last = handoff && performance.now() - handoff.at < tokens.motion.duration["followup-handoff"] ? handoff : undefined
       handoff = undefined
       if (mounted && target.items.length <= untrack(chips).length) morph(target, untrack(chips).map((chip) => chip.cur), widths())
@@ -152,6 +197,7 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
     localStorage.setItem(KEY, JSON.stringify([...dismissed(), current].slice(-200)))
     setGone(dismissed())
   }
+  /** Hover comes from mouse pointer events only, so a tap never latches the lifted look. */
   const mouse = (event: PointerEvent) => {
     if (event.pointerType !== "mouse" || !row) return
     const over = event.type === "pointerover" ? (event.target as HTMLElement).closest(".tds-followup") : (event.relatedTarget as HTMLElement | null)?.closest?.(".tds-followup")
@@ -165,24 +211,30 @@ export function Followups(props: { chat: string; set: Set | undefined; working: 
         <div ref={(el) => (row = el)} class="tds-followups" onPointerOver={mouse} onPointerOut={mouse} role="group" aria-label="Suggested next steps" data-key={current()} data-phase={phase()}>
           <For each={chips()} keyed={false}>
             {(chip, index) => (
-              <button
-                type="button"
-                class="tds-followup tds-glass"
-                aria-describedby={`followup-tip-${index}`}
-                onClick={() => props.onPick(chip().cur.prompt)}
-              >
-                <span class="tds-followup-emoji" aria-hidden="true">
-                  <Show when={chip().prev}>{(prev) => <span data-prev="">{prev().emoji}</span>}</Show>
-                  <span data-cur="">{chip().cur.emoji}</span>
-                </span>
-                <span class="tds-followup-label">
-                  <Show when={chip().prev}>{(prev) => <span data-prev="" aria-hidden="true">{prev().label}</span>}</Show>
-                  <span data-cur="">{chip().cur.label}</span>
-                </span>
-                <span id={`followup-tip-${index}`} class="tds-followup-tip tds-glass" role="tooltip">
+              <Tooltip delay={dur["followup-tip-delay"]}>
+                <TooltipTrigger
+                  type="button"
+                  class="tds-followup tds-glass"
+                  onClick={() => {
+                    picked = index
+                    props.onPick(chip().cur.prompt)
+                  }}
+                >
+                  <span class="tds-followup-emoji" aria-hidden="true">
+                    <Show when={chip().prev}>{(prev) => <span data-prev="">{prev().emoji}</span>}</Show>
+                    <span data-cur="" data-glyph={chip().cur.emoji}>
+                      {chip().cur.emoji}
+                    </span>
+                  </span>
+                  <span class="tds-followup-label">
+                    <Show when={chip().prev}>{(prev) => <span data-prev="" aria-hidden="true">{prev().label}</span>}</Show>
+                    <span data-cur="">{chip().cur.label}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent class="tds-followup-tip" data-material="solid" side="top" sideOffset={tokens.size["followup-tip-gap"]}>
                   {chip().cur.prompt}
-                </span>
-              </button>
+                </TooltipContent>
+              </Tooltip>
             )}
           </For>
           <button type="button" class="tds-followup tds-followup-x tds-glass" aria-label="Dismiss suggestions" onClick={() => dismiss(current())}>
