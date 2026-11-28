@@ -24,7 +24,7 @@ const clip = (text: string) => {
 
 /** The words a message ref points at: a user message ("entry:index") or one agent text block ("entry:index:block"). */
 export function excerptOf(entries: readonly RefEntry[], ref: string): string {
-  const [entryId, index, block] = ref.split(":");
+  const [entryId, index, block] = ref.split("#", 1)[0]!.split(":");
   const message = entries.find((entry) => String(entry.id) === entryId)?.model?.[Number(index)];
   if (!message) return "";
   const content = block === undefined ? message.content : Array.isArray(message.content) ? [message.content[Number(block)]] : message.content;

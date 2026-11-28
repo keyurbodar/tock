@@ -3,7 +3,6 @@ import { Dynamic, type JSX } from "@solidjs/web"
 import { opening } from "./chat/lightbox-state"
 import { injectIconSprite } from "@tock/ui/icon"
 import { app, boot } from "./state/app"
-import { Rail } from "./shell/rail"
 import { Centre } from "./shell/centre"
 import { loadNotes } from "./state/notes"
 import { Sidebar } from "./shell/sidebar"
@@ -32,7 +31,6 @@ function Shell(props: { children?: JSX.Element }) {
       <a class="tds-skip" href="#main" onClick={(e) => (e.preventDefault(), document.getElementById("main")?.focus())}>
         Skip to chat
       </a>
-      <Rail />
       <Centre />
       <Boundary surface="sidebar">
         <Sidebar />
