@@ -109,3 +109,8 @@
   .tds-lightbox-stage[data-edge-fade="x"]:has(> img[data-long="x"]:last-child) { place-items: center start; overflow: auto hidden; overscroll-behavior: contain }
   .tds-lightbox-stage > img[data-long] { max-width: none; max-height: none; cursor: auto; touch-action: pan-x pan-y }
 }
+
+/* The lightbox's backdrop: the shared blurred layer, darker for media; lightbox.tsx fades its opacity. */
+@layer components {
+  .tds-lightbox-scrim { position: absolute; inset: 0; z-index: -1; opacity: 0; contain: strict; will-change: opacity; background: var(--tds-backdrop-scrim-media) }
+}

@@ -2,9 +2,13 @@ import "../styles/motion-demo.css"
 import { createSignal, For, Show } from "solid-js"
 import { tokens } from "@tock/tokens"
 import { Orb, type OrbStatus } from "@tock/ui/orb"
+import { StatusGrid, type GridHue, type GridPattern } from "@tock/ui/status-grid"
 import { backdrop, drive, edgeFade, growFrom, MorphIcon, morphFrom, morphInto, raise, recede, scrub, shrinkInto, spring, TextMorph, watchLayout } from "@tock/ui/motion"
 
 const ORB_STATES: OrbStatus[] = ["working", "thinking", "needs", "failed", "done"]
+const GRID_VIDEO: [GridPattern, GridHue][] = [
+  ["embers", "red"], ["ring", "blue"], ["diamond", "amber"], ["arc", "violet"], ["spiral", "blue"], ["arrow", "amber"], ["comet", "violet"], ["glider", "pink"],
+]
 
 /** Dev-only catalogue of the motion primitives (route /__motion). Each card is the smallest working use of one primitive. */
 export default function MotionDemo() {
@@ -105,6 +109,17 @@ export default function MotionDemo() {
         <h2>Raise and Backdrop</h2>
         <For each={[raise[1], raise[2], raise[3]]}>{(cls) => <div class={`tds-motion-tile ${cls}`}>{cls}</div>}</For>
         <button type="button" class="tds-motion-chip tds-raise-2" onClick={() => (backdrop(!dim()), setDim((on) => !on))}>Backdrop</button>
+      </section>
+      <section class="tds-raise-1 tds-motion-grids">
+        <h2>Status grid (the eight reference patterns)</h2>
+        <For each={GRID_VIDEO}>
+          {([pattern, hue]) => (
+            <div class="tds-motion-pill" data-pattern={pattern}>
+              <StatusGrid pattern={pattern} hue={hue} size={tokens.size["grid-demo"]} label={pattern} />
+              <span class="tds-act-text" data-shimmer="" style={{ "--grid-tint": tokens.color.grid[hue].tint }}>Thinking</span>
+            </div>
+          )}
+        </For>
       </section>
       <section class="tds-raise-1 tds-motion-orbs">
         <h2>Orb (row and pin corner)</h2>

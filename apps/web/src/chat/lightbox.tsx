@@ -55,6 +55,7 @@ function Viewer(props: { opening: Opening }) {
   const fail = (item: LightboxItem, message?: string) => setFailed((all) => ({ ...all, [item.id]: message ?? failure(item.name, untrack(found)[item.id]) }))
   let root!: HTMLDivElement
   let stage!: HTMLDivElement
+  let veil!: HTMLDivElement
   let pan = { x: 0, y: 0 }
   let drag: { id: number; x: number; y: number; panX: number; panY: number; touch: boolean; moved: boolean } | undefined
 
@@ -246,7 +247,7 @@ function Viewer(props: { opening: Opening }) {
       setOpening(undefined)
       if (from.isConnected) from.focus({ preventScroll: true, focusVisible: returnFocusVisible } as FocusOptions)
     }
-    animate(root, [{ backgroundColor: "var(--tds-overlay-lightbox)" }, { backgroundColor: "transparent" }], { duration: d["lightbox-fade"], fill: "forwards" })
+    animate(veil, [{ opacity: 1 }, { opacity: 0 }], { duration: d["lightbox-fade"], fill: "forwards" })
     if (!img) return done()
     const settled = img.style.transform
     img.style.transform = ""
@@ -360,7 +361,7 @@ function Viewer(props: { opening: Opening }) {
         const start = flip(from.getBoundingClientRect(), img.getBoundingClientRect())
         root.focus({ preventScroll: true })
         from.style.visibility = "hidden"
-        animate(root, [{ backgroundColor: "transparent" }, { backgroundColor: "var(--tds-overlay-lightbox)" }], { duration: d.swap, fill: "forwards" })
+        animate(veil, [{ opacity: 0 }, { opacity: 1 }], { duration: d.swap, fill: "forwards" })
         animate(img, [{ transform: start, transformOrigin: "0 0", borderRadius: px(tokens.radius["lightbox-from"]) }, { transform: "none", transformOrigin: "0 0", borderRadius: px(tokens.radius.lightbox) }], { duration: d["lightbox-open"], easing: ease.sheet })
         setTimeout(() => setReady(true), prefersReducedMotion() ? 0 : d.menu)
       })
@@ -418,6 +419,7 @@ function Viewer(props: { opening: Opening }) {
         if (!(event.target as HTMLElement).closest("button, .tds-lightbox-stage")) close()
       }}
     >
+      <div ref={veil} class="tds-lightbox-scrim tds-backdrop" aria-hidden="true" />
       <div class="tds-lightbox-bar">
         <b>{item().name}</b>
         <em class="num">
