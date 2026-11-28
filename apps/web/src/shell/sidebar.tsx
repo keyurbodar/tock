@@ -106,7 +106,7 @@ const orbOf = (session: Session) => {
   return status === "working" || status === "needs" ? status : undefined
 }
 
-function Row(props: { session: Session; selected: boolean; multi: boolean; query: string; current: string | undefined; navigate: (to: string) => void }) {
+function Row(props: { session: Session; selected: boolean; multi: boolean; current: string | undefined; navigate: (to: string) => void }) {
   const glyph = () => glyphFor(props.session.id)
   let wrap!: HTMLDivElement
   let row!: HTMLAnchorElement
@@ -370,26 +370,19 @@ function Row(props: { session: Session; selected: boolean; multi: boolean; query
             return
           }
           if (selected().length) setSelected([])
-          if (id !== props.current) morphFrom(e.currentTarget)
         }}
         onDblClick={(e) => (e.target as HTMLElement).closest(".tds-row-title") && setRenaming(untrack(() => props.session.id))}
       >
         <span class={`tds-row-icon ${glyph().hue}`} ref={icon}>
-          <MorphIcon name={glyph().icon} size="row" />
+          <Icon name={glyph().icon} size="row" />
         </span>
         <span class="tds-row-title" dir={dirOf(titleOf(props.session))}>
-          <Show when={renaming() === props.session.id} fallback={<Show when={props.query.trim()} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}><Highlight text={titleOf(props.session)} query={props.query} /></Show>}>
+          <Show when={renaming() === props.session.id} fallback={<TextMorph value={titleOf(props.session)} mode="calm" />}>
             <RenameField session={props.session} />
           </Show>
         </span>
-        <span class="tds-row-time num"><TextMorph value={shortTime(props.session.updatedAt, minute())} mode="calm" /></span>
-        <span class="tds-row-preview" dir={dirOf(previewOf(props.session))}>
-          <Show when={props.query.trim()} fallback={<TextMorph value={previewOf(props.session)} mode="calm" />}>
-            <Highlight text={previewOf(props.session)} query={props.query} />
-          </Show>
-        </span>
         <span class="tds-row-mark" skullet-ignore="">
-          <Show when={orbOf(props.session)}>
+          <Show when={orbOf(props.session)} fallback={<Show when={props.session.meta.unread && !props.selected}><i class="tds-unread" role="img" aria-label="Unread" /></Show>}>
             {(status) => <Orb status={status()} />}
           </Show>
         </span>
