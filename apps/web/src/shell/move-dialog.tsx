@@ -34,7 +34,7 @@ export function MoveDialog() {
   }
   return (
     <Dialog open={moving() !== undefined} onOpenChange={(next) => !next && close()}>
-      <DialogBackdrop class="tds-palette-scrim" />
+      <DialogBackdrop class="tds-scrim tds-backdrop" />
       <DialogContent class="tds-move tds-over">
         <DialogTitle class="sr-only">Move to a folder</DialogTitle>
         <div class="tds-move-search">

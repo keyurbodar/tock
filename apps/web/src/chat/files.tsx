@@ -86,7 +86,7 @@ function MediaTile(props: { file: SentFile; more: number; onOpen: (el: HTMLEleme
   const [broken, setBroken] = createSignal(false)
   const video = () => kindOf(props.file.name) === "video"
   return (
-    <button type="button" class="tds-media-tile" data-kind={video() ? "video" : "image"} data-broken={broken() ? "" : undefined} data-file={props.file.id} aria-label={broken() ? `${props.file.name} can’t be shown` : `Open ${props.file.name}`} onClick={(event) => props.onOpen(event.currentTarget)}>
+    <button type="button" class="tds-media-tile" data-kind={video() ? "video" : "image"} data-broken={broken() ? "" : undefined} data-file={props.file.id} data-react={`file:${props.file.id}`} data-react-label={props.file.name} aria-label={broken() ? `${props.file.name} can’t be shown` : `Open ${props.file.name}`} onClick={(event) => props.onOpen(event.currentTarget)}>
       <Show
         when={video()}
         fallback={
@@ -122,6 +122,8 @@ function DocCard(props: { file: SentFile; onOpen: (el: HTMLElement) => void }) {
       rel="noreferrer"
       class="tds-doc tds-raise-1"
       data-file={props.file.id}
+      data-react={`file:${props.file.id}`}
+      data-react-label={props.file.name}
       data-state={meta()?.state ?? "loading"}
       style={{ "--tds-chip-accent": `var(--tds-chip-${chip().kind})` }}
       onClick={(event) => {
